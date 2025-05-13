@@ -673,6 +673,10 @@ def init_db():
 def reset_db():
     """Reset the database (for development only)"""
     try:
+        # Import all models to ensure they're registered with SQLAlchemy
+        import models
+        from models import User, Bag, Link, Location, Scan
+        
         # Drop all tables
         db.drop_all()
         # Create all tables
