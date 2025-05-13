@@ -368,6 +368,97 @@ footer a:hover {
         width: 100%;
         max-width: 100%;
     }
+    
+    /* Mobile app specific styling */
+    body {
+        padding-top: 60px; /* Space for fixed navbar */
+        -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+        -webkit-touch-callout: none; /* Disable callout on long-press */
+        touch-action: manipulation; /* Optimize for touch */
+    }
+    
+    /* Improve touch targets for mobile */
+    .btn, .nav-link, .form-control, button, a {
+        min-height: 44px; /* Apple's recommended minimum */
+        line-height: 44px; /* Vertically center text */
+        padding: 0 12px;
+    }
+    
+    /* Fix for buttons to match min-height */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Bottom navigation for mobile */
+    .mobile-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        display: flex;
+        justify-content: space-around;
+        padding: 10px 0;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
+    
+    .mobile-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 0.8rem;
+        color: var(--text-color);
+        text-decoration: none;
+    }
+    
+    .mobile-nav-item i {
+        font-size: 1.5rem;
+        margin-bottom: 4px;
+    }
+    
+    .mobile-nav-item.active {
+        color: var(--primary-green);
+    }
+    
+    /* Full-screen modal for mobile */
+    @media (max-width: 576px) {
+        .modal-fullscreen-sm-down {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0 !important;
+            max-width: none;
+        }
+        
+        .modal-fullscreen-sm-down .modal-content {
+            height: 100%;
+            border: 0;
+            border-radius: 0;
+        }
+    }
+    
+    /* Remove hover effects on mobile */
+    .card:hover {
+        transform: none;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Optimize QR Scanner for mobile */
+    #qr-reader {
+        width: 100% !important;
+        border: none !important;
+    }
+    
+    #qr-reader__scan_region {
+        min-height: 300px;
+    }
+    
+    #qr-reader__dashboard {
+        background: white !important;
+    }
 }
 
 /* Custom status badge colors */
