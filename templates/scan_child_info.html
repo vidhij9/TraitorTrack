@@ -2,6 +2,11 @@
 
 {% block title %} - Scan Child Bag{% endblock %}
 
+{% block head %}
+<!-- HTML5-QRCode library for QR code scanning -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-4">
@@ -24,8 +29,22 @@
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
                                 <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="Scan QR code or enter QR ID" required pattern="^C\d+$" autofocus>
+                                <button type="button" class="btn btn-outline-primary" id="startScanBtn">
+                                    <i class="fas fa-camera me-1"></i>Scan
+                                </button>
                             </div>
                             <div class="form-text">Format example: C123</div>
+                        </div>
+                        
+                        <!-- QR Code Scanner Container -->
+                        <div class="card mb-3 d-none" id="scanner-container">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">Scan QR Code</h6>
+                                <button type="button" class="btn-close" id="closeScanner"></button>
+                            </div>
+                            <div class="card-body p-0">
+                                <div id="qr-reader" style="width: 100%"></div>
+                            </div>
                         </div>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">Find Parent Bag</button>
@@ -55,4 +74,96 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const qrIdInput = document.getElementById('qr_id');
+    const startScanBtn = document.getElementById('startScanBtn');
+    const closeScanner = document.getElementById('closeScanner');
+    const scannerContainer = document.getElementById('scanner-container');
+    
+    let html5QrCode = null;
+    
+    // Initialize scanner
+    function initScanner() {
+        html5QrCode = new Html5Qrcode("qr-reader");
+    }
+    
+    // Start scanner
+    function startScanner() {
+        if (!html5QrCode) {
+            initScanner();
+        }
+        
+        scannerContainer.classList.remove('d-none');
+        
+        const qrConfig = { fps: 10, qrbox: { width: 250, height: 250 } };
+        
+        html5QrCode.start(
+            { facingMode: "environment" },
+            qrConfig,
+            onScanSuccess,
+            onScanFailure
+        ).catch(error => {
+            console.error("Error starting scanner:", error);
+            alert("Unable to start the camera. Please check camera permissions.");
+        });
+    }
+    
+    // Stop scanner
+    function stopScanner() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().then(() => {
+                console.log('Scanner stopped');
+                scannerContainer.classList.add('d-none');
+            }).catch(err => {
+                console.error('Error stopping scanner:', err);
+            });
+        }
+    }
+    
+    // Scan success handler
+    function onScanSuccess(decodedText) {
+        // Play a beep sound
+        const beep = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
+        beep.play();
+        
+        // Stop the scanner
+        stopScanner();
+        
+        // Set the QR code value in the input field
+        qrIdInput.value = decodedText;
+        
+        // Validate that it matches the expected pattern for a child bag
+        const childBagRegex = /^C\d+$/;
+        if (childBagRegex.test(decodedText)) {
+            // Auto-submit the form
+            qrIdInput.form.submit();
+        } else {
+            alert('Invalid child bag QR code format. Expected format: C123');
+        }
+    }
+    
+    // Scan failure handler
+    function onScanFailure(error) {
+        // This is called when QR code cannot be scanned
+        // You can ignore this or show a message
+        console.log(`QR scan failure: ${error}`);
+    }
+    
+    // Event listeners
+    startScanBtn.addEventListener('click', startScanner);
+    closeScanner.addEventListener('click', stopScanner);
+    
+    // Clean up on page unload
+    window.addEventListener('beforeunload', function() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop();
+        }
+    });
+});
+</script>
 {% endblock %}
