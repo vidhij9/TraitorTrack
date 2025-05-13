@@ -53,7 +53,7 @@
                     
                     <div class="mb-3">
                         <h6 class="text-muted">Created At</h6>
-                        <p>{{ child_bag.created_at | format_datetime }}</p>
+                        <p>{{ format_datetime(child_bag.created_at) }}</p>
                     </div>
                 </div>
                 <div class="card-footer bg-light">
@@ -151,7 +151,7 @@
                             <tbody>
                                 {% for scan in recent_scans %}
                                 <tr>
-                                    <td>{{ scan.timestamp | format_datetime }}</td>
+                                    <td>{{ format_datetime(scan.timestamp) }}</td>
                                     <td>
                                         {% if scan.scan_type == 'parent' %}
                                         <span class="badge bg-primary">Parent</span>
