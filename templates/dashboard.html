@@ -1,0 +1,220 @@
+{% extends "layout.html" %}
+
+{% block title %} - Dashboard{% endblock %}
+
+{% block head %}
+<style>
+    .status-card {
+        transition: all 0.3s ease;
+    }
+    .status-card:hover {
+        transform: translateY(-5px);
+    }
+    .map-container {
+        height: 400px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Supply Chain Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-data">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-file-export"></i> Export
+            </button>
+        </div>
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-calendar"></i> Time Period
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" data-period="day">Today</a></li>
+                <li><a class="dropdown-item" href="#" data-period="week">This Week</a></li>
+                <li><a class="dropdown-item" href="#" data-period="month">This Month</a></li>
+                <li><a class="dropdown-item" href="#" data-period="year">This Year</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" data-period="all">All Time</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Status Cards -->
+<div class="row mb-4" id="status-cards">
+    <div class="col-md-3 mb-4">
+        <div class="card bg-dark text-white status-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted">Total Products</h6>
+                        <h2 class="card-text" id="total-products">Loading...</h2>
+                    </div>
+                    <div class="bg-primary rounded p-3">
+                        <i class="fas fa-box fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card bg-dark text-white status-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted">Total Scans</h6>
+                        <h2 class="card-text" id="total-scans">Loading...</h2>
+                    </div>
+                    <div class="bg-info rounded p-3">
+                        <i class="fas fa-qrcode fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card bg-dark text-white status-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted">Delivered</h6>
+                        <h2 class="card-text" id="delivered-count">Loading...</h2>
+                    </div>
+                    <div class="bg-success rounded p-3">
+                        <i class="fas fa-check-circle fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card bg-dark text-white status-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted">In Transit</h6>
+                        <h2 class="card-text" id="in-transit-count">Loading...</h2>
+                    </div>
+                    <div class="bg-warning rounded p-3">
+                        <i class="fas fa-truck fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Scan Status Chart -->
+    <div class="col-md-8 mb-4">
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h5 class="mb-0">Scan Activity</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="scan-activity-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Distribution Chart -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Status Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="status-distribution-chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Location Map -->
+    <div class="col-md-6 mb-4">
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h5 class="mb-0">Location Map</h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="location-map" class="map-container">
+                    <div class="d-flex justify-content-center align-items-center h-100">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading map...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Locations Stats -->
+    <div class="col-md-6 mb-4">
+        <div class="card bg-dark">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Location Statistics</h5>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        Filter
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" data-filter="all">All Locations</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="warehouse">Warehouses</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="distribution">Distribution Centers</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="retail">Retail Locations</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="location-stats-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Scans Table -->
+<div class="card bg-dark mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Recent Scans</h5>
+        <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="recent-scans-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>QR ID</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>User</th>
+                        <th>Timestamp</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="7" class="text-center">Loading recent scans...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css" />
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}

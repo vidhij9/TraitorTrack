@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+
+{% block title %} - Scan QR Code{% endblock %}
+
+{% block head %}
+<!-- HTML5-QRCode library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+    #reader {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    #scan-result {
+        display: none;
+    }
+    .scan-icon {
+        font-size: 50px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card bg-dark mb-4">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-qrcode me-2"></i>Scan QR Code</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="text-center mb-4">
+                            <div class="scan-icon text-primary">
+                                <i class="fas fa-qrcode"></i>
+                            </div>
+                            <h4>Scan a Product QR Code</h4>
+                            <p class="text-muted">Position the QR code within the scanner to track product movement</p>
+                        </div>
+                        
+                        <div id="reader" class="mb-4"></div>
+                        
+                        <div class="d-flex justify-content-center mb-3">
+                            <button class="btn btn-primary me-2" id="start-scanner">
+                                <i class="fas fa-play me-2"></i>Start Scanner
+                            </button>
+                            <button class="btn btn-secondary" id="stop-scanner">
+                                <i class="fas fa-stop me-2"></i>Stop Scanner
+                            </button>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-info-circle fa-lg"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading">Scanner Tips</h5>
+                                    <ul class="mb-0">
+                                        <li>Ensure the QR code is well-lit</li>
+                                        <li>Hold the camera steady</li>
+                                        <li>Position the entire QR code in the scanner</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="scan-form">
+                            <h4 class="mb-3">Scan Details</h4>
+                            <p class="text-muted">Fill in the scan details and submit to log the movement</p>
+                            
+                            <form action="{{ url_for('log_scan') }}" method="post">
+                                <div class="mb-3">
+                                    <label for="qr_id" class="form-label">QR Code ID</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-qrcode"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="QR ID (scanned or enter manually)" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="location_id" class="form-label">Location</label>
+                                    <select class="form-select" id="location_id" name="location_id" required>
+                                        <option value="" disabled selected>Select a location</option>
+                                        {% for location in locations %}
+                                        <option value="{{ location.id }}">{{ location.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">Status</label>
+                                    <select class="form-select" id="status" name="status" required>
+                                        <option value="" disabled selected>Select a status</option>
+                                        <option value="received">Received</option>
+                                        <option value="in-transit">In Transit</option>
+                                        <option value="delivered">Delivered</option>
+                                        <option value="returned">Returned</option>
+                                        <option value="damaged">Damaged</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Optional notes about this scan"></textarea>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Log Scan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div id="scan-result">
+                            <div class="alert alert-success mb-4">
+                                <h4 class="alert-heading"><i class="fas fa-check-circle me-2"></i>QR Code Detected!</h4>
+                                <p>QR Code ID: <strong id="result-qrid"></strong></p>
+                                <p class="mb-0">Please complete the form to log this scan.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h4 class="mb-0">Recent Scans</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="recent-user-scans">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>QR ID</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" class="text-center">Loading your recent scans...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/scan.js') }}"></script>
+{% endblock %}

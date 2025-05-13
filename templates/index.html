@@ -1,0 +1,213 @@
+{% extends "layout.html" %}
+
+{% block title %} - Home{% endblock %}
+
+{% block content %}
+<div class="jumbotron bg-dark rounded p-4 mb-4">
+    <div class="row">
+        <div class="col-md-6">
+            <h1 class="display-4">Supply Chain Traceability</h1>
+            <p class="lead">Track your products through the entire supply chain using QR codes</p>
+            
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('scan') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-qrcode me-2"></i> Scan QR Code
+            </a>
+            {% else %}
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-sign-in-alt me-2"></i> Login to Start
+            </a>
+            {% endif %}
+        </div>
+        <div class="col-md-6 text-center">
+            <img src="https://pixabay.com/get/g054a1e6f890a0a93cd3d766280faad7e9bcbe8bf61277d11edda6cb116fc489dfc023646b41eb5fc8c16a9952d688cf06877e05c6a8c2a9803682193cf5a5e96_1280.jpg" 
+                 alt="Supply Chain Logistics" 
+                 class="img-fluid rounded shadow-sm" 
+                 style="max-height: 300px;">
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-dark h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-qrcode fa-4x mb-3 text-primary"></i>
+                <h3 class="card-title">QR Scanning</h3>
+                <p class="card-text">Scan product QR codes with your mobile or web camera to track movements.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-map-marker-alt fa-4x mb-3 text-primary"></i>
+                <h3 class="card-title">Location Tracking</h3>
+                <p class="card-text">Monitor product movements from warehouse to final destination.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-4x mb-3 text-primary"></i>
+                <h3 class="card-title">Analytics Dashboard</h3>
+                <p class="card-text">Gain insights with real-time analytics and visualization tools.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<div class="row">
+    <div class="col-md-6">
+        <h2 class="mb-4">How It Works</h2>
+        <div class="row mb-4">
+            <div class="col-md-2 text-center">
+                <div class="bg-primary rounded-circle p-3 d-inline-block">
+                    <i class="fas fa-tag text-white"></i>
+                </div>
+            </div>
+            <div class="col-md-10">
+                <h4>1. Label Products</h4>
+                <p>Assign unique QR codes to your products at the source.</p>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="col-md-2 text-center">
+                <div class="bg-primary rounded-circle p-3 d-inline-block">
+                    <i class="fas fa-mobile-alt text-white"></i>
+                </div>
+            </div>
+            <div class="col-md-10">
+                <h4>2. Scan Codes</h4>
+                <p>Scan codes at each checkpoint using our web or mobile interface.</p>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="col-md-2 text-center">
+                <div class="bg-primary rounded-circle p-3 d-inline-block">
+                    <i class="fas fa-database text-white"></i>
+                </div>
+            </div>
+            <div class="col-md-10">
+                <h4>3. Track Movement</h4>
+                <p>Monitor product journey through your supply chain in real-time.</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-2 text-center">
+                <div class="bg-primary rounded-circle p-3 d-inline-block">
+                    <i class="fas fa-chart-pie text-white"></i>
+                </div>
+            </div>
+            <div class="col-md-10">
+                <h4>4. Analyze Data</h4>
+                <p>Gain insights with comprehensive analytics and reporting tools.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <h2 class="mb-4">System Statistics</h2>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card bg-dark text-center mb-4">
+                    <div class="card-body">
+                        <h3 class="display-4 text-primary">{{ total_products }}</h3>
+                        <p class="text-muted">Products</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark text-center mb-4">
+                    <div class="card-body">
+                        <h3 class="display-4 text-primary">{{ total_scans }}</h3>
+                        <p class="text-muted">Scans</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark text-center mb-4">
+                    <div class="card-body">
+                        <h3 class="display-4 text-primary">{{ total_locations }}</h3>
+                        <p class="text-muted">Locations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_scans %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scan in recent_scans %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('product_detail', qr_id=scan.product.qr_id) }}">
+                                        {{ scan.product.name }}
+                                    </a>
+                                </td>
+                                <td>{{ scan.location.name }}</td>
+                                <td>
+                                    <span class="badge {{ 'bg-success' if scan.status == 'delivered' else 'bg-info' if scan.status == 'in-transit' else 'bg-warning' }}">
+                                        {{ scan.status }}
+                                    </span>
+                                </td>
+                                <td>{{ format_datetime(scan.timestamp) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No recent activity</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<div class="row mb-4">
+    <div class="col-md-4 text-center">
+        <img src="https://pixabay.com/get/g07fbcf76668ea5239ad5e2a2adf882c8a389f33b2fbeaef3c157e86a644bc31607e59276e0c0c5efb41ecc68140f7ced3e694fad3bb1c33d79f31266bd5e728e_1280.jpg" 
+             alt="Supply Chain Logistics" 
+             class="img-fluid rounded mb-3 shadow" 
+             style="max-height: 200px;">
+        <h4>Warehouse Management</h4>
+        <p>Comprehensive tracking from production to storage</p>
+    </div>
+    <div class="col-md-4 text-center">
+        <img src="https://pixabay.com/get/ged22498f9b02f867221859ae4d6af6539f7670f94739e94fe9b11092c93b723b1a0713a36ff44b29a9a18f030c85ddf57212acff1b821e4bb16dd972509342ea_1280.jpg" 
+             alt="Warehouse Scanning" 
+             class="img-fluid rounded mb-3 shadow" 
+             style="max-height: 200px;">
+        <h4>Scan & Track</h4>
+        <p>Easily scan products at any point in the supply chain</p>
+    </div>
+    <div class="col-md-4 text-center">
+        <img src="https://pixabay.com/get/gdb58a189c29215cd827aa57c989212d4dc1a039206d3caed761340b3d4ae81cf8ccac1d0770e756c1281d10903a6ed681b701ac7b434d40832dc02a9de73a3d9_1280.jpg" 
+             alt="Product Tracking Dashboard" 
+             class="img-fluid rounded mb-3 shadow" 
+             style="max-height: 200px;">
+        <h4>Data Analytics</h4>
+        <p>Powerful insights to optimize your supply chain</p>
+    </div>
+</div>
+{% endblock %}

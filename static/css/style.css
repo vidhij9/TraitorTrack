@@ -1,0 +1,118 @@
+/* Custom styling for the Supply Chain Tracker app */
+
+/* General styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.map-container {
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Custom marker styles for maps */
+.marker-pin {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.marker-pin::after {
+    content: '';
+    width: 0;
+    height: 0;
+    position: absolute;
+    bottom: -10px;
+    left: 6px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 10px solid currentColor;
+}
+
+/* QR Code reader customization */
+#reader {
+    border: 2px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#reader video {
+    border-radius: 4px;
+}
+
+/* Dashboard card hover effects */
+.status-card {
+    border-left: 5px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.status-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Timeline styling */
+.timeline-item {
+    position: relative;
+    padding-bottom: 15px;
+}
+
+.timeline-content {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Footer styling */
+footer {
+    margin-top: auto;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .timeline::before {
+        left: 10px;
+    }
+    
+    .timeline-marker {
+        left: -18px;
+    }
+    
+    #reader {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* Custom status badge colors */
+.status-received {
+    color: var(--bs-info);
+}
+
+.status-in-transit {
+    color: var(--bs-warning);
+}
+
+.status-delivered {
+    color: var(--bs-success);
+}
+
+.status-returned, .status-damaged {
+    color: var(--bs-danger);
+}
+
+/* Custom QR code container */
+#qrcode {
+    background-color: white;
+    padding: 10px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* Chart container styling */
+canvas {
+    margin: 0 auto;
+}
