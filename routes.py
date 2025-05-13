@@ -5,8 +5,19 @@ import datetime
 from flask import render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
+from functools import wraps
 from app import app, db
 from models import User, UserRole, Bag, BagType, Link, Location, Scan
+
+def admin_required(func):
+    """Decorator to restrict access to admin users only"""
+    @wraps(func)
+    def decorated_view(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin():
+            flash('You need administrator privileges to access this page.', 'danger')
+            return redirect(url_for('index'))
+        return func(*args, **kwargs)
+    return decorated_view
 
 logger = logging.getLogger(__name__)
 
@@ -445,20 +456,26 @@ def scan_complete():
                           expected_count=child_bags_expected)
 
 @app.route('/parent_bags')
+@login_required
+@admin_required
 def parent_bags():
-    """List of all parent bags and their child bags"""
+    """List of all parent bags and their child bags (admin only)"""
     parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).all()
     return render_template('parent_bags.html', parent_bags=parent_bags, Scan=Scan)
 
 @app.route('/child_bags')
+@login_required
+@admin_required
 def child_bags():
-    """List of all child bags and their parent bag"""
+    """List of all child bags and their parent bag (admin only)"""
     child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
     return render_template('child_bags.html', child_bags=child_bags, Scan=Scan)
 
 @app.route('/bag/<qr_id>')
+@login_required
+@admin_required
 def bag_detail(qr_id):
-    """Bag detail page showing scan history"""
+    """Bag detail page showing scan history (admin only)"""
     # Try to find the bag (could be parent or child)
     bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
     
