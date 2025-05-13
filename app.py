@@ -25,8 +25,11 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # Needed for url_for
 # Configure the database connection
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
+    "pool_size": 30,  # Increase connection pool size for high concurrency
+    "max_overflow": 40,  # Allow additional connections when pool is full
+    "pool_recycle": 300,  # Recycle connections every 5 minutes
+    "pool_pre_ping": True,  # Verify connections before using them
+    "pool_timeout": 30,  # Maximum time to wait for connection from pool
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
