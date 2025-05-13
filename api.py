@@ -249,15 +249,80 @@ def seed_test_data():
             admin_user.username = "admin"
             admin_user.email = "admin@example.com"
             admin_user.set_password("adminpassword")
-            admin_user.role = UserRole.ADMIN.value
+            admin_user.role = "admin"  # Using string directly for LSP compatibility
             admin_user.verified = True
             db.session.add(admin_user)
+        
+        # Make sure we have the first location
+        warehouse_location = Location.query.filter_by(name="Warehouse A").first()
+        if not warehouse_location and locations:
+            warehouse_location = locations[0]
+        elif not warehouse_location:
+            warehouse_location = Location()
+            warehouse_location.name = "Warehouse A"
+            warehouse_location.address = "123 Main St"
+            db.session.add(warehouse_location)
+            db.session.commit()
+        
+        # Create parent and child bags for testing parent-child relationship lookups
+        parent_bags = []
+        for i in range(1, 4):  # Create 3 parent bags
+            parent_qr = f"P{100+i}-10"  # P101-10, P102-10, P103-10
+            
+            # Check if this parent bag already exists
+            existing_parent = Bag.query.filter_by(qr_id=parent_qr).first()
+            if not existing_parent:
+                parent_bag = Bag()
+                parent_bag.qr_id = parent_qr
+                parent_bag.name = f"Parent Batch {i}"
+                parent_bag.type = "parent"  # Using string directly for LSP compatibility
+                parent_bag.child_count = 10
+                parent_bag.notes = f"Test parent bag {i} with 10 expected children"
+                
+                db.session.add(parent_bag)
+                db.session.flush()  # Get the ID without committing
+                parent_bags.append(parent_bag)
+            else:
+                parent_bags.append(existing_parent)
+                
+        # Create child bags linked to each parent
+        for parent_bag in parent_bags:
+            # Extract parent sequential number from QR ID (P101-10 -> 101)
+            parent_num = int(parent_bag.qr_id.split('-')[0][1:])
+            
+            # Create 5 child bags for each parent
+            for j in range(1, 6):
+                child_qr = f"C{parent_num}{j}"  # e.g. C1011, C1012, C1013, etc.
+                
+                # Check if this child bag already exists
+                existing_child = Bag.query.filter_by(qr_id=child_qr).first()
+                if not existing_child:
+                    child_bag = Bag()
+                    child_bag.qr_id = child_qr
+                    child_bag.name = f"Child Package {parent_num}{j}"
+                    child_bag.type = "child"  # Using string directly for LSP compatibility
+                    child_bag.parent_id = parent_bag.id
+                    child_bag.notes = f"Test child bag {j} for parent {parent_bag.qr_id}"
+                    
+                    db.session.add(child_bag)
+                    
+                    # Create a scan record for this child bag
+                    if admin_user and warehouse_location:
+                        scan = Scan()
+                        scan.child_bag_id = child_bag.id
+                        scan.parent_bag_id = parent_bag.id
+                        scan.user_id = admin_user.id
+                        scan.location_id = warehouse_location.id
+                        scan.scan_type = "child"
+                        scan.notes = f"Test scan of child bag {child_qr}"
+                        
+                        db.session.add(scan)
             
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': 'Test data seeded successfully'
+            'message': 'Test data seeded successfully with parent-child bag relationships'
         })
         
     except Exception as e:
