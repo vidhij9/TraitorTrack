@@ -34,29 +34,30 @@ body {
 .navbar {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    background-color: var(--primary-green) !important;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     padding: 0.7rem 1rem;
+    border-bottom: 2px solid var(--primary-light);
 }
 
 .navbar-brand {
     font-weight: 600;
     letter-spacing: -0.5px;
-    color: white !important;
+    color: var(--primary-green) !important;
 }
 
 .navbar-brand i {
-    color: var(--sunny-yellow);
+    color: var(--primary-green);
     font-size: 1.2em;
 }
 
 .nav-link {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: var(--text-color) !important;
     font-weight: 500;
 }
 
 .nav-link:hover {
-    color: white !important;
+    color: var(--primary-green) !important;
 }
 
 /* Card styling */
@@ -162,6 +163,11 @@ body {
     background-color: var(--water-blue) !important;
 }
 
+.card.bg-dark {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    color: var(--text-color) !important;
+}
+
 .bg-dark {
     background-color: rgba(255, 255, 255, 0.9) !important;
     color: var(--text-color) !important;
@@ -230,19 +236,35 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 1.5rem;
 }
 
+/* Custom table styling */
 .table {
     color: var(--text-color);
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* Custom table styling */
 .table th {
     background-color: var(--primary-green);
     color: white;
     border-color: var(--primary-light);
+    padding: 12px 15px;
+    font-weight: 500;
+}
+
+.table td {
+    padding: 10px 15px;
+    border-color: rgba(129, 199, 132, 0.2);
 }
 
 .table-striped tbody tr:nth-of-type(odd) {
     background-color: rgba(129, 199, 132, 0.1);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(129, 199, 132, 0.15);
 }
 
 /* Animation effects */
@@ -316,19 +338,19 @@ h1, h2, h3, h4, h5, h6 {
 /* Footer styling */
 footer {
     margin-top: auto;
-    color: var(--text-color);
-    background-color: var(--primary-green) !important;
-    color: white !important;
-    border-top: 3px solid var(--primary-dark);
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    color: var(--text-color) !important;
+    border-top: 3px solid var(--primary-light);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 }
 
 footer a {
-    color: var(--sunny-yellow) !important;
+    color: var(--primary-green) !important;
     text-decoration: none;
 }
 
 footer a:hover {
-    color: white !important;
+    color: var(--primary-dark) !important;
     text-decoration: underline;
 }
 
