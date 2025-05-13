@@ -35,10 +35,15 @@
                             <td><code>{{ bag.qr_id }}</code></td>
                             <td>{{ bag.name or "Child Bag" }}</td>
                             <td>
-                                {% if bag.parent %}
-                                <a href="{{ url_for('bag_detail', qr_id=bag.parent.qr_id) }}">
-                                    <span class="badge bg-primary">{{ bag.parent.qr_id }}</span>
+                                {% if bag.parent_id %}
+                                {% set parent = bag.parent_bag if bag.parent_bag else none %}
+                                {% if parent %}
+                                <a href="{{ url_for('bag_detail', qr_id=parent.qr_id) }}" class="text-decoration-none">
+                                    <span class="badge bg-primary">{{ parent.qr_id }}</span>
                                 </a>
+                                {% else %}
+                                <span class="badge bg-warning">Invalid Parent (ID: {{ bag.parent_id }})</span>
+                                {% endif %}
                                 {% else %}
                                 <span class="badge bg-secondary">No parent</span>
                                 {% endif %}

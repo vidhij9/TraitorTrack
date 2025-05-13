@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+
+{% block title %} - Scan Child Bag{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-4">Scan Child Bag for Information</h1>
+            <p class="lead">Scan a child bag to retrieve information about the linked parent bag</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Scan Child Bag QR Code</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('process_child_info_scan') }}">
+                        <div class="mb-3">
+                            <label for="qr_id" class="form-label">Child Bag QR ID</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
+                                <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="Scan QR code or enter QR ID" required pattern="^C\d+$" autofocus>
+                            </div>
+                            <div class="form-text">Format example: C123</div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Find Parent Bag</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li>Scan the QR code on the child bag</li>
+                        <li>The system will find the associated parent bag</li>
+                        <li>Information about both the child and parent bag will be displayed</li>
+                    </ol>
+                    <p class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This feature is available to admin users only
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -543,6 +543,62 @@ def child_bags():
     child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
     return render_template('child_bags.html', child_bags=child_bags, Scan=Scan)
 
+@app.route('/scan_child_info')
+@login_required
+@admin_required
+def scan_child_info():
+    """Page to scan a child bag and get information about linked parent (admin only)"""
+    return render_template('scan_child_info.html')
+
+@app.route('/process_child_info_scan', methods=['POST'])
+@login_required
+@admin_required
+def process_child_info_scan():
+    """Process a child bag scan and retrieve parent information"""
+    if request.method == 'POST':
+        qr_id = request.form.get('qr_id')
+        
+        # Validate the QR code format
+        if not qr_id or not CHILD_QR_PATTERN.match(qr_id):
+            flash('Invalid child bag QR code format! Should be like "C123".', 'danger')
+            return redirect(url_for('scan_child_info'))
+        
+        # Get the child bag
+        child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
+        
+        if not child_bag:
+            # Child bag not found
+            flash(f'Child bag with ID {qr_id} not found!', 'warning')
+            return render_template('child_parent_info.html', qr_id=qr_id, child_bag=None)
+        
+        # Get the parent bag (if linked)
+        parent_bag = None
+        child_count = 0
+        bill = None
+        
+        if child_bag.parent_id:
+            parent_bag = Bag.query.filter_by(id=child_bag.parent_id, type=BagType.PARENT.value).first()
+            
+            if parent_bag:
+                # Count actual child bags linked to this parent
+                child_count = Bag.query.filter_by(parent_id=parent_bag.id, type=BagType.CHILD.value).count()
+                
+                # Check for linked bill
+                bill = Link.query.filter_by(parent_id=parent_bag.id).first()
+        
+        # Get recent scans for this child bag (limited to 5)
+        recent_scans = Scan.query.filter_by(child_bag_id=child_bag.id).order_by(Scan.timestamp.desc()).limit(5).all()
+        
+        return render_template('child_parent_info.html', 
+                               qr_id=qr_id,
+                               child_bag=child_bag,
+                               parent_bag=parent_bag,
+                               child_count=child_count,
+                               bill=bill,
+                               recent_scans=recent_scans)
+    
+    return redirect(url_for('scan_child_info'))
+
 @app.route('/bag/<qr_id>')
 @login_required
 @admin_required
