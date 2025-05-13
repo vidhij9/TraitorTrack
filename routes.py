@@ -2,12 +2,14 @@ import logging
 import re
 import uuid
 import datetime
-from flask import render_template, redirect, url_for, flash, request, jsonify, session
+from flask import render_template, redirect, url_for, flash, request, jsonify, session, make_response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from functools import wraps
 from app import app, db
 from models import User, UserRole, Bag, BagType, Link, Location, Scan
+from template_utils import render_cached_template, cached_template
+from cache_utils import invalidate_cache
 
 def admin_required(func):
     """Decorator to restrict access to admin users only"""
@@ -32,19 +34,42 @@ CHILD_QR_PATTERN = re.compile(r'^C\d+$')
 @login_required
 def index():
     """Home page - requires login"""
-    # Get statistics for display
-    recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(5).all()
-    total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
-    total_child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
-    total_scans = Scan.query.count()
-    total_locations = Location.query.count()
-    
-    return render_template('index.html', 
-                          recent_scans=recent_scans,
-                          total_parent_bags=total_parent_bags,
-                          total_child_bags=total_child_bags,
-                          total_scans=total_scans,
-                          total_locations=total_locations)
+    # Using cached dashboard data
+    return render_cached_template(
+        'index.html',
+        timeout=30,  # Cache dashboard for 30 seconds
+        recent_scans=get_recent_scans(),
+        total_parent_bags=get_parent_bag_count(),
+        total_child_bags=get_child_bag_count(),
+        total_scans=get_scan_count(),
+        total_locations=get_location_count()
+    )
+
+# Cached data access functions for better performance
+@cached_template(timeout=30)
+def get_recent_scans():
+    """Get recent scans with caching"""
+    return Scan.query.order_by(Scan.timestamp.desc()).limit(5).all()
+
+@cached_template(timeout=60)
+def get_parent_bag_count():
+    """Get parent bag count with caching"""
+    return Bag.query.filter_by(type=BagType.PARENT.value).count()
+
+@cached_template(timeout=60)
+def get_child_bag_count():
+    """Get child bag count with caching"""
+    return Bag.query.filter_by(type=BagType.CHILD.value).count()
+
+@cached_template(timeout=60)
+def get_scan_count():
+    """Get total scan count with caching"""
+    return Scan.query.count()
+
+@cached_template(timeout=60)
+def get_location_count():
+    """Get total location count with caching"""
+    return Location.query.count()
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -481,8 +506,18 @@ def scan_complete():
 @admin_required
 def parent_bags():
     """List of all parent bags and their child bags (admin only)"""
-    parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).all()
-    return render_template('parent_bags.html', parent_bags=parent_bags, Scan=Scan)
+    # Use cached template for better performance under high load
+    return render_cached_template(
+        'parent_bags.html', 
+        timeout=30,  # Cache for 30 seconds
+        parent_bags=get_all_parent_bags(),
+        Scan=Scan
+    )
+
+@cached_template(timeout=30)
+def get_all_parent_bags():
+    """Get all parent bags with caching for better performance"""
+    return Bag.query.filter_by(type=BagType.PARENT.value).all()
 
 @app.route('/child_bags')
 @login_required
