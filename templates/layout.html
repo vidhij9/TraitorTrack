@@ -156,6 +156,38 @@
     <!-- Chart.js for visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
     
+    <!-- Bill search modal functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchBillBtn = document.getElementById('searchBillBtn');
+            const billIdInput = document.getElementById('billIdSearch');
+            const searchBillForm = document.getElementById('searchBillForm');
+            
+            if (searchBillBtn && billIdInput && searchBillForm) {
+                searchBillBtn.addEventListener('click', function() {
+                    if (billIdInput.value.trim() !== '') {
+                        const billId = billIdInput.value.trim();
+                        const url = "{{ url_for('bill_detail', bill_id='') }}" + billId;
+                        window.location.href = url;
+                    } else {
+                        billIdInput.classList.add('is-invalid');
+                    }
+                });
+                
+                billIdInput.addEventListener('input', function() {
+                    billIdInput.classList.remove('is-invalid');
+                });
+                
+                billIdInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchBillBtn.click();
+                    }
+                });
+            }
+        });
+    </script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>
