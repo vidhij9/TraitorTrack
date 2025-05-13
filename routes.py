@@ -304,8 +304,9 @@ def process_parent_scan():
 
 @app.route('/scan_child')
 @login_required
+@admin_required
 def scan_child():
-    """Scan child bag QR code"""
+    """Scan child bag QR code (admin only)"""
     # Ensure a location and parent bag have been selected
     if 'current_location_id' not in session:
         flash('Please select a location first!', 'warning')
@@ -339,8 +340,9 @@ def scan_child():
 
 @app.route('/process_child_scan', methods=['POST'])
 @login_required
+@admin_required
 def process_child_scan():
-    """Process child bag scan"""
+    """Process child bag scan (admin only)"""
     if request.method == 'POST':
         qr_id = request.form.get('qr_id')
         notes = request.form.get('notes', '')
@@ -428,8 +430,9 @@ def process_child_scan():
 
 @app.route('/scan_complete')
 @login_required
+@admin_required
 def scan_complete():
-    """Scanning process complete page"""
+    """Scanning process complete page (admin only)"""
     # Ensure we have valid session data
     if 'current_parent_bag_id' not in session or 'child_bags_scanned' not in session:
         flash('Invalid session state! Please start over.', 'warning')
@@ -509,8 +512,9 @@ def bag_detail(qr_id):
 
 @app.route('/link_to_bill/<parent_qr_id>', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def link_to_bill(parent_qr_id):
-    """Link a parent bag to a bill ID"""
+    """Link a parent bag to a bill ID (admin only)"""
     parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first_or_404()
     
     # Check if bag is already linked to a bill
@@ -554,8 +558,10 @@ def link_to_bill(parent_qr_id):
                           existing_link=existing_link)
 
 @app.route('/bill/<bill_id>')
+@login_required
+@admin_required
 def bill_detail(bill_id):
-    """Show all parent bags linked to a bill"""
+    """Show all parent bags linked to a bill (admin only)"""
     links = Link.query.filter_by(bill_id=bill_id).all()
     
     if not links:
