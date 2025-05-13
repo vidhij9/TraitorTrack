@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block title %}Bill Detail{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="bi bi-receipt"></i> Bill: {{ bill_id }}
+                        </h3>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-arrow-left"></i> Back to Home
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Linked Parent Bags</h5>
+                    <p>This bill has {{ parent_bags|length }} parent bags linked to it.</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>QR ID</th>
+                                    <th>Name</th>
+                                    <th>Child Count</th>
+                                    <th>Created At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bag in parent_bags %}
+                                <tr>
+                                    <td>{{ bag.qr_id }}</td>
+                                    <td>{{ bag.name }}</td>
+                                    <td>{{ bag.child_count }}</td>
+                                    <td>{{ format_datetime(bag.created_at) }}</td>
+                                    <td>
+                                        <a href="{{ url_for('bag_detail', qr_id=bag.qr_id) }}" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

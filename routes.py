@@ -220,6 +220,26 @@ def process_parent_scan():
             flash('QR code is required!', 'danger')
             return redirect(url_for('scan_parent'))
         
+        # Validate parent QR code format (e.g., "P123-10")
+        if not PARENT_QR_PATTERN.match(qr_id):
+            flash('Invalid QR code format. Parent bag QR code should be in format P123-10', 'danger')
+            return redirect(url_for('scan_parent'))
+        
+        # Parse child count from QR code
+        parts = qr_id.split('-')
+        if len(parts) != 2:
+            flash('Invalid QR code format. Expected format: P123-10', 'danger')
+            return redirect(url_for('scan_parent'))
+        
+        try:
+            child_count = int(parts[1])
+            if child_count <= 0:
+                flash('Parent bag must have at least one child', 'danger')
+                return redirect(url_for('scan_parent'))
+        except ValueError:
+            flash('Invalid child count in QR code', 'danger')
+            return redirect(url_for('scan_parent'))
+        
         # Ensure a location has been selected
         if 'current_location_id' not in session:
             flash('Please select a location first!', 'warning')
@@ -228,28 +248,29 @@ def process_parent_scan():
         location_id = session['current_location_id']
         
         # Check if parent bag exists, create if not
-        parent_bag = ParentBag.query.filter_by(qr_id=qr_id).first()
+        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
         
         if not parent_bag:
             # Create new parent bag
-            parent_bag = ParentBag(
-                qr_id=qr_id,
-                name=f"Parent Bag {qr_id}",  # Default name
-                notes=notes
-            )
+            parent_bag = Bag()
+            parent_bag.qr_id = qr_id
+            parent_bag.name = f"Parent Bag {qr_id}"  # Default name
+            parent_bag.notes = notes
+            parent_bag.type = BagType.PARENT.value
+            parent_bag.child_count = child_count
+            
             db.session.add(parent_bag)
             db.session.commit()
-            logger.debug(f"Created new parent bag with QR ID: {qr_id}")
+            logger.debug(f"Created new parent bag with QR ID: {qr_id}, expecting {child_count} children")
         
         # Record the scan
         try:
-            scan = Scan(
-                parent_bag_id=parent_bag.id,
-                user_id=current_user.id,
-                location_id=location_id,
-                scan_type='parent',
-                notes=notes
-            )
+            scan = Scan()
+            scan.parent_bag_id = parent_bag.id
+            scan.user_id = current_user.id
+            scan.location_id = location_id
+            scan.scan_type = 'parent'
+            scan.notes = notes
             
             db.session.add(scan)
             db.session.commit()
@@ -257,8 +278,9 @@ def process_parent_scan():
             # Store the parent bag ID in session
             session['current_parent_bag_id'] = parent_bag.id
             session['child_bags_scanned'] = []
+            session['child_bags_expected'] = child_count  # Store expected count
             
-            flash(f'Parent bag {qr_id} scanned successfully! Now scan child bags.', 'success')
+            flash(f'Parent bag {qr_id} scanned successfully! Now scan {child_count} child bags.', 'success')
             return redirect(url_for('scan_child'))
             
         except Exception as e:
@@ -284,7 +306,7 @@ def scan_child():
     
     # Get the current location and parent bag
     location = Location.query.get(session['current_location_id'])
-    parent_bag = ParentBag.query.get(session['current_parent_bag_id'])
+    parent_bag = Bag.query.filter_by(id=session['current_parent_bag_id'], type=BagType.PARENT.value).first()
     
     if not location or not parent_bag:
         flash('Invalid session data! Please start over.', 'danger')
@@ -292,8 +314,9 @@ def scan_child():
     
     # Calculate progress
     child_bags_scanned = session.get('child_bags_scanned', [])
-    bags_remaining = CHILD_BAGS_PER_PARENT - len(child_bags_scanned)
-    progress_percentage = int((len(child_bags_scanned) / CHILD_BAGS_PER_PARENT) * 100)
+    child_bags_expected = session.get('child_bags_expected', parent_bag.child_count)
+    bags_remaining = child_bags_expected - len(child_bags_scanned)
+    progress_percentage = int((len(child_bags_scanned) / child_bags_expected) * 100) if child_bags_expected > 0 else 0
     
     return render_template('scan_child.html', 
                           location=location, 
@@ -301,7 +324,7 @@ def scan_child():
                           child_bags_scanned=child_bags_scanned,
                           bags_remaining=bags_remaining,
                           progress_percentage=progress_percentage,
-                          total_expected=CHILD_BAGS_PER_PARENT)
+                          total_expected=child_bags_expected)
 
 @app.route('/process_child_scan', methods=['POST'])
 @login_required
@@ -313,6 +336,11 @@ def process_child_scan():
         
         if not qr_id:
             flash('QR code is required!', 'danger')
+            return redirect(url_for('scan_child'))
+        
+        # Validate child QR code format (e.g., "C123")
+        if not CHILD_QR_PATTERN.match(qr_id):
+            flash('Invalid QR code format. Child bag QR code should be in format C123', 'danger')
             return redirect(url_for('scan_child'))
         
         # Ensure a location and parent bag have been selected
@@ -330,16 +358,17 @@ def process_child_scan():
             return redirect(url_for('scan_child'))
         
         # Check if child bag exists, create if not
-        child_bag = ChildBag.query.filter_by(qr_id=qr_id).first()
+        child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
         
         if not child_bag:
             # Create new child bag
-            child_bag = ChildBag(
-                qr_id=qr_id,
-                name=f"Child Bag {qr_id}",  # Default name
-                parent_id=parent_bag_id,
-                notes=notes
-            )
+            child_bag = Bag()
+            child_bag.qr_id = qr_id
+            child_bag.name = f"Child Bag {qr_id}"  # Default name
+            child_bag.parent_id = parent_bag_id
+            child_bag.notes = notes
+            child_bag.type = BagType.CHILD.value
+            
             db.session.add(child_bag)
             db.session.commit()
             logger.debug(f"Created new child bag with QR ID: {qr_id}")
@@ -352,13 +381,12 @@ def process_child_scan():
         
         # Record the scan
         try:
-            scan = Scan(
-                child_bag_id=child_bag.id,
-                user_id=current_user.id,
-                location_id=location_id,
-                scan_type='child',
-                notes=notes
-            )
+            scan = Scan()
+            scan.child_bag_id = child_bag.id
+            scan.user_id = current_user.id
+            scan.location_id = location_id
+            scan.scan_type = 'child'
+            scan.notes = notes
             
             db.session.add(scan)
             db.session.commit()
@@ -367,12 +395,16 @@ def process_child_scan():
             child_bags_scanned.append(qr_id)
             session['child_bags_scanned'] = child_bags_scanned
             
+            # Get the expected count from session or parent bag
+            parent_bag = Bag.query.get(parent_bag_id)
+            child_bags_expected = session.get('child_bags_expected', parent_bag.child_count if parent_bag else CHILD_BAGS_PER_PARENT)
+            
             # Check if we've scanned all expected child bags
-            if len(child_bags_scanned) >= CHILD_BAGS_PER_PARENT:
+            if len(child_bags_scanned) >= child_bags_expected:
                 flash('All child bags have been scanned successfully!', 'success')
                 return redirect(url_for('scan_complete'))
             
-            flash(f'Child bag {qr_id} scanned successfully! {CHILD_BAGS_PER_PARENT - len(child_bags_scanned)} more to go.', 'success')
+            flash(f'Child bag {qr_id} scanned successfully! {child_bags_expected - len(child_bags_scanned)} more to go.', 'success')
             return redirect(url_for('scan_child'))
             
         except Exception as e:
@@ -392,57 +424,134 @@ def scan_complete():
         flash('Invalid session state! Please start over.', 'warning')
         return redirect(url_for('select_location'))
     
-    parent_bag = ParentBag.query.get(session['current_parent_bag_id'])
+    parent_bag = Bag.query.filter_by(id=session['current_parent_bag_id'], type=BagType.PARENT.value).first()
     child_bags_count = len(session.get('child_bags_scanned', []))
+    child_bags_expected = session.get('child_bags_expected', parent_bag.child_count if parent_bag else CHILD_BAGS_PER_PARENT)
+    
+    # Get all scanned child bags for this parent
+    child_bags = []
+    if parent_bag:
+        child_bags = Bag.query.filter_by(parent_id=parent_bag.id, type=BagType.CHILD.value).all()
     
     # Clear session data for next scan
     session.pop('current_parent_bag_id', None)
     session.pop('child_bags_scanned', None)
+    session.pop('child_bags_expected', None)
     
     return render_template('scan_complete.html', 
                           parent_bag=parent_bag,
-                          child_bags_count=child_bags_count)
+                          child_bags=child_bags,
+                          child_bags_count=child_bags_count,
+                          expected_count=child_bags_expected)
 
 @app.route('/parent_bags')
 def parent_bags():
     """List of all parent bags and their child bags"""
-    parent_bags = ParentBag.query.all()
+    parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).all()
     return render_template('parent_bags.html', parent_bags=parent_bags)
 
 @app.route('/child_bags')
 def child_bags():
     """List of all child bags and their parent bag"""
-    child_bags = ChildBag.query.all()
+    child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
     return render_template('child_bags.html', child_bags=child_bags)
 
 @app.route('/bag/<qr_id>')
 def bag_detail(qr_id):
     """Bag detail page showing scan history"""
-    parent_bag = ParentBag.query.filter_by(qr_id=qr_id).first()
+    # Try to find the bag (could be parent or child)
+    bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
     
-    if parent_bag:
+    if bag.type == BagType.PARENT.value:
         # Get child bags associated with this parent
-        child_bags = ChildBag.query.filter_by(parent_id=parent_bag.id).all()
+        child_bags = Bag.query.filter_by(parent_id=bag.id, type=BagType.CHILD.value).all()
         
         # Get scan history for this parent bag
-        scans = Scan.query.filter_by(parent_bag_id=parent_bag.id).order_by(Scan.timestamp.desc()).all()
+        scans = Scan.query.filter_by(parent_bag_id=bag.id).order_by(Scan.timestamp.desc()).all()
+        
+        # Check if there's a bill linked to this parent bag
+        link = Link.query.filter_by(parent_id=bag.id).first()
         
         return render_template('bag_detail.html', 
                               is_parent=True,
-                              bag=parent_bag, 
+                              bag=bag, 
                               child_bags=child_bags,
-                              scans=scans)
+                              scans=scans,
+                              link=link)
     else:
-        # Check if it's a child bag
-        child_bag = ChildBag.query.filter_by(qr_id=qr_id).first_or_404()
-        
+        # It's a child bag
         # Get scan history for this child bag
-        scans = Scan.query.filter_by(child_bag_id=child_bag.id).order_by(Scan.timestamp.desc()).all()
+        scans = Scan.query.filter_by(child_bag_id=bag.id).order_by(Scan.timestamp.desc()).all()
         
         return render_template('bag_detail.html', 
                               is_parent=False,
-                              bag=child_bag,
+                              bag=bag,
                               scans=scans)
+
+@app.route('/link_to_bill/<parent_qr_id>', methods=['GET', 'POST'])
+@login_required
+def link_to_bill(parent_qr_id):
+    """Link a parent bag to a bill ID"""
+    parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first_or_404()
+    
+    # Check if bag is already linked to a bill
+    existing_link = Link.query.filter_by(parent_id=parent_bag.id).first()
+    
+    if request.method == 'POST':
+        bill_id = request.form.get('bill_id')
+        
+        if not bill_id:
+            flash('Bill ID is required!', 'danger')
+            return redirect(url_for('link_to_bill', parent_qr_id=parent_qr_id))
+        
+        try:
+            if existing_link:
+                # Update existing link
+                existing_link.bill_id = bill_id
+                db.session.commit()
+                flash(f'Updated bill link for parent bag {parent_qr_id}', 'success')
+            else:
+                # Create new link
+                link = Link()
+                link.parent_id = parent_bag.id
+                link.bill_id = bill_id
+                
+                # Mark the parent bag as linked
+                parent_bag.linked = True
+                
+                db.session.add(link)
+                db.session.commit()
+                flash(f'Parent bag {parent_qr_id} linked to bill {bill_id}', 'success')
+            
+            return redirect(url_for('bag_detail', qr_id=parent_qr_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error linking bag to bill: {str(e)}")
+            flash(f'Error linking bag to bill: {str(e)}', 'danger')
+    
+    return render_template('link_to_bill.html', 
+                          parent_bag=parent_bag,
+                          existing_link=existing_link)
+
+@app.route('/bill/<bill_id>')
+def bill_detail(bill_id):
+    """Show all parent bags linked to a bill"""
+    links = Link.query.filter_by(bill_id=bill_id).all()
+    
+    if not links:
+        flash(f'No bags found linked to bill {bill_id}', 'warning')
+        return redirect(url_for('index'))
+    
+    parent_bags = []
+    for link in links:
+        parent_bag = Bag.query.filter_by(id=link.parent_id, type=BagType.PARENT.value).first()
+        if parent_bag:
+            parent_bags.append(parent_bag)
+    
+    return render_template('bill_detail.html', 
+                          bill_id=bill_id,
+                          parent_bags=parent_bags)
 
 @app.context_processor
 def utility_processor():
