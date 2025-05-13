@@ -487,7 +487,8 @@ def bag_detail(qr_id):
         return render_template('bag_detail.html', 
                               is_parent=False,
                               bag=bag,
-                              scans=scans)
+                              scans=scans,
+                              Scan=Scan)
 
 @app.route('/link_to_bill/<parent_qr_id>', methods=['GET', 'POST'])
 @login_required
