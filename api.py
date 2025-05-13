@@ -1,31 +1,44 @@
 import logging
-from flask import jsonify, request, Blueprint
-from flask_login import login_required
+from flask import jsonify, request, Blueprint, make_response
+from flask_login import login_required, current_user
 from app import app, db
 from models import User, Bag, BagType, Link, Location, Scan
+from cache_utils import cached_response, invalidate_cache
+import time
 
 logger = logging.getLogger(__name__)
 
 # API Routes
 @app.route('/api/parent_bags')
 @login_required
+@cached_response(timeout=30)  # Cache for 30 seconds
 def api_parent_bags():
     """Get all parent bags"""
     parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).all()
-    return jsonify({
+    response = make_response(jsonify({
         'success': True,
-        'parent_bags': [bag.to_dict() for bag in parent_bags]
-    })
+        'parent_bags': [bag.to_dict() for bag in parent_bags],
+        'timestamp': time.time(),
+        'cached': False
+    }))
+    # Set appropriate cache headers
+    response.headers['Cache-Control'] = 'public, max-age=30'
+    return response
 
 @app.route('/api/child_bags')
 @login_required
+@cached_response(timeout=30)  # Cache for 30 seconds
 def api_child_bags():
     """Get all child bags"""
     child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
-    return jsonify({
+    response = make_response(jsonify({
         'success': True,
-        'child_bags': [bag.to_dict() for bag in child_bags]
-    })
+        'child_bags': [bag.to_dict() for bag in child_bags],
+        'timestamp': time.time(),
+        'cached': False
+    }))
+    response.headers['Cache-Control'] = 'public, max-age=30'
+    return response
 
 @app.route('/api/parent_bag/<qr_id>')
 @login_required
@@ -183,6 +196,28 @@ def api_stats():
             'scan_type_counts': scan_type_counts,
             'location_stats': location_stats
         }
+    })
+
+@app.route('/api/cache_stats')
+@login_required
+def api_cache_stats():
+    """Get cache statistics"""
+    from cache_utils import get_cache_stats
+    stats = get_cache_stats()
+    return jsonify({
+        'success': True,
+        'cache_stats': stats
+    })
+
+@app.route('/api/clear_cache', methods=['POST'])
+@login_required
+def api_clear_cache():
+    """Clear the application cache"""
+    prefix = request.args.get('prefix')
+    invalidate_cache(prefix)
+    return jsonify({
+        'success': True,
+        'message': f"Cache {'with prefix ' + prefix if prefix else 'completely'} cleared"
     })
 
 @app.route('/api/seed_test_data', methods=['POST'])
