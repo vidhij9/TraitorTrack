@@ -31,29 +31,37 @@
                     <li class="nav-item">
                         <a class="nav-link px-3" href="{{ url_for('index') }}">Home</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link px-3" href="{{ url_for('parent_bags') }}">Batches</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link px-3" href="{{ url_for('child_bags') }}">Packages</a>
-                    </li>
+                    
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link px-3" href="{{ url_for('locations') }}">Locations</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link px-3" href="{{ url_for('select_location') }}">Scan</a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle px-3" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-file-invoice me-1"></i>Bills
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#searchBillModal">Search Bills</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('init_db') }}">Initialize Demo Data</a></li>
-                        </ul>
-                    </li>
+                        {% if current_user.is_admin() %}
+                        <!-- Admin-only menu items -->
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="{{ url_for('parent_bags') }}">Batches</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="{{ url_for('child_bags') }}">Packages</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="{{ url_for('locations') }}">Locations</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle px-3" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-file-invoice me-1"></i>Bills
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#searchBillModal">Search Bills</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('init_db') }}">Initialize Demo Data</a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- All authenticated users (both employees and admins) -->
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="{{ url_for('select_location') }}">
+                                <i class="fas fa-qrcode me-1"></i>Register Bags
+                            </a>
+                        </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
@@ -61,8 +69,21 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
+                            {% if current_user.is_admin() %}
+                            <span class="badge bg-primary ms-1">Admin</span>
+                            {% else %}
+                            <span class="badge bg-success ms-1">Employee</span>
+                            {% endif %}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
+                            <li class="dropdown-item-text">
+                                {% if current_user.is_admin() %}
+                                <small class="text-muted">Administrative access</small>
+                                {% else %}
+                                <small class="text-muted">Employee access</small>
+                                {% endif %}
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
                         </ul>
                     </li>

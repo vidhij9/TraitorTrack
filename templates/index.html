@@ -15,12 +15,18 @@
             </p>
             
             {% if current_user.is_authenticated %}
-            <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg px-4 me-2">
-                Start Scanning
-            </a>
-            <a href="{{ url_for('parent_bags') }}" class="btn btn-outline-primary btn-lg px-4">
-                View Batches
-            </a>
+                {% if current_user.is_admin() %}
+                <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg px-4 me-2">
+                    Start Scanning
+                </a>
+                <a href="{{ url_for('parent_bags') }}" class="btn btn-outline-primary btn-lg px-4">
+                    View Batches
+                </a>
+                {% else %}
+                <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg px-4 me-2">
+                    Register Bags
+                </a>
+                {% endif %}
             {% else %}
             <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4 me-2">
                 Get Started
@@ -209,6 +215,7 @@
                 <div class="card mt-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h4 class="mb-0 fw-bold">Recent Activity</h4>
+                        {% if current_user.is_authenticated and current_user.is_admin() %}
                         <div>
                             <a href="{{ url_for('parent_bags') }}" class="btn btn-sm btn-outline-primary me-2">
                                 View Batches
@@ -217,6 +224,7 @@
                                 View Packages
                             </a>
                         </div>
+                        {% endif %}
                     </div>
                     <div class="card-body p-0">
                         {% if recent_scans %}
@@ -228,7 +236,9 @@
                                         <th>Type</th>
                                         <th>Location</th>
                                         <th>Time</th>
+                                        {% if current_user.is_authenticated and current_user.is_admin() %}
                                         <th class="text-end pe-4">Actions</th>
+                                        {% endif %}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -245,9 +255,11 @@
                                         <td>{{ scan.location_name }}</td>
                                         <td>{{ format_datetime(scan.timestamp) }}</td>
                                         <td class="text-end pe-4">
+                                            {% if current_user.is_authenticated and current_user.is_admin() %}
                                             <a href="{{ url_for('bag_detail', qr_id=scan.bag_qr) }}" class="btn btn-sm btn-primary rounded-circle">
                                                 <i class="fas fa-chevron-right"></i>
                                             </a>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                     {% endfor %}
