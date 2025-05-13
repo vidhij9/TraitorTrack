@@ -262,6 +262,16 @@ def scan_parent():
     
     return render_template('scan_parent.html', location=location)
 
+# Add cache invalidation helper for data modifications
+def invalidate_data_caches():
+    """Invalidate all data-related caches when data is modified"""
+    # Invalidate API caches
+    invalidate_cache('api_')
+    # Clear template cache if needed
+    from template_utils import clear_template_cache
+    clear_template_cache()
+    logger.info("Cache invalidated due to data modification")
+
 @app.route('/process_parent_scan', methods=['POST'])
 @login_required
 def process_parent_scan():
@@ -328,6 +338,9 @@ def process_parent_scan():
             
             db.session.add(scan)
             db.session.commit()
+            
+            # Invalidate caches after data modification
+            invalidate_data_caches()
             
             # Store the parent bag ID in session
             session['current_parent_bag_id'] = parent_bag.id
@@ -446,6 +459,9 @@ def process_child_scan():
             
             db.session.add(scan)
             db.session.commit()
+            
+            # Invalidate caches after data modification
+            invalidate_data_caches()
             
             # Update session data
             child_bags_scanned.append(qr_id)
