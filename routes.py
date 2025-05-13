@@ -553,6 +553,136 @@ def bill_detail(bill_id):
                           bill_id=bill_id,
                           parent_bags=parent_bags)
 
+@app.route('/init_db')
+def init_db():
+    """Initialize the database with test data"""
+    try:
+        # Check if there are already users
+        if User.query.count() > 0:
+            flash('Database already contains data!', 'warning')
+            return redirect(url_for('index'))
+        
+        # Create admin and employee users
+        admin = User()
+        admin.username = "admin"
+        admin.email = "admin@example.com"
+        admin.role = UserRole.ADMIN.value
+        admin.verified = True
+        admin.set_password("adminpass")
+        
+        employee = User()
+        employee.username = "employee"
+        employee.email = "employee@example.com"
+        employee.role = UserRole.EMPLOYEE.value
+        employee.verified = True
+        employee.set_password("employeepass")
+        
+        db.session.add_all([admin, employee])
+        
+        # Create locations
+        warehouse = Location()
+        warehouse.name = "Warehouse A"
+        warehouse.address = "123 Main St"
+        
+        distribution = Location()
+        distribution.name = "Distribution Center"
+        distribution.address = "456 State St"
+        
+        retail = Location()
+        retail.name = "Retail Store"
+        retail.address = "789 Market St"
+        
+        db.session.add_all([warehouse, distribution, retail])
+        
+        # Create some parent bags
+        parent1 = Bag()
+        parent1.qr_id = "P101-5"
+        parent1.name = "Parent Bag P101"
+        parent1.type = BagType.PARENT.value
+        parent1.child_count = 5
+        
+        parent2 = Bag()
+        parent2.qr_id = "P102-3"
+        parent2.name = "Parent Bag P102"
+        parent2.type = BagType.PARENT.value
+        parent2.child_count = 3
+        
+        db.session.add_all([parent1, parent2])
+        db.session.commit()
+        
+        # Create some child bags
+        children = []
+        for i in range(1, 6):
+            child = Bag()
+            child.qr_id = f"C10{i}"
+            child.name = f"Child Bag C10{i}"
+            child.type = BagType.CHILD.value
+            child.parent_id = parent1.id
+            children.append(child)
+        
+        for i in range(6, 9):
+            child = Bag()
+            child.qr_id = f"C10{i}"
+            child.name = f"Child Bag C10{i}"
+            child.type = BagType.CHILD.value
+            child.parent_id = parent2.id
+            children.append(child)
+        
+        db.session.add_all(children)
+        
+        # Create some sample scans
+        scan1 = Scan()
+        scan1.parent_bag_id = parent1.id
+        scan1.user_id = admin.id
+        scan1.location_id = warehouse.id
+        scan1.scan_type = 'parent'
+        scan1.notes = "Initial scan of parent bag"
+        
+        scan2 = Scan()
+        scan2.parent_bag_id = parent2.id
+        scan2.user_id = employee.id
+        scan2.location_id = distribution.id
+        scan2.scan_type = 'parent'
+        
+        scan3 = Scan()
+        scan3.child_bag_id = children[0].id
+        scan3.user_id = employee.id
+        scan3.location_id = retail.id
+        scan3.scan_type = 'child'
+        
+        db.session.add_all([scan1, scan2, scan3])
+        
+        # Create a bill link
+        link = Link()
+        link.parent_id = parent1.id
+        link.bill_id = "BILL-1001"
+        parent1.linked = True
+        
+        db.session.add(link)
+        db.session.commit()
+        
+        flash('Database initialized with test data!', 'success')
+        return redirect(url_for('index'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error initializing database: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+
+@app.route('/reset_db')
+def reset_db():
+    """Reset the database (for development only)"""
+    try:
+        # Drop all tables
+        db.drop_all()
+        # Create all tables
+        db.create_all()
+        flash('Database has been reset!', 'success')
+        return redirect(url_for('index'))
+    except Exception as e:
+        flash(f'Error resetting database: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+
 @app.context_processor
 def utility_processor():
     """Utility functions available in templates"""

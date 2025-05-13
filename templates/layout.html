@@ -44,6 +44,16 @@
                     <li class="nav-item">
                         <a class="nav-link px-3" href="{{ url_for('select_location') }}">Scan</a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle px-3" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-file-invoice me-1"></i>Bills
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#searchBillModal">Search Bills</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('init_db') }}">Initialize Demo Data</a></li>
+                        </ul>
+                    </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
@@ -90,6 +100,31 @@
         {% block content %}{% endblock %}
     </div>
     
+    <!-- Bill Search Modal -->
+    <div class="modal fade" id="searchBillModal" tabindex="-1" aria-labelledby="searchBillModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="searchBillModalLabel">Search Bills</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('bill_detail', bill_id='PLACEHOLDER') }}" method="get" id="searchBillForm">
+                        <div class="mb-3">
+                            <label for="billIdSearch" class="form-label">Bill ID</label>
+                            <input type="text" class="form-control" id="billIdSearch" placeholder="Enter bill ID" required>
+                            <div class="form-text">Enter the bill ID to search for</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="searchBillBtn">Search</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="py-4 mt-auto" style="background-color: rgba(0,0,0,0.7); backdrop-filter: blur(10px);">
         <div class="container">
