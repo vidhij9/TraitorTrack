@@ -1,14 +1,18 @@
 import os
 import logging
+import time
 
-from flask import Flask
+from flask import Flask, request, g
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from flask_login import LoginManager
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-# Configure logging for debugging
-logging.basicConfig(level=logging.DEBUG)
+# Import custom logging configuration
+from logging_config import setup_logging
+
+# Setup advanced logging configuration
+setup_logging()
 logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):
@@ -36,10 +40,27 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Initialize the database with the app
 db.init_app(app)
 
+# Add request timing middleware for performance monitoring
+@app.before_request
+def before_request():
+    g.start_time = time.time()
+    
+@app.after_request
+def after_request(response):
+    if hasattr(g, 'start_time'):
+        elapsed = time.time() - g.start_time
+        logger.info(f"Request to {request.path} completed in {elapsed:.4f}s")
+        # Add Server-Timing header for client-side monitoring
+        response.headers['Server-Timing'] = f'total;dur={elapsed*1000:.0f}'
+    return response
+
 # Setup Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Configure additional app settings for performance
+app.config['TEMPLATES_AUTO_RELOAD'] = False  # Disable in production for better performance
 
 with app.app_context():
     # Import models to ensure they're registered with SQLAlchemy
