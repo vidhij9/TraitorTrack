@@ -63,7 +63,10 @@ class Bag(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     
     # Relationships
-    children = db.relationship('Bag', backref=db.backref('parent_bag', remote_side=[id]), lazy='dynamic')
+    children = db.relationship('Bag', 
+                              backref=db.backref('parent_bag', remote_side=[id]), 
+                              lazy='dynamic',
+                              foreign_keys='Bag.parent_id')
     parent_scans = db.relationship('Scan', primaryjoin="Scan.parent_bag_id == Bag.id", backref="parent_bag", lazy='dynamic')
     child_scans = db.relationship('Scan', primaryjoin="Scan.child_bag_id == Bag.id", backref="child_bag", lazy='dynamic')
     
