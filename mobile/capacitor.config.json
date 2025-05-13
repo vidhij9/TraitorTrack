@@ -1,7 +1,7 @@
 {
   "appId": "com.tracetrack.app",
   "appName": "TraceTrack",
-  "webDir": "../static",
+  "webDir": "www",
   "bundledWebRuntime": false,
   "server": {
     "url": "https://tracetrack.replit.app",
@@ -24,6 +24,15 @@
     }
   },
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true,
+    "backgroundColor": "#4CAF50",
+    "overrideUserAgent": "TraceTrack-Android-App",
+    "minSdkVersion": 22,
+    "androidxActivityVersion": "1.4.0",
+    "androidxAppCompatVersion": "1.4.2",
+    "androidxCoreKtxVersion": "1.8.0",
+    "androidxFragmentVersion": "1.4.1"
   }
 }

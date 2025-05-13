@@ -1,0 +1,18 @@
+{
+  "androidScheme": "https",
+  "packageName": "com.tracetrack.app",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "minSdkVersion": 22,
+  "targetSdkVersion": 33,
+  "gradleVersion": "7.4.2",
+  "kotlinVersion": "1.8.10",
+  "appName": "TraceTrack",
+  "permissions": [
+    "android.permission.INTERNET",
+    "android.permission.CAMERA",
+    "android.permission.READ_EXTERNAL_STORAGE",
+    "android.permission.WRITE_EXTERNAL_STORAGE"
+  ],
+  "overrideUserAgent": "TraceTrack-Android-App"
+}
