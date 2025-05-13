@@ -1,10 +1,59 @@
-/* Custom styling for the Supply Chain Tracker app */
+/* Custom styling for the AgriTrack - Agricultural Supply Chain app */
+
+:root {
+    --agri-green: #4CAF50;
+    --agri-brown: #8D6E63;
+    --agri-light-green: #8BC34A;
+    --agri-dark-green: #2E7D32;
+    --agri-yellow: #FFD54F;
+}
 
 /* General styles */
 body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    background-color: #1a1a1a;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path fill="%234CAF5022" d="M30,10 L25,20 L35,20 Z M70,10 L65,20 L75,20 Z M50,15 L45,25 L55,25 Z"/></svg>');
+    background-attachment: fixed;
+}
+
+.navbar-brand i {
+    color: var(--agri-green);
+}
+
+.card {
+    border-top: 3px solid var(--agri-green);
+}
+
+.btn-primary {
+    background-color: var(--agri-dark-green);
+    border-color: var(--agri-dark-green);
+}
+
+.btn-primary:hover {
+    background-color: var(--agri-green);
+    border-color: var(--agri-green);
+}
+
+.btn-success {
+    background-color: var(--agri-green);
+    border-color: var(--agri-green);
+}
+
+.badge-harvest {
+    background-color: var(--agri-yellow);
+    color: #212529;
+}
+
+.badge-transit {
+    background-color: var(--agri-light-green);
+    color: #212529;
+}
+
+.badge-delivered {
+    background-color: var(--agri-dark-green);
+    color: white;
 }
 
 .map-container {

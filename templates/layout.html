@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supply Chain Tracker{% block title %}{% endblock %}</title>
+    <title>AgriTrack - Agricultural Supply Chain{% block title %}{% endblock %}</title>
     
     <!-- Bootstrap CSS (Replit Dark Theme) -->
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
@@ -21,7 +21,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-box me-2"></i>Bag Tracker
+                <i class="fas fa-seedling me-2"></i>AgriTrack
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -29,20 +29,30 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-home me-1"></i>Home
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('parent_bags') }}">Parent Bags</a>
+                        <a class="nav-link" href="{{ url_for('parent_bags') }}">
+                            <i class="fas fa-boxes me-1"></i>Harvest Batches
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('child_bags') }}">Child Bags</a>
+                        <a class="nav-link" href="{{ url_for('child_bags') }}">
+                            <i class="fas fa-box me-1"></i>Produce Packages
+                        </a>
                     </li>
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('locations') }}">Locations</a>
+                        <a class="nav-link" href="{{ url_for('locations') }}">
+                            <i class="fas fa-map-marker-alt me-1"></i>Farms & Storage
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('select_location') }}">Scan Bags</a>
+                        <a class="nav-link" href="{{ url_for('select_location') }}">
+                            <i class="fas fa-qrcode me-1"></i>Track Produce
+                        </a>
                     </li>
                     {% endif %}
                 </ul>
@@ -91,7 +101,9 @@
     <footer class="py-4 bg-dark mt-auto">
         <div class="container">
             <div class="d-flex flex-column flex-md-row align-items-center justify-content-between small">
-                <div class="text-muted">Copyright &copy; Supply Chain Tracker 2023</div>
+                <div class="text-muted">
+                    <i class="fas fa-seedling me-1"></i> AgriTrack &copy; 2025 - Farm to Table Traceability
+                </div>
                 <div>
                     <a href="#" class="text-muted">Privacy Policy</a>
                     &middot;

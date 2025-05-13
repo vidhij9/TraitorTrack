@@ -6,12 +6,12 @@
 <div class="jumbotron bg-dark rounded p-4 mb-4">
     <div class="row">
         <div class="col-md-6">
-            <h1 class="display-4">Bag Traceability System</h1>
-            <p class="lead">Track parent and child bags through your supply chain using QR codes</p>
+            <h1 class="display-4">Agricultural Traceability</h1>
+            <p class="lead">Track harvests from farm to table with QR code traceability</p>
             
             {% if current_user.is_authenticated %}
             <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg">
-                <i class="fas fa-qrcode me-2"></i> Start Scanning
+                <i class="fas fa-qrcode me-2"></i> Begin Tracking
             </a>
             {% else %}
             <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
@@ -20,10 +20,10 @@
             {% endif %}
         </div>
         <div class="col-md-6 text-center">
-            <img src="https://pixabay.com/get/gdb58a189c29215cd827aa57c989212d4dc1a039206d3caed761340b3d4ae81cf8ccac1d0770e756c1281d10903a6ed681b701ac7b434d40832dc02a9de73a3d9_1280.jpg" 
-                 alt="QR Code Tracking" 
+            <img src="https://cdn.pixabay.com/photo/2015/09/09/16/05/farm-fresh-vegetables-932485_1280.jpg" 
+                 alt="Farm Fresh Produce" 
                  class="img-fluid rounded shadow-sm" 
-                 style="max-height: 300px;">
+                 style="max-height: 300px; object-fit: cover;">
         </div>
     </div>
 </div>
@@ -32,27 +32,27 @@
     <div class="col-md-4">
         <div class="card bg-dark h-100">
             <div class="card-body text-center">
-                <i class="fas fa-qrcode fa-4x mb-3 text-primary"></i>
-                <h3 class="card-title">QR Scanning</h3>
-                <p class="card-text">Scan bag QR codes with your mobile or web camera to track relationships.</p>
+                <i class="fas fa-qrcode fa-4x mb-3" style="color: var(--agri-green);"></i>
+                <h3 class="card-title">Farm Traceability</h3>
+                <p class="card-text">Scan produce QR codes to track your harvest from field to consumer.</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card bg-dark h-100">
             <div class="card-body text-center">
-                <i class="fas fa-sitemap fa-4x mb-3 text-primary"></i>
-                <h3 class="card-title">Parent-Child Relations</h3>
-                <p class="card-text">Associate child bags with their parent bags for complete traceability.</p>
+                <i class="fas fa-sitemap fa-4x mb-3" style="color: var(--agri-light-green);"></i>
+                <h3 class="card-title">Harvest Batching</h3>
+                <p class="card-text">Associate produce packages with harvest batches for complete supply chain visibility.</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card bg-dark h-100">
             <div class="card-body text-center">
-                <i class="fas fa-map-marker-alt fa-4x mb-3 text-primary"></i>
-                <h3 class="card-title">Location Tracking</h3>
-                <p class="card-text">Record bag locations at each scan point in your operation.</p>
+                <i class="fas fa-map-marker-alt fa-4x mb-3" style="color: var(--agri-yellow);"></i>
+                <h3 class="card-title">Farm to Table</h3>
+                <p class="card-text">Record produce location at each point from harvest to retail store.</p>
             </div>
         </div>
     </div>
@@ -62,85 +62,85 @@
 
 <div class="row">
     <div class="col-md-6">
-        <h2 class="mb-4">How It Works</h2>
+        <h2 class="mb-4">How Farm Tracking Works</h2>
         <div class="row mb-4">
             <div class="col-md-2 text-center">
-                <div class="bg-primary rounded-circle p-3 d-inline-block">
-                    <i class="fas fa-map-marker-alt text-white"></i>
+                <div style="background-color: var(--agri-green);" class="rounded-circle p-3 d-inline-block">
+                    <i class="fas fa-tractor text-white"></i>
                 </div>
             </div>
             <div class="col-md-10">
-                <h4>1. Enter Location</h4>
-                <p>Select or create a location for the current scan session.</p>
+                <h4>1. Identify Farm Location</h4>
+                <p>Select your farm, processing facility, or distribution center location.</p>
             </div>
         </div>
         <div class="row mb-4">
             <div class="col-md-2 text-center">
-                <div class="bg-primary rounded-circle p-3 d-inline-block">
-                    <i class="fas fa-box text-white"></i>
-                </div>
-            </div>
-            <div class="col-md-10">
-                <h4>2. Scan Parent Bag</h4>
-                <p>Scan the QR code of the parent bag first.</p>
-            </div>
-        </div>
-        <div class="row mb-4">
-            <div class="col-md-2 text-center">
-                <div class="bg-primary rounded-circle p-3 d-inline-block">
+                <div style="background-color: var(--agri-dark-green);" class="rounded-circle p-3 d-inline-block">
                     <i class="fas fa-boxes text-white"></i>
                 </div>
             </div>
             <div class="col-md-10">
-                <h4>3. Scan Child Bags</h4>
-                <p>Scan each child bag QR code to associate with the parent.</p>
+                <h4>2. Scan Harvest Batch</h4>
+                <p>Scan the QR code of the harvest batch first to establish parent record.</p>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="col-md-2 text-center">
+                <div style="background-color: var(--agri-light-green);" class="rounded-circle p-3 d-inline-block">
+                    <i class="fas fa-carrot text-white"></i>
+                </div>
+            </div>
+            <div class="col-md-10">
+                <h4>3. Scan Individual Produce Packages</h4>
+                <p>Scan each produce package QR code to associate with the harvest batch.</p>
             </div>
         </div>
         <div class="row">
             <div class="col-md-2 text-center">
-                <div class="bg-primary rounded-circle p-3 d-inline-block">
-                    <i class="fas fa-search text-white"></i>
+                <div style="background-color: var(--agri-yellow);" class="rounded-circle p-3 d-inline-block">
+                    <i class="fas fa-leaf text-dark"></i>
                 </div>
             </div>
             <div class="col-md-10">
-                <h4>4. View Relationships</h4>
-                <p>Access bag relationship data in the parent and child bag views.</p>
+                <h4>4. Complete Farm-to-Table View</h4>
+                <p>View complete traceability data for your agricultural products.</p>
             </div>
         </div>
     </div>
     <div class="col-md-6">
-        <h2 class="mb-4">System Statistics</h2>
+        <h2 class="mb-4">Harvest Statistics</h2>
         
         <div class="row">
             <div class="col-md-3">
                 <div class="card bg-dark text-center mb-4">
                     <div class="card-body">
-                        <h3 class="display-4 text-primary">{{ total_parent_bags }}</h3>
-                        <p class="text-muted">Parent Bags</p>
+                        <h3 class="display-4" style="color: var(--agri-dark-green);">{{ total_parent_bags }}</h3>
+                        <p class="text-muted">Harvest Batches</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="card bg-dark text-center mb-4">
                     <div class="card-body">
-                        <h3 class="display-4 text-primary">{{ total_child_bags }}</h3>
-                        <p class="text-muted">Child Bags</p>
+                        <h3 class="display-4" style="color: var(--agri-light-green);">{{ total_child_bags }}</h3>
+                        <p class="text-muted">Produce Packages</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="card bg-dark text-center mb-4">
                     <div class="card-body">
-                        <h3 class="display-4 text-primary">{{ total_scans }}</h3>
-                        <p class="text-muted">Scans</p>
+                        <h3 class="display-4" style="color: var(--agri-yellow);">{{ total_scans }}</h3>
+                        <p class="text-muted">Track Records</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="card bg-dark text-center mb-4">
                     <div class="card-body">
-                        <h3 class="display-4 text-primary">{{ total_locations }}</h3>
-                        <p class="text-muted">Locations</p>
+                        <h3 class="display-4" style="color: var(--agri-green);">{{ total_locations }}</h3>
+                        <p class="text-muted">Farm Locations</p>
                     </div>
                 </div>
             </div>
