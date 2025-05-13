@@ -29,8 +29,9 @@ PARENT_QR_PATTERN = re.compile(r'^P\d+-\d+$')
 CHILD_QR_PATTERN = re.compile(r'^C\d+$')
 
 @app.route('/')
+@login_required
 def index():
-    """Home page"""
+    """Home page - requires login"""
     # Get statistics for display
     recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(5).all()
     total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()

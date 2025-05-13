@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 # API Routes
 @app.route('/api/parent_bags')
+@login_required
 def api_parent_bags():
     """Get all parent bags"""
     parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).all()
@@ -17,6 +18,7 @@ def api_parent_bags():
     })
 
 @app.route('/api/child_bags')
+@login_required
 def api_child_bags():
     """Get all child bags"""
     child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
@@ -26,6 +28,7 @@ def api_child_bags():
     })
 
 @app.route('/api/parent_bag/<qr_id>')
+@login_required
 def api_parent_bag(qr_id):
     """Get parent bag details by QR ID"""
     parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
