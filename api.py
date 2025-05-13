@@ -49,6 +49,7 @@ def api_parent_bag(qr_id):
     })
 
 @app.route('/api/child_bag/<qr_id>')
+@login_required
 def api_child_bag(qr_id):
     """Get child bag details by QR ID"""
     child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
@@ -73,6 +74,7 @@ def api_child_bag(qr_id):
     })
 
 @app.route('/api/parent_bag/<qr_id>/scans')
+@login_required
 def api_parent_bag_scans(qr_id):
     """Get scan history for a parent bag"""
     parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
@@ -92,6 +94,7 @@ def api_parent_bag_scans(qr_id):
     })
 
 @app.route('/api/child_bag/<qr_id>/scans')
+@login_required
 def api_child_bag_scans(qr_id):
     """Get scan history for a child bag"""
     child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
@@ -111,6 +114,7 @@ def api_child_bag_scans(qr_id):
     })
 
 @app.route('/api/locations')
+@login_required
 def api_locations():
     """Get all locations"""
     locations = Location.query.all()
@@ -120,6 +124,7 @@ def api_locations():
     })
 
 @app.route('/api/scans')
+@login_required
 def api_scans():
     """Get recent scans, with optional filtering"""
     # Get query parameters
@@ -145,6 +150,7 @@ def api_scans():
     })
 
 @app.route('/api/stats')
+@login_required
 def api_stats():
     """Get system statistics"""
     total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
