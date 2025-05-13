@@ -21,7 +21,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-truck-loading me-2"></i>Supply Chain Tracker
+                <i class="fas fa-box me-2"></i>Bag Tracker
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -31,12 +31,18 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">Home</a>
                     </li>
-                    {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                        <a class="nav-link" href="{{ url_for('parent_bags') }}">Parent Bags</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('scan') }}">Scan QR</a>
+                        <a class="nav-link" href="{{ url_for('child_bags') }}">Child Bags</a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('locations') }}">Locations</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('select_location') }}">Scan Bags</a>
                     </li>
                     {% endif %}
                 </ul>

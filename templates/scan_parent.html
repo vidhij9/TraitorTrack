@@ -1,0 +1,184 @@
+{% extends "layout.html" %}
+
+{% block title %} - Scan Parent Bag{% endblock %}
+
+{% block head %}
+<!-- HTML5-QRCode library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+    #reader {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    #scan-result {
+        display: none;
+    }
+    .scan-icon {
+        font-size: 50px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card bg-dark mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="mb-0"><i class="fas fa-box me-2"></i>Scan Parent Bag</h3>
+                <span class="badge bg-info">Location: {{ location.name }}</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="text-center mb-4">
+                            <div class="scan-icon text-primary">
+                                <i class="fas fa-qrcode"></i>
+                            </div>
+                            <h4>Step 2: Scan Parent Bag</h4>
+                            <p class="text-muted">Position the QR code of the parent bag within the scanner</p>
+                        </div>
+                        
+                        <div id="reader" class="mb-4"></div>
+                        
+                        <div class="d-flex justify-content-center mb-3">
+                            <button class="btn btn-primary me-2" id="start-scanner">
+                                <i class="fas fa-play me-2"></i>Start Scanner
+                            </button>
+                            <button class="btn btn-secondary" id="stop-scanner">
+                                <i class="fas fa-stop me-2"></i>Stop Scanner
+                            </button>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-info-circle fa-lg"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading">Scanner Tips</h5>
+                                    <ul class="mb-0">
+                                        <li>Ensure the QR code is well-lit</li>
+                                        <li>Hold the camera steady</li>
+                                        <li>Position the entire QR code in the scanner</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="scan-form">
+                            <h4 class="mb-3">Parent Bag Details</h4>
+                            <p class="text-muted">Enter the QR code manually if scanning doesn't work</p>
+                            
+                            <form action="{{ url_for('process_parent_scan') }}" method="post">
+                                <div class="mb-3">
+                                    <label for="qr_id" class="form-label">Parent Bag QR Code</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-qrcode"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="QR ID (scanned or enter manually)" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Notes (Optional)</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Optional notes about this parent bag"></textarea>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Continue to Child Bags
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div id="scan-result" class="mt-4">
+                            <div class="alert alert-success mb-4">
+                                <h4 class="alert-heading"><i class="fas fa-check-circle me-2"></i>QR Code Detected!</h4>
+                                <p>Parent Bag QR Code: <strong id="result-qrid"></strong></p>
+                                <p class="mb-0">Complete the form above to continue.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center my-4">
+            <p>After scanning the parent bag, you'll proceed to scan the child bags.</p>
+            <div class="progress mt-3">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">Step 2 of 4</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const qrIdInput = document.getElementById('qr_id');
+    const scanResultDiv = document.getElementById('scan-result');
+    const resultQrId = document.getElementById('result-qrid');
+    const startScannerBtn = document.getElementById('start-scanner');
+    const stopScannerBtn = document.getElementById('stop-scanner');
+    
+    let html5QrCode;
+    
+    // Initialize scanner on button click
+    startScannerBtn.addEventListener('click', startScanner);
+    stopScannerBtn.addEventListener('click', stopScanner);
+    
+    function startScanner() {
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        
+        html5QrCode.start(
+            { facingMode: "environment" }, // Use rear camera if available
+            config,
+            onScanSuccess,
+            onScanFailure
+        ).catch(function (err) {
+            console.error(`Unable to start scanning: ${err}`);
+            alert(`Camera error: ${err}. Please make sure you've granted camera permissions.`);
+        });
+    }
+    
+    function stopScanner() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().then(() => {
+                console.log('QR Code scanning stopped.');
+            }).catch(err => {
+                console.error('Failed to stop QR Code scanning:', err);
+            });
+        }
+    }
+    
+    function onScanSuccess(decodedText, decodedResult) {
+        // Stop scanning after successful scan
+        stopScanner();
+        
+        // Set the QR ID in the form and show the result
+        qrIdInput.value = decodedText;
+        showScanResult(decodedText);
+    }
+    
+    function onScanFailure(error) {
+        // Handle scan failure silently
+        console.log(`QR scan error: ${error}`);
+    }
+    
+    function showScanResult(qrId) {
+        resultQrId.textContent = qrId;
+        scanResultDiv.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

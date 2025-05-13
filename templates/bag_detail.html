@@ -1,0 +1,265 @@
+{% extends "layout.html" %}
+
+{% block title %} - Bag Details{% endblock %}
+
+{% block head %}
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        width: 2px;
+        background-color: var(--bs-primary);
+        top: 0;
+        bottom: 0;
+        left: 15px;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .timeline-marker {
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--bs-primary);
+        left: -23px;
+        top: 2px;
+    }
+    .timeline-content {
+        padding-left: 10px;
+    }
+    .child-tag {
+        display: inline-block;
+        margin: 4px;
+        padding: 8px 16px;
+        background-color: var(--bs-primary);
+        color: white;
+        border-radius: 25px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card bg-dark mb-4">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    {% if is_parent %}
+                    <i class="fas fa-box me-2"></i>Parent Bag Details
+                    {% else %}
+                    <i class="fas fa-tag me-2"></i>Child Bag Details
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="display-1 text-primary">
+                        {% if is_parent %}
+                        <i class="fas fa-box"></i>
+                        {% else %}
+                        <i class="fas fa-tag"></i>
+                        {% endif %}
+                    </div>
+                    <h3>{{ bag.name or (is_parent and "Parent Bag" or "Child Bag") }}</h3>
+                    <div class="badge bg-primary mb-2">{{ is_parent and "Parent" or "Child" }}</div>
+                </div>
+                
+                <dl class="row">
+                    <dt class="col-sm-5">QR ID:</dt>
+                    <dd class="col-sm-7"><code>{{ bag.qr_id }}</code></dd>
+                    
+                    {% if not is_parent and bag.parent %}
+                    <dt class="col-sm-5">Parent Bag:</dt>
+                    <dd class="col-sm-7">
+                        <a href="{{ url_for('bag_detail', qr_id=bag.parent.qr_id) }}">
+                            <code>{{ bag.parent.qr_id }}</code>
+                        </a>
+                    </dd>
+                    {% endif %}
+                    
+                    <dt class="col-sm-5">Created At:</dt>
+                    <dd class="col-sm-7">{{ format_datetime(bag.created_at) }}</dd>
+                    
+                    <dt class="col-sm-5">Total Scans:</dt>
+                    <dd class="col-sm-7">{{ scans|length }}</dd>
+                    
+                    {% if is_parent %}
+                    <dt class="col-sm-5">Child Bags:</dt>
+                    <dd class="col-sm-7">{{ child_bags|length }}</dd>
+                    {% endif %}
+                </dl>
+                
+                {% if bag.notes %}
+                <div class="mb-3">
+                    <h5>Notes</h5>
+                    <p class="text-muted">{{ bag.notes }}</p>
+                </div>
+                {% endif %}
+                
+                {% if current_user.is_authenticated %}
+                <div class="d-grid gap-2 mt-4">
+                    <a href="{{ url_for('select_location') }}" class="btn btn-primary">
+                        <i class="fas fa-qrcode me-2"></i>Scan New Bags
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h4 class="mb-0">QR Code</h4>
+            </div>
+            <div class="card-body text-center">
+                <div id="qrcode" class="mb-3"></div>
+                <p class="text-muted">Scan this code to track this bag</p>
+                <button class="btn btn-sm btn-outline-primary" id="download-qr">
+                    <i class="fas fa-download me-1"></i>Download
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        {% if is_parent and child_bags %}
+        <div class="card bg-dark mb-4">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-tags me-2"></i>Child Bags</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>QR ID</th>
+                                <th>Name</th>
+                                <th>Created</th>
+                                <th>Last Scan</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for child in child_bags %}
+                            <tr>
+                                <td><code>{{ child.qr_id }}</code></td>
+                                <td>{{ child.name or "Child Bag" }}</td>
+                                <td>{{ format_datetime(child.created_at) }}</td>
+                                <td>
+                                    {% set last_scan = child.scans.order_by(Scan.timestamp.desc()).first() %}
+                                    {% if last_scan %}
+                                        {{ format_datetime(last_scan.timestamp) }}
+                                    {% else %}
+                                        <span class="text-muted">No scans</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('bag_detail', qr_id=child.qr_id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card bg-dark mb-4">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-history me-2"></i>Scan History</h4>
+            </div>
+            <div class="card-body">
+                {% if scans %}
+                <div class="timeline">
+                    {% for scan in scans %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <div class="card bg-dark mb-2">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <h5 class="mb-1">
+                                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                                            {{ scan.location.name }}
+                                        </h5>
+                                        <small class="text-muted">{{ format_datetime(scan.timestamp) }}</small>
+                                    </div>
+                                    <p class="mb-0">
+                                        <span class="badge bg-{{ 'primary' if scan.scan_type == 'parent' else 'info' }}">
+                                            {{ scan.scan_type }}
+                                        </span>
+                                        <span class="text-muted ms-2">
+                                            <i class="fas fa-user me-1"></i>{{ scan.scanned_by.username }}
+                                        </span>
+                                    </p>
+                                    {% if scan.notes %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">{{ scan.notes }}</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="display-1 text-muted mb-3">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h4 class="text-muted">No scan history available</h4>
+                    <p>This bag hasn't been scanned yet.</p>
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('select_location') }}" class="btn btn-primary">
+                        <i class="fas fa-qrcode me-2"></i>Start Scanning
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/qrcode.js@1.0.0/qrcode.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Generate QR code
+        const qrcode = new QRCode(document.getElementById("qrcode"), {
+            text: "{{ bag.qr_id }}",
+            width: 128,
+            height: 128,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        
+        // QR code download button
+        const downloadQrBtn = document.getElementById('download-qr');
+        if (downloadQrBtn) {
+            downloadQrBtn.addEventListener('click', function() {
+                const qrCanvas = document.querySelector('#qrcode canvas');
+                if (!qrCanvas) return;
+                
+                const image = qrCanvas.toDataURL("image/png");
+                const link = document.createElement('a');
+                link.download = `QR_{{ bag.qr_id }}.png`;
+                link.href = image;
+                link.click();
+            });
+        }
+    });
+</script>
+{% endblock %}

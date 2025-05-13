@@ -1,0 +1,125 @@
+{% extends "layout.html" %}
+
+{% block title %} - Locations{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-map-marker-alt me-2"></i>Locations</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newLocationForm">
+            <i class="fas fa-plus me-2"></i>Add New Location
+        </button>
+    </div>
+</div>
+
+<div class="collapse mb-4" id="newLocationForm">
+    <div class="card bg-dark">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Add New Location</h5>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('locations') }}" method="post">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="location_name" class="form-label">Location Name</label>
+                        <input type="text" class="form-control" id="location_name" name="location_name" required placeholder="Warehouse, Distribution Center, etc.">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="location_address" class="form-label">Address (Optional)</label>
+                        <input type="text" class="form-control" id="location_address" name="location_address" placeholder="123 Main St, City, Country">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Save Location
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-dark mb-4">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table" id="locations-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Address</th>
+                        <th>Created</th>
+                        <th>Total Scans</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if locations %}
+                        {% for location in locations %}
+                        <tr>
+                            <td>{{ location.name }}</td>
+                            <td>{{ location.address or "N/A" }}</td>
+                            <td>{{ format_datetime(location.created_at) }}</td>
+                            <td>{{ location.scans.count() }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('select_location') }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-qrcode me-1"></i>Scan Here
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                    <p>No locations found in the system.</p>
+                                    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newLocationForm">
+                                        <i class="fas fa-plus me-2"></i>Add Your First Location
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-dark h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About Locations</h5>
+            </div>
+            <div class="card-body">
+                <p>Locations are the physical places where bags are scanned. They help you track where each bag has been throughout its journey:</p>
+                <ul>
+                    <li>Warehouses</li>
+                    <li>Distribution centers</li>
+                    <li>Retail locations</li>
+                    <li>Processing facilities</li>
+                    <li>Other checkpoints</li>
+                </ul>
+                <p>You need to select a location before starting the bag scanning process.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-dark h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2"></i>Location Tips</h5>
+            </div>
+            <div class="card-body">
+                <p>For effective location tracking:</p>
+                <ul>
+                    <li>Use consistent naming conventions</li>
+                    <li>Include address information when available</li>
+                    <li>Create separate locations for different areas even within the same facility (e.g., Warehouse A - Receiving, Warehouse A - Shipping)</li>
+                    <li>Select the correct location before starting a scanning session</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

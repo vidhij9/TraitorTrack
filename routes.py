@@ -1,24 +1,29 @@
 import logging
-from flask import render_template, redirect, url_for, flash, request, jsonify
+from flask import render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import app, db
-from models import User, Product, Location, Scan
+from models import User, ParentBag, ChildBag, Location, Scan
 
 logger = logging.getLogger(__name__)
+
+# Configuration for number of child bags expected per parent
+CHILD_BAGS_PER_PARENT = 5  # Can be adjusted as needed
 
 @app.route('/')
 def index():
     """Home page"""
-    # Get some recent scan statistics for display
+    # Get statistics for display
     recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(5).all()
-    total_products = Product.query.count()
+    total_parent_bags = ParentBag.query.count()
+    total_child_bags = ChildBag.query.count()
     total_scans = Scan.query.count()
     total_locations = Location.query.count()
     
     return render_template('index.html', 
                           recent_scans=recent_scans,
-                          total_products=total_products,
+                          total_parent_bags=total_parent_bags,
+                          total_child_bags=total_child_bags,
                           total_scans=total_scans,
                           total_locations=total_locations)
 
@@ -97,94 +102,319 @@ def login():
 def logout():
     """User logout"""
     logout_user()
+    # Clear any scanning session data
+    session.pop('current_location_id', None)
+    session.pop('current_parent_bag_id', None)
+    session.pop('child_bags_scanned', None)
+    
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
-@app.route('/dashboard')
+@app.route('/locations', methods=['GET', 'POST'])
 @login_required
-def dashboard():
-    """Dashboard for visualizing tracking data"""
-    return render_template('dashboard.html')
+def locations():
+    """Location management page"""
+    if request.method == 'POST':
+        location_name = request.form.get('location_name')
+        location_address = request.form.get('location_address')
+        
+        if not location_name:
+            flash('Location name is required!', 'danger')
+            return redirect(url_for('locations'))
+        
+        # Create new location
+        location = Location(
+            name=location_name,
+            address=location_address
+        )
+        
+        db.session.add(location)
+        db.session.commit()
+        
+        flash('Location added successfully!', 'success')
+        return redirect(url_for('locations'))
+    
+    # Get all locations
+    all_locations = Location.query.all()
+    return render_template('locations.html', locations=all_locations)
 
-@app.route('/scan')
+@app.route('/select_location', methods=['GET', 'POST'])
 @login_required
-def scan():
-    """QR code scanning page"""
-    # Get all available locations for the scan form
+def select_location():
+    """Select a location before starting scanning process"""
+    if request.method == 'POST':
+        location_id = request.form.get('location_id')
+        
+        if not location_id:
+            flash('Please select a location!', 'danger')
+            return redirect(url_for('select_location'))
+        
+        # Store selected location in session
+        session['current_location_id'] = location_id
+        
+        # Reset any existing scanning session data
+        session.pop('current_parent_bag_id', None)
+        session.pop('child_bags_scanned', None)
+        
+        flash('Location selected! You can now start scanning bags.', 'success')
+        return redirect(url_for('scan_parent'))
+    
+    # Get all locations for selection
     locations = Location.query.all()
-    return render_template('scan.html', locations=locations)
+    return render_template('select_location.html', locations=locations)
 
-@app.route('/log_scan', methods=['POST'])
+@app.route('/scan_parent')
 @login_required
-def log_scan():
-    """Process a product scan"""
+def scan_parent():
+    """Scan parent bag QR code"""
+    # Ensure a location has been selected
+    if 'current_location_id' not in session:
+        flash('Please select a location first!', 'warning')
+        return redirect(url_for('select_location'))
+    
+    # Get the current location
+    location = Location.query.get(session['current_location_id'])
+    if not location:
+        flash('Invalid location! Please select a location again.', 'danger')
+        return redirect(url_for('select_location'))
+    
+    return render_template('scan_parent.html', location=location)
+
+@app.route('/process_parent_scan', methods=['POST'])
+@login_required
+def process_parent_scan():
+    """Process parent bag scan"""
     if request.method == 'POST':
         qr_id = request.form.get('qr_id')
-        location_id = request.form.get('location_id')
-        status = request.form.get('status')
-        notes = request.form.get('notes')
+        notes = request.form.get('notes', '')
         
-        logger.debug(f"Processing scan for QR ID: {qr_id} at location: {location_id}")
+        if not qr_id:
+            flash('QR code is required!', 'danger')
+            return redirect(url_for('scan_parent'))
         
-        # Validate input
-        if not qr_id or not location_id or not status:
-            flash('QR code, location, and status are required!', 'danger')
-            return redirect(url_for('scan'))
+        # Ensure a location has been selected
+        if 'current_location_id' not in session:
+            flash('Please select a location first!', 'warning')
+            return redirect(url_for('select_location'))
         
-        # Check if product exists
-        product = Product.query.filter_by(qr_id=qr_id).first()
+        location_id = session['current_location_id']
         
-        if not product:
-            # Create new product if it doesn't exist
-            product = Product(
+        # Check if parent bag exists, create if not
+        parent_bag = ParentBag.query.filter_by(qr_id=qr_id).first()
+        
+        if not parent_bag:
+            # Create new parent bag
+            parent_bag = ParentBag(
                 qr_id=qr_id,
-                name=f"Product {qr_id}",  # Default name
-                description="Newly scanned product"
+                name=f"Parent Bag {qr_id}",  # Default name
+                notes=notes
             )
-            db.session.add(product)
+            db.session.add(parent_bag)
             db.session.commit()
-            logger.debug(f"Created new product with QR ID: {qr_id}")
+            logger.debug(f"Created new parent bag with QR ID: {qr_id}")
         
-        # Create the scan record
+        # Record the scan
         try:
             scan = Scan(
-                product_id=product.id,
+                parent_bag_id=parent_bag.id,
                 user_id=current_user.id,
                 location_id=location_id,
-                status=status,
+                scan_type='parent',
                 notes=notes
             )
             
             db.session.add(scan)
             db.session.commit()
             
-            flash('Scan recorded successfully!', 'success')
-            return redirect(url_for('product_detail', qr_id=qr_id))
+            # Store the parent bag ID in session
+            session['current_parent_bag_id'] = parent_bag.id
+            session['child_bags_scanned'] = []
+            
+            flash(f'Parent bag {qr_id} scanned successfully! Now scan child bags.', 'success')
+            return redirect(url_for('scan_child'))
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error recording scan: {str(e)}")
+            logger.error(f"Error recording parent bag scan: {str(e)}")
             flash(f'Error recording scan: {str(e)}', 'danger')
-            return redirect(url_for('scan'))
+            return redirect(url_for('scan_parent'))
     
-    return redirect(url_for('scan'))
+    return redirect(url_for('scan_parent'))
 
-@app.route('/product/<qr_id>')
-def product_detail(qr_id):
-    """Product detail page showing scan history"""
-    product = Product.query.filter_by(qr_id=qr_id).first_or_404()
-    
-    # Get scan history for this product, ordered by timestamp
-    scans = Scan.query.filter_by(product_id=product.id).order_by(Scan.timestamp.desc()).all()
-    
-    return render_template('product_detail.html', product=product, scans=scans)
-
-@app.route('/locations')
+@app.route('/scan_child')
 @login_required
-def locations():
-    """List of locations"""
-    locations = Location.query.all()
-    return render_template('locations.html', locations=locations)
+def scan_child():
+    """Scan child bag QR code"""
+    # Ensure a location and parent bag have been selected
+    if 'current_location_id' not in session:
+        flash('Please select a location first!', 'warning')
+        return redirect(url_for('select_location'))
+    
+    if 'current_parent_bag_id' not in session:
+        flash('Please scan a parent bag first!', 'warning')
+        return redirect(url_for('scan_parent'))
+    
+    # Get the current location and parent bag
+    location = Location.query.get(session['current_location_id'])
+    parent_bag = ParentBag.query.get(session['current_parent_bag_id'])
+    
+    if not location or not parent_bag:
+        flash('Invalid session data! Please start over.', 'danger')
+        return redirect(url_for('select_location'))
+    
+    # Calculate progress
+    child_bags_scanned = session.get('child_bags_scanned', [])
+    bags_remaining = CHILD_BAGS_PER_PARENT - len(child_bags_scanned)
+    progress_percentage = int((len(child_bags_scanned) / CHILD_BAGS_PER_PARENT) * 100)
+    
+    return render_template('scan_child.html', 
+                          location=location, 
+                          parent_bag=parent_bag,
+                          child_bags_scanned=child_bags_scanned,
+                          bags_remaining=bags_remaining,
+                          progress_percentage=progress_percentage,
+                          total_expected=CHILD_BAGS_PER_PARENT)
+
+@app.route('/process_child_scan', methods=['POST'])
+@login_required
+def process_child_scan():
+    """Process child bag scan"""
+    if request.method == 'POST':
+        qr_id = request.form.get('qr_id')
+        notes = request.form.get('notes', '')
+        
+        if not qr_id:
+            flash('QR code is required!', 'danger')
+            return redirect(url_for('scan_child'))
+        
+        # Ensure a location and parent bag have been selected
+        if 'current_location_id' not in session or 'current_parent_bag_id' not in session:
+            flash('Please start the scanning process from the beginning!', 'warning')
+            return redirect(url_for('select_location'))
+        
+        location_id = session['current_location_id']
+        parent_bag_id = session['current_parent_bag_id']
+        
+        # Check if this child bag was already scanned in this session
+        child_bags_scanned = session.get('child_bags_scanned', [])
+        if qr_id in child_bags_scanned:
+            flash(f'Child bag {qr_id} was already scanned in this session!', 'warning')
+            return redirect(url_for('scan_child'))
+        
+        # Check if child bag exists, create if not
+        child_bag = ChildBag.query.filter_by(qr_id=qr_id).first()
+        
+        if not child_bag:
+            # Create new child bag
+            child_bag = ChildBag(
+                qr_id=qr_id,
+                name=f"Child Bag {qr_id}",  # Default name
+                parent_id=parent_bag_id,
+                notes=notes
+            )
+            db.session.add(child_bag)
+            db.session.commit()
+            logger.debug(f"Created new child bag with QR ID: {qr_id}")
+        else:
+            # Update parent relationship if different
+            if child_bag.parent_id != parent_bag_id:
+                child_bag.parent_id = parent_bag_id
+                db.session.commit()
+                logger.debug(f"Updated child bag {qr_id} to parent {parent_bag_id}")
+        
+        # Record the scan
+        try:
+            scan = Scan(
+                child_bag_id=child_bag.id,
+                user_id=current_user.id,
+                location_id=location_id,
+                scan_type='child',
+                notes=notes
+            )
+            
+            db.session.add(scan)
+            db.session.commit()
+            
+            # Update session data
+            child_bags_scanned.append(qr_id)
+            session['child_bags_scanned'] = child_bags_scanned
+            
+            # Check if we've scanned all expected child bags
+            if len(child_bags_scanned) >= CHILD_BAGS_PER_PARENT:
+                flash('All child bags have been scanned successfully!', 'success')
+                return redirect(url_for('scan_complete'))
+            
+            flash(f'Child bag {qr_id} scanned successfully! {CHILD_BAGS_PER_PARENT - len(child_bags_scanned)} more to go.', 'success')
+            return redirect(url_for('scan_child'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error recording child bag scan: {str(e)}")
+            flash(f'Error recording scan: {str(e)}', 'danger')
+            return redirect(url_for('scan_child'))
+    
+    return redirect(url_for('scan_child'))
+
+@app.route('/scan_complete')
+@login_required
+def scan_complete():
+    """Scanning process complete page"""
+    # Ensure we have valid session data
+    if 'current_parent_bag_id' not in session or 'child_bags_scanned' not in session:
+        flash('Invalid session state! Please start over.', 'warning')
+        return redirect(url_for('select_location'))
+    
+    parent_bag = ParentBag.query.get(session['current_parent_bag_id'])
+    child_bags_count = len(session.get('child_bags_scanned', []))
+    
+    # Clear session data for next scan
+    session.pop('current_parent_bag_id', None)
+    session.pop('child_bags_scanned', None)
+    
+    return render_template('scan_complete.html', 
+                          parent_bag=parent_bag,
+                          child_bags_count=child_bags_count)
+
+@app.route('/parent_bags')
+def parent_bags():
+    """List of all parent bags and their child bags"""
+    parent_bags = ParentBag.query.all()
+    return render_template('parent_bags.html', parent_bags=parent_bags)
+
+@app.route('/child_bags')
+def child_bags():
+    """List of all child bags and their parent bag"""
+    child_bags = ChildBag.query.all()
+    return render_template('child_bags.html', child_bags=child_bags)
+
+@app.route('/bag/<qr_id>')
+def bag_detail(qr_id):
+    """Bag detail page showing scan history"""
+    parent_bag = ParentBag.query.filter_by(qr_id=qr_id).first()
+    
+    if parent_bag:
+        # Get child bags associated with this parent
+        child_bags = ChildBag.query.filter_by(parent_id=parent_bag.id).all()
+        
+        # Get scan history for this parent bag
+        scans = Scan.query.filter_by(parent_bag_id=parent_bag.id).order_by(Scan.timestamp.desc()).all()
+        
+        return render_template('bag_detail.html', 
+                              is_parent=True,
+                              bag=parent_bag, 
+                              child_bags=child_bags,
+                              scans=scans)
+    else:
+        # Check if it's a child bag
+        child_bag = ChildBag.query.filter_by(qr_id=qr_id).first_or_404()
+        
+        # Get scan history for this child bag
+        scans = Scan.query.filter_by(child_bag_id=child_bag.id).order_by(Scan.timestamp.desc()).all()
+        
+        return render_template('bag_detail.html', 
+                              is_parent=False,
+                              bag=child_bag,
+                              scans=scans)
 
 @app.context_processor
 def utility_processor():

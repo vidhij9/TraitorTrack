@@ -24,40 +24,61 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f"<User {self.username}>"
 
-class Product(db.Model):
-    """Product model for items being tracked"""
+class ParentBag(db.Model):
+    """Parent bag model for tracking parent bags"""
     id = db.Column(db.Integer, primary_key=True)
     qr_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    manufacturer = db.Column(db.String(100))
-    category = db.Column(db.String(100))
+    name = db.Column(db.String(100))
+    notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    scans = db.relationship('Scan', backref='product', lazy='dynamic')
+    child_bags = db.relationship('ChildBag', backref='parent', lazy='dynamic')
+    scans = db.relationship('Scan', backref='parent_bag', lazy='dynamic')
     
     def __repr__(self):
-        return f"<Product {self.name} ({self.qr_id})>"
+        return f"<ParentBag {self.qr_id}>"
     
     def to_dict(self):
-        """Convert product to dictionary for API response"""
+        """Convert parent bag to dictionary for API response"""
         return {
             'id': self.id,
             'qr_id': self.qr_id,
             'name': self.name,
-            'description': self.description,
-            'manufacturer': self.manufacturer,
-            'category': self.category,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'child_count': self.child_bags.count()
+        }
+
+class ChildBag(db.Model):
+    """Child bag model for tracking child bags"""
+    id = db.Column(db.Integer, primary_key=True)
+    qr_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(100))
+    notes = db.Column(db.Text)
+    parent_id = db.Column(db.Integer, db.ForeignKey('parent_bag.id'))
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    scans = db.relationship('Scan', backref='child_bag', lazy='dynamic')
+    
+    def __repr__(self):
+        return f"<ChildBag {self.qr_id}>"
+    
+    def to_dict(self):
+        """Convert child bag to dictionary for API response"""
+        return {
+            'id': self.id,
+            'qr_id': self.qr_id,
+            'name': self.name,
+            'notes': self.notes,
+            'parent_id': self.parent_id,
+            'parent_qr_id': self.parent.qr_id if self.parent else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class Location(db.Model):
-    """Location model for tracking product movements"""
+    """Location model for tracking bag movements"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     address = db.Column(db.String(200))
-    latitude = db.Column(db.Float)
-    longitude = db.Column(db.Float)
-    location_type = db.Column(db.String(50))  # warehouse, distribution center, retail, etc.
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     scans = db.relationship('Scan', backref='location', lazy='dynamic')
     
     def __repr__(self):
@@ -69,36 +90,48 @@ class Location(db.Model):
             'id': self.id,
             'name': self.name,
             'address': self.address,
-            'latitude': self.latitude,
-            'longitude': self.longitude,
-            'location_type': self.location_type
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class Scan(db.Model):
-    """Scan model for recording product movement events"""
+    """Scan model for recording bag scans"""
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    parent_bag_id = db.Column(db.Integer, db.ForeignKey('parent_bag.id'), nullable=True)
+    child_bag_id = db.Column(db.Integer, db.ForeignKey('child_bag.id'), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    status = db.Column(db.String(50))  # received, in-transit, delivered, etc.
+    scan_type = db.Column(db.String(20))  # 'parent' or 'child'
     notes = db.Column(db.Text)
     
     def __repr__(self):
-        return f"<Scan {self.id} - Product {self.product_id}>"
+        if self.parent_bag_id:
+            return f"<Scan {self.id} - ParentBag {self.parent_bag_id}>"
+        elif self.child_bag_id:
+            return f"<Scan {self.id} - ChildBag {self.child_bag_id}>"
+        return f"<Scan {self.id}>"
     
     def to_dict(self):
         """Convert scan to dictionary for API response"""
+        bag_id = None
+        bag_qr = None
+        
+        if self.parent_bag_id:
+            bag_id = self.parent_bag_id
+            bag_qr = self.parent_bag.qr_id if self.parent_bag else None
+        elif self.child_bag_id:
+            bag_id = self.child_bag_id
+            bag_qr = self.child_bag.qr_id if self.child_bag else None
+            
         return {
             'id': self.id,
-            'product_id': self.product_id,
-            'product_qr': self.product.qr_id if self.product else None,
-            'product_name': self.product.name if self.product else None,
+            'bag_id': bag_id,
+            'bag_qr': bag_qr,
+            'scan_type': self.scan_type,
             'user_id': self.user_id,
             'username': self.scanned_by.username if self.scanned_by else None,
             'location_id': self.location_id,
             'location_name': self.location.name if self.location else None,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
-            'status': self.status,
             'notes': self.notes
         }
