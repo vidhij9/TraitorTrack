@@ -149,6 +149,23 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
+@app.route('/promote-to-admin', methods=['GET', 'POST'])
+@login_required
+def promote_to_admin():
+    """Allow users to promote themselves to admin role with a secret code"""
+    if request.method == 'POST':
+        admin_code = request.form.get('admin_code')
+        # The secret code is "tracetracksecret" - in production this would be more secure
+        if admin_code == "tracetracksecret":
+            current_user.role = UserRole.ADMIN.value
+            db.session.commit()
+            flash('You have been promoted to administrator!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid administrator code.', 'danger')
+    
+    return render_template('promote_to_admin.html')
+
 @app.route('/locations', methods=['GET', 'POST'])
 @login_required
 def locations():

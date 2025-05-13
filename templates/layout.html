@@ -83,6 +83,10 @@
                                 <small class="text-muted">Employee access</small>
                                 {% endif %}
                             </li>
+                            {% if not current_user.is_admin() %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('promote_to_admin') }}"><i class="fas fa-user-shield me-1"></i>Become Administrator</a></li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
                         </ul>
