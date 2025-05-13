@@ -35,7 +35,7 @@
                             <td><code>{{ bag.qr_id }}</code></td>
                             <td>{{ bag.name or "Parent Bag" }}</td>
                             <td>
-                                <span class="badge bg-primary">{{ bag.child_bags.count() }}</span>
+                                <span class="badge bg-primary">{{ bag.children.count() }}</span>
                             </td>
                             <td>{{ format_datetime(bag.created_at) }}</td>
                             <td>

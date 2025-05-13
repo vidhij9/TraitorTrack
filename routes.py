@@ -448,13 +448,13 @@ def scan_complete():
 def parent_bags():
     """List of all parent bags and their child bags"""
     parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).all()
-    return render_template('parent_bags.html', parent_bags=parent_bags)
+    return render_template('parent_bags.html', parent_bags=parent_bags, Scan=Scan)
 
 @app.route('/child_bags')
 def child_bags():
     """List of all child bags and their parent bag"""
     child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
-    return render_template('child_bags.html', child_bags=child_bags)
+    return render_template('child_bags.html', child_bags=child_bags, Scan=Scan)
 
 @app.route('/bag/<qr_id>')
 def bag_detail(qr_id):
@@ -477,7 +477,8 @@ def bag_detail(qr_id):
                               bag=bag, 
                               child_bags=child_bags,
                               scans=scans,
-                              link=link)
+                              link=link,
+                              Scan=Scan)
     else:
         # It's a child bag
         # Get scan history for this child bag
