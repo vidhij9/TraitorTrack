@@ -70,6 +70,12 @@ class Bag(db.Model):
     def __repr__(self):
         return f"<Bag {self.qr_id} - Type: {self.type}>"
     
+    @property
+    def scans(self):
+        """Get all scans for this bag, whether as parent or child"""
+        from sqlalchemy import or_
+        return Scan.query.filter(or_(Scan.parent_bag_id == self.id, Scan.child_bag_id == self.id))
+    
     def to_dict(self, include_children=False):
         """Convert bag to dictionary for API response"""
         result = {
