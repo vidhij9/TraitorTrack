@@ -1,22 +1,29 @@
 import logging
+import re
+import uuid
+import datetime
 from flask import render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import app, db
-from models import User, ParentBag, ChildBag, Location, Scan
+from models import User, UserRole, Bag, BagType, Link, Location, Scan
 
 logger = logging.getLogger(__name__)
 
 # Configuration for number of child bags expected per parent
 CHILD_BAGS_PER_PARENT = 5  # Can be adjusted as needed
 
+# QR code format validation pattern
+PARENT_QR_PATTERN = re.compile(r'^P\d+-\d+$')
+CHILD_QR_PATTERN = re.compile(r'^C\d+$')
+
 @app.route('/')
 def index():
     """Home page"""
     # Get statistics for display
     recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(5).all()
-    total_parent_bags = ParentBag.query.count()
-    total_child_bags = ChildBag.query.count()
+    total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
+    total_child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
     total_scans = Scan.query.count()
     total_locations = Location.query.count()
     
@@ -60,11 +67,27 @@ def register():
             flash('Email already registered!', 'danger')
             return render_template('register.html')
         
-        # Create new user
-        new_user = User(username=username, email=email)
+        # Create new user with verification token
+        verification_token = str(uuid.uuid4())
+        new_user = User(
+            username=username, 
+            email=email,
+            role=UserRole.EMPLOYEE.value,  # Default role is employee
+            verification_token=verification_token,
+            verified=False  # Require verification
+        )
         new_user.set_password(password)
         
         db.session.add(new_user)
+        db.session.commit()
+        
+        # In a production environment, we would send an email with the verification link
+        # For now, we'll just log it and auto-verify for convenience
+        logger.info(f"Verification link for {username}: /verify/{verification_token}")
+        
+        # Auto-verify for development
+        new_user.verified = True
+        new_user.verification_token = None
         db.session.commit()
         
         flash('Registration successful! Please log in.', 'success')
@@ -87,6 +110,11 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
+            # Check if user is verified
+            if not user.verified:
+                flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
+                return render_template('login.html')
+            
             login_user(user, remember=remember)
             next_page = request.args.get('next')
             if next_page:

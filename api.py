@@ -2,7 +2,7 @@ import logging
 from flask import jsonify, request, Blueprint
 from flask_login import login_required
 from app import app, db
-from models import ParentBag, ChildBag, Location, Scan, User
+from models import User, Bag, BagType, Link, Location, Scan
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 @app.route('/api/parent_bags')
 def api_parent_bags():
     """Get all parent bags"""
-    parent_bags = ParentBag.query.all()
+    parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).all()
     return jsonify({
         'success': True,
         'parent_bags': [bag.to_dict() for bag in parent_bags]
@@ -19,7 +19,7 @@ def api_parent_bags():
 @app.route('/api/child_bags')
 def api_child_bags():
     """Get all child bags"""
-    child_bags = ChildBag.query.all()
+    child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
     return jsonify({
         'success': True,
         'child_bags': [bag.to_dict() for bag in child_bags]
@@ -28,7 +28,7 @@ def api_child_bags():
 @app.route('/api/parent_bag/<qr_id>')
 def api_parent_bag(qr_id):
     """Get parent bag details by QR ID"""
-    parent_bag = ParentBag.query.filter_by(qr_id=qr_id).first()
+    parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
     
     if not parent_bag:
         return jsonify({
@@ -37,7 +37,7 @@ def api_parent_bag(qr_id):
         }), 404
     
     # Get all child bags for this parent
-    child_bags = ChildBag.query.filter_by(parent_id=parent_bag.id).all()
+    child_bags = Bag.query.filter_by(parent_id=parent_bag.id, type=BagType.CHILD.value).all()
     
     return jsonify({
         'success': True,
@@ -48,7 +48,7 @@ def api_parent_bag(qr_id):
 @app.route('/api/child_bag/<qr_id>')
 def api_child_bag(qr_id):
     """Get child bag details by QR ID"""
-    child_bag = ChildBag.query.filter_by(qr_id=qr_id).first()
+    child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
     
     if not child_bag:
         return jsonify({
@@ -59,7 +59,7 @@ def api_child_bag(qr_id):
     # Get parent bag if exists
     parent_data = None
     if child_bag.parent_id:
-        parent_bag = ParentBag.query.get(child_bag.parent_id)
+        parent_bag = Bag.query.filter_by(id=child_bag.parent_id, type=BagType.PARENT.value).first()
         if parent_bag:
             parent_data = parent_bag.to_dict()
     
@@ -72,7 +72,7 @@ def api_child_bag(qr_id):
 @app.route('/api/parent_bag/<qr_id>/scans')
 def api_parent_bag_scans(qr_id):
     """Get scan history for a parent bag"""
-    parent_bag = ParentBag.query.filter_by(qr_id=qr_id).first()
+    parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
     
     if not parent_bag:
         return jsonify({
@@ -91,7 +91,7 @@ def api_parent_bag_scans(qr_id):
 @app.route('/api/child_bag/<qr_id>/scans')
 def api_child_bag_scans(qr_id):
     """Get scan history for a child bag"""
-    child_bag = ChildBag.query.filter_by(qr_id=qr_id).first()
+    child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
     
     if not child_bag:
         return jsonify({
@@ -144,8 +144,8 @@ def api_scans():
 @app.route('/api/stats')
 def api_stats():
     """Get system statistics"""
-    total_parent_bags = ParentBag.query.count()
-    total_child_bags = ChildBag.query.count()
+    total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
+    total_child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
     total_scans = Scan.query.count()
     total_locations = Location.query.count()
     
@@ -182,17 +182,33 @@ def seed_test_data():
     """Seed the database with some test data - for development only"""
     try:
         # Create locations
-        locations = [
-            Location(name="Warehouse A", address="123 Main St"),
-            Location(name="Distribution Center", address="456 State St"),
-            Location(name="Retail Store", address="789 Market St")
+        locations = []
+        location_names = [
+            {"name": "Warehouse A", "address": "123 Main St"},
+            {"name": "Distribution Center", "address": "456 State St"},
+            {"name": "Retail Store", "address": "789 Market St"}
         ]
         
-        for location in locations:
+        for loc_data in location_names:
+            location = Location()
+            location.name = loc_data["name"]
+            location.address = loc_data["address"]
             existing = Location.query.filter_by(name=location.name).first()
             if not existing:
+                locations.append(location)
                 db.session.add(location)
         
+        # Create a test admin user if none exists
+        admin_user = User.query.filter_by(username="admin").first()
+        if not admin_user:
+            admin_user = User()
+            admin_user.username = "admin"
+            admin_user.email = "admin@example.com"
+            admin_user.set_password("adminpassword")
+            admin_user.role = UserRole.ADMIN.value
+            admin_user.verified = True
+            db.session.add(admin_user)
+            
         db.session.commit()
         
         return jsonify({
