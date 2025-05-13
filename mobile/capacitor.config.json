@@ -1,0 +1,29 @@
+{
+  "appId": "com.tracetrack.app",
+  "appName": "TraceTrack",
+  "webDir": "../static",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://tracetrack.replit.app",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "launchAutoHide": true,
+      "backgroundColor": "#4CAF50",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": true,
+      "spinnerColor": "#FFFFFF",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "Camera": {
+      "permissions": ["camera"]
+    }
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "tracetrack-mobile",
+  "version": "1.0.0",
+  "description": "TraceTrack Mobile App",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx cap serve",
+    "build": "npm run sync && npm run build:android",
+    "sync": "npx cap sync",
+    "build:android": "npx cap open android",
+    "add:android": "npx cap add android"
+  },
+  "keywords": [
+    "agriculture",
+    "tracking",
+    "qr-code"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^5.5.0",
+    "@capacitor/core": "^5.5.0",
+    "@capacitor/camera": "^5.0.7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^5.5.0"
+  }
+}
