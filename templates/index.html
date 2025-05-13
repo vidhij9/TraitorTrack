@@ -3,226 +3,299 @@
 {% block title %} - Home{% endblock %}
 
 {% block content %}
-<div class="jumbotron bg-dark rounded p-4 mb-4">
-    <div class="row">
-        <div class="col-md-6">
-            <h1 class="display-4">Agricultural Traceability</h1>
-            <p class="lead">Track harvests from farm to table with QR code traceability</p>
+<div class="mb-5 fade-in">
+    <div class="row align-items-center">
+        <div class="col-md-6 ps-md-5 mb-4 mb-md-0">
+            <h1 class="display-3 fw-bold mb-3" style="line-height: 1.2; letter-spacing: -0.03em;">
+                Trace Any Product. <br>
+                <span style="background: linear-gradient(90deg, var(--primary-blue), var(--primary-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Anywhere.</span>
+            </h1>
+            <p class="lead mb-4" style="font-size: 1.25rem; opacity: 0.8;">
+                TraceTrack delivers seamless end-to-end visibility for your supply chain with QR technology.
+            </p>
             
             {% if current_user.is_authenticated %}
-            <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg">
-                <i class="fas fa-qrcode me-2"></i> Begin Tracking
+            <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg px-4 me-2">
+                Start Scanning
+            </a>
+            <a href="{{ url_for('parent_bags') }}" class="btn btn-outline-primary btn-lg px-4">
+                View Batches
             </a>
             {% else %}
-            <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
-                <i class="fas fa-sign-in-alt me-2"></i> Login to Start
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4 me-2">
+                Get Started
+            </a>
+            <a href="#features" class="btn btn-outline-primary btn-lg px-4">
+                Learn More
             </a>
             {% endif %}
         </div>
-        <div class="col-md-6 text-center">
-            <img src="https://cdn.pixabay.com/photo/2015/09/09/16/05/farm-fresh-vegetables-932485_1280.jpg" 
-                 alt="Farm Fresh Produce" 
-                 class="img-fluid rounded shadow-sm" 
-                 style="max-height: 300px; object-fit: cover;">
-        </div>
-    </div>
-</div>
-
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card bg-dark h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-qrcode fa-4x mb-3" style="color: var(--agri-green);"></i>
-                <h3 class="card-title">Farm Traceability</h3>
-                <p class="card-text">Scan produce QR codes to track your harvest from field to consumer.</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card bg-dark h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-sitemap fa-4x mb-3" style="color: var(--agri-light-green);"></i>
-                <h3 class="card-title">Harvest Batching</h3>
-                <p class="card-text">Associate produce packages with harvest batches for complete supply chain visibility.</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card bg-dark h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-map-marker-alt fa-4x mb-3" style="color: var(--agri-yellow);"></i>
-                <h3 class="card-title">Farm to Table</h3>
-                <p class="card-text">Record produce location at each point from harvest to retail store.</p>
+        <div class="col-md-6">
+            <div class="position-relative">
+                <img src="https://images.unsplash.com/photo-1563770557337-3a251b1a3ab8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" 
+                     alt="QR code tracking" 
+                     class="img-fluid rounded-4 shadow-lg" 
+                     style="object-fit: cover; max-height: 450px; width: 100%;">
+                <div class="position-absolute" style="bottom: -20px; right: -20px; z-index: -1; width: 100%; height: 100%; background: var(--primary-blue); opacity: 0.1; border-radius: 1rem;"></div>
             </div>
         </div>
     </div>
 </div>
 
-<hr class="my-5">
-
-<div class="row">
-    <div class="col-md-6">
-        <h2 class="mb-4">How Farm Tracking Works</h2>
-        <div class="row mb-4">
-            <div class="col-md-2 text-center">
-                <div style="background-color: var(--agri-green);" class="rounded-circle p-3 d-inline-block">
-                    <i class="fas fa-tractor text-white"></i>
+<div id="features" class="row mb-5 py-4">
+    <div class="col-12 text-center mb-4">
+        <h2 class="display-5 fw-bold mb-3">Powerful Features</h2>
+        <p class="lead mx-auto" style="max-width: 700px; opacity: 0.8;">
+            Everything you need to trace, track and verify your product journey
+        </p>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <div class="rounded-circle mb-3 d-inline-flex align-items-center justify-content-center" 
+                     style="width: 60px; height: 60px; background-color: rgba(0, 113, 227, 0.1);">
+                    <i class="fas fa-qrcode fa-2x" style="color: var(--primary-blue);"></i>
                 </div>
-            </div>
-            <div class="col-md-10">
-                <h4>1. Identify Farm Location</h4>
-                <p>Select your farm, processing facility, or distribution center location.</p>
-            </div>
-        </div>
-        <div class="row mb-4">
-            <div class="col-md-2 text-center">
-                <div style="background-color: var(--agri-dark-green);" class="rounded-circle p-3 d-inline-block">
-                    <i class="fas fa-boxes text-white"></i>
-                </div>
-            </div>
-            <div class="col-md-10">
-                <h4>2. Scan Harvest Batch</h4>
-                <p>Scan the QR code of the harvest batch first to establish parent record.</p>
-            </div>
-        </div>
-        <div class="row mb-4">
-            <div class="col-md-2 text-center">
-                <div style="background-color: var(--agri-light-green);" class="rounded-circle p-3 d-inline-block">
-                    <i class="fas fa-carrot text-white"></i>
-                </div>
-            </div>
-            <div class="col-md-10">
-                <h4>3. Scan Individual Produce Packages</h4>
-                <p>Scan each produce package QR code to associate with the harvest batch.</p>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-2 text-center">
-                <div style="background-color: var(--agri-yellow);" class="rounded-circle p-3 d-inline-block">
-                    <i class="fas fa-leaf text-dark"></i>
-                </div>
-            </div>
-            <div class="col-md-10">
-                <h4>4. Complete Farm-to-Table View</h4>
-                <p>View complete traceability data for your agricultural products.</p>
+                <h4 class="card-title fw-bold mb-3">Instant Scanning</h4>
+                <p class="card-text opacity-75">Quickly capture QR codes with any device to track products in real-time with unmatched precision.</p>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <h2 class="mb-4">Harvest Statistics</h2>
-        
-        <div class="row">
-            <div class="col-md-3">
-                <div class="card bg-dark text-center mb-4">
-                    <div class="card-body">
-                        <h3 class="display-4" style="color: var(--agri-dark-green);">{{ total_parent_bags }}</h3>
-                        <p class="text-muted">Harvest Batches</p>
-                    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <div class="rounded-circle mb-3 d-inline-flex align-items-center justify-content-center" 
+                     style="width: 60px; height: 60px; background-color: rgba(52, 199, 89, 0.1);">
+                    <i class="fas fa-sitemap fa-2x" style="color: var(--success-color);"></i>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-dark text-center mb-4">
-                    <div class="card-body">
-                        <h3 class="display-4" style="color: var(--agri-light-green);">{{ total_child_bags }}</h3>
-                        <p class="text-muted">Produce Packages</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-dark text-center mb-4">
-                    <div class="card-body">
-                        <h3 class="display-4" style="color: var(--agri-yellow);">{{ total_scans }}</h3>
-                        <p class="text-muted">Track Records</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-dark text-center mb-4">
-                    <div class="card-body">
-                        <h3 class="display-4" style="color: var(--agri-green);">{{ total_locations }}</h3>
-                        <p class="text-muted">Farm Locations</p>
-                    </div>
-                </div>
+                <h4 class="card-title fw-bold mb-3">Batch Management</h4>
+                <p class="card-text opacity-75">Organize products in hierarchical batches with parent-child relationships for complete visibility.</p>
             </div>
         </div>
-        
-        <div class="card bg-dark">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Recent Activity</h5>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <div class="rounded-circle mb-3 d-inline-flex align-items-center justify-content-center" 
+                     style="width: 60px; height: 60px; background-color: rgba(255, 149, 0, 0.1);">
+                    <i class="fas fa-map-marker-alt fa-2x" style="color: var(--warning-color);"></i>
+                </div>
+                <h4 class="card-title fw-bold mb-3">Location Tracking</h4>
+                <p class="card-text opacity-75">Monitor product movement across locations to maintain comprehensive supply chain records.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="py-5" style="background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,113,227,0.05) 100%);">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 d-flex align-items-center">
                 <div>
-                    <a href="{{ url_for('parent_bags') }}" class="btn btn-sm btn-outline-primary">
-                        View Parent Bags
-                    </a>
-                    <a href="{{ url_for('child_bags') }}" class="btn btn-sm btn-outline-primary">
-                        View Child Bags
-                    </a>
+                    <h2 class="display-5 fw-bold mb-4">How It Works</h2>
+                    <p class="lead mb-4 opacity-75">Four simple steps to complete product traceability</p>
+                    
+                    <div class="d-flex mb-4">
+                        <div class="me-4">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mb-2" 
+                                 style="width: 48px; height: 48px; background-color: var(--primary-blue); color: white; font-weight: bold;">
+                                1
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold">Select Location</h4>
+                            <p class="opacity-75">Choose your current facility or location where the scanning will take place</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex mb-4">
+                        <div class="me-4">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mb-2" 
+                                 style="width: 48px; height: 48px; background-color: var(--primary-blue); color: white; font-weight: bold;">
+                                2
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold">Scan Parent Batch</h4>
+                            <p class="opacity-75">Scan the parent batch QR code to establish the primary record</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex mb-4">
+                        <div class="me-4">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mb-2" 
+                                 style="width: 48px; height: 48px; background-color: var(--primary-blue); color: white; font-weight: bold;">
+                                3
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold">Scan Child Packages</h4>
+                            <p class="opacity-75">Link individual product packages to the parent batch with quick scans</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex">
+                        <div class="me-4">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mb-2" 
+                                 style="width: 48px; height: 48px; background-color: var(--primary-blue); color: white; font-weight: bold;">
+                                4
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold">Complete Visibility</h4>
+                            <p class="opacity-75">Access complete tracking data across your entire supply chain</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card-body">
-                {% if recent_scans %}
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Bag QR ID</th>
-                                <th>Type</th>
-                                <th>Location</th>
-                                <th>Time</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for scan in recent_scans %}
-                            <tr>
-                                <td>{{ scan.bag_qr }}</td>
-                                <td>
-                                    <span class="badge {{ 'bg-primary' if scan.scan_type == 'parent' else 'bg-info' }}">
-                                        {{ scan.scan_type }}
-                                    </span>
-                                </td>
-                                <td>{{ scan.location_name }}</td>
-                                <td>{{ format_datetime(scan.timestamp) }}</td>
-                                <td>
-                                    <a href="{{ url_for('bag_detail', qr_id=scan.bag_qr) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="col-md-6">
+                <div class="p-4 rounded-4 mb-4" style="background-color: rgba(0,0,0,0.3); backdrop-filter: blur(10px);">
+                    <h3 class="fw-bold mb-4">System Statistics</h3>
+                    <div class="row g-4">
+                        <div class="col-6">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 50px; height: 50px; background-color: rgba(0, 113, 227, 0.1);">
+                                    <i class="fas fa-boxes" style="color: var(--primary-blue);"></i>
+                                </div>
+                                <div>
+                                    <div class="fs-4 fw-bold">{{ total_parent_bags }}</div>
+                                    <div class="small opacity-75">Batches</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 50px; height: 50px; background-color: rgba(52, 199, 89, 0.1);">
+                                    <i class="fas fa-box" style="color: var(--success-color);"></i>
+                                </div>
+                                <div>
+                                    <div class="fs-4 fw-bold">{{ total_child_bags }}</div>
+                                    <div class="small opacity-75">Packages</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 50px; height: 50px; background-color: rgba(255, 59, 48, 0.1);">
+                                    <i class="fas fa-qrcode" style="color: var(--accent-color);"></i>
+                                </div>
+                                <div>
+                                    <div class="fs-4 fw-bold">{{ total_scans }}</div>
+                                    <div class="small opacity-75">Scans</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 50px; height: 50px; background-color: rgba(255, 149, 0, 0.1);">
+                                    <i class="fas fa-map-marker-alt" style="color: var(--warning-color);"></i>
+                                </div>
+                                <div>
+                                    <div class="fs-4 fw-bold">{{ total_locations }}</div>
+                                    <div class="small opacity-75">Locations</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {% else %}
-                <p class="text-muted text-center">No recent scanning activity</p>
-                {% endif %}
+                
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0 fw-bold">Recent Activity</h4>
+                        <div>
+                            <a href="{{ url_for('parent_bags') }}" class="btn btn-sm btn-outline-primary me-2">
+                                View Batches
+                            </a>
+                            <a href="{{ url_for('child_bags') }}" class="btn btn-sm btn-outline-primary">
+                                View Packages
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if recent_scans %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4">QR ID</th>
+                                        <th>Type</th>
+                                        <th>Location</th>
+                                        <th>Time</th>
+                                        <th class="text-end pe-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for scan in recent_scans %}
+                                    <tr>
+                                        <td class="px-4">{{ scan.bag_qr }}</td>
+                                        <td>
+                                            {% if scan.scan_type == 'parent' %}
+                                            <span class="badge bg-primary">Batch</span>
+                                            {% else %}
+                                            <span class="badge" style="background-color: var(--success-color);">Package</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ scan.location_name }}</td>
+                                        <td>{{ format_datetime(scan.timestamp) }}</td>
+                                        <td class="text-end pe-4">
+                                            <a href="{{ url_for('bag_detail', qr_id=scan.bag_qr) }}" class="btn btn-sm btn-primary rounded-circle">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center">
+                            <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                            <p class="opacity-75">No recent scanning activity</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 
-<hr class="my-5">
-
-<div class="row mb-4">
-    <div class="col-md-4 text-center">
-        <div class="icon-container mb-3">
-            <i class="fas fa-sitemap fa-5x text-primary"></i>
+<section class="py-5 my-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card border-0" style="background: linear-gradient(135deg, rgba(0, 113, 227, 0.1), rgba(0, 0, 0, 0.2)); backdrop-filter: blur(10px);">
+                    <div class="card-body p-5 text-center">
+                        <h2 class="display-4 fw-bold mb-4">Ready to Start Tracking?</h2>
+                        <p class="lead mb-4 mx-auto" style="max-width: 600px; opacity: 0.8;">
+                            Get complete visibility into your product journey from origin to destination with just a few scans.
+                        </p>
+                        
+                        <div class="d-flex justify-content-center gap-3 mt-4">
+                            {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg px-4 py-3">
+                                Start Scanning Now
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-4 py-3">
+                                Create Account
+                            </a>
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg px-4 py-3">
+                                Sign In
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <h4>Bag Relationship Tracking</h4>
-        <p>Associate child bags with parent bags for a complete view of your inventory</p>
     </div>
-    <div class="col-md-4 text-center">
-        <div class="icon-container mb-3">
-            <i class="fas fa-history fa-5x text-primary"></i>
-        </div>
-        <h4>Scan History</h4>
-        <p>Track the complete history of all your bags across different locations</p>
-    </div>
-    <div class="col-md-4 text-center">
-        <div class="icon-container mb-3">
-            <i class="fas fa-mobile-alt fa-5x text-primary"></i>
-        </div>
-        <h4>Mobile-Friendly</h4>
-        <p>Scan QR codes easily from any mobile device with a camera</p>
-    </div>
-</div>
+</section>
 {% endblock %}

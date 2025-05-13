@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgriTrack - Agricultural Supply Chain{% block title %}{% endblock %}</title>
+    <title>TraceTrack{% block title %}{% endblock %}</title>
     
     <!-- Bootstrap CSS (Replit Dark Theme) -->
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
@@ -18,41 +18,31 @@
 </head>
 <body>
     <!-- Navigation bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-seedling me-2"></i>AgriTrack
+                <i class="fas fa-qrcode me-2"></i>TraceTrack
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+                <ul class="navbar-nav mx-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">
-                            <i class="fas fa-home me-1"></i>Home
-                        </a>
+                        <a class="nav-link px-3" href="{{ url_for('index') }}">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('parent_bags') }}">
-                            <i class="fas fa-boxes me-1"></i>Harvest Batches
-                        </a>
+                        <a class="nav-link px-3" href="{{ url_for('parent_bags') }}">Batches</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('child_bags') }}">
-                            <i class="fas fa-box me-1"></i>Produce Packages
-                        </a>
+                        <a class="nav-link px-3" href="{{ url_for('child_bags') }}">Packages</a>
                     </li>
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('locations') }}">
-                            <i class="fas fa-map-marker-alt me-1"></i>Farms & Storage
-                        </a>
+                        <a class="nav-link px-3" href="{{ url_for('locations') }}">Locations</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('select_location') }}">
-                            <i class="fas fa-qrcode me-1"></i>Track Produce
-                        </a>
+                        <a class="nav-link px-3" href="{{ url_for('select_location') }}">Scan</a>
                     </li>
                     {% endif %}
                 </ul>
@@ -68,16 +58,19 @@
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                        <a class="btn btn-sm btn-primary ms-2" href="{{ url_for('login') }}">Login</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                        <a class="btn btn-sm btn-outline-primary ms-2" href="{{ url_for('register') }}">Register</a>
                     </li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
+    
+    <!-- Spacer for fixed navbar -->
+    <div style="padding-top: 70px;"></div>
 
     <!-- Main content container -->
     <div class="container mb-5">
@@ -98,16 +91,25 @@
     </div>
     
     <!-- Footer -->
-    <footer class="py-4 bg-dark mt-auto">
+    <footer class="py-4 mt-auto" style="background-color: rgba(0,0,0,0.7); backdrop-filter: blur(10px);">
         <div class="container">
-            <div class="d-flex flex-column flex-md-row align-items-center justify-content-between small">
-                <div class="text-muted">
-                    <i class="fas fa-seedling me-1"></i> AgriTrack &copy; 2025 - Farm to Table Traceability
+            <div class="row align-items-center">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-qrcode me-2" style="color: var(--primary-blue);"></i>
+                        <span class="fs-5 fw-bold">TraceTrack</span>
+                    </div>
+                    <p class="text-muted small mb-0 mt-2">
+                        Tracing your products from source to destination with unmatched precision
+                    </p>
                 </div>
-                <div>
-                    <a href="#" class="text-muted">Privacy Policy</a>
-                    &middot;
-                    <a href="#" class="text-muted">Terms &amp; Conditions</a>
+                <div class="col-md-4 mb-3 mb-md-0 text-center">
+                    <p class="mb-0 small">&copy; 2025 TraceTrack. All rights reserved.</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <a href="#" class="text-decoration-none me-3 small" style="color: var(--primary-blue);">Privacy</a>
+                    <a href="#" class="text-decoration-none me-3 small" style="color: var(--primary-blue);">Terms</a>
+                    <a href="#" class="text-decoration-none small" style="color: var(--primary-blue);">Support</a>
                 </div>
             </div>
         </div>
