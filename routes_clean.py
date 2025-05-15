@@ -152,12 +152,16 @@ def register():
 @login_required
 def promote_admin():
     """Allow users to promote themselves to admin with secret code"""
+    from forms import PromoteToAdminForm
+    
     if current_user.is_admin():
         flash('You are already an admin.', 'info')
         return redirect(url_for('index'))
     
-    if request.method == 'POST':
-        secret_code = request.form.get('secret_code')
+    form = PromoteToAdminForm()
+    
+    if form.validate_on_submit():
+        secret_code = form.secret_code.data
         
         if secret_code == 'tracetracksecret':
             current_user.role = UserRole.ADMIN.value
@@ -167,7 +171,7 @@ def promote_admin():
         else:
             flash('Invalid secret code.', 'danger')
     
-    return render_template('promote_admin.html')
+    return render_template('promote_admin.html', form=form)
 
 # Workflow A: Parent-Child Scanning
 @app.route('/select_location', methods=['GET', 'POST'])
