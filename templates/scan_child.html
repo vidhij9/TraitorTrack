@@ -466,9 +466,9 @@
                         resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + 
                             'All child bags scanned successfully! Redirecting to completion page...';
                             
-                        // Automatically navigate to home page after 3 seconds
+                        // Automatically navigate to index page after 3 seconds
                         setTimeout(() => {
-                            window.location.href = '{{ url_for("home") }}';
+                            window.location.href = '{{ url_for("index") }}';
                         }, 3000);
                     }
                     
