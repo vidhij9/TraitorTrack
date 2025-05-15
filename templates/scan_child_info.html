@@ -149,6 +149,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`QR scan failure: ${error}`);
     }
     
+    // Start camera automatically when page loads
+    startScanner();
+    
     // Event listeners
     startScanBtn.addEventListener('click', startScanner);
     closeScanner.addEventListener('click', stopScanner);

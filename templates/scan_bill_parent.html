@@ -148,7 +148,10 @@
         let canvasContext = canvas.getContext('2d');
         let lastDetectedCode = null;
         
-        // Start camera when button is clicked
+        // Start camera automatically when page loads
+        startCamera();
+        
+        // Also keep the button functionality as backup
         startCameraBtn.addEventListener('click', startCamera);
         
         // Stop camera when button is clicked
@@ -238,6 +241,10 @@
                     qrCode = formattedQrCode;
                 }
             }
+            
+            // Display the scanned QR code in the manual entry box for visibility
+            const manualQrInput = document.getElementById('manual-qr-code');
+            manualQrInput.value = qrCode;
             
             // Send to server for processing
             fetch('/process_bill_parent_scan', {
