@@ -159,7 +159,14 @@ with app.app_context():
     
     # Import and register routes
     import routes  # noqa: F401
-    import api  # noqa: F401
+    
+    # Register API blueprint for advanced API endpoints
+    from api_endpoints import api
+    app.register_blueprint(api)
+    
+    # Start task queue worker for asynchronous processing
+    import task_queue
+    task_queue.start_worker()
     
     from models import User
     

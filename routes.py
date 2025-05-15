@@ -369,7 +369,7 @@ def invalidate_data_caches():
 @app.route('/process_parent_scan', methods=['POST'])
 @login_required
 def process_parent_scan():
-    """Process parent bag scan"""
+    """Process parent bag scan with improved performance via asynchronous processing"""
     if request.method == 'POST':
         qr_id = request.form.get('qr_id')
         notes = sanitize_input(request.form.get('notes', ''), max_length=500)
@@ -387,47 +387,42 @@ def process_parent_scan():
         
         location_id = session['current_location_id']
         
-        # Check if parent bag exists, create if not
+        # Check if parent bag exists (for session storage)
         parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        parent_bag_id = parent_bag.id if parent_bag else None
         
-        if not parent_bag:
-            # Create new parent bag
-            parent_bag = Bag()
-            parent_bag.qr_id = qr_id
-            parent_bag.name = f"Parent Bag {qr_id}"  # Default name
-            parent_bag.notes = notes
-            parent_bag.type = BagType.PARENT.value
-            parent_bag.child_count = child_count
-            
-            db.session.add(parent_bag)
-            db.session.commit()
-            logger.debug(f"Created new parent bag with QR ID: {qr_id}, expecting {child_count} children")
-        
-        # Record the scan
+        # Use asynchronous processing for improved performance
         try:
-            scan = Scan()
-            scan.parent_bag_id = parent_bag.id
-            scan.user_id = current_user.id
-            scan.location_id = location_id
-            scan.scan_type = 'parent'
-            scan.notes = notes
+            # Import async processing module
+            from async_processing import process_scan_async
             
-            db.session.add(scan)
-            db.session.commit()
+            # Prepare scan data for async processing
+            scan_data = {
+                'qr_id': qr_id,
+                'user_id': current_user.id,
+                'location_id': location_id,
+                'scan_type': 'parent',
+                'notes': notes,
+                'name': f"Parent Bag {qr_id}",
+                'child_count': child_count
+            }
             
-            # Invalidate caches after data modification
-            invalidate_data_caches()
+            # Start asynchronous processing and get task ID
+            task_id = process_scan_async(scan_data)
+            logger.info(f"Started async processing of parent bag scan: {qr_id}, Task ID: {task_id}")
             
-            # Store the parent bag ID in session
-            session['current_parent_bag_id'] = parent_bag.id
+            # Store parent bag info in session for next steps, regardless of async completion
+            if parent_bag:
+                session['current_parent_bag_id'] = parent_bag.id
             session['child_bags_scanned'] = []
-            session['child_bags_expected'] = child_count  # Store expected count
+            session['child_bags_expected'] = child_count
+            session['last_scan_task_id'] = task_id
             
-            flash(f'Parent bag {qr_id} scanned successfully! Now scan {child_count} child bags.', 'success')
+            flash(f'Parent bag {qr_id} scan in progress! Preparing to scan {child_count} child bags.', 'success')
             return redirect(url_for('scan_child'))
             
         except Exception as e:
-            db.session.rollback()
+            logger.exception(f"Error initiating async scan processing: {str(e)}")
             logger.error(f"Error recording parent bag scan: {str(e)}")
             flash(f'Error recording scan: {str(e)}', 'danger')
             return redirect(url_for('scan_parent'))
