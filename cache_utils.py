@@ -3,102 +3,136 @@ Advanced caching utilities for high-performance application.
 Implements a tiered caching strategy with memory and persistence layers.
 """
 
-import time
-import logging
-import functools
-import hashlib
+import datetime
 import json
-import pickle
-from threading import RLock
-from collections import OrderedDict
+import logging
 import os
+import pickle
+import time
+from collections import OrderedDict
+from functools import wraps
+from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Cache configuration
-CACHE_SIZE_LIMIT = 1000  # Maximum number of items to keep in memory
-CACHE_PERSIST_DIR = os.path.join(os.getcwd(), 'cache')
-MEMORY_CACHE_ENABLED = True
-DISK_CACHE_ENABLED = True
+# Cache settings
+CACHE_SIZE_LIMIT = 1000  # Number of items to store in memory
+CACHE_DIR = os.path.join(os.getcwd(), 'cache')  # Directory for persistent cache
+CACHE_DISK_ENABLED = True  # Enable disk caching
+CACHE_EXPIRATION_CHECK_INTERVAL = 60  # How often to check for expired items (seconds)
 
-# Create cache directory if it doesn't exist
-if DISK_CACHE_ENABLED and not os.path.exists(CACHE_PERSIST_DIR):
-    os.makedirs(CACHE_PERSIST_DIR, exist_ok=True)
+# Initialize cache storage
+_memory_cache = {}  # Namespace -> OrderedDict
+_last_expiration_check = time.time()
 
-# LRU memory cache implementation for faster access
+
 class LRUCache(OrderedDict):
     def __init__(self, maxsize=CACHE_SIZE_LIMIT):
         self.maxsize = maxsize
         super().__init__()
-    
+
     def __getitem__(self, key):
         value = super().__getitem__(key)
+        # Move the accessed item to the end (most recently used)
         self.move_to_end(key)
         return value
-    
-    def __setitem__(self, key, value):
-        if key in self:
-            self.move_to_end(key)
-        super().__setitem__(key, value)
-        if len(self) > self.maxsize:
-            oldest = next(iter(self))
-            del self[oldest]
 
-# Global cache for responses
-_memory_cache = LRUCache()
-_cache_lock = RLock()
-_cache_hits = 0
-_cache_misses = 0
-_disk_hits = 0
+    def __setitem__(self, key, value):
+        # If key exists, update and move to end
+        if key in self:
+            super().__setitem__(key, value)
+            self.move_to_end(key)
+        else:
+            # If cache is full, remove oldest item
+            if len(self) >= self.maxsize:
+                oldest = next(iter(self))
+                del self[oldest]
+            # Add new item
+            super().__setitem__(key, value)
+
 
 def _create_cache_key(func_name, args, kwargs):
     """Create a deterministic cache key from function and arguments"""
-    key_data = {
-        'func': func_name,
-        'args': args,
-        'kwargs': kwargs
-    }
-    # Convert to stable JSON string and hash it
-    json_key = json.dumps(str(key_data), sort_keys=True)
-    return hashlib.md5(json_key.encode('utf-8')).hexdigest()
+    # Create a string representation of the function and its arguments
+    key_parts = [func_name]
+    
+    # Add args
+    for arg in args:
+        key_parts.append(str(arg))
+    
+    # Add sorted kwargs
+    for k, v in sorted(kwargs.items()):
+        key_parts.append(f"{k}={v}")
+    
+    # Join with a delimiter unlikely to appear in arguments
+    return "||".join(key_parts)
+
 
 def _get_disk_cache_path(cache_key):
     """Get path to disk cache file for a given key"""
-    return os.path.join(CACHE_PERSIST_DIR, f"{cache_key}.cache")
+    # Create cache directory if it doesn't exist
+    if not os.path.exists(CACHE_DIR):
+        os.makedirs(CACHE_DIR)
+    
+    # Convert cache key to a valid filename
+    import hashlib
+    filename = hashlib.md5(cache_key.encode()).hexdigest() + '.cache'
+    return os.path.join(CACHE_DIR, filename)
+
 
 def _save_to_disk_cache(cache_key, data, expire_at):
     """Save cache data to disk"""
-    if not DISK_CACHE_ENABLED:
+    if not CACHE_DISK_ENABLED:
         return
     
     try:
-        cache_path = _get_disk_cache_path(cache_key)
-        with open(cache_path, 'wb') as f:
-            pickle.dump((expire_at, data), f)
+        cache_file = _get_disk_cache_path(cache_key)
+        
+        # Save data and expiration time
+        cache_data = {
+            'data': data,
+            'expire_at': expire_at
+        }
+        
+        with open(cache_file, 'wb') as f:
+            pickle.dump(cache_data, f)
+        
+        logger.debug(f"Saved cache data to disk: {cache_key}")
     except Exception as e:
-        logger.warning(f"Failed to save cache to disk: {str(e)}")
+        logger.warning(f"Error saving cache to disk: {str(e)}")
+
 
 def _load_from_disk_cache(cache_key, current_time):
     """Load cache data from disk if available and not expired"""
-    global _disk_hits
-    
-    if not DISK_CACHE_ENABLED:
-        return None
+    if not CACHE_DISK_ENABLED:
+        return None, None
     
     try:
-        cache_path = _get_disk_cache_path(cache_key)
-        if os.path.exists(cache_path):
-            with open(cache_path, 'rb') as f:
-                expire_at, data = pickle.load(f)
-                if current_time < expire_at:
-                    _disk_hits += 1
-                    return data
-            # Expired, remove the file
-            os.remove(cache_path)
+        cache_file = _get_disk_cache_path(cache_key)
+        
+        # Check if file exists
+        if not os.path.exists(cache_file):
+            return None, None
+        
+        # Load data
+        with open(cache_file, 'rb') as f:
+            cache_data = pickle.load(f)
+        
+        data = cache_data['data']
+        expire_at = cache_data['expire_at']
+        
+        # Check if expired
+        if expire_at < current_time:
+            # Remove expired file
+            os.remove(cache_file)
+            return None, None
+        
+        logger.debug(f"Loaded cache data from disk: {cache_key}")
+        return data, expire_at
     except Exception as e:
-        logger.warning(f"Failed to load cache from disk: {str(e)}")
-    
-    return None
+        logger.warning(f"Error loading cache from disk: {str(e)}")
+        return None, None
+
 
 def cached_response(timeout=60, namespace=None, persist=False):
     """
@@ -113,58 +147,83 @@ def cached_response(timeout=60, namespace=None, persist=False):
         Decorated function that implements caching
     """
     def decorator(f):
-        @functools.wraps(f)
+        @wraps(f)
         def wrapper(*args, **kwargs):
-            global _cache_hits, _cache_misses
+            # Get cache namespace
+            cache_ns = namespace or f.__module__
             
-            # Skip caching for non-GET requests or when DEBUG is enabled
-            if not MEMORY_CACHE_ENABLED:
-                return f(*args, **kwargs)
+            # Create cache for namespace if not exists
+            if cache_ns not in _memory_cache:
+                _memory_cache[cache_ns] = LRUCache()
             
-            # Create a cache key
-            func_name = f"{namespace or f.__module__}.{f.__name__}"
-            cache_key = _create_cache_key(func_name, args, kwargs)
+            # Create deterministic cache key
+            cache_key = _create_cache_key(f.__name__, args, kwargs)
+            full_key = f"{cache_ns}::{cache_key}"
+            
+            # Get current time
             current_time = time.time()
+            
+            # Check for expired cache entries
+            global _last_expiration_check
+            if current_time - _last_expiration_check > CACHE_EXPIRATION_CHECK_INTERVAL:
+                _check_expired_cache_entries(current_time)
+                _last_expiration_check = current_time
+            
+            # Calculate expiration time
             expire_at = current_time + timeout
             
-            # Check memory cache first (fastest)
-            with _cache_lock:
-                if cache_key in _memory_cache:
-                    entry_expire_at, response = _memory_cache[cache_key]
-                    if current_time < entry_expire_at:
-                        _cache_hits += 1
-                        logger.debug(f"Memory cache hit for {func_name}")
-                        return response
+            # Try to get from memory cache
+            if full_key in _memory_cache[cache_ns]:
+                cached_value, cached_expire_at = _memory_cache[cache_ns][full_key]
+                
+                # Check if expired
+                if cached_expire_at >= current_time:
+                    logger.debug(f"Cache hit (memory): {full_key}")
+                    return cached_value
+                else:
+                    # Remove expired item
+                    del _memory_cache[cache_ns][full_key]
             
-            # Check disk cache if enabled and not in memory
-            if persist:
-                disk_response = _load_from_disk_cache(cache_key, current_time)
-                if disk_response is not None:
-                    # Also update memory cache
-                    with _cache_lock:
-                        _memory_cache[cache_key] = (expire_at, disk_response)
-                    logger.debug(f"Disk cache hit for {func_name}")
-                    return disk_response
+            # If not in memory, try to load from disk
+            cached_value, cached_expire_at = _load_from_disk_cache(full_key, current_time)
+            if cached_value is not None:
+                # Add to memory cache
+                _memory_cache[cache_ns][full_key] = (cached_value, cached_expire_at)
+                return cached_value
             
-            # Cache miss, execute the function
-            _cache_misses += 1
-            response = f(*args, **kwargs)
+            # Cache miss, execute function
+            result = f(*args, **kwargs)
             
             # Store in memory cache
-            with _cache_lock:
-                _memory_cache[cache_key] = (expire_at, response)
+            _memory_cache[cache_ns][full_key] = (result, expire_at)
             
-            # Store in disk cache if persistence is requested
+            # Store on disk if persistence is enabled
             if persist:
-                _save_to_disk_cache(cache_key, response, expire_at)
-                
-            logger.debug(f"Cache miss for {func_name}, cached new response")
-            return response
+                _save_to_disk_cache(full_key, result, expire_at)
+            
+            logger.debug(f"Cache miss: {full_key}")
+            return result
+        
         return wrapper
+    
     return decorator
 
-# Alias for backward compatibility
-cached_template = cached_response
+
+def _check_expired_cache_entries(current_time):
+    """Check and remove expired entries from memory cache"""
+    for namespace, cache in _memory_cache.items():
+        # Use a list to collect keys for deletion
+        keys_to_delete = []
+        
+        # Find expired keys
+        for key, (_, expire_at) in cache.items():
+            if expire_at < current_time:
+                keys_to_delete.append(key)
+        
+        # Delete expired keys
+        for key in keys_to_delete:
+            del cache[key]
+
 
 def invalidate_cache(prefix=None, namespace=None):
     """
@@ -174,49 +233,31 @@ def invalidate_cache(prefix=None, namespace=None):
         prefix (str, optional): Prefix of cache keys to invalidate.
         namespace (str, optional): Namespace to invalidate.
     """
-    with _cache_lock:
-        if not prefix and not namespace:
-            # Clear the entire memory cache
-            _memory_cache.clear()
-            logger.debug("Entire memory cache invalidated")
-            
-            # Clear disk cache if enabled
-            if DISK_CACHE_ENABLED and os.path.exists(CACHE_PERSIST_DIR):
-                for filename in os.listdir(CACHE_PERSIST_DIR):
-                    if filename.endswith('.cache'):
-                        try:
-                            os.remove(os.path.join(CACHE_PERSIST_DIR, filename))
-                        except Exception as e:
-                            logger.warning(f"Failed to remove disk cache file: {str(e)}")
-            return
-        
-        # Selective invalidation based on prefix or namespace
-        # For memory cache
-        keys_to_remove = []
-        
-        for key in _memory_cache.keys():
-            if (prefix and key.startswith(prefix)) or (namespace and namespace in key):
-                keys_to_remove.append(key)
-        
-        for key in keys_to_remove:
-            del _memory_cache[key]
-            
-        logger.debug(f"Invalidated {len(keys_to_remove)} memory cache entries")
-        
-        # For disk cache
-        if DISK_CACHE_ENABLED and os.path.exists(CACHE_PERSIST_DIR):
-            removed_count = 0
-            for filename in os.listdir(CACHE_PERSIST_DIR):
-                if filename.endswith('.cache'):
-                    file_key = filename[:-6]  # Remove .cache extension
-                    if (prefix and file_key.startswith(prefix)) or (namespace and namespace in file_key):
-                        try:
-                            os.remove(os.path.join(CACHE_PERSIST_DIR, filename))
-                            removed_count += 1
-                        except Exception as e:
-                            logger.warning(f"Failed to remove disk cache file: {str(e)}")
-                            
-            logger.debug(f"Invalidated {removed_count} disk cache entries")
+    # If namespace is specified, invalidate that namespace
+    if namespace:
+        if namespace in _memory_cache:
+            if prefix:
+                # Remove only entries with matching prefix
+                keys_to_delete = [k for k in _memory_cache[namespace] if k.startswith(prefix)]
+                for key in keys_to_delete:
+                    del _memory_cache[namespace][key]
+            else:
+                # Clear entire namespace
+                _memory_cache[namespace].clear()
+    else:
+        if prefix:
+            # Remove entries with matching prefix across all namespaces
+            for ns, cache in _memory_cache.items():
+                keys_to_delete = [k for k in cache if k.startswith(prefix)]
+                for key in keys_to_delete:
+                    del cache[key]
+        else:
+            # Clear all caches
+            for ns in _memory_cache:
+                _memory_cache[ns].clear()
+    
+    logger.info(f"Cache invalidated: namespace={namespace}, prefix={prefix}")
+
 
 def get_cache_stats():
     """
@@ -225,36 +266,42 @@ def get_cache_stats():
     Returns:
         dict: Cache statistics
     """
-    with _cache_lock:
-        memory_entry_count = len(_memory_cache)
-        now = time.time()
-        memory_expired_count = sum(1 for expire_at, _ in _memory_cache.values() if now > expire_at)
-        
-        # Count disk cache entries if enabled
-        disk_entry_count = 0
-        disk_expired_count = 0
-        
-        if DISK_CACHE_ENABLED and os.path.exists(CACHE_PERSIST_DIR):
-            for filename in os.listdir(CACHE_PERSIST_DIR):
-                if filename.endswith('.cache'):
-                    disk_entry_count += 1
-                    try:
-                        with open(os.path.join(CACHE_PERSIST_DIR, filename), 'rb') as f:
-                            expire_at, _ = pickle.load(f)
-                            if now > expire_at:
-                                disk_expired_count += 1
-                    except Exception:
-                        disk_expired_count += 1  # Count as expired if we can't read it
-    
-    return {
-        'memory_entries': memory_entry_count,
-        'memory_expired': memory_expired_count,
-        'memory_valid': memory_entry_count - memory_expired_count,
-        'disk_entries': disk_entry_count,
-        'disk_expired': disk_expired_count,
-        'disk_valid': disk_entry_count - disk_expired_count,
-        'hits': _cache_hits,
-        'misses': _cache_misses,
-        'disk_hits': _disk_hits,
-        'hit_ratio': _cache_hits / (_cache_hits + _cache_misses) if (_cache_hits + _cache_misses) > 0 else 0
+    stats = {
+        'memory_cache': {
+            'enabled': True,
+            'max_size': CACHE_SIZE_LIMIT,
+            'namespaces': {}
+        },
+        'disk_cache': {
+            'enabled': CACHE_DISK_ENABLED,
+            'path': CACHE_DIR
+        }
     }
+    
+    # Get memory cache stats
+    total_items = 0
+    for ns, cache in _memory_cache.items():
+        ns_items = len(cache)
+        total_items += ns_items
+        stats['memory_cache']['namespaces'][ns] = {
+            'items': ns_items,
+            'size_percentage': round((ns_items / CACHE_SIZE_LIMIT) * 100, 2) if CACHE_SIZE_LIMIT > 0 else 0
+        }
+    
+    stats['memory_cache']['total_items'] = total_items
+    stats['memory_cache']['utilization_percentage'] = round((total_items / CACHE_SIZE_LIMIT) * 100, 2) if CACHE_SIZE_LIMIT > 0 else 0
+    
+    # Get disk cache stats
+    if CACHE_DISK_ENABLED and os.path.exists(CACHE_DIR):
+        cache_files = [f for f in os.listdir(CACHE_DIR) if f.endswith('.cache')]
+        disk_size = sum(os.path.getsize(os.path.join(CACHE_DIR, f)) for f in cache_files)
+        
+        stats['disk_cache']['items'] = len(cache_files)
+        stats['disk_cache']['size_bytes'] = disk_size
+        stats['disk_cache']['size_mb'] = round(disk_size / (1024 * 1024), 2) if disk_size > 0 else 0
+    else:
+        stats['disk_cache']['items'] = 0
+        stats['disk_cache']['size_bytes'] = 0
+        stats['disk_cache']['size_mb'] = 0
+    
+    return stats

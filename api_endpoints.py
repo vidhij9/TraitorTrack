@@ -4,88 +4,75 @@ Provides a set of REST API endpoints for accessing data and system diagnostics.
 """
 
 import logging
+import os
 import time
-import datetime
 import psutil
-import json
-from flask import Blueprint, jsonify, request, current_app
-from flask_login import login_required, current_user
+from datetime import datetime, timedelta
 from functools import wraps
-from models import Bag, BagType, Link, Location, Scan, User
+from sqlalchemy import func
+from flask import Blueprint, jsonify, request, current_app
+from flask_login import current_user, login_required
+
+from app import db
+from models import User, Bag, BagType, Scan, Location
 from cache_utils import get_cache_stats
 from task_queue import get_queue_stats
-from app import db
 
 logger = logging.getLogger(__name__)
 
-# Create API blueprint
+# Create blueprint for API endpoints
 api = Blueprint('api', __name__, url_prefix='/api')
+
 
 def admin_only(f):
     """Decorator to restrict access to admin users only"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin():
-            return jsonify({
-                'status': 'error',
-                'message': 'Admin access required'
-            }), 403
+            return jsonify({'error': 'Access denied', 'status': 403}), 403
         return f(*args, **kwargs)
     return decorated_function
+
 
 def json_response(f):
     """Decorator to standardize API responses"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        start_time = time.time()
         try:
             result = f(*args, **kwargs)
-            response_time = time.time() - start_time
-            
-            # If result is already a tuple with (json, status_code)
-            if isinstance(result, tuple) and len(result) == 2:
-                response_data, status_code = result
-                if isinstance(response_data, dict):
-                    response_data['response_time_ms'] = round(response_time * 1000, 2)
-                return jsonify(response_data), status_code
-            
-            # Add response time to standard JSON response
-            if isinstance(result, dict):
-                result['response_time_ms'] = round(response_time * 1000, 2)
-                return jsonify(result)
-            else:
-                return jsonify({
-                    'status': 'success',
-                    'data': result,
-                    'response_time_ms': round(response_time * 1000, 2)
-                })
+            if isinstance(result, tuple):
+                data, status_code = result
+                return jsonify(data), status_code
+            return jsonify(result)
         except Exception as e:
-            logger.exception(f"API error in {f.__name__}: {str(e)}")
-            response_time = time.time() - start_time
+            logger.exception(f"API error: {str(e)}")
             return jsonify({
-                'status': 'error',
-                'message': str(e),
-                'response_time_ms': round(response_time * 1000, 2)
+                'error': str(e),
+                'status': 500,
+                'timestamp': datetime.utcnow().isoformat()
             }), 500
     return decorated_function
+
 
 @api.route('/health')
 @json_response
 def health_check():
     """Basic health check endpoint"""
     return {
-        'status': 'online',
-        'timestamp': datetime.datetime.utcnow().isoformat(),
-        'version': getattr(current_app, 'version', '1.0.0')
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat(),
+        'version': '2.0.0'
     }
 
-@api.route('/system/stats')
+
+@api.route('/system')
 @login_required
 @admin_only
 @json_response
 def system_stats():
     """System diagnostic information for administrators"""
-    # Get basic system information
+    # Get system stats
+    uptime = time.time() - psutil.boot_time()
     cpu_percent = psutil.cpu_percent(interval=0.1)
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
@@ -102,104 +89,123 @@ def system_stats():
         'system': {
             'cpu_percent': cpu_percent,
             'memory_percent': memory.percent,
-            'memory_available_mb': round(memory.available / (1024 * 1024), 2),
             'disk_percent': disk.percent,
-            'disk_free_gb': round(disk.free / (1024 * 1024 * 1024), 2),
+            'uptime_seconds': uptime
         },
         'database': db_stats,
         'cache': get_cache_stats(),
         'task_queue': get_queue_stats(),
-        'application': {
-            'uptime_seconds': int(time.time() - psutil.Process().create_time())
-        }
+        'timestamp': datetime.utcnow().isoformat()
     }
 
-@api.route('/stats/counts')
+
+@api.route('/entity-counts')
 @login_required
 @json_response
 def entity_counts():
     """Get counts of various entities in the system"""
-    return {
-        'parent_bags': db.session.query(db.func.count(Bag.id)).filter(Bag.type == BagType.PARENT.value).scalar(),
-        'child_bags': db.session.query(db.func.count(Bag.id)).filter(Bag.type == BagType.CHILD.value).scalar(),
-        'scans': db.session.query(db.func.count(Scan.id)).scalar(),
-        'locations': db.session.query(db.func.count(Location.id)).scalar(),
-        'users': db.session.query(db.func.count(User.id)).scalar()
+    counts = {
+        'users': db.session.query(func.count(User.id)).scalar(),
+        'parent_bags': db.session.query(func.count(Bag.id)).filter(Bag.type == BagType.PARENT.value).scalar(),
+        'child_bags': db.session.query(func.count(Bag.id)).filter(Bag.type == BagType.CHILD.value).scalar(),
+        'locations': db.session.query(func.count(Location.id)).scalar(),
+        'scans': db.session.query(func.count(Scan.id)).scalar(),
+        'timestamp': datetime.utcnow().isoformat()
     }
+    
+    return counts
 
-@api.route('/stats/activity/<days>')
+
+@api.route('/activity/<int:days>')
 @login_required
 @admin_only
 @json_response
 def activity_stats(days):
     """Get activity statistics for the past X days"""
-    try:
-        days = int(days)
-        if days < 1:
-            days = 7  # Default to 7 days
-    except ValueError:
-        days = 7
+    if days < 1 or days > 365:
+        return {'error': 'Days parameter must be between 1 and 365'}, 400
     
-    cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+    # Calculate the date for filtering
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
     
-    # Get scans by day
-    query = db.session.query(
-        db.func.date(Scan.timestamp).label('date'),
-        db.func.count().label('count')
+    # Get scan counts grouped by day
+    scan_counts = db.session.query(
+        func.date(Scan.created_at).label('date'),
+        func.count(Scan.id).label('count')
     ).filter(
-        Scan.timestamp >= cutoff_date
+        Scan.created_at >= cutoff_date
     ).group_by(
-        db.func.date(Scan.timestamp)
-    ).order_by(
-        db.func.date(Scan.timestamp)
-    )
+        func.date(Scan.created_at)
+    ).all()
     
-    scans_by_day = [
-        {'date': row.date.isoformat(), 'count': row.count}
-        for row in query.all()
-    ]
+    # Convert to dict for JSON serialization
+    scan_data = {str(date): count for date, count in scan_counts}
     
-    # Get scans by location
-    query = db.session.query(
-        Location.name.label('location'),
-        db.func.count().label('count')
-    ).join(
-        Scan, Scan.location_id == Location.id
+    # Get user registration counts by day
+    user_counts = db.session.query(
+        func.date(User.created_at).label('date'),
+        func.count(User.id).label('count')
     ).filter(
-        Scan.timestamp >= cutoff_date
+        User.created_at >= cutoff_date
     ).group_by(
-        Location.name
-    ).order_by(
-        db.func.count().desc()
-    )
+        func.date(User.created_at)
+    ).all()
     
-    scans_by_location = [
-        {'location': row.location, 'count': row.count}
-        for row in query.all()
-    ]
-    
-    # Get scans by user
-    query = db.session.query(
-        User.username.label('user'),
-        db.func.count().label('count')
-    ).join(
-        Scan, Scan.user_id == User.id
-    ).filter(
-        Scan.timestamp >= cutoff_date
-    ).group_by(
-        User.username
-    ).order_by(
-        db.func.count().desc()
-    )
-    
-    scans_by_user = [
-        {'user': row.user, 'count': row.count}
-        for row in query.all()
-    ]
+    # Convert to dict
+    user_data = {str(date): count for date, count in user_counts}
     
     return {
+        'scan_activity': scan_data,
+        'user_registrations': user_data,
         'period_days': days,
-        'scans_by_day': scans_by_day,
-        'scans_by_location': scans_by_location,
-        'scans_by_user': scans_by_user
+        'timestamp': datetime.utcnow().isoformat()
+    }
+
+
+@api.route('/async/task/<task_id>')
+@login_required
+@json_response
+def get_task_status(task_id):
+    """Get status of an asynchronous task"""
+    from task_queue import get_task_status as get_status
+    
+    status = get_status(task_id)
+    if not status:
+        return {'error': 'Task not found'}, 404
+    
+    return {
+        'task': status,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+
+
+@api.route('/cache/stats')
+@login_required
+@admin_only
+@json_response
+def cache_stats():
+    """Get cache statistics"""
+    return {
+        'cache': get_cache_stats(),
+        'timestamp': datetime.utcnow().isoformat()
+    }
+
+
+@api.route('/cache/clear', methods=['POST'])
+@login_required
+@admin_only
+@json_response
+def clear_cache():
+    """Clear the application cache"""
+    from cache_utils import invalidate_cache
+    
+    namespace = request.json.get('namespace')
+    prefix = request.json.get('prefix')
+    
+    invalidate_cache(prefix=prefix, namespace=namespace)
+    
+    return {
+        'success': True,
+        'message': f"Cache cleared: namespace={namespace}, prefix={prefix}",
+        'timestamp': datetime.utcnow().isoformat()
     }

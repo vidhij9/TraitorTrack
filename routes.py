@@ -36,15 +36,27 @@ CHILD_QR_PATTERN = re.compile(r'^C\d+$')
 @app.route('/')
 @login_required
 def index():
-    """Home page - requires login"""
-    # Using cached dashboard data with optimized caching strategy
+    """Home page - requires login with real-time performance metrics"""
+    # Get task queue stats for real-time monitoring of processing pipeline
+    from task_queue import get_queue_stats
+    queue_stats = get_queue_stats()
+    
+    # Get cache stats for performance monitoring
+    from cache_utils import get_cache_stats
+    cache_stats = get_cache_stats()
+    
+    # Using cached dashboard data with tiered caching strategy
     return render_template(
         'index.html',
         recent_scans=get_recent_scans(),
         total_parent_bags=get_parent_bag_count(),
         total_child_bags=get_child_bag_count(),
         total_scans=get_scan_count(),
-        total_locations=get_location_count()
+        total_locations=get_location_count(),
+        queue_stats=queue_stats,
+        cache_stats=cache_stats,
+        is_admin=current_user.is_admin(),
+        system_timestamp=datetime.datetime.utcnow()
     )
 
 # Cached data access functions for better performance using tiered caching
@@ -469,7 +481,7 @@ def scan_child():
 @login_required
 @admin_required
 def process_child_scan():
-    """Process child bag scan (admin only)"""
+    """Process child bag scan (admin only) with improved performance via asynchronous processing"""
     if request.method == 'POST':
         qr_id = request.form.get('qr_id')
         notes = sanitize_input(request.form.get('notes', ''), max_length=500)
@@ -494,46 +506,33 @@ def process_child_scan():
             flash(f'Child bag {qr_id} was already scanned in this session!', 'warning')
             return redirect(url_for('scan_child'))
         
-        # Check if child bag exists, create if not
+        # Get child bag info for session updates (without waiting for async processing)
         child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
+        child_bag_id = child_bag.id if child_bag else None
         
-        if not child_bag:
-            # Create new child bag
-            child_bag = Bag()
-            child_bag.qr_id = qr_id
-            child_bag.name = f"Child Bag {qr_id}"  # Default name
-            child_bag.parent_id = parent_bag_id
-            child_bag.notes = notes
-            child_bag.type = BagType.CHILD.value
-            
-            db.session.add(child_bag)
-            db.session.commit()
-            logger.debug(f"Created new child bag with QR ID: {qr_id}")
-        else:
-            # Update parent relationship if different
-            if child_bag.parent_id != parent_bag_id:
-                child_bag.parent_id = parent_bag_id
-                db.session.commit()
-                logger.debug(f"Updated child bag {qr_id} to parent {parent_bag_id}")
-        
-        # Record the scan
         try:
-            scan = Scan()
-            scan.child_bag_id = child_bag.id
-            scan.user_id = current_user.id
-            scan.location_id = location_id
-            scan.scan_type = 'child'
-            scan.notes = notes
+            # Import async processing module
+            from async_processing import process_scan_async
             
-            db.session.add(scan)
-            db.session.commit()
+            # Prepare scan data for asynchronous processing
+            scan_data = {
+                'qr_id': qr_id,
+                'user_id': current_user.id,
+                'location_id': location_id,
+                'scan_type': 'child',
+                'notes': notes,
+                'name': f"Child Bag {qr_id}",
+                'parent_id': parent_bag_id
+            }
             
-            # Invalidate caches after data modification
-            invalidate_data_caches()
+            # Start asynchronous processing and get task ID
+            task_id = process_scan_async(scan_data)
+            logger.info(f"Started async processing of child bag scan: {qr_id}, Task ID: {task_id}")
             
-            # Update session data
+            # Update session data immediately without waiting for async process
             child_bags_scanned.append(qr_id)
             session['child_bags_scanned'] = child_bags_scanned
+            session['last_scan_task_id'] = task_id
             
             # Get the expected count from session or parent bag
             parent_bag = Bag.query.get(parent_bag_id)
@@ -544,7 +543,7 @@ def process_child_scan():
                 flash('All child bags have been scanned successfully!', 'success')
                 return redirect(url_for('scan_complete'))
             
-            flash(f'Child bag {qr_id} scanned successfully! {child_bags_expected - len(child_bags_scanned)} more to go.', 'success')
+            flash(f'Child bag {qr_id} scan in progress! {child_bags_expected - len(child_bags_scanned)} more to go.', 'success')
             return redirect(url_for('scan_child'))
             
         except Exception as e:
