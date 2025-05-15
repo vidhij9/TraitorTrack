@@ -13,7 +13,7 @@ BILL_ID_PATTERN = re.compile(r'^[A-Z0-9]{6,20}$')
 
 def validate_parent_qr_id(qr_id):
     """
-    Validate parent bag QR ID format (e.g., 'P123-10').
+    Validate parent bag QR ID - accepts any format.
     
     Args:
         qr_id (str): The QR ID to validate
@@ -26,27 +26,28 @@ def validate_parent_qr_id(qr_id):
     
     qr_id = qr_id.strip()
     
-    # Check format using regex
-    if not PARENT_QR_PATTERN.match(qr_id):
-        return False, "Invalid QR code format. Parent bag QR code should be in format P123-10", None
+    # All formats are now accepted
+    # Default to 5 child bags if format doesn't specify
+    child_count = 5
     
-    # Parse child count from QR code
-    parts = qr_id.split('-')
-    if len(parts) != 2:
-        return False, "Invalid QR code format. Expected format: P123-10", None
+    # If the old format is used, try to extract child count
+    if '-' in qr_id:
+        parts = qr_id.split('-')
+        if len(parts) == 2:
+            try:
+                parsed_count = int(parts[1])
+                if parsed_count > 0:
+                    child_count = parsed_count
+            except ValueError:
+                # Use default child count
+                pass
     
-    try:
-        child_count = int(parts[1])
-        if child_count <= 0:
-            return False, "Parent bag must have at least one child", None
-        return True, "Valid parent QR ID", child_count
-    except ValueError:
-        return False, "Invalid child count in QR code", None
+    return True, "Valid parent QR ID", child_count
 
 
 def validate_child_qr_id(qr_id):
     """
-    Validate child bag QR ID format (e.g., 'C123').
+    Validate child bag QR ID - accepts any format.
     
     Args:
         qr_id (str): The QR ID to validate
@@ -59,10 +60,7 @@ def validate_child_qr_id(qr_id):
     
     qr_id = qr_id.strip()
     
-    # Check format using regex
-    if not CHILD_QR_PATTERN.match(qr_id):
-        return False, "Invalid QR code format. Child bag QR code should be in format C123"
-    
+    # All formats are now accepted
     return True, "Valid child QR ID"
 
 

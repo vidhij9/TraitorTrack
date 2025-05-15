@@ -179,9 +179,7 @@ def process_parent_scan():
     
     qr_code = request.form.get('qr_code')
     
-    # Validate parent bag QR code format (e.g., P123-10)
-    if not re.match(r'^P\d+-\d+$', qr_code):
-        return jsonify({'success': False, 'message': 'Invalid parent bag QR format. Expected format: P123-10'})
+    # Accept any QR code format - no validation required\    qr_code = qr_code.strip()
     
     # Look up or create the parent bag
     parent_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.PARENT.value).first()
