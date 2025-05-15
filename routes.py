@@ -188,8 +188,12 @@ def register():
 @limiter.limit("5/minute, 100/day", error_message="Too many login attempts, please try again later.")
 def login():
     """User login page with rate limiting and account lockout to prevent brute force attacks"""
+    # Add debug logging
+    logging.debug("Login route accessed with method: %s", request.method)
+    
     # If user is already logged in, redirect to homepage
     if current_user.is_authenticated:
+        logging.debug("User already authenticated, redirecting to index")
         return redirect(url_for('index'))
     
     if request.method == 'POST':
@@ -197,39 +201,68 @@ def login():
         password = request.form.get('password')
         remember = 'remember' in request.form
         
+        logging.debug("Login attempt for username: %s", username)
+        
         # Check if the account is locked
         is_locked, remaining_time = is_account_locked(username)
         if is_locked:
+            logging.debug("Account locked: %s", username)
             flash(f'Account temporarily locked. Try again in {remaining_time} seconds.', 'danger')
             return render_template('login.html')
         
         user = User.query.filter_by(username=username).first()
         
-        if user and user.check_password(password):
-            # Check if user is verified
-            if not user.verified:
-                flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
+        if user:
+            logging.debug("User found: %s, verifying password", username)
+            password_check = user.check_password(password)
+            logging.debug("Password check result: %s", password_check)
+            
+            if password_check:
+                # Check if user is verified
+                if not user.verified:
+                    logging.debug("User not verified: %s", username)
+                    flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
+                    return render_template('login.html')
+                
+                logging.debug("Login successful for user: %s", username)
+                
+                # Reset failed attempts on successful login
+                reset_failed_attempts(username)
+                
+                # Clear session before login to prevent session fixation
+                session.clear()
+                
+                # Login user with Flask-Login
+                login_user(user, remember=remember)
+                
+                # Set session as permanent to respect the configured lifetime
+                session.permanent = True
+                
+                # Track login activity
+                track_login_activity(user.id, success=True)
+                
+                next_page = request.args.get('next')
+            else:
+                logging.debug("Invalid password for user: %s", username)
+                # Record failed login attempt
+                is_locked, attempts, lockout_time = record_failed_attempt(username)
+                
+                if is_locked:
+                    flash(f'Account locked due to too many failed attempts. Try again in {lockout_time}.', 'danger')
+                else:
+                    flash(f'Invalid username or password. {attempts} attempts remaining before lockout.', 'danger')
+                
                 return render_template('login.html')
-            
-            # Reset failed attempts on successful login
-            reset_failed_attempts(username)
-            
-            # Clear session before login to prevent session fixation
-            session.clear()
-            
-            # Login user with Flask-Login
-            login_user(user, remember=remember)
-            
-            # Set session as permanent to respect the configured lifetime
-            session.permanent = True
-            
-            # Track login activity
-            track_login_activity(user.id, success=True)
-            
-            next_page = request.args.get('next')
-            if next_page:
-                return redirect(next_page)
-            return redirect(url_for('index'))
+        else:
+            logging.debug("User not found: %s", username)
+            # Handle login failure for non-existent user
+            flash('Invalid username or password.', 'danger')
+            return render_template('login.html')
+        
+        # Handle successful login redirect
+        if next_page:
+            return redirect(next_page)
+        return redirect(url_for('index'))
         
         # Record failed login attempt
         is_locked, attempts_remaining, lockout_time = record_failed_attempt(username)
