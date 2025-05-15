@@ -58,12 +58,48 @@ class Bag(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     qr_id = db.Column(db.String(20), unique=True, nullable=False)
     type = db.Column(db.String(10), nullable=False)
+    name = db.Column(db.String(100), nullable=True)
+    child_count = db.Column(db.Integer, nullable=True)  # For parent bags
+    parent_id = db.Column(db.Integer, nullable=True)  # For child bags
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     # Indexes for faster bag lookups, especially during high-volume scanning
     __table_args__ = (
         db.Index('idx_bag_qr_id', 'qr_id'),
         db.Index('idx_bag_type', 'type'),
     )
+    
+    @property
+    def last_scan(self):
+        """Get the most recent scan for this bag"""
+        # Check if this is a parent or child bag
+        if self.type == BagType.PARENT.value:
+            return Scan.query.filter_by(parent_bag_id=self.id).order_by(Scan.timestamp.desc()).first()
+        else:
+            return Scan.query.filter_by(child_bag_id=self.id).order_by(Scan.timestamp.desc()).first()
+    
+    @property
+    def child_bags(self):
+        """Get all child bags linked to this parent bag"""
+        if self.type != BagType.PARENT.value:
+            return []
+        return [link.child_bag for link in self.child_links]
+    
+    @property
+    def parent_bag(self):
+        """Get the parent bag this child bag is linked to"""
+        if self.type != BagType.CHILD.value:
+            return None
+        link = self.parent_links.first()
+        return link.parent_bag if link else None
+    
+    @property
+    def bill(self):
+        """Get the bill this bag is associated with (for parent bags)"""
+        if self.type != BagType.PARENT.value:
+            return None
+        bill_link = self.bill_links.first()
+        return bill_link.bill if bill_link else None
     
     def __repr__(self):
         return f"<Bag {self.qr_id} ({self.type})>"
@@ -89,10 +125,15 @@ class Bill(db.Model):
     """Bill model for tracking bills and associated parent bags"""
     id = db.Column(db.Integer, primary_key=True)
     bill_id = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    parent_bag_count = db.Column(db.Integer, default=1)
+    status = db.Column(db.String(20), default='new')  # Possible values: new, processing, completed
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     # Index for faster bill lookups
     __table_args__ = (
         db.Index('idx_bill_id', 'bill_id'),
+        db.Index('idx_bill_status', 'status'),
     )
     
     def __repr__(self):

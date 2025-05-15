@@ -1,71 +1,157 @@
-"""
-Seed the database with test data for development and testing.
-This script should be run directly to populate the database with sample parent and child bags.
-"""
-import requests
-import sys
-import os
-import logging
+import datetime
+from app_clean import app, db
+from models import User, Location, Bag, Link, Bill, BillBag, Scan, UserRole, BagType
+from werkzeug.security import generate_password_hash
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-def seed_data():
-    """Seed the database with test data by calling the API endpoint"""
-    try:
-        # Get the base URL from the environment or use default
-        base_url = os.environ.get('BASE_URL', 'http://localhost:5000')
+def seed_test_data():
+    """
+    Seed the database with test data for development and testing purposes.
+    """
+    with app.app_context():
+        print("Seeding test data...")
         
-        # First, we need to login as admin
-        login_url = f"{base_url}/login"
-        login_data = {
-            'username': 'admin',
-            'password': 'adminpassword'
-        }
+        # Create test users
+        print("Creating users...")
+        admin_user = User(
+            username="admin",
+            email="admin@example.com",
+            password_hash=generate_password_hash("admin123"),
+            role=UserRole.ADMIN.value,
+            verified=True
+        )
         
-        # Create a session to maintain cookies
-        session = requests.Session()
+        employee_user = User(
+            username="employee",
+            email="employee@example.com",
+            password_hash=generate_password_hash("employee123"),
+            role=UserRole.EMPLOYEE.value,
+            verified=True
+        )
         
-        # Log in as admin
-        logger.info("Logging in as admin...")
-        login_response = session.post(login_url, data=login_data)
+        db.session.add_all([admin_user, employee_user])
+        db.session.commit()
         
-        if login_response.status_code != 200:
-            logger.error(f"Login failed with status code {login_response.status_code}")
-            return False
+        # Create locations
+        print("Creating locations...")
+        locations = [
+            Location(name="Warehouse A", description="Main warehouse facility"),
+            Location(name="Warehouse B", description="Secondary warehouse facility"),
+            Location(name="Distribution Center", description="Central distribution hub"),
+            Location(name="Packing Facility", description="Product packing area")
+        ]
+        db.session.add_all(locations)
+        db.session.commit()
         
-        # Now call the seed_test_data endpoint
-        seed_url = f"{base_url}/api/seed_test_data"
-        logger.info("Seeding test data...")
-        seed_response = session.post(seed_url)
+        # Create parent bags
+        print("Creating parent bags...")
+        parent_bags = []
+        for i in range(1, 6):
+            child_count = i * 2  # Each parent bag will have 2, 4, 6, 8, or 10 child bags
+            parent_bag = Bag(
+                qr_id=f"P{i}-{child_count}",
+                type=BagType.PARENT.value,
+                name=f"Parent Bag {i}",
+                child_count=child_count
+            )
+            parent_bags.append(parent_bag)
         
-        if seed_response.status_code != 200:
-            logger.error(f"Seeding failed with status code {seed_response.status_code}")
-            logger.error(f"Response: {seed_response.text}")
-            return False
+        db.session.add_all(parent_bags)
+        db.session.commit()
         
-        # Parse the response
-        seed_data = seed_response.json()
-        
-        if seed_data.get('success'):
-            logger.info(f"Success: {seed_data.get('message')}")
-            return True
-        else:
-            logger.error(f"API Error: {seed_data.get('error')}")
-            return False
+        # Create child bags and link to parent bags
+        print("Creating child bags and links...")
+        child_id_counter = 1
+        for parent_bag in parent_bags:
+            child_bags = []
+            for j in range(parent_bag.child_count):
+                child_bag = Bag(
+                    qr_id=f"C{child_id_counter}",
+                    type=BagType.CHILD.value,
+                    name=f"Child Bag {child_id_counter}",
+                    parent_id=parent_bag.id
+                )
+                child_bags.append(child_bag)
+                child_id_counter += 1
             
-    except Exception as e:
-        logger.error(f"Error seeding data: {str(e)}")
-        return False
+            db.session.add_all(child_bags)
+            db.session.commit()
+            
+            # Create links between parent and child bags
+            for child_bag in child_bags:
+                link = Link(
+                    parent_bag_id=parent_bag.id,
+                    child_bag_id=child_bag.id
+                )
+                db.session.add(link)
+            
+            db.session.commit()
+        
+        # Create some scans
+        print("Creating scan records...")
+        # Get all bags
+        all_bags = Bag.query.all()
+        parent_bags = [bag for bag in all_bags if bag.type == BagType.PARENT.value]
+        child_bags = [bag for bag in all_bags if bag.type == BagType.CHILD.value]
+        
+        # Create scans with different timestamps
+        now = datetime.datetime.utcnow()
+        
+        # Create parent bag scans
+        for i, parent_bag in enumerate(parent_bags):
+            # Each parent bag scanned at a different location
+            location = locations[i % len(locations)]
+            scan = Scan(
+                timestamp=now - datetime.timedelta(days=i),
+                parent_bag_id=parent_bag.id,
+                location_id=location.id,
+                user_id=admin_user.id if i % 2 == 0 else employee_user.id
+            )
+            db.session.add(scan)
+        
+        # Create child bag scans
+        for i, child_bag in enumerate(child_bags):
+            # Each child bag scanned at a different location
+            location = locations[i % len(locations)]
+            scan = Scan(
+                timestamp=now - datetime.timedelta(hours=i),
+                child_bag_id=child_bag.id,
+                location_id=location.id,
+                user_id=admin_user.id if i % 2 == 0 else employee_user.id
+            )
+            db.session.add(scan)
+        
+        db.session.commit()
+        
+        # Create bills
+        print("Creating bills...")
+        bills = [
+            Bill(bill_id="BILL-001", description="First test bill", parent_bag_count=2, status="completed"),
+            Bill(bill_id="BILL-002", description="Second test bill", parent_bag_count=3, status="processing")
+        ]
+        db.session.add_all(bills)
+        db.session.commit()
+        
+        # Link bills to parent bags
+        print("Linking bills to parent bags...")
+        # Link first bill to first 2 parent bags
+        for i in range(2):
+            bill_bag = BillBag(
+                bill_id=bills[0].id,
+                bag_id=parent_bags[i].id
+            )
+            db.session.add(bill_bag)
+        
+        # Link second bill to next 2 parent bags (out of 3 expected)
+        for i in range(2, 4):
+            bill_bag = BillBag(
+                bill_id=bills[1].id,
+                bag_id=parent_bags[i].id
+            )
+            db.session.add(bill_bag)
+        
+        db.session.commit()
+        
+        print("Test data seeded successfully!")
 
 if __name__ == "__main__":
-    logger.info("Starting data seeding process...")
-    success = seed_data()
-    
-    if success:
-        logger.info("Data seeding completed successfully!")
-        sys.exit(0)
-    else:
-        logger.error("Data seeding failed!")
-        sys.exit(1)
+    seed_test_data()
