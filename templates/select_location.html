@@ -19,6 +19,7 @@
                 </div>
                 
                 <form action="{{ url_for('select_location') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="mb-4">
                         <label for="location_id" class="form-label">Select Location</label>
                         <select class="form-select form-select-lg" id="location_id" name="location_id" required>
@@ -50,6 +51,7 @@
                         </div>
                         <div class="card-body">
                             <form action="{{ url_for('locations') }}" method="post">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <div class="mb-3">
                                     <label for="location_name" class="form-label">Location Name</label>
                                     <input type="text" class="form-control" id="location_name" name="location_name" required>
