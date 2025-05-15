@@ -6,7 +6,7 @@ from flask import render_template, redirect, url_for, flash, request, jsonify, s
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from functools import wraps
-from app import app, db
+from app import app, db, limiter
 from models import User, UserRole, Bag, BagType, Link, Location, Scan
 from template_utils import render_cached_template, cached_template
 from cache_utils import invalidate_cache
@@ -72,8 +72,10 @@ def get_location_count():
     return Location.query.count()
 
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit("3 per hour", methods=["POST"])
+@limiter.limit("20 per day", methods=["POST"])
 def register():
-    """User registration page"""
+    """User registration page with rate limiting to prevent abuse"""
     # If user is already logged in, redirect to homepage
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -106,13 +108,12 @@ def register():
         
         # Create new user with verification token
         verification_token = str(uuid.uuid4())
-        new_user = User(
-            username=username, 
-            email=email,
-            role=UserRole.EMPLOYEE.value,  # Default role is employee
-            verification_token=verification_token,
-            verified=False  # Require verification
-        )
+        new_user = User()
+        new_user.username = username
+        new_user.email = email
+        new_user.role = UserRole.EMPLOYEE.value  # Default role is employee
+        new_user.verification_token = verification_token
+        new_user.verified = False  # Require verification
         new_user.set_password(password)
         
         db.session.add(new_user)
@@ -133,8 +134,10 @@ def register():
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", methods=["POST"])
+@limiter.limit("5/minute, 100/day", error_message="Too many login attempts, please try again later.")
 def login():
-    """User login page"""
+    """User login page with rate limiting to prevent brute force attacks"""
     # If user is already logged in, redirect to homepage
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -177,8 +180,9 @@ def logout():
 
 @app.route('/promote-to-admin', methods=['GET', 'POST'])
 @login_required
+@limiter.limit("5 per hour", methods=["POST"])
 def promote_to_admin():
-    """Allow users to promote themselves to admin role with a secret code"""
+    """Allow users to promote themselves to admin role with a secret code, with rate limiting"""
     if request.method == 'POST':
         admin_code = request.form.get('admin_code')
         # The secret code is "tracetracksecret" - in production this would be more secure
@@ -205,10 +209,9 @@ def locations():
             return redirect(url_for('locations'))
         
         # Create new location
-        location = Location(
-            name=location_name,
-            address=location_address
-        )
+        location = Location()
+        location.name = location_name
+        location.address = location_address
         
         db.session.add(location)
         db.session.commit()

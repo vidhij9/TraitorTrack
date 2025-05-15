@@ -8,6 +8,8 @@ from sqlalchemy.orm import DeclarativeBase
 from flask_login import LoginManager
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Import custom logging configuration
 from logging_config import setup_logging
@@ -29,6 +31,15 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # Needed for url_for
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
+
+# Initialize rate limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
 
 # Configure the database connection
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
@@ -56,12 +67,29 @@ def after_request(response):
         logger.info(f"Request to {request.path} completed in {elapsed:.4f}s")
         # Add Server-Timing header for client-side monitoring
         response.headers['Server-Timing'] = f'total;dur={elapsed*1000:.0f}'
+    
+    # Add security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # Content Security Policy
+    csp = "default-src 'self'; " \
+          "script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com; " \
+          "style-src 'self' https://cdn.jsdelivr.net https://cdn.replit.com 'unsafe-inline'; " \
+          "img-src 'self' data: https://*; " \
+          "font-src 'self' https://cdn.jsdelivr.net; " \
+          "connect-src 'self'; " \
+          "manifest-src 'self'; " \
+          "worker-src 'self'"
+    
+    response.headers['Content-Security-Policy'] = csp
     return response
 
 # Setup Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'login'  # type: ignore # LSP incorrectly flags this as an error
 
 # Configure additional app settings for performance
 app.config['TEMPLATES_AUTO_RELOAD'] = False  # Disable in production for better performance
