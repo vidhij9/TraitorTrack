@@ -306,13 +306,9 @@
         }
         
         function processQrCode(qrCode) {
-            // If it's not already in the format "P123-10", try to format it
-            if (!qrCode.match(/^P\d+-\d+$/)) {
-                const formattedQrCode = formatQrCode(qrCode);
-                if (formattedQrCode) {
-                    qrCode = formattedQrCode;
-                }
-            }
+            // Accept any QR code format - no validation required
+            // Just clean up the input
+            qrCode = qrCode.trim();
             
             // Send to server for processing
             fetch('/process_parent_scan', {
