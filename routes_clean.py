@@ -420,6 +420,32 @@ def process_child_scan():
         'message': f'Child bag {qr_code} linked to parent successfully.'
     })
 
+@app.route('/scan_complete')
+@login_required
+def scan_complete():
+    """Completion page for scanning workflow"""
+    # Clear scanning session data
+    parent_bag_id = session.pop('current_parent_bag_id', None)
+    child_bags = session.pop('child_bags_scanned', [])
+    
+    if not parent_bag_id:
+        flash('No scanning session found.', 'warning')
+        return redirect(url_for('index'))
+    
+    # Get parent and child bag info for display
+    parent_bag = Bag.query.get(parent_bag_id)
+    child_bags_info = []
+    
+    for child_id in child_bags:
+        child_bag = Bag.query.get(child_id)
+        if child_bag:
+            child_bags_info.append(child_bag)
+            
+    return render_template('scan_complete.html', 
+                          parent_bag=parent_bag,
+                          child_bags=child_bags_info,
+                          scan_count=len(child_bags_info))
+
 @app.route('/finish_scanning')
 @login_required
 def finish_scanning():
