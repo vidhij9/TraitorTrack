@@ -511,7 +511,13 @@ def process_bill_parent_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'No QR code provided'})
     
-    # Accept any QR code format - no validation required\    qr_code = qr_code.strip()
+    # Clean up the QR code
+    qr_code = qr_code.strip()
+    
+    # Validate the QR code using the improved validator that handles any format
+    is_valid, message, child_count = validate_parent_qr_id(qr_code)
+    if not is_valid:
+        return jsonify({'success': False, 'message': message})
     
     # Look up or create the parent bag
     parent_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.PARENT.value).first()
