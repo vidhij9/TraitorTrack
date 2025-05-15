@@ -433,6 +433,45 @@
                     scannedCount = data.scanned_count;
                     updateProgress();
                     
+                    // Add edit/remove option for last scanned item
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'btn btn-sm btn-outline-warning';
+                    editBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
+                    editBtn.onclick = function() {
+                        // Remove the last scanned item
+                        if (scannedList.firstChild) {
+                            scannedList.removeChild(scannedList.firstChild);
+                            
+                            // Update progress count
+                            scannedCount--;
+                            updateProgress();
+                            
+                            resultContainer.className = 'alert alert-info';
+                            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>' + 
+                                'Item removed. Scan another child bag.';
+                        }
+                        return false;
+                    };
+                    
+                    // Add edit button to the first list item
+                    if (scannedList.firstChild) {
+                        const actionSpan = scannedList.firstChild.querySelector('.badge.bg-primary');
+                        actionSpan.parentNode.insertBefore(editBtn, actionSpan);
+                    }
+                    
+                    // Check if we've reached the expected count
+                    if (scannedCount >= expectedCount) {
+                        // Show success message and redirect to complete page
+                        resultContainer.className = 'alert alert-success';
+                        resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + 
+                            'All child bags scanned successfully! Redirecting to completion page...';
+                            
+                        // Automatically navigate to completion page after 3 seconds
+                        setTimeout(() => {
+                            window.location.href = '{{ url_for("scan_complete") }}';
+                        }, 3000);
+                    }
+                    
                     // Reset last detected code after a short delay to allow for new scans
                     setTimeout(() => {
                         lastDetectedCode = null;

@@ -269,14 +269,77 @@
                             <span class="badge bg-primary me-2">Parent</span>
                             <span>${data.parent_qr}</span>
                         </div>
-                        <span class="badge bg-warning rounded-pill">
-                            <i class="fas fa-link me-1"></i>Added
-                        </span>
+                        <div>
+                            <button class="btn btn-sm btn-outline-warning me-1 edit-btn">
+                                <i class="fas fa-times me-1"></i>Remove
+                            </button>
+                            <span class="badge bg-warning rounded-pill">
+                                <i class="fas fa-link me-1"></i>Added
+                            </span>
+                        </div>
                     `;
                     scannedList.prepend(listItem);
                     
+                    // Add event listener to the edit button
+                    const editBtn = listItem.querySelector('.edit-btn');
+                    editBtn.addEventListener('click', function() {
+                        // Remove this bag from the bill via AJAX
+                        fetch('/remove_bag_from_bill', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: 'parent_qr=' + encodeURIComponent(data.parent_qr) + '&bill_id={{ bill.id }}'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Remove from UI
+                                listItem.remove();
+                                
+                                // Update count
+                                progressText.textContent = data.parent_count + ' parent bags scanned';
+                                
+                                // Show success message
+                                resultContainer.className = 'alert alert-info';
+                                resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Parent bag removed successfully.';
+                            }
+                        });
+                    });
+                    
                     // Update progress text
                     progressText.textContent = data.parent_count + ' parent bags scanned';
+                    
+                    // Check if we've added enough parent bags to complete the bill
+                    if (data.parent_count >= 5) { // Assuming 5 is enough to complete a bill
+                        // Show completion message
+                        resultContainer.className = 'alert alert-success';
+                        resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Enough parent bags added! You can complete the bill now.';
+                        
+                        // Show a popup for auto-navigation
+                        const completeDiv = document.createElement('div');
+                        completeDiv.className = 'alert alert-primary mt-3';
+                        completeDiv.innerHTML = `
+                            <h5><i class="fas fa-check-double me-2"></i>Bill Update Complete!</h5>
+                            <p>You've added enough parent bags to this bill. Redirecting to bill management...</p>
+                            <div class="progress mb-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="redirect-progress"></div>
+                            </div>
+                        `;
+                        resultContainer.parentNode.appendChild(completeDiv);
+                        
+                        // Start progress bar animation
+                        const progressBar = document.getElementById('redirect-progress');
+                        let progress = 0;
+                        const progressInterval = setInterval(() => {
+                            progress += 10;
+                            progressBar.style.width = progress + '%';
+                            if (progress >= 100) {
+                                clearInterval(progressInterval);
+                                window.location.href = '{{ url_for("finish_bill_scan", bill_id=bill.id) }}';
+                            }
+                        }, 300);
+                    }
                     
                     // Reset last detected code after a short delay to allow for new scans
                     setTimeout(() => {
