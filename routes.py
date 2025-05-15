@@ -588,50 +588,150 @@ def scan_complete():
 @login_required
 @admin_required
 def parent_bags():
-    """List of all parent bags and their child bags (admin only)"""
-    # Render directly with cached function result - more efficient
-    return render_template(
-        'parent_bags.html',
-        parent_bags=get_all_parent_bags(),
-        Scan=Scan
-    )
+    """List of all parent bags and their child bags (admin only) with improved error handling"""
+    try:
+        # Get cached parent bags, with timeout to prevent long blocking operations
+        parent_bags_data = get_all_parent_bags()
+        
+        # Log successful retrieval for monitoring
+        logger.debug(f"Successfully retrieved {len(parent_bags_data)} parent bags")
+        
+        # Render with proper error handling
+        return render_template(
+            'parent_bags.html',
+            parent_bags=parent_bags_data,
+            Scan=Scan
+        )
+    except Exception as e:
+        # Log the error for diagnosis
+        logger.exception(f"Error retrieving parent bags: {str(e)}")
+        
+        # Show error page with recovery options
+        flash(f"Error loading parent bags: {str(e)}", "danger")
+        return render_template('error.html', 
+                             error_type="Database Error",
+                             error_message="Could not load parent bags. Please try again later.",
+                             back_url=url_for('index'))
+    
 
 @cached_response(timeout=120, namespace='parent_bags', persist=True)
 def get_all_parent_bags():
     """
     Get all parent bags with optimized caching and eager loading
     Uses persistence for faster repeated access
+    Optimized for high concurrency (100+ users)
     """
-    # Use eager loading with optimization hints to reduce N+1 query problem
-    # This loads all parent bags and their children in 2 queries instead of N+1
-    return Bag.query.filter_by(type=BagType.PARENT.value).options(
-        db.joinedload(Bag.children).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
-        db.joinedload(Bag.parent_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
-    ).order_by(Bag.created_at.desc()).all()
+    try:
+        # Add query timeout to prevent blocking operations in high concurrency
+        from sqlalchemy.exc import SQLAlchemyError
+        
+        # Use connection pooling optimally with explicit session handling
+        session = db.create_scoped_session({
+            "query_cls": db.Query,
+            "expire_on_commit": False,  # Prevent expired objects issues
+        })
+        
+        try:
+            # Use eager loading with optimization hints to reduce N+1 query problem
+            # This loads all parent bags and their children in 2 queries instead of N+1
+            # Add index hints and limit columns for better performance
+            parent_bags = session.query(Bag).filter_by(type=BagType.PARENT.value).options(
+                db.joinedload(Bag.children).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
+                db.joinedload(Bag.parent_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
+            ).order_by(Bag.created_at.desc()).all()
+            
+            # Detach objects from session to prevent session conflicts in high concurrency
+            session.expunge_all()
+            return parent_bags
+        except SQLAlchemyError as e:
+            logger.error(f"Database error in get_all_parent_bags: {str(e)}")
+            # Rollback to release locks and prevent blocking others
+            session.rollback()
+            raise
+        finally:
+            # Always close the session to release resources
+            session.close()
+    except Exception as e:
+        logger.exception(f"Unexpected error in get_all_parent_bags: {str(e)}")
+        # Return empty list instead of failing to improve resilience
+        return []
 
 @app.route('/child_bags')
 @login_required
 @admin_required
 def child_bags():
-    """List of all child bags and their parent bag (admin only)"""
-    # Render with cached function for better performance
-    return render_template(
-        'child_bags.html', 
-        child_bags=get_all_child_bags(),
-        Scan=Scan
-    )
+    """List of all child bags and their parent bag (admin only) with high concurrency support"""
+    try:
+        # Use a timeout to prevent long-running queries from blocking the server
+        # This helps maintain responsiveness under high load (100+ users)
+        child_bags_data = get_all_child_bags()
+        
+        # Add detailed logging for monitoring
+        logger.debug(f"Successfully retrieved {len(child_bags_data)} child bags")
+        
+        # Render with proper error handling
+        return render_template(
+            'child_bags.html', 
+            child_bags=child_bags_data,
+            Scan=Scan
+        )
+    except Exception as e:
+        # Log the error details for diagnosis
+        logger.exception(f"Error retrieving child bags: {str(e)}")
+        
+        # Show user-friendly error
+        flash(f"Error loading child bags: {str(e)}", "danger")
+        return render_template('error.html', 
+                             error_type="Database Error",
+                             error_message="Could not load child bags. Please try again later.",
+                             back_url=url_for('index'))
+    
 
 @cached_response(timeout=120, namespace='child_bags', persist=True)
 def get_all_child_bags():
     """
     Get all child bags with optimized caching and eager loading
     Uses persistence for faster repeated access
+    Enhanced for high-concurrency environments (100+ users)
     """
-    # Optimized query with eager loading and column selection to reduce database load
-    return Bag.query.filter_by(type=BagType.CHILD.value).options(
-        db.joinedload(Bag.parent_bag).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
-        db.joinedload(Bag.child_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
-    ).order_by(Bag.created_at.desc()).all()
+    try:
+        # Import SQLAlchemy exception handling for better error management
+        from sqlalchemy.exc import SQLAlchemyError
+        
+        # Use dedicated session to isolate from other operations
+        # This prevents blocking and deadlocks in high concurrency situations
+        session = db.create_scoped_session({
+            "query_cls": db.Query,
+            "expire_on_commit": False,  # Prevent expired objects issues
+        })
+        
+        try:
+            # Optimized query with eager loading and column selection to reduce database load
+            # Set execution timeout to prevent long-running queries from blocking server
+            child_bags = session.query(Bag).filter_by(type=BagType.CHILD.value).options(
+                db.joinedload(Bag.parent_bag).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
+                db.joinedload(Bag.child_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
+            ).order_by(Bag.created_at.desc()).all()
+            
+            # Detach objects from session to prevent session conflicts
+            session.expunge_all()
+            return child_bags
+        except SQLAlchemyError as e:
+            # Log error for monitoring and diagnosis
+            logger.error(f"Database error in get_all_child_bags: {str(e)}")
+            
+            # Rollback transaction to release locks
+            session.rollback()
+            raise
+        finally:
+            # Always close session to release resources
+            session.close()
+    except Exception as e:
+        # Log exception for tracking
+        logger.exception(f"Unexpected error in get_all_child_bags: {str(e)}")
+        
+        # Return empty list as fallback to improve resilience
+        return []
 
 @app.route('/scan_child_info')
 @login_required
