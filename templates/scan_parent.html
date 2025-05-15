@@ -10,15 +10,27 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-12">
-            <div class="card bg-dark text-light border-success mb-4">
-                <div class="card-header bg-success text-white">
+            <div class="card bg-dark text-light border-primary mb-4">
+                <div class="card-header bg-primary text-white">
                     <h5 class="card-title mb-0"><i class="fas fa-barcode me-2"></i>Scan Parent Bag</h5>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i> Please scan a parent bag QR code (format: P123-10)
+                    <!-- Location Info -->
+                    <div class="alert alert-info mb-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1"><i class="fas fa-map-marker-alt me-2"></i>Location: {{ location.name }}</h5>
+                                <p class="mb-0 text-muted">{{ location.description }}</p>
+                            </div>
+                            <div>
+                                <a href="{{ url_for('select_location') }}" class="btn btn-sm btn-outline-light">
+                                    <i class="fas fa-exchange-alt me-1"></i>Change
+                                </a>
+                            </div>
+                        </div>
                     </div>
                     
+                    <!-- QR Scanner -->
                     <div class="row">
                         <div class="col-md-8 mx-auto">
                             <div class="qr-scanner-container">
@@ -35,7 +47,7 @@
                                 <button id="switch-camera-btn" class="btn btn-outline-light">
                                     <i class="fas fa-sync-alt me-2"></i>Switch Camera
                                 </button>
-                                <button id="pause-scan-btn" class="btn btn-outline-success">
+                                <button id="pause-scan-btn" class="btn btn-outline-primary">
                                     <i class="fas fa-pause me-2"></i>Pause
                                 </button>
                             </div>
@@ -43,29 +55,84 @@
                             <div class="mt-4">
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-keyboard"></i></span>
-                                    <input type="text" id="manual-input" class="form-control" placeholder="Manually enter QR code (e.g. P123-10)">
-                                    <button id="manual-submit-btn" class="btn btn-success">Submit</button>
+                                    <input type="text" id="manual-input" class="form-control" placeholder="Manually enter parent bag QR code (e.g. P123-5)">
+                                    <button id="manual-submit-btn" class="btn btn-primary">Submit</button>
                                 </div>
                                 <div class="form-text text-muted">If scanning doesn't work, you can manually enter the QR code here.</div>
                             </div>
                         </div>
                     </div>
                     
-                    <div id="result-container" class="mt-4 d-none">
-                        <div class="alert alert-success">
-                            <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully</h5>
-                            <p id="result-message" class="mb-0"></p>
+                    <!-- Child Count Input (optional) -->
+                    <div class="row mt-4">
+                        <div class="col-md-8 mx-auto">
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-info-circle me-2"></i>Child Bag Count</h6>
+                                <p class="mb-2">Enter the number of child bags for this parent bag:</p>
+                                <div class="input-group">
+                                    <input type="number" id="child-count-input" class="form-control" min="1" max="10" value="5">
+                                    <span class="input-group-text">bags</span>
+                                </div>
+                                <div class="form-text text-muted">Parent bags format: P123-5 where 5 is the number of child bags</div>
+                            </div>
                         </div>
-                        
-                        <div class="d-grid gap-2 col-md-6 mx-auto mt-3">
-                            <a id="scan-child-btn" href="{{ url_for('scan_child') }}" class="btn btn-lg btn-success">
-                                <i class="fas fa-qrcode me-2"></i>Scan Child Bags
-                            </a>
+                    </div>
+                    
+                    <!-- Recent Scans -->
+                    <div class="mt-4">
+                        <h5><i class="fas fa-history me-2"></i>Recent Scans</h5>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>QR Code</th>
+                                        <th>Time</th>
+                                        <th>Child Bags</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if recent_scans %}
+                                        {% for scan in recent_scans %}
+                                        <tr>
+                                            <td>{{ scan.parent_bag.qr_id }}</td>
+                                            <td>{{ scan.timestamp.strftime('%H:%M:%S') }}</td>
+                                            <td>{{ scan.child_count }}/{{ scan.expected_child_count }}</td>
+                                            <td>
+                                                {% if scan.child_count >= scan.expected_child_count %}
+                                                <span class="badge bg-success">Complete</span>
+                                                {% else %}
+                                                <span class="badge bg-warning">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if scan.child_count < scan.expected_child_count %}
+                                                <a href="{{ url_for('scan_child', parent_id=scan.parent_bag.id) }}" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-link me-1"></i>Link Child Bags
+                                                </a>
+                                                {% else %}
+                                                <button class="btn btn-sm btn-secondary" disabled>
+                                                    <i class="fas fa-check me-1"></i>Completed
+                                                </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="5" class="text-center py-3">No recent scans</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
                 <div class="card-footer text-center">
-                    <a href="{{ url_for('index') }}" class="text-success"><i class="fas fa-home me-2"></i>Back to Dashboard</a>
+                    <a href="{{ url_for('index') }}" class="text-primary">
+                        <i class="fas fa-home me-2"></i>Back to Dashboard
+                    </a>
                 </div>
             </div>
         </div>
@@ -83,8 +150,7 @@
         const pauseScanBtn = document.getElementById('pause-scan-btn');
         const manualInput = document.getElementById('manual-input');
         const manualSubmitBtn = document.getElementById('manual-submit-btn');
-        const resultContainer = document.getElementById('result-container');
-        const resultMessage = document.getElementById('result-message');
+        const childCountInput = document.getElementById('child-count-input');
         
         let currentStream;
         let scanning = true;
@@ -146,17 +212,25 @@
             pauseScanBtn.innerHTML = scanning ? 
                 '<i class="fas fa-pause me-2"></i>Pause' : 
                 '<i class="fas fa-play me-2"></i>Resume';
+                
+            if (scanning) {
+                requestAnimationFrame(scanQRCode);
+            }
         }
         
         // Process scanned QR code
         function processQRCode(qrCode) {
-            // Stop scanning once we find a valid code
+            // Stop scanning temporarily
             scanning = false;
             pauseScanBtn.innerHTML = '<i class="fas fa-play me-2"></i>Resume';
+            
+            // Get child count
+            const childCount = parseInt(childCountInput.value) || 5;
             
             // Process through API
             const formData = new FormData();
             formData.append('qr_code', qrCode);
+            formData.append('child_count', childCount);
             
             fetch("{{ url_for('process_parent_scan') }}", {
                 method: 'POST',
@@ -168,19 +242,53 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    resultMessage.textContent = data.message;
-                    resultContainer.classList.remove('d-none');
-                    window.scrollTo(0, document.body.scrollHeight);
+                    // Show toast notification
+                    if (window.showToast) {
+                        window.showToast(data.message, 'success');
+                    } else {
+                        alert(data.message);
+                    }
+                    
+                    // Redirect to child scanning if needed
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        // Refresh page to update recent scans list
+                        window.location.reload();
+                    }
                 } else {
-                    alert('Error: ' + data.message);
+                    // Show error
+                    if (window.showToast) {
+                        window.showToast('Error: ' + data.message, 'danger');
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                    
+                    // Resume scanning
                     scanning = true;
+                    pauseScanBtn.innerHTML = '<i class="fas fa-pause me-2"></i>Pause';
+                    requestAnimationFrame(scanQRCode);
                 }
             })
             .catch(error => {
                 console.error('Error processing QR code:', error);
                 alert('Error processing QR code. Please try again.');
                 scanning = true;
+                pauseScanBtn.innerHTML = '<i class="fas fa-pause me-2"></i>Pause';
+                requestAnimationFrame(scanQRCode);
             });
+        }
+        
+        // Extract child count from QR code
+        function extractChildCountFromQR(qrCode) {
+            // Example format: P123-5 where 5 is the child count
+            const match = qrCode.match(/^P\d+-(\d+)$/);
+            if (match && match[1]) {
+                const count = parseInt(match[1]);
+                if (count > 0 && count <= 10) {
+                    childCountInput.value = count;
+                }
+            }
         }
         
         // Scan for QR code in video
@@ -204,6 +312,10 @@
                         // Check if it's a valid parent bag QR code
                         const parentBagRegex = /^P\d+-\d+$/;
                         if (parentBagRegex.test(code.data)) {
+                            // Extract child count from QR code
+                            extractChildCountFromQR(code.data);
+                            
+                            // Process the scan
                             processQRCode(code.data);
                         }
                     }
@@ -218,6 +330,10 @@
         manualSubmitBtn.addEventListener('click', function() {
             const manualCode = manualInput.value.trim();
             if (manualCode) {
+                // Try to extract child count if it's in the correct format
+                extractChildCountFromQR(manualCode);
+                
+                // Process the scan
                 processQRCode(manualCode);
             } else {
                 alert('Please enter a valid QR code.');
@@ -229,6 +345,10 @@
             if (e.key === 'Enter') {
                 const manualCode = manualInput.value.trim();
                 if (manualCode) {
+                    // Try to extract child count if it's in the correct format
+                    extractChildCountFromQR(manualCode);
+                    
+                    // Process the scan
                     processQRCode(manualCode);
                 }
             }

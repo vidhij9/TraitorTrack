@@ -11,12 +11,22 @@ from account_security import is_account_locked, record_failed_attempt, reset_fai
 @app.route('/')
 def index():
     """Main dashboard page"""
-    if not current_user.is_authenticated:
-        return redirect(url_for('login'))
+    stats = {
+        'parent_bags': Bag.query.filter_by(type=BagType.PARENT.value).count(),
+        'child_bags': Bag.query.filter_by(type=BagType.CHILD.value).count(),
+        'bills': Bill.query.count(),
+        'total_scans': Scan.query.count()
+    }
+    
+    recent_scans = []
+    if current_user.is_authenticated:
+        recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(10).all()
     
     return render_template('index.html', 
                            user=current_user,
-                           is_admin=current_user.is_admin() if current_user.is_authenticated else False)
+                           is_admin=current_user.is_admin() if current_user.is_authenticated else False,
+                           stats=stats,
+                           recent_scans=recent_scans)
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -158,9 +168,9 @@ def register():
     
     return render_template('register.html')
 
-@app.route('/promote-to-admin', methods=['GET', 'POST'])
+@app.route('/promote_admin', methods=['GET', 'POST'])
 @login_required
-def promote_to_admin():
+def promote_admin():
     """Allow users to promote themselves to admin with secret code"""
     if current_user.is_admin():
         flash('You are already an admin.', 'info')
