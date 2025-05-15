@@ -1,17 +1,17 @@
 {% extends "layout.html" %}
 
-{% block title %}Select Location{% endblock %}
+{% block title %}Select Location - TraceTrack{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card bg-dark text-light border-primary">
+            <div class="card bg-dark text-light">
                 <div class="card-body">
-                    <h2 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Select Location</h2>
-                    <p class="card-text">Choose a location to start scanning bags. The selected location will be recorded with each scan.</p>
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-map-marker-alt me-2"></i>Select Location
+                    </h2>
                     
-                    <!-- Progress Steps -->
                     <div class="progress-container">
                         <div class="progress-indicator">
                             <div class="progress-step active">
@@ -35,44 +35,38 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <p class="card-text">Please select the location where you are scanning bags:</p>
                 </div>
             </div>
         </div>
     </div>
     
-    <form method="POST" action="{{ url_for('select_location') }}" id="locationForm">
-        <input type="hidden" id="selected_location_id" name="location_id" value="">
-        
-        <!-- Location Selection Cards -->
-        <div class="row row-cols-1 row-cols-md-3 g-4 mb-4">
-            {% if locations %}
-                {% for location in locations %}
-                <div class="col">
-                    <div class="card location-card h-100 bg-dark text-light border-secondary" 
-                         data-location-id="{{ location.id }}" 
-                         onclick="selectLocation(this, {{ location.id }})">
-                        <div class="card-body text-center">
-                            <i class="fas fa-map-marker-alt dashboard-icon text-primary"></i>
-                            <h4 class="card-title">{{ location.name }}</h4>
-                            <p class="card-text">{{ location.description }}</p>
-                            <div class="location-stats mt-3">
-                                <span class="badge bg-primary">{{ location.scans_count|default(0) }} Scans</span>
+    <form method="POST" action="{{ url_for('select_location') }}">
+        <div class="row g-4">
+            {% for location in locations %}
+                <div class="col-lg-4 col-md-6">
+                    <div class="card location-card h-100" onclick="document.getElementById('location_{{ location.id }}').checked = true;">
+                        <div class="card-body text-center p-4">
+                            <div class="form-check">
+                                <input class="form-check-input visually-hidden" type="radio" name="location_id" 
+                                       id="location_{{ location.id }}" value="{{ location.id }}">
+                                <label class="form-check-label w-100" for="location_{{ location.id }}">
+                                    <div class="mb-3">
+                                        <i class="fas fa-building fa-3x text-primary"></i>
+                                    </div>
+                                    <h4 class="mb-3">{{ location.name }}</h4>
+                                    <p class="text-muted">{{ location.address }}</p>
+                                </label>
                             </div>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
-            {% else %}
-                <div class="col-12">
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>No locations found. Please contact an administrator to set up locations.
-                    </div>
-                </div>
-            {% endif %}
+            {% endfor %}
         </div>
         
-        <div class="text-center mb-4">
-            <button type="submit" class="btn btn-primary btn-lg" id="continueBtn" disabled>
+        <div class="mt-4 d-flex justify-content-center">
+            <button type="submit" class="btn btn-primary btn-lg">
                 <i class="fas fa-arrow-right me-2"></i>Continue to Scanning
             </button>
         </div>
@@ -82,24 +76,18 @@
 
 {% block scripts %}
 <script>
-    function selectLocation(cardElement, locationId) {
-        // Remove selection class from all cards
-        document.querySelectorAll('.location-card').forEach(card => {
-            card.classList.remove('location-selected');
-            card.classList.remove('border-primary');
-            card.classList.add('border-secondary');
+    document.addEventListener('DOMContentLoaded', function() {
+        const locationCards = document.querySelectorAll('.location-card');
+        
+        locationCards.forEach(card => {
+            card.addEventListener('click', function() {
+                // Remove active class from all cards
+                locationCards.forEach(c => c.classList.remove('bg-primary', 'bg-opacity-25'));
+                
+                // Add active class to clicked card
+                this.classList.add('bg-primary', 'bg-opacity-25');
+            });
         });
-        
-        // Add selection class to the clicked card
-        cardElement.classList.add('location-selected');
-        cardElement.classList.remove('border-secondary');
-        cardElement.classList.add('border-primary');
-        
-        // Set the location ID in the hidden input
-        document.getElementById('selected_location_id').value = locationId;
-        
-        // Enable the continue button
-        document.getElementById('continueBtn').disabled = false;
-    }
+    });
 </script>
 {% endblock %}

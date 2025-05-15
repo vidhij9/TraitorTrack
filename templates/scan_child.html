@@ -1,17 +1,17 @@
 {% extends "layout.html" %}
 
-{% block title %}Scan Child Bags{% endblock %}
+{% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card bg-dark text-light border-primary">
+            <div class="card bg-dark text-light">
                 <div class="card-body">
-                    <h2 class="card-title"><i class="fas fa-qrcode me-2"></i>Scan Child Bags</h2>
-                    <p class="card-text">Scan the QR code on each child bag to link them to the parent bag.</p>
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-qrcode me-2"></i>Scan Child Bags
+                    </h2>
                     
-                    <!-- Progress Steps -->
                     <div class="progress-container">
                         <div class="progress-indicator">
                             <div class="progress-step completed">
@@ -35,145 +35,103 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="alert alert-primary mb-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-box fa-2x me-3"></i>
+                            <div>
+                                <h5 class="mb-1">Parent Bag: <span class="fw-bold">{{ parent_bag.qr_id }}</span></h5>
+                                <p class="mb-0">Please scan {{ expected_child_count }} child bags to link to this parent bag.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Child bag QR codes should be in the format <strong>C123</strong>.
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
     <div class="row mb-4">
-        <div class="col-md-5 col-lg-4 mb-4 mb-md-0">
-            <!-- Parent Bag Info -->
-            <div class="card bg-dark text-light">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Parent Bag</h4>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <strong>QR Code:</strong> {{ parent_bag.qr_id }}
+        <div class="col-12">
+            <div class="card bg-success bg-opacity-25 text-light">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">Progress: <span id="progress-text">{{ scanned_child_count }} of {{ expected_child_count }}</span></h4>
+                        <p class="mb-0">Child bags scanned</p>
                     </div>
-                    <div class="mb-3">
-                        <strong>Expected Child Bags:</strong> {{ expected_child_count }}
-                    </div>
-                    <div class="mb-3">
-                        <strong>Progress:</strong>
-                        <div class="progress mt-2" style="height: 20px;">
-                            <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: {{ (scanned_child_count / expected_child_count) * 100 }}%;" 
-                                 aria-valuenow="{{ scanned_child_count }}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="{{ expected_child_count }}">
-                                {{ scanned_child_count }} / {{ expected_child_count }}
-                            </div>
+                    
+                    <div class="text-center">
+                        <div class="position-relative d-inline-block">
+                            <div id="progress-circle" class="position-relative" style="width: 100px; height: 100px;"></div>
+                            <div id="progress-percentage" class="position-absolute top-50 start-50 translate-middle fs-4 fw-bold"></div>
                         </div>
                     </div>
                     
-                    {% if scanned_child_count >= expected_child_count %}
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle me-2"></i>All expected child bags have been scanned!
-                    </div>
-                    {% endif %}
-                    
-                    <div class="d-grid gap-2 mt-4">
-                        {% if scanned_child_count >= expected_child_count %}
-                            <a href="{{ url_for('finish_scanning') }}" class="btn btn-success">
-                                <i class="fas fa-check-circle me-1"></i> Complete Scanning
-                            </a>
-                        {% else %}
-                            <a href="{{ url_for('finish_scanning') }}" class="btn btn-outline-warning">
-                                <i class="fas fa-exclamation-triangle me-1"></i> Finish Without All Child Bags
-                            </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Scanned Child Bags -->
-            <div class="card bg-dark text-light mt-3">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-list me-2"></i>Scanned Child Bags</h4>
-                </div>
-                <div class="card-body">
-                    <div id="scannedBagsList">
-                        {% if session.child_bags_scanned %}
-                            <ul class="list-group">
-                                {% for child_qr in session.child_bags_scanned %}
-                                    <li class="list-group-item bg-dark text-light d-flex justify-content-between align-items-center">
-                                        <span>{{ child_qr }}</span>
-                                        <span class="badge bg-success rounded-pill">
-                                            <i class="fas fa-check"></i>
-                                        </span>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="text-center text-muted py-3">
-                                <i class="fas fa-info-circle me-1"></i> No child bags scanned yet
-                            </div>
-                        {% endif %}
+                    <div>
+                        <a id="finish-button" href="{{ url_for('finish_scanning') }}" class="btn btn-success {% if scanned_child_count < expected_child_count %}disabled{% endif %}">
+                            <i class="fas fa-check-circle me-2"></i>Complete Scanning
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-7 col-lg-8">
-            <!-- QR Scanner -->
-            <div class="card bg-dark text-light">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Scan QR Code</h4>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card">
+                <div class="card-header bg-primary bg-opacity-25 text-light">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <div class="video-container">
                         <video id="video" playsinline></video>
-                        <canvas id="canvas" style="display:none;"></canvas>
+                        <canvas id="canvas" class="d-none"></canvas>
                     </div>
-                    <div class="mt-3 d-flex gap-2">
-                        <button id="startButton" class="btn btn-primary">
-                            <i class="fas fa-play me-1"></i> Start Camera
-                        </button>
-                        <button id="stopButton" class="btn btn-danger" disabled>
-                            <i class="fas fa-stop me-1"></i> Stop Camera
-                        </button>
-                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <button id="start-camera" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Start Camera
+                    </button>
+                    <button id="stop-camera" class="btn btn-secondary" disabled>
+                        <i class="fas fa-stop me-2"></i>Stop Camera
+                    </button>
                 </div>
             </div>
-            
-            <!-- QR Code Result -->
-            <div class="card bg-dark text-light mt-3">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Scan Result</h4>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-success bg-opacity-25 text-light">
+                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Results</h4>
                 </div>
                 <div class="card-body">
-                    <div id="scanResult" class="scan-result bg-dark border border-success">
-                        <div id="resultContent">
-                            <h5 class="text-success mb-3"><i class="fas fa-check-circle me-2"></i>Child Bag Scanned</h5>
-                            <div class="mb-3">
-                                <strong>QR Code:</strong> <span id="qrCodeValue">-</span>
-                            </div>
-                        </div>
+                    <div id="result-container" class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The results of the scans will appear here.
                     </div>
                     
-                    <div id="scanInstruction" class="text-center py-4">
-                        <i class="fas fa-qrcode display-4 text-muted mb-3"></i>
-                        <h5 class="text-muted">Waiting for QR code scan...</h5>
-                        <p class="text-muted small">Please position the child bag QR code in front of the camera.</p>
-                        <p class="text-info small mt-3">The child bag QR code should be in format: C123</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Manual Entry -->
-            <div class="card bg-dark text-light mt-3">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-keyboard me-2"></i>Manual Entry</h4>
-                </div>
-                <div class="card-body">
-                    <p class="card-text small">If scanning doesn't work, enter the child bag code manually:</p>
-                    <div class="input-group">
-                        <input type="text" id="manualQrCode" class="form-control" placeholder="e.g., C123">
-                        <button id="manualEntryButton" class="btn btn-primary">
-                            <i class="fas fa-check me-1"></i> Submit
-                        </button>
-                    </div>
+                    <ul id="scanned-list" class="list-group mb-3">
+                        <!-- Scanned items will be added here dynamically -->
+                    </ul>
+                    
+                    <form id="manual-entry-form" class="mt-4">
+                        <div class="mb-3">
+                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-keyboard"></i>
+                                </span>
+                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., C123">
+                                <button type="submit" class="btn btn-primary">Submit</button>
+                            </div>
+                            <div class="form-text">If scanning doesn't work, you can manually enter the QR code value here.</div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -183,199 +141,213 @@
 
 {% block scripts %}
 <script>
-    // DOM elements
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const startButton = document.getElementById('startButton');
-    const stopButton = document.getElementById('stopButton');
-    const scanResult = document.getElementById('scanResult');
-    const scanInstruction = document.getElementById('scanInstruction');
-    const qrCodeValue = document.getElementById('qrCodeValue');
-    const scannedBagsList = document.getElementById('scannedBagsList');
-    const manualQrCode = document.getElementById('manualQrCode');
-    const manualEntryButton = document.getElementById('manualEntryButton');
-    
-    // Variables
-    let stream;
-    let scanning = false;
-    
-    // Start camera and QR scanning
-    startButton.addEventListener('click', async () => {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                } 
-            });
-            video.srcObject = stream;
-            video.setAttribute('playsinline', true);
-            video.play();
-            scanning = true;
-            startButton.disabled = true;
-            stopButton.disabled = false;
-            requestAnimationFrame(tick);
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            alert('Could not access the camera. Please make sure you have granted camera permissions or try using manual entry.');
-        }
-    });
-    
-    // Stop camera
-    stopButton.addEventListener('click', () => {
-        stopScanning();
-    });
-    
-    function stopScanning() {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            scanning = false;
-            startButton.disabled = false;
-            stopButton.disabled = true;
-        }
-    }
-    
-    // QR code scanning frame processing
-    function tick() {
-        if (!scanning) return;
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startCameraBtn = document.getElementById('start-camera');
+        const stopCameraBtn = document.getElementById('stop-camera');
+        const resultContainer = document.getElementById('result-container');
+        const scannedList = document.getElementById('scanned-list');
+        const manualEntryForm = document.getElementById('manual-entry-form');
+        const progressText = document.getElementById('progress-text');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const finishButton = document.getElementById('finish-button');
         
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let stream = null;
+        let scanning = false;
+        let canvasContext = canvas.getContext('2d');
+        let lastDetectedCode = null;
+        
+        // Current progress
+        let scannedCount = {{ scanned_child_count }};
+        let expectedCount = {{ expected_child_count }};
+        
+        // Initialize progress circle
+        updateProgress();
+        
+        // Start camera when button is clicked
+        startCameraBtn.addEventListener('click', startCamera);
+        
+        // Stop camera when button is clicked
+        stopCameraBtn.addEventListener('click', stopCamera);
+        
+        // Handle manual entry form submission
+        manualEntryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const manualQrCode = document.getElementById('manual-qr-code').value.trim();
             
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert',
-            });
-            
-            if (code && code.data) {
-                const qrData = code.data;
-                console.log('QR Code detected:', qrData);
-                
-                // Validate child bag format (e.g., C123)
-                if (/^C\d+$/.test(qrData)) {
-                    processChildBag(qrData);
-                    stopScanning();
-                }
+            if (manualQrCode) {
+                processQrCode(manualQrCode);
+                document.getElementById('manual-qr-code').value = '';
             }
-        }
-        
-        requestAnimationFrame(tick);
-    }
-    
-    // Manual entry button
-    manualEntryButton.addEventListener('click', () => {
-        const manualCode = manualQrCode.value.trim();
-        if (!manualCode) {
-            alert('Please enter a child bag code.');
-            return;
-        }
-        
-        // Validate child bag format (e.g., C123)
-        if (/^C\d+$/.test(manualCode)) {
-            processChildBag(manualCode);
-        } else {
-            alert('Invalid child bag format. The format should be C123, where C indicates a child bag, followed by digits.');
-        }
-    });
-    
-    // Process detected child bag QR code
-    function processChildBag(qrCode) {
-        // Send the QR code to the server
-        const formData = new FormData();
-        formData.append('qr_code', qrCode);
-        
-        fetch('/process_child_scan', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Display scan result
-                qrCodeValue.textContent = qrCode;
-                scanResult.classList.add('show');
-                scanInstruction.style.display = 'none';
-                
-                // Add the scanned bag to the list
-                updateScannedBagsList(qrCode);
-                
-                // Update the progress bar
-                const progressBar = document.querySelector('.progress-bar');
-                const percentage = (data.scanned_count / data.expected_count) * 100;
-                progressBar.style.width = percentage + '%';
-                progressBar.setAttribute('aria-valuenow', data.scanned_count);
-                progressBar.textContent = data.scanned_count + ' / ' + data.expected_count;
-                
-                // Show completion message if all bags are scanned
-                if (data.all_scanned) {
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert alert-success mt-3';
-                    alertDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>All expected child bags have been scanned!';
-                    
-                    if (!document.querySelector('.alert-success')) {
-                        document.querySelector('.progress').closest('.mb-3').insertAdjacentElement('afterend', alertDiv);
-                    }
-                    
-                    // Update the complete button
-                    const completeBtn = document.querySelector('.btn-outline-warning');
-                    if (completeBtn) {
-                        completeBtn.className = 'btn btn-success';
-                        completeBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Scanning';
-                    }
-                }
-                
-                // Reset for next scan after a short delay
-                setTimeout(() => {
-                    scanResult.classList.remove('show');
-                    scanInstruction.style.display = 'block';
-                    startButton.disabled = false;
-                }, 2000);
-            } else {
-                alert('Error: ' + data.message);
-                // Reset for another scan
-                startButton.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Error processing scan:', error);
-            alert('An error occurred while processing the scan. Please try again.');
-            // Reset for another scan
-            startButton.disabled = false;
         });
-    }
-    
-    // Update the list of scanned bags
-    function updateScannedBagsList(qrCode) {
-        // Check if we already have a list
-        let listElement = scannedBagsList.querySelector('ul');
         
-        // If no list exists, create one
-        if (!listElement) {
-            scannedBagsList.innerHTML = '';
-            listElement = document.createElement('ul');
-            listElement.className = 'list-group';
-            scannedBagsList.appendChild(listElement);
+        function startCamera() {
+            // Request access to the webcam
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(function(mediaStream) {
+                        stream = mediaStream;
+                        video.srcObject = stream;
+                        video.setAttribute('playsinline', true); // Required for iOS Safari
+                        video.play();
+                        
+                        startCameraBtn.disabled = true;
+                        stopCameraBtn.disabled = false;
+                        
+                        scanning = true;
+                        scanQRCode();
+                    })
+                    .catch(function(error) {
+                        console.error('Could not access the camera: ', error);
+                        resultContainer.className = 'alert alert-danger';
+                        resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
+                            'Could not access the camera. Please check your camera permissions or use manual entry.';
+                    });
+            } else {
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
+                    'Your browser does not support camera access. Please use a modern browser or use manual entry.';
+            }
         }
         
-        // Create a new list item
-        const listItem = document.createElement('li');
-        listItem.className = 'list-group-item bg-dark text-light d-flex justify-content-between align-items-center';
-        listItem.innerHTML = `
-            <span>${qrCode}</span>
-            <span class="badge bg-success rounded-pill">
-                <i class="fas fa-check"></i>
-            </span>
-        `;
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                scanning = false;
+                
+                startCameraBtn.disabled = false;
+                stopCameraBtn.disabled = true;
+            }
+        }
         
-        // Add the item to the list
-        listElement.appendChild(listItem);
-    }
-    
-    // Initialize
-    scanResult.classList.remove('show');
+        function scanQRCode() {
+            if (!scanning) return;
+            
+            requestAnimationFrame(scanQRCode);
+            
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+                
+                if (code && code.data) {
+                    // To prevent multiple scans of the same code
+                    if (lastDetectedCode !== code.data) {
+                        lastDetectedCode = code.data;
+                        processQrCode(code.data);
+                    }
+                }
+            }
+        }
+        
+        function processQrCode(qrCode) {
+            // If it's not already in the format "C123", try to format it
+            if (!qrCode.match(/^C\d+$/)) {
+                const formattedQrCode = formatQrCode(qrCode);
+                if (formattedQrCode) {
+                    qrCode = formattedQrCode;
+                }
+            }
+            
+            // Send to server for processing
+            fetch('/process_child_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'qr_code=' + encodeURIComponent(qrCode)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI for success
+                    resultContainer.className = 'alert alert-success';
+                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + data.message;
+                    
+                    // Add to the scanned list
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    listItem.innerHTML = `
+                        <div>
+                            <span class="badge bg-success me-2">Child</span>
+                            <span>${data.child_qr}</span>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">
+                            <i class="fas fa-link me-1"></i>Linked
+                        </span>
+                    `;
+                    scannedList.prepend(listItem);
+                    
+                    // Update progress
+                    scannedCount = data.scanned_count;
+                    updateProgress();
+                    
+                    // Reset last detected code after a short delay to allow for new scans
+                    setTimeout(() => {
+                        lastDetectedCode = null;
+                    }, 2000);
+                } else {
+                    // Show error message
+                    resultContainer.className = 'alert alert-danger';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                    
+                    // Reset last detected code after a short delay
+                    setTimeout(() => {
+                        lastDetectedCode = null;
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + 
+                    'An error occurred while processing the QR code. Please try again.';
+                
+                // Reset last detected code
+                lastDetectedCode = null;
+            });
+        }
+        
+        function formatQrCode(rawCode) {
+            // Extract digits if present
+            const digits = rawCode.match(/\d+/g);
+            if (digits && digits.length > 0) {
+                // Format as C[first number]
+                return `C${digits[0]}`;
+            }
+            return null;
+        }
+        
+        function updateProgress() {
+            // Update text
+            progressText.textContent = `${scannedCount} of ${expectedCount}`;
+            
+            // Calculate percentage
+            const percentage = Math.round((scannedCount / expectedCount) * 100);
+            progressPercentage.textContent = `${percentage}%`;
+            
+            // Update circle visualization (simple CSS version)
+            const circle = document.getElementById('progress-circle');
+            circle.style.background = `conic-gradient(
+                var(--bs-success) ${percentage}%, 
+                var(--bs-dark) ${percentage}%
+            )`;
+            circle.style.borderRadius = "50%";
+            
+            // Enable/disable finish button
+            if (scannedCount >= expectedCount) {
+                finishButton.classList.remove('disabled');
+            } else {
+                finishButton.classList.add('disabled');
+            }
+        }
+    });
 </script>
 {% endblock %}

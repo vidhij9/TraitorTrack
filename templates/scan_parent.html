@@ -1,17 +1,17 @@
 {% extends "layout.html" %}
 
-{% block title %}Scan Parent Bag{% endblock %}
+{% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card bg-dark text-light border-primary">
+            <div class="card bg-dark text-light">
                 <div class="card-body">
-                    <h2 class="card-title"><i class="fas fa-qrcode me-2"></i>Scan Parent Bag</h2>
-                    <p class="card-text">Scan the QR code on the parent bag to start linking child bags.</p>
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-qrcode me-2"></i>Scan Parent Bag
+                    </h2>
                     
-                    <!-- Progress Steps -->
                     <div class="progress-container">
                         <div class="progress-indicator">
                             <div class="progress-step completed">
@@ -35,81 +35,75 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <p class="card-text">Please scan the QR code on the parent bag.</p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Parent bag QR codes should be in the format <strong>P123-10</strong> where "10" indicates the number of expected child bags.
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="row g-4">
-        <div class="col-md-7">
-            <!-- QR Scanner -->
-            <div class="card bg-dark text-light">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Scan QR Code</h4>
+    <div class="row">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card">
+                <div class="card-header bg-primary bg-opacity-25 text-light">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <div class="video-container">
                         <video id="video" playsinline></video>
-                        <canvas id="canvas" style="display:none;"></canvas>
+                        <canvas id="canvas" class="d-none"></canvas>
                     </div>
-                    <div class="mt-3 d-flex gap-2">
-                        <button id="startButton" class="btn btn-primary">
-                            <i class="fas fa-play me-1"></i> Start Camera
-                        </button>
-                        <button id="stopButton" class="btn btn-danger" disabled>
-                            <i class="fas fa-stop me-1"></i> Stop Camera
-                        </button>
-                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <button id="start-camera" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Start Camera
+                    </button>
+                    <button id="stop-camera" class="btn btn-secondary" disabled>
+                        <i class="fas fa-stop me-2"></i>Stop Camera
+                    </button>
                 </div>
             </div>
         </div>
         
-        <div class="col-md-5">
-            <!-- QR Code Result -->
-            <div class="card bg-dark text-light">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Scan Result</h4>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-success bg-opacity-25 text-light">
+                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Result</h4>
                 </div>
                 <div class="card-body">
-                    <div id="scanResult" class="scan-result bg-dark border border-primary">
-                        <div id="resultContent">
-                            <h5 class="text-primary mb-3"><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned</h5>
-                            <div class="mb-3">
-                                <strong>QR Code:</strong> <span id="qrCodeValue">-</span>
-                            </div>
-                            <div class="mb-3">
-                                <strong>Child Bags:</strong> <span id="childBagsCount">-</span>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center">
-                            <button id="continueButton" class="btn btn-success">
-                                <i class="fas fa-arrow-right me-1"></i> Continue to Child Bag Scanning
-                            </button>
+                    <div id="result-container" class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The result of the scan will appear here.
+                    </div>
+                    
+                    <div id="scan-success" class="scan-result alert alert-success">
+                        <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully</h5>
+                        <p class="mb-2">QR Code: <span id="parent-qr-value" class="fw-bold"></span></p>
+                        <p class="mb-3">Expected Child Bags: <span id="expected-child-count" class="fw-bold"></span></p>
+                        <div class="d-grid">
+                            <a id="scan-child-link" href="#" class="btn btn-success">
+                                <i class="fas fa-arrow-right me-2"></i>Continue to Scan Child Bags
+                            </a>
                         </div>
                     </div>
                     
-                    <div id="scanInstruction" class="text-center py-5">
-                        <i class="fas fa-qrcode display-1 text-muted mb-3"></i>
-                        <h5 class="text-muted">Waiting for QR code scan...</h5>
-                        <p class="text-muted small">Please position the parent bag QR code in front of the camera.</p>
-                        <p class="text-info small mt-3">The parent bag QR code should be in format: P123-10</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Manual Entry -->
-            <div class="card bg-dark text-light mt-3">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-keyboard me-2"></i>Manual Entry</h4>
-                </div>
-                <div class="card-body">
-                    <p class="card-text small">If scanning doesn't work, enter the parent bag code manually:</p>
-                    <div class="input-group">
-                        <input type="text" id="manualQrCode" class="form-control" placeholder="e.g., P123-10">
-                        <button id="manualEntryButton" class="btn btn-primary">
-                            <i class="fas fa-check me-1"></i> Submit
-                        </button>
-                    </div>
+                    <form id="manual-entry-form" class="mt-4">
+                        <div class="mb-3">
+                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-keyboard"></i>
+                                </span>
+                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., P123-10">
+                                <button type="submit" class="btn btn-primary">Submit</button>
+                            </div>
+                            <div class="form-text">If scanning doesn't work, you can manually enter the QR code value here.</div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -119,147 +113,159 @@
 
 {% block scripts %}
 <script>
-    // DOM elements
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const startButton = document.getElementById('startButton');
-    const stopButton = document.getElementById('stopButton');
-    const scanResult = document.getElementById('scanResult');
-    const scanInstruction = document.getElementById('scanInstruction');
-    const qrCodeValue = document.getElementById('qrCodeValue');
-    const childBagsCount = document.getElementById('childBagsCount');
-    const continueButton = document.getElementById('continueButton');
-    const manualQrCode = document.getElementById('manualQrCode');
-    const manualEntryButton = document.getElementById('manualEntryButton');
-    
-    // Variables
-    let stream;
-    let scanning = false;
-    
-    // Start camera and QR scanning
-    startButton.addEventListener('click', async () => {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                } 
-            });
-            video.srcObject = stream;
-            video.setAttribute('playsinline', true);
-            video.play();
-            scanning = true;
-            startButton.disabled = true;
-            stopButton.disabled = false;
-            requestAnimationFrame(tick);
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            alert('Could not access the camera. Please make sure you have granted camera permissions or try using manual entry.');
-        }
-    });
-    
-    // Stop camera
-    stopButton.addEventListener('click', () => {
-        stopScanning();
-    });
-    
-    function stopScanning() {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            scanning = false;
-            startButton.disabled = false;
-            stopButton.disabled = true;
-        }
-    }
-    
-    // QR code scanning frame processing
-    function tick() {
-        if (!scanning) return;
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startCameraBtn = document.getElementById('start-camera');
+        const stopCameraBtn = document.getElementById('stop-camera');
+        const resultContainer = document.getElementById('result-container');
+        const scanSuccess = document.getElementById('scan-success');
+        const parentQrValue = document.getElementById('parent-qr-value');
+        const expectedChildCount = document.getElementById('expected-child-count');
+        const scanChildLink = document.getElementById('scan-child-link');
+        const manualEntryForm = document.getElementById('manual-entry-form');
         
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let stream = null;
+        let scanning = false;
+        let canvasContext = canvas.getContext('2d');
+        let lastDetectedCode = null;
+        
+        // Start camera when button is clicked
+        startCameraBtn.addEventListener('click', startCamera);
+        
+        // Stop camera when button is clicked
+        stopCameraBtn.addEventListener('click', stopCamera);
+        
+        // Handle manual entry form submission
+        manualEntryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const manualQrCode = document.getElementById('manual-qr-code').value.trim();
             
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert',
-            });
-            
-            if (code && code.data) {
-                const qrData = code.data;
-                console.log('QR Code detected:', qrData);
+            if (manualQrCode) {
+                processQrCode(manualQrCode);
+            }
+        });
+        
+        function startCamera() {
+            // Request access to the webcam
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(function(mediaStream) {
+                        stream = mediaStream;
+                        video.srcObject = stream;
+                        video.setAttribute('playsinline', true); // Required for iOS Safari
+                        video.play();
+                        
+                        startCameraBtn.disabled = true;
+                        stopCameraBtn.disabled = false;
+                        
+                        scanning = true;
+                        scanQRCode();
+                    })
+                    .catch(function(error) {
+                        console.error('Could not access the camera: ', error);
+                        resultContainer.className = 'alert alert-danger';
+                        resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
+                            'Could not access the camera. Please check your camera permissions or use manual entry.';
+                    });
+            } else {
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
+                    'Your browser does not support camera access. Please use a modern browser or use manual entry.';
+            }
+        }
+        
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                scanning = false;
                 
-                // Validate parent bag format (e.g., P123-10)
-                if (/^P\d+-\d+$/.test(qrData)) {
-                    processParentBag(qrData);
-                    stopScanning();
+                startCameraBtn.disabled = false;
+                stopCameraBtn.disabled = true;
+            }
+        }
+        
+        function scanQRCode() {
+            if (!scanning) return;
+            
+            requestAnimationFrame(scanQRCode);
+            
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+                
+                if (code && code.data) {
+                    // To prevent multiple scans of the same code
+                    if (lastDetectedCode !== code.data) {
+                        lastDetectedCode = code.data;
+                        processQrCode(code.data);
+                    }
                 }
             }
         }
         
-        requestAnimationFrame(tick);
-    }
-    
-    // Manual entry button
-    manualEntryButton.addEventListener('click', () => {
-        const manualCode = manualQrCode.value.trim();
-        if (!manualCode) {
-            alert('Please enter a parent bag code.');
-            return;
+        function processQrCode(qrCode) {
+            // If it's not already in the format "P123-10", try to format it
+            if (!qrCode.match(/^P\d+-\d+$/)) {
+                const formattedQrCode = formatQrCode(qrCode);
+                if (formattedQrCode) {
+                    qrCode = formattedQrCode;
+                }
+            }
+            
+            // Send to server for processing
+            fetch('/process_parent_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'qr_code=' + encodeURIComponent(qrCode)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI for success
+                    resultContainer.style.display = 'none';
+                    scanSuccess.style.display = 'block';
+                    parentQrValue.textContent = data.parent_qr;
+                    expectedChildCount.textContent = data.expected_child_count;
+                    scanChildLink.href = '{{ url_for("scan_child") }}';
+                    
+                    // Stop the camera since we've got a successful scan
+                    stopCamera();
+                } else {
+                    // Show error message
+                    resultContainer.className = 'alert alert-danger';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + 
+                    'An error occurred while processing the QR code. Please try again.';
+            });
         }
         
-        // Validate parent bag format (e.g., P123-10)
-        if (/^P\d+-\d+$/.test(manualCode)) {
-            processParentBag(manualCode);
-        } else {
-            alert('Invalid parent bag format. The format should be P123-10, where P indicates a parent bag, followed by digits and a hyphen, and then the number of child bags.');
+        function formatQrCode(rawCode) {
+            // Extract digits if present
+            const digits = rawCode.match(/\d+/g);
+            if (digits && digits.length >= 2) {
+                // Format as P[first number]-[second number]
+                return `P${digits[0]}-${digits[1]}`;
+            } else if (digits && digits.length === 1) {
+                // Only one number, assume 5 child bags as default
+                return `P${digits[0]}-5`;
+            }
+            return null;
         }
     });
-    
-    // Process detected parent bag QR code
-    function processParentBag(qrCode) {
-        // Extract the number of child bags from the QR code (e.g., P123-10 has 10 child bags)
-        const childCount = qrCode.split('-')[1] || '?';
-        
-        // Send the QR code to the server
-        const formData = new FormData();
-        formData.append('qr_code', qrCode);
-        
-        fetch('/process_parent_scan', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Display scan result
-                qrCodeValue.textContent = qrCode;
-                childBagsCount.textContent = childCount;
-                scanResult.classList.add('show');
-                scanInstruction.style.display = 'none';
-                
-                // Set up continue button
-                continueButton.addEventListener('click', () => {
-                    window.location.href = '/scan_child';
-                });
-            } else {
-                alert('Error: ' + data.message);
-                // Reset for another scan
-                startButton.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Error processing scan:', error);
-            alert('An error occurred while processing the scan. Please try again.');
-            // Reset for another scan
-            startButton.disabled = false;
-        });
-    }
-    
-    // Initialize
-    scanResult.classList.remove('show');
 </script>
 {% endblock %}
