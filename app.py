@@ -2,10 +2,10 @@ import os
 import logging
 import time
 
-from flask import Flask, request, g
+from flask import Flask, request, g, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user, logout_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -79,30 +79,34 @@ def before_request():
     g.start_time = time.time()
     
     # Session security monitoring for authenticated users
-    if hasattr(g, 'user') and g.user and g.user.is_authenticated and not request.path.startswith('/static/'):
+    if current_user.is_authenticated and not request.path.startswith('/static/'):
         # Check for potential session hijacking by comparing user agent
         current_ua = request.user_agent.string if request.user_agent else 'Unknown'
-        stored_ua = session.get('user_agent')
         
-        # Store user agent if it's not already stored
-        if not stored_ua:
-            session['user_agent'] = current_ua
-        
-        # If user agent changed dramatically, this might be a session hijacking attempt
-        elif stored_ua != current_ua:
-            # Log the suspicious activity
-            logger.warning(
-                f"Potential session hijacking detected. User ID: {g.user.id}, "
-                f"Old UA: {stored_ua}, New UA: {current_ua}, IP: {request.remote_addr}"
-            )
+        try:
+            stored_ua = session.get('user_agent')
             
-            # For extra security, force logout and session reset
-            from flask_login import logout_user
-            logout_user()
-            session.clear()
-            from flask import flash, redirect, url_for
-            flash('Your session was terminated for security reasons. Please log in again.', 'warning')
-            return redirect(url_for('login'))
+            # Store user agent if it's not already stored
+            if not stored_ua:
+                session['user_agent'] = current_ua
+            
+            # If user agent changed dramatically, this might be a session hijacking attempt
+            elif stored_ua != current_ua:
+                # Log the suspicious activity
+                logger.warning(
+                    f"Potential session hijacking detected. User ID: {current_user.id}, "
+                    f"Old UA: {stored_ua}, New UA: {current_ua}, IP: {request.remote_addr}"
+                )
+                
+                # For extra security, force logout and session reset
+                from flask import flash, redirect, url_for
+                logout_user()
+                session.clear()
+                flash('Your session was terminated for security reasons. Please log in again.', 'warning')
+                return redirect(url_for('login'))
+        except Exception as e:
+            # Log any session-related errors without crashing
+            logger.error(f"Session security check error: {str(e)}")
     
 @app.after_request
 def after_request(response):
