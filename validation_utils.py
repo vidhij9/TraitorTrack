@@ -13,7 +13,7 @@ BILL_ID_PATTERN = re.compile(r'^[A-Z0-9]{6,20}$')
 
 def validate_parent_qr_id(qr_id):
     """
-    Validate parent bag QR ID - accepts any format.
+    Validate parent bag QR ID - accepts any format and extracts details.
     
     Args:
         qr_id (str): The QR ID to validate
@@ -30,8 +30,10 @@ def validate_parent_qr_id(qr_id):
     # Default to 5 child bags if format doesn't specify
     child_count = 5
     
-    # If the old format is used, try to extract child count
-    if '-' in qr_id:
+    # Extract useful data depending on QR code format
+    
+    # Case 1: If traditional format P123-10 is used
+    if '-' in qr_id and qr_id.upper().startswith('P'):
         parts = qr_id.split('-')
         if len(parts) == 2:
             try:
@@ -42,12 +44,39 @@ def validate_parent_qr_id(qr_id):
                 # Use default child count
                 pass
     
+    # Case 2: If it's a URL, check for parameters
+    elif 'http' in qr_id.lower():
+        # Try to extract any number that might indicate child count
+        import re
+        numbers = re.findall(r'\d+', qr_id)
+        if numbers and len(numbers) > 0:
+            try:
+                # Use the first number as child count if it's reasonable
+                num = int(numbers[0])
+                if 0 < num <= 100:  # Reasonable range for child bags
+                    child_count = num
+            except ValueError:
+                pass
+    
+    # Case 3: If it contains numbers elsewhere, try to use them
+    else:
+        import re
+        numbers = re.findall(r'\d+', qr_id)
+        if numbers and len(numbers) > 0:
+            try:
+                # Use the first number as child count if it's reasonable
+                num = int(numbers[0])
+                if 0 < num <= 100:  # Reasonable range for child bags
+                    child_count = num
+            except ValueError:
+                pass
+    
     return True, "Valid parent QR ID", child_count
 
 
 def validate_child_qr_id(qr_id):
     """
-    Validate child bag QR ID - accepts any format.
+    Validate child bag QR ID - accepts any format and extracts useful identifiers.
     
     Args:
         qr_id (str): The QR ID to validate
@@ -60,7 +89,33 @@ def validate_child_qr_id(qr_id):
     
     qr_id = qr_id.strip()
     
-    # All formats are now accepted
+    # Process the QR code to derive useful information
+    
+    # For URLs, use the last part of the path or a parameter as the identifier
+    if 'http' in qr_id.lower():
+        # Extract the last part of the URL path or a significant parameter
+        try:
+            from urllib.parse import urlparse, parse_qs
+            parsed_url = urlparse(qr_id)
+            path_parts = parsed_url.path.strip('/').split('/')
+            
+            # If there's a path component, use the last meaningful part
+            if path_parts and path_parts[-1]:
+                # Keep track of original QR but use a more compact identifier
+                return True, "Valid child QR ID"
+                
+            # If there are query parameters, check for useful ones
+            query_params = parse_qs(parsed_url.query)
+            if query_params:
+                # Often 'id', 'ref', 'product', etc. might be useful identifiers
+                for param in ['id', 'ref', 'product', 'item']:
+                    if param in query_params:
+                        return True, "Valid child QR ID"
+        except:
+            # If URL parsing fails, just use the original QR code
+            pass
+    
+    # All formats are accepted
     return True, "Valid child QR ID"
 
 

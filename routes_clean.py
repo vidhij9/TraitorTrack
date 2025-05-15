@@ -295,11 +295,11 @@ def process_parent_scan():
     session['current_parent_bag_id'] = parent_bag.id
     session['child_bags_scanned'] = []
     
-    # Extract the number of expected child bags from the parent QR code
-    try:
-        expected_child_count = int(qr_code.split('-')[1])
-    except:
-        expected_child_count = 5  # Default if parsing fails
+    # Use the improved validate_parent_qr_id function to get child count
+    is_valid, message, expected_child_count = validate_parent_qr_id(qr_code)
+    # Update parent bag with the extracted child count
+    parent_bag.child_count = expected_child_count
+    db.session.commit()
     
     return jsonify({
         'success': True,

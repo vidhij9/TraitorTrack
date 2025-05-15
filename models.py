@@ -64,7 +64,7 @@ class Location(db.Model):
 class Bag(db.Model):
     """Base bag model with common properties"""
     id = db.Column(db.Integer, primary_key=True)
-    qr_id = db.Column(db.String(20), unique=True, nullable=False)
+    qr_id = db.Column(db.String(255), unique=True, nullable=False)
     type = db.Column(db.String(10), nullable=False)
     name = db.Column(db.String(100), nullable=True)
     child_count = db.Column(db.Integer, nullable=True)  # For parent bags
