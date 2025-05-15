@@ -125,15 +125,16 @@ def after_request(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     
-    # Content Security Policy
+    # Content Security Policy - Updated to allow more sources and inline scripts for compatibility
     csp = "default-src 'self'; " \
-          "script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com; " \
-          "style-src 'self' https://cdn.jsdelivr.net https://cdn.replit.com 'unsafe-inline'; " \
-          "img-src 'self' data: https://*; " \
-          "font-src 'self' https://cdn.jsdelivr.net; " \
-          "connect-src 'self'; " \
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://code.jquery.com https://*; " \
+          "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.replit.com https://*; " \
+          "img-src 'self' data: https://* blob:; " \
+          "font-src 'self' https://cdn.jsdelivr.net https://*; " \
+          "connect-src 'self' https://*; " \
           "manifest-src 'self'; " \
-          "worker-src 'self'"
+          "media-src 'self' blob:; " \
+          "worker-src 'self' blob:;"
     
     response.headers['Content-Security-Policy'] = csp
     return response
