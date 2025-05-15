@@ -3,8 +3,8 @@
 {% block title %} - Scan Parent Bag{% endblock %}
 
 {% block head %}
-<!-- HTML5-QRCode library -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- HTML5-QRCode library - Latest version -->
+<script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
 <style>
     #reader {
         width: 100%;
@@ -76,6 +76,7 @@
                             <p class="text-muted">Enter the QR code manually if scanning doesn't work</p>
                             
                             <form action="{{ url_for('process_parent_scan') }}" method="post">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <div class="mb-3">
                                     <label for="qr_id" class="form-label">Parent Bag QR Code</label>
                                     <div class="input-group">
@@ -133,35 +134,62 @@ document.addEventListener('DOMContentLoaded', function() {
     let html5QrCode;
     
     // Initialize scanner on button click
-    startScannerBtn.addEventListener('click', startScanner);
-    stopScannerBtn.addEventListener('click', stopScanner);
+    startScannerBtn.addEventListener('click', function() {
+        console.log("Start scanner button clicked");
+        startScanner();
+    });
+    
+    stopScannerBtn.addEventListener('click', function() {
+        console.log("Stop scanner button clicked");
+        stopScanner();
+    });
     
     function startScanner() {
-        html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-        
-        html5QrCode.start(
-            { facingMode: "environment" }, // Use rear camera if available
-            config,
-            onScanSuccess,
-            onScanFailure
-        ).catch(function (err) {
-            console.error(`Unable to start scanning: ${err}`);
-            alert(`Camera error: ${err}. Please make sure you've granted camera permissions.`);
-        });
+        try {
+            console.log("Starting QR scanner...");
+            html5QrCode = new Html5Qrcode("reader");
+            
+            // More permissive configuration
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 250, height: 250 }
+            };
+            
+            // Start camera scanner
+            html5QrCode.start(
+                { facingMode: "environment" }, // Use rear camera if available
+                config,
+                onScanSuccess,
+                onScanFailure
+            ).then(() => {
+                console.log("QR scanner started successfully");
+            }).catch(function (err) {
+                console.error(`Unable to start scanning: ${err}`);
+                alert(`Camera error: ${err}. Please make sure you've granted camera permissions and your device has a camera.`);
+            });
+        } catch (error) {
+            console.error("Error initializing scanner:", error);
+            alert("Failed to initialize scanner. Please check console for details.");
+        }
     }
     
     function stopScanner() {
-        if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().then(() => {
-                console.log('QR Code scanning stopped.');
-            }).catch(err => {
-                console.error('Failed to stop QR Code scanning:', err);
-            });
+        try {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    console.log('QR Code scanning stopped.');
+                }).catch(err => {
+                    console.error('Failed to stop QR Code scanning:', err);
+                });
+            }
+        } catch (error) {
+            console.error("Error stopping scanner:", error);
         }
     }
     
     function onScanSuccess(decodedText, decodedResult) {
+        console.log("QR Code scanned successfully:", decodedText);
+        
         // Stop scanning after successful scan
         stopScanner();
         
@@ -179,6 +207,9 @@ document.addEventListener('DOMContentLoaded', function() {
         resultQrId.textContent = qrId;
         scanResultDiv.style.display = 'block';
     }
+    
+    // Auto-start scanner on page load (optional)
+    // setTimeout(startScanner, 1000);
 });
 </script>
 {% endblock %}
