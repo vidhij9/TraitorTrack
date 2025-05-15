@@ -3,8 +3,8 @@
 {% block title %} - Scan Parent Bag{% endblock %}
 
 {% block head %}
-<!-- HTML5-QRCode library - Latest version -->
-<script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
+<!-- HTML5-QRCode library - Fixed version -->
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
     #reader {
         width: 100%;
@@ -124,67 +124,104 @@
 
 {% block scripts %}
 <script>
+// Simple QR Code Scanner Implementation
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM content loaded, initializing scanner code");
+    
+    // DOM elements
     const qrIdInput = document.getElementById('qr_id');
     const scanResultDiv = document.getElementById('scan-result');
     const resultQrId = document.getElementById('result-qrid');
     const startScannerBtn = document.getElementById('start-scanner');
     const stopScannerBtn = document.getElementById('stop-scanner');
+    const readerDiv = document.getElementById('reader');
     
-    let html5QrCode;
+    // Scanner instance
+    let html5QrCode = null;
+    let isScanning = false;
     
-    // Initialize scanner on button click
-    startScannerBtn.addEventListener('click', function() {
+    // Configuration
+    const qrConfig = { 
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        formatsToSupport: [0] // QR Code is format 0
+    };
+    
+    // Scanner controls
+    startScannerBtn.addEventListener('click', function(e) {
+        e.preventDefault();
         console.log("Start scanner button clicked");
-        startScanner();
+        
+        if (!html5QrCode) {
+            try {
+                html5QrCode = new Html5Qrcode("reader");
+                console.log("Scanner instance created successfully");
+            } catch (err) {
+                console.error("Error creating scanner instance:", err);
+                alert("Could not initialize scanner. Error: " + err.message);
+                return;
+            }
+        }
+        
+        if (!isScanning) {
+            startScanner();
+        }
     });
     
-    stopScannerBtn.addEventListener('click', function() {
+    stopScannerBtn.addEventListener('click', function(e) {
+        e.preventDefault();
         console.log("Stop scanner button clicked");
         stopScanner();
     });
     
+    // Scanner functions
     function startScanner() {
-        try {
-            console.log("Starting QR scanner...");
-            html5QrCode = new Html5Qrcode("reader");
-            
-            // More permissive configuration
-            const config = { 
-                fps: 10, 
-                qrbox: { width: 250, height: 250 }
-            };
-            
-            // Start camera scanner
-            html5QrCode.start(
-                { facingMode: "environment" }, // Use rear camera if available
-                config,
-                onScanSuccess,
-                onScanFailure
-            ).then(() => {
-                console.log("QR scanner started successfully");
-            }).catch(function (err) {
-                console.error(`Unable to start scanning: ${err}`);
-                alert(`Camera error: ${err}. Please make sure you've granted camera permissions and your device has a camera.`);
-            });
-        } catch (error) {
-            console.error("Error initializing scanner:", error);
-            alert("Failed to initialize scanner. Please check console for details.");
+        if (isScanning) {
+            console.log("Scanner is already running");
+            return;
         }
+        
+        console.log("Starting QR scanner...");
+        
+        // Use rear camera if available (environment), or any camera if not
+        const cameraConfig = { facingMode: "environment" };
+        
+        html5QrCode.start(
+            cameraConfig,
+            qrConfig,
+            onScanSuccess,
+            onScanFailure
+        ).then(() => {
+            isScanning = true;
+            console.log("Scanner started successfully");
+            startScannerBtn.innerText = "Scanner Running";
+            startScannerBtn.disabled = true;
+            stopScannerBtn.disabled = false;
+        }).catch(function (err) {
+            console.error("Error starting scanner:", err);
+            alert("Camera error: " + err + "\nPlease make sure you've granted camera permissions.");
+        });
     }
     
     function stopScanner() {
-        try {
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    console.log('QR Code scanning stopped.');
-                }).catch(err => {
-                    console.error('Failed to stop QR Code scanning:', err);
-                });
-            }
-        } catch (error) {
-            console.error("Error stopping scanner:", error);
+        if (!html5QrCode || !isScanning) {
+            console.log("Scanner not running");
+            return;
         }
+        
+        console.log("Stopping QR scanner...");
+        
+        html5QrCode.stop()
+            .then(() => {
+                isScanning = false;
+                console.log("Scanner stopped successfully");
+                startScannerBtn.innerText = "Start Scanner";
+                startScannerBtn.disabled = false;
+                stopScannerBtn.disabled = true;
+            })
+            .catch(err => {
+                console.error("Error stopping scanner:", err);
+            });
     }
     
     function onScanSuccess(decodedText, decodedResult) {
@@ -199,8 +236,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function onScanFailure(error) {
-        // Handle scan failure silently
-        console.log(`QR scan error: ${error}`);
+        // Silent failure - just log to console
+        console.log("QR scan failure:", error);
     }
     
     function showScanResult(qrId) {
@@ -208,8 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
         scanResultDiv.style.display = 'block';
     }
     
-    // Auto-start scanner on page load (optional)
-    // setTimeout(startScanner, 1000);
+    // Initialize button states
+    stopScannerBtn.disabled = true;
 });
 </script>
 {% endblock %}
