@@ -22,4 +22,5 @@ dependencies = [
     "requests>=2.32.3",
     "flask-limiter>=3.12",
     "bleach>=6.2.0",
+    "psutil>=7.0.0",
 ]

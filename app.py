@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import sys
 
 from flask import Flask, request, g, session
 from flask_sqlalchemy import SQLAlchemy
@@ -17,6 +18,9 @@ from logging_config import setup_logging
 # Setup advanced logging configuration
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# Set application version
+VERSION = "1.2.0"
 
 class Base(DeclarativeBase):
     pass

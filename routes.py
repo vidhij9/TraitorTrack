@@ -354,11 +354,16 @@ def scan_parent():
 # Add cache invalidation helper for data modifications
 def invalidate_data_caches():
     """Invalidate all data-related caches when data is modified"""
-    # Invalidate API caches
-    invalidate_cache('api_')
-    # Clear template cache if needed
-    from template_utils import clear_template_cache
-    clear_template_cache()
+    # Invalidate by namespaces for more efficient and targeted cache clearing
+    invalidate_cache(namespace='dashboard')
+    invalidate_cache(namespace='statistics')
+    invalidate_cache(namespace='parent_bags')
+    invalidate_cache(namespace='child_bags')
+    
+    # Also clear any API caches using the prefix method for backwards compatibility
+    invalidate_cache(prefix='api_')
+    
+    # Log cache invalidation for monitoring
     logger.info("Cache invalidated due to data modification")
 
 @app.route('/process_parent_scan', methods=['POST'])
