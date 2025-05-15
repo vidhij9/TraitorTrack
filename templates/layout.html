@@ -233,14 +233,11 @@
                                 {% endif %}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('profile') }}">
-                                        <i class="fas fa-id-card me-2"></i>Profile
-                                    </a>
-                                </li>
+                                <!-- Profile link removed as the route doesn't exist yet -->
+                                <!-- Will be added in a future update -->
                                 {% if not current_user.is_admin %}
                                     <li>
-                                        <a class="dropdown-item" href="{{ url_for('promote_to_admin') }}">
+                                        <a class="dropdown-item" href="{{ url_for('promote_admin') }}">
                                             <i class="fas fa-user-shield me-2"></i>Become Admin
                                         </a>
                                     </li>
