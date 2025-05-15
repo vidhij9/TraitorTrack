@@ -6,53 +6,30 @@
     <title>{% block title %}TraceTrack{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- jsQR Library for QR code scanning -->
+    <!-- jsQR for QR code scanning -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     
-    <!-- Custom CSS -->
+    <!-- Custom styles -->
     <style>
-        :root {
-            --bs-body-bg: #0e1217;
-            --bs-dark: #1c2333;
-            --bs-primary: #3662E3;
-            --bs-secondary: #2d3748;
-            --bs-success: #48bb78;
-            --bs-danger: #e53e3e;
-            --bs-warning: #ecc94b;
-            --bs-info: #4299e1;
-        }
-        
         body {
-            background-color: var(--bs-body-bg);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
         
-        .navbar-brand img {
-            height: 30px;
-            margin-right: 10px;
+        .content {
+            flex: 1;
+            padding: 2rem 0;
         }
         
-        .auth-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 3rem 1rem;
-        }
-        
-        .auth-card {
-            background-color: var(--bs-dark);
-            border: none;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 450px;
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: 0.5px;
         }
         
         .video-container {
@@ -61,8 +38,7 @@
             height: 0;
             padding-bottom: 75%;
             overflow: hidden;
-            border-radius: 4px;
-            background-color: #000;
+            background-color: var(--bs-dark);
         }
         
         .video-container video {
@@ -74,27 +50,6 @@
             object-fit: cover;
         }
         
-        .scan-result {
-            padding: 1rem;
-            border-radius: 4px;
-            display: none;
-        }
-        
-        .scan-result.show {
-            display: block;
-        }
-        
-        .password-requirements {
-            list-style-type: none;
-            padding-left: 0;
-            margin-top: 0.5rem;
-            font-size: 0.8rem;
-        }
-        
-        .password-requirements li {
-            margin-bottom: 0.2rem;
-        }
-        
         .progress-container {
             margin: 2rem 0;
         }
@@ -103,9 +58,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: relative;
-            max-width: 900px;
-            margin: 0 auto;
+            width: 100%;
         }
         
         .progress-step {
@@ -120,8 +73,8 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background-color: var(--bs-secondary);
-            color: white;
+            background-color: var(--bs-gray-700);
+            color: var(--bs-light);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -131,7 +84,6 @@
         
         .progress-step.active .progress-step-circle {
             background-color: var(--bs-primary);
-            box-shadow: 0 0 10px rgba(54, 98, 227, 0.5);
         }
         
         .progress-step.completed .progress-step-circle {
@@ -139,16 +91,17 @@
         }
         
         .progress-step-label {
-            font-size: 0.85rem;
-            text-align: center;
-            max-width: 120px;
+            font-size: 0.875rem;
+            color: var(--bs-light);
         }
         
         .progress-line {
             flex-grow: 1;
             height: 3px;
-            background-color: var(--bs-secondary);
+            background-color: var(--bs-gray-700);
+            margin: 0 10px;
             position: relative;
+            top: -20px;
             z-index: 0;
         }
         
@@ -156,116 +109,115 @@
             background-color: var(--bs-success);
         }
         
-        .location-card {
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
+        .notifications-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 0.7rem;
         }
         
-        .location-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        .sidebar {
+            min-height: calc(100vh - 56px);
+        }
+        
+        .sidebar .nav-link {
+            color: var(--bs-light);
+            padding: 0.75rem 1.25rem;
+            border-radius: 4px;
+            margin-bottom: 0.25rem;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: var(--bs-gray-700);
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: var(--bs-primary);
+            color: var(--bs-white);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 0.5rem;
+            width: 20px;
+            text-align: center;
         }
         
         .footer {
-            margin-top: auto;
+            background-color: var(--bs-gray-900);
             padding: 1.5rem 0;
-            background-color: var(--bs-dark);
+            margin-top: auto;
         }
         
-        /* Dashboard Stats */
-        .stat-card {
+        .card {
             border: none;
-            border-radius: 8px;
-            height: 100%;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.15);
+            background-color: var(--bs-gray-800);
+            margin-bottom: 1.5rem;
         }
         
-        .stat-card .card-body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 1.5rem;
+        .card-header {
+            font-weight: 600;
+            border-bottom: none;
         }
         
-        .stat-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
         }
         
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-label {
-            font-size: 1rem;
-            color: var(--bs-gray-500);
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .progress-step-label {
-                font-size: 0.7rem;
-            }
-            
-            .progress-step-circle {
-                width: 30px;
-                height: 30px;
-                font-size: 0.8rem;
+        @media (max-width: 767.98px) {
+            .sidebar {
+                min-height: auto;
             }
         }
     </style>
+    
+    {% block styles %}{% endblock %}
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-qrcode"></i> TraceTrack
+                <i class="fas fa-route me-2"></i>TraceTrack
             </a>
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">
-                            <i class="fas fa-home"></i> Home
+                        <a class="nav-link{% if request.path == url_for('index') %} active{% endif %}" href="{{ url_for('index') }}">
+                            <i class="fas fa-home"></i> Dashboard
                         </a>
                     </li>
                     
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('select_location') }}">
-                                <i class="fas fa-qrcode"></i> Scan Bags
+                            <a class="nav-link{% if '/scan_parent' in request.path %} active{% endif %}" href="{{ url_for('select_location') }}">
+                                <i class="fas fa-qrcode"></i> Scan Parent Bag
                             </a>
                         </li>
                         
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('bill_management') }}">
-                                <i class="fas fa-file-invoice"></i> Bills
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('child_lookup') }}">
-                                <i class="fas fa-search"></i> Child Lookup
-                            </a>
-                        </li>
-                        
-                        {% if current_user.is_admin() %}
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-cog"></i> Admin
+                        {% if current_user.is_admin %}
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/scan_child' in request.path %} active{% endif %}" href="{{ url_for('scan_child') }}">
+                                    <i class="fas fa-tags"></i> Scan Child Bag
                                 </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-users"></i> Users</a></li>
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-database"></i> System</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-chart-line"></i> Reports</a></li>
-                                </ul>
+                            </li>
+                            
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup') }}">
+                                    <i class="fas fa-search"></i> Child Lookup
+                                </a>
+                            </li>
+                            
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management') }}">
+                                    <i class="fas fa-file-invoice"></i> Bill Management
+                                </a>
                             </li>
                         {% endif %}
                     {% endif %}
@@ -275,26 +227,41 @@
                     {% if current_user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user-circle"></i> {{ current_user.username }}
+                                <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
+                                {% if current_user.is_admin %}
+                                    <span class="badge bg-danger ms-1">Admin</span>
+                                {% endif %}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-id-card"></i> Profile</a></li>
-                                {% if not current_user.is_admin() %}
-                                    <li><a class="dropdown-item" href="{{ url_for('promote_admin') }}"><i class="fas fa-user-shield"></i> Become Admin</a></li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('profile') }}">
+                                        <i class="fas fa-id-card me-2"></i>Profile
+                                    </a>
+                                </li>
+                                {% if not current_user.is_admin %}
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('promote_to_admin') }}">
+                                            <i class="fas fa-user-shield me-2"></i>Become Admin
+                                        </a>
+                                    </li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}">
-                                <i class="fas fa-sign-in-alt"></i> Login
+                            <a class="nav-link{% if request.path == url_for('login') %} active{% endif %}" href="{{ url_for('login') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i> Login
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('register') }}">
-                                <i class="fas fa-user-plus"></i> Register
+                            <a class="nav-link{% if request.path == url_for('register') %} active{% endif %}" href="{{ url_for('register') }}">
+                                <i class="fas fa-user-plus me-1"></i> Register
                             </a>
                         </li>
                     {% endif %}
@@ -303,12 +270,21 @@
         </div>
     </nav>
     
-    <!-- Flash Messages -->
+    <!-- Flash messages -->
     <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {% if category == 'success' %}
+                            <i class="fas fa-check-circle me-2"></i>
+                        {% elif category == 'danger' %}
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                        {% elif category == 'warning' %}
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle me-2"></i>
+                        {% endif %}
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
@@ -317,23 +293,50 @@
         {% endwith %}
     </div>
     
-    <!-- Main Content -->
-    <main class="py-4">
+    <!-- Main content -->
+    <main class="content">
         {% block content %}{% endblock %}
     </main>
     
     <!-- Footer -->
-    <footer class="footer text-center text-muted">
+    <footer class="footer">
         <div class="container">
-            <p class="mb-0">&copy; 2025 TraceTrack. All rights reserved.</p>
-            <p class="small mb-0">Version 1.0.0</p>
+            <div class="row">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <h5 class="text-light mb-3">TraceTrack</h5>
+                    <p class="text-muted mb-0">Advanced supply chain traceability platform for comprehensive agricultural product tracking.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted mb-0">&copy; {{ current_year }} TraceTrack. All rights reserved.</p>
+                    <p class="text-muted mb-0">Version 2.0.0</p>
+                </div>
+            </div>
         </div>
     </footer>
     
-    <!-- Bootstrap JS -->
+    <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Page-specific JavaScript -->
+    <!-- Custom scripts -->
     {% block scripts %}{% endblock %}
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+            
+            // Auto-dismiss alerts after 5 seconds
+            setTimeout(function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                });
+            }, 5000);
+        });
+    </script>
 </body>
 </html>
