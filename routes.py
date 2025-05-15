@@ -11,6 +11,7 @@ from models import User, UserRole, Bag, BagType, Link, Location, Scan
 from template_utils import render_cached_template, cached_template
 from cache_utils import invalidate_cache
 from password_utils import validate_password_strength, validate_email_address, validate_username
+from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, validate_location_name, sanitize_input
 
 def admin_required(func):
     """Decorator to restrict access to admin users only"""
@@ -250,11 +251,16 @@ def locations():
     """Location management page"""
     if request.method == 'POST':
         location_name = request.form.get('location_name')
-        location_address = request.form.get('location_address')
+        location_address = sanitize_input(request.form.get('location_address', ''), max_length=200)
         
-        if not location_name:
-            flash('Location name is required!', 'danger')
+        # Validate location name
+        is_valid, error_message = validate_location_name(location_name)
+        if not is_valid:
+            flash(error_message, 'danger')
             return redirect(url_for('locations'))
+        
+        # Sanitize the location name
+        location_name = sanitize_input(location_name, max_length=100)
         
         # Create new location
         location = Location()
@@ -329,30 +335,12 @@ def process_parent_scan():
     """Process parent bag scan"""
     if request.method == 'POST':
         qr_id = request.form.get('qr_id')
-        notes = request.form.get('notes', '')
+        notes = sanitize_input(request.form.get('notes', ''), max_length=500)
         
-        if not qr_id:
-            flash('QR code is required!', 'danger')
-            return redirect(url_for('scan_parent'))
-        
-        # Validate parent QR code format (e.g., "P123-10")
-        if not PARENT_QR_PATTERN.match(qr_id):
-            flash('Invalid QR code format. Parent bag QR code should be in format P123-10', 'danger')
-            return redirect(url_for('scan_parent'))
-        
-        # Parse child count from QR code
-        parts = qr_id.split('-')
-        if len(parts) != 2:
-            flash('Invalid QR code format. Expected format: P123-10', 'danger')
-            return redirect(url_for('scan_parent'))
-        
-        try:
-            child_count = int(parts[1])
-            if child_count <= 0:
-                flash('Parent bag must have at least one child', 'danger')
-                return redirect(url_for('scan_parent'))
-        except ValueError:
-            flash('Invalid child count in QR code', 'danger')
+        # Validate QR code using enhanced validation
+        is_valid, error_message, child_count = validate_parent_qr_id(qr_id)
+        if not is_valid:
+            flash(error_message, 'danger')
             return redirect(url_for('scan_parent'))
         
         # Ensure a location has been selected
@@ -452,15 +440,12 @@ def process_child_scan():
     """Process child bag scan (admin only)"""
     if request.method == 'POST':
         qr_id = request.form.get('qr_id')
-        notes = request.form.get('notes', '')
+        notes = sanitize_input(request.form.get('notes', ''), max_length=500)
         
-        if not qr_id:
-            flash('QR code is required!', 'danger')
-            return redirect(url_for('scan_child'))
-        
-        # Validate child QR code format (e.g., "C123")
-        if not CHILD_QR_PATTERN.match(qr_id):
-            flash('Invalid QR code format. Child bag QR code should be in format C123', 'danger')
+        # Validate QR code using enhanced validation
+        is_valid, error_message = validate_child_qr_id(qr_id)
+        if not is_valid:
+            flash(error_message, 'danger')
             return redirect(url_for('scan_child'))
         
         # Ensure a location and parent bag have been selected
@@ -691,6 +676,12 @@ def bag_detail(qr_id):
 @admin_required
 def link_to_bill(parent_qr_id):
     """Link a parent bag to a bill ID (admin only)"""
+    # Validate parent QR ID format first
+    is_valid, error_message, _ = validate_parent_qr_id(parent_qr_id)
+    if not is_valid:
+        flash(error_message, 'danger')
+        return redirect(url_for('parent_bags'))
+    
     parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first_or_404()
     
     # Check if bag is already linked to a bill
@@ -699,8 +690,10 @@ def link_to_bill(parent_qr_id):
     if request.method == 'POST':
         bill_id = request.form.get('bill_id')
         
-        if not bill_id:
-            flash('Bill ID is required!', 'danger')
+        # Validate bill ID format
+        is_valid_bill, bill_error = validate_bill_id(bill_id)
+        if not is_valid_bill:
+            flash(bill_error, 'danger')
             return redirect(url_for('link_to_bill', parent_qr_id=parent_qr_id))
         
         try:

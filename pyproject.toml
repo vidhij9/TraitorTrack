@@ -21,4 +21,5 @@ dependencies = [
     "flask-wtf>=1.2.2",
     "requests>=2.32.3",
     "flask-limiter>=3.12",
+    "bleach>=6.2.0",
 ]
