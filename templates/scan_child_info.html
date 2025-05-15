@@ -28,12 +28,12 @@
                             <label for="qr_id" class="form-label">Child Bag QR ID</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
-                                <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="Scan QR code or enter QR ID" required pattern="^C\d+$" autofocus>
+                                <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="Scan QR code or enter QR ID" required autofocus>
                                 <button type="button" class="btn btn-outline-primary" id="startScanBtn">
                                     <i class="fas fa-camera me-1"></i>Scan
                                 </button>
                             </div>
-                            <div class="form-text">Format example: C123</div>
+                            <div class="form-text">Enter any QR code format</div>
                         </div>
                         
                         <!-- QR Code Scanner Container -->
@@ -137,14 +137,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Set the QR code value in the input field
         qrIdInput.value = decodedText;
         
-        // Validate that it matches the expected pattern for a child bag
-        const childBagRegex = /^C\d+$/;
-        if (childBagRegex.test(decodedText)) {
-            // Auto-submit the form
-            qrIdInput.form.submit();
-        } else {
-            alert('Invalid child bag QR code format. Expected format: C123');
-        }
+        // Accept any QR code format
+        // Set the value and auto-submit the form
+        qrIdInput.form.submit();
     }
     
     // Scan failure handler
