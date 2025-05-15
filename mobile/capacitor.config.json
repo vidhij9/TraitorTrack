@@ -1,38 +1,29 @@
 {
   "appId": "com.tracetrack.app",
   "appName": "TraceTrack",
-  "webDir": "www",
+  "webDir": ".",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://tracetrack.replit.app",
-    "cleartext": true
+    "androidScheme": "https"
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 3000,
+      "launchShowDuration": 2000,
       "launchAutoHide": true,
-      "backgroundColor": "#4CAF50",
+      "backgroundColor": "#1e7a3d",
       "androidSplashResourceName": "splash",
       "androidScaleType": "CENTER_CROP",
       "showSpinner": true,
-      "spinnerColor": "#FFFFFF",
+      "spinnerColor": "#78c289",
       "splashFullScreen": true,
       "splashImmersive": true
     },
     "Camera": {
-      "permissions": ["camera"]
+      "promptLabelHeader": "Camera Access",
+      "promptLabelText": "Please allow TraceTrack to access your camera to scan QR codes"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
     }
-  },
-  "android": {
-    "allowMixedContent": true,
-    "captureInput": true,
-    "webContentsDebuggingEnabled": true,
-    "backgroundColor": "#4CAF50",
-    "overrideUserAgent": "TraceTrack-Android-App",
-    "minSdkVersion": 22,
-    "androidxActivityVersion": "1.4.0",
-    "androidxAppCompatVersion": "1.4.2",
-    "androidxCoreKtxVersion": "1.8.0",
-    "androidxFragmentVersion": "1.4.1"
   }
 }

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TraceTrack Mobile</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Capacitor core -->
+    <script src="https://unpkg.com/@capacitor/core@latest/dist/capacitor.js"></script>
+</head>
+<body data-bs-theme="dark">
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="container">
+                <div class="d-flex justify-content-between align-items-center py-3">
+                    <h1 class="m-0">TraceTrack</h1>
+                    <div id="userInfo" class="d-none">
+                        <span id="username"></span>
+                        <button id="logoutBtn" class="btn btn-sm btn-outline-light ms-2">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <main class="container py-4">
+            <!-- Login Screen -->
+            <div id="loginScreen" class="screen">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4 text-center">Login</h2>
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="usernameInput" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="passwordInput" required>
+                            </div>
+                            <div id="loginError" class="alert alert-danger d-none"></div>
+                            <button type="submit" class="btn btn-primary w-100">Login</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Home Screen -->
+            <div id="homeScreen" class="screen d-none">
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h3>TraceTrack Mobile</h3>
+                                <p class="lead">Scan bags to track them through the supply chain</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-6">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Scan Parent Bag</h5>
+                                <p>Scan a parent bag QR code</p>
+                                <button id="scanParentBtn" class="btn btn-primary">Scan Now</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Scan Child Bag</h5>
+                                <p>Scan a child bag QR code</p>
+                                <button id="scanChildBtn" class="btn btn-primary">Scan Now</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Select Location</h5>
+                                <select id="locationSelect" class="form-select">
+                                    <option value="">Loading locations...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scan Result Screen -->
+            <div id="scanResultScreen" class="screen d-none">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title mb-4">Scan Result</h3>
+                        <div id="scanResult" class="mb-3"></div>
+                        <div class="text-center">
+                            <button id="backToHomeBtn" class="btn btn-primary">Back to Home</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer py-3">
+            <div class="container text-center">
+                <p class="m-0">TraceTrack Mobile &copy; 2025</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

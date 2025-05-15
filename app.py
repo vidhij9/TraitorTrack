@@ -164,6 +164,13 @@ with app.app_context():
     from api_endpoints import api
     app.register_blueprint(api)
     
+    # Register mobile API for Android app integration
+    from mobile_api import mobile_api
+    app.register_blueprint(mobile_api)
+    
+    # Set mobile API key
+    app.config['MOBILE_API_KEY'] = os.environ.get('MOBILE_API_KEY', 'tracetrack-mobile-key')
+    
     # Start task queue worker for asynchronous processing
     import task_queue
     task_queue.start_worker()

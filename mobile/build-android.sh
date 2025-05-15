@@ -1,36 +1,42 @@
 #!/bin/bash
 
-echo "Building TraceTrack Android app..."
+# TraceTrack Android build script
+echo "=== TraceTrack Android App Builder ==="
+echo "Building Android app for TraceTrack"
 
-# Navigate to the mobile directory
-cd "$(dirname "$0")"
+# Set variables
+APP_DIR=$(dirname "$0")
+OUTPUT_DIR="$APP_DIR/android"
 
-# Make sure setup has been run
-if [ ! -d "android" ]; then
-  echo "Android platform not found. Running setup first..."
-  ./setup-android.sh
+# Ensure Capacitor is installed
+echo "Checking Capacitor installation..."
+if [ ! -d "node_modules/@capacitor" ]; then
+  echo "Installing Capacitor packages..."
+  npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/camera
 fi
 
-# Ensure latest static assets are copied
-echo "Updating static assets..."
-mkdir -p www/css www/js www/img
-cp -r ../static/css/* www/css/
-cp -r ../static/js/* www/js/
-cp -r ../static/img/* www/img/
-cp ../static/manifest.json www/
-cp ../static/service-worker.js www/
+# Create android directory if it doesn't exist
+if [ ! -d "$OUTPUT_DIR" ]; then
+  echo "Creating Android project..."
+  npx cap add android
+else
+  echo "Android project already exists"
+fi
 
-# Sync changes to Android project
-echo "Syncing with Android project..."
-npx cap sync android
+# Copy web assets
+echo "Copying web assets to Android project..."
+npx cap copy android
+
+# Update plugins
+echo "Updating Android plugins..."
+npx cap update android
+
+# Open Android Studio (optional)
+if [ "$1" == "--open" ]; then
+  echo "Opening Android Studio..."
+  npx cap open android
+fi
 
 echo "Build preparation complete!"
-echo "To open Android Studio and continue building:"
-echo "  1. Install Android Studio"
-echo "  2. Run: npx cap open android"
-echo "  3. Use Android Studio to build and deploy the app"
-echo ""
-echo "To generate an APK directly (if Android Studio CLI tools are available):"
-echo "  cd android && ./gradlew assembleDebug"
-echo ""
-echo "The APK will be located at: android/app/build/outputs/apk/debug/app-debug.apk"
+echo "To build the APK, run: 'npx cap open android' and use Build > Build Bundle(s) / APK(s) > Build APK(s)"
+echo "====================================="

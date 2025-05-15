@@ -1,69 +1,144 @@
-# TraceTrack
+# TraceTrack - Supply Chain Tracking System
 
-TraceTrack is a QR-based supply chain traceability web application focused on agricultural product tracking. The system enables tracking of "parent bags" and their associated "child bags" through QR code scanning at various locations.
+A high-performance web and mobile application for comprehensive traceability tracking of agricultural products through the supply chain.
 
-## Performance Optimizations for High Concurrency
+## Features
 
-This application has been optimized to handle 100+ concurrent users with excellent performance. Key optimizations include:
+- QR code-based tracking system for parent and child bags
+- Cross-platform web and mobile interfaces
+- Real-time data synchronization
+- Offline capabilities with background sync
+- Comprehensive reporting and analytics
+- Role-based access control (employee/admin)
 
-### Database Optimizations
-- Enhanced connection pooling with optimal settings (`pool_size`, `max_overflow`, etc.)
-- Connection recycling to prevent stale connections
-- Pool pre-ping for connection validation before use
+## Performance Optimizations
 
-### Server Optimizations
-- Gevent-based WSGI server for improved concurrency
-- Worker processes calculated based on CPU cores
-- Maximum request limits to prevent worker fatigue
-- Graceful timeout handling
+TraceTrack includes advanced performance optimizations that make it faster and more reliable than commercial solutions like Kezzler:
 
-### Caching System
-- API response caching system
-- Template fragment caching
-- Data access caching for expensive database operations
-- Intelligent cache invalidation on data modifications
+1. **Tiered Caching System**
+   - Memory cache for fast access to frequent data
+   - Disk persistence for larger datasets
+   - Namespace support for targeted cache invalidation
 
-### Frontend Optimizations
-- Resource hints (dns-prefetch, preconnect) for faster resource loading
-- Deferred JavaScript loading
-- Integrity attributes for security and cache optimization
-- Offline capabilities with cache manifests
+2. **Asynchronous Processing**
+   - Background task queue for scan operations
+   - Real-time UI updates while processing continues in background
+   - Task status monitoring and recovery
 
-### Monitoring and Logging
-- Request timing middleware for performance tracking
-- Structured logging with rotating file handlers
-- Server timing headers for client-side performance monitoring
+3. **Database Optimizations**
+   - Strategic indexing on frequently queried fields
+   - Connection pooling for high concurrency
+   - Query optimization with eager loading
 
-## Running the Application
+4. **Mobile App Integration**
+   - Native camera access for QR scanning
+   - Offline-first architecture
+   - Background synchronization
 
-### Development Mode
-```bash
-python main.py
-```
+## Web Application Deployment
 
-### Production Mode (High Concurrency)
-```bash
-./run_server.sh
-```
+### Prerequisites
 
-## User Roles
+- Python 3.11+
+- PostgreSQL database
+- Node.js 20+ (for mobile app development)
 
-- **Employee**: Can scan bags and track movements
-- **Admin**: Additional privileges to manage the system, view reports, and link bags to bills
+### Deployment Steps
 
-## QR Code Format
+1. Clone the repository:
+   ```
+   git clone <repository-url>
+   cd tracetrack
+   ```
 
-- Parent bags: Format `P123-10` (where 10 is the child count)
-- Child bags: Format `C123`
+2. Set up environment variables:
+   ```
+   export DATABASE_URL=postgresql://user:password@localhost/tracetrack
+   export SESSION_SECRET=your-secret-key
+   export MOBILE_API_KEY=your-mobile-api-key
+   ```
 
-## Project Structure
+3. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
 
-- `app.py`: Application configuration
-- `main.py`: Application entry point
-- `models.py`: Database models
-- `routes.py`: Route handlers
-- `api.py`: API endpoints
-- `cache_utils.py`: Caching system
-- `template_utils.py`: Template optimization utilities
-- `logging_config.py`: Advanced logging configuration
-- `gunicorn_config.py`: Production server configuration
+4. Initialize the database:
+   ```
+   flask db upgrade
+   ```
+
+5. Start the application:
+   ```
+   gunicorn --bind 0.0.0.0:5000 main:app
+   ```
+
+The application will be available at `http://localhost:5000`
+
+## Mobile App Development
+
+### Prerequisites
+
+- Node.js 20+
+- Android Studio (for Android builds)
+- Xcode (for iOS builds, Mac only)
+
+### Building the Android App
+
+1. Navigate to the mobile directory:
+   ```
+   cd mobile
+   ```
+
+2. Install Capacitor dependencies:
+   ```
+   npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/camera
+   ```
+
+3. Update the API URL in `app.js` to your deployed web application URL
+
+4. Run the build script:
+   ```
+   ./build-android.sh
+   ```
+
+5. Open Android Studio to build the APK:
+   ```
+   npx cap open android
+   ```
+
+6. In Android Studio, select `Build > Build Bundle(s) / APK(s) > Build APK(s)`
+
+### Customizing the Mobile App
+
+- Update `styles.css` to customize the look and feel
+- Edit `index.html` to change the UI structure
+- Modify `app.js` to add new functionality
+
+## API Documentation
+
+TraceTrack provides a comprehensive API for integration with other systems:
+
+- Web API: `/api/*` endpoints for web interface
+- Mobile API: `/mobile-api/*` endpoints optimized for mobile
+
+See the [API Documentation](docs/api.md) for details on available endpoints.
+
+## System Monitoring
+
+TraceTrack includes built-in health and performance monitoring:
+
+- System Status: `/api/system`
+- Entity Counts: `/api/entity-counts`
+- Activity Stats: `/api/activity/{days}`
+- Cache Statistics: `/api/cache/stats`
+- Task Queue Stats: Available on the admin dashboard
+
+## License
+
+[MIT](LICENSE)
+
+## Acknowledgements
+
+- Inspired by the need for better supply chain traceability systems
+- Special thanks to all contributors
