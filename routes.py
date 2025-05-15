@@ -51,28 +51,43 @@ def index():
 # Cached data access functions for better performance
 @cached_template(timeout=30)
 def get_recent_scans():
-    """Get recent scans with caching"""
-    return Scan.query.order_by(Scan.timestamp.desc()).limit(5).all()
+    """Get recent scans with caching - optimized query"""
+    # Use subquery and joins to reduce database load
+    return db.session.query(
+        Scan,
+        Bag.qr_id,
+        Location.name.label('location_name')
+    ).join(
+        Location, Scan.location_id == Location.id
+    ).outerjoin(
+        Bag, (Scan.parent_bag_id == Bag.id) | (Scan.child_bag_id == Bag.id)
+    ).order_by(
+        Scan.timestamp.desc()
+    ).limit(5).all()
 
-@cached_template(timeout=60)
+@cached_template(timeout=120)  # Increased cache time for static counts
 def get_parent_bag_count():
-    """Get parent bag count with caching"""
-    return Bag.query.filter_by(type=BagType.PARENT.value).count()
+    """Get parent bag count with caching - optimized"""
+    # Use specific count to avoid loading full objects
+    return db.session.query(db.func.count(Bag.id)).filter(Bag.type == BagType.PARENT.value).scalar()
 
-@cached_template(timeout=60)
+@cached_template(timeout=120)  # Increased cache time for static counts
 def get_child_bag_count():
-    """Get child bag count with caching"""
-    return Bag.query.filter_by(type=BagType.CHILD.value).count()
+    """Get child bag count with caching - optimized"""
+    # Use specific count to avoid loading full objects
+    return db.session.query(db.func.count(Bag.id)).filter(Bag.type == BagType.CHILD.value).scalar()
 
-@cached_template(timeout=60)
+@cached_template(timeout=120)  # Increased cache time for static counts
 def get_scan_count():
-    """Get total scan count with caching"""
-    return Scan.query.count()
+    """Get total scan count with caching - optimized"""
+    # Use specific count to avoid loading full objects
+    return db.session.query(db.func.count(Scan.id)).scalar()
 
-@cached_template(timeout=60)
+@cached_template(timeout=120)  # Increased cache time for static counts
 def get_location_count():
-    """Get total location count with caching"""
-    return Location.query.count()
+    """Get total location count with caching - optimized"""
+    # Use specific count to avoid loading full objects
+    return db.session.query(db.func.count(Location.id)).scalar()
 
 @app.route('/register', methods=['GET', 'POST'])
 @limiter.limit("3 per hour", methods=["POST"])
@@ -579,22 +594,32 @@ def parent_bags():
     # Use cached template for better performance under high load
     return render_cached_template(
         'parent_bags.html', 
-        timeout=30,  # Cache for 30 seconds
+        timeout=60,  # Increased cache time for better performance
         parent_bags=get_all_parent_bags(),
         Scan=Scan
     )
 
-@cached_template(timeout=30)
+@cached_template(timeout=60)
 def get_all_parent_bags():
-    """Get all parent bags with caching for better performance"""
-    return Bag.query.filter_by(type=BagType.PARENT.value).all()
+    """Get all parent bags with caching for better performance - optimized query"""
+    # Use eager loading to reduce N+1 query problem
+    # This loads all parent bags and their children in 2 queries instead of N+1
+    return Bag.query.filter_by(type=BagType.PARENT.value).options(
+        db.joinedload(Bag.children),
+        db.joinedload(Bag.parent_scans).joinedload(Scan.location)
+    ).order_by(Bag.created_at.desc()).all()
 
 @app.route('/child_bags')
 @login_required
 @admin_required
 def child_bags():
     """List of all child bags and their parent bag (admin only)"""
-    child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
+    # Optimized query with eager loading to reduce database trips
+    child_bags = Bag.query.filter_by(type=BagType.CHILD.value).options(
+        db.joinedload(Bag.parent_bag),
+        db.joinedload(Bag.child_scans).joinedload(Scan.location)
+    ).order_by(Bag.created_at.desc()).all()
+    
     return render_template('child_bags.html', child_bags=child_bags, Scan=Scan)
 
 @app.route('/scan_child_info')

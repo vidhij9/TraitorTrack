@@ -13,16 +13,25 @@ class Config:
     DEBUG = False
     TESTING = False
     
-    # SQLAlchemy settings
+    # SQLAlchemy settings - Optimized for high-performance
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_size": 30,                # Increase connection pool size for high concurrency
-        "max_overflow": 40,             # Allow additional connections when pool is full
-        "pool_recycle": 300,            # Recycle connections every 5 minutes
-        "pool_pre_ping": True,          # Verify connections before using them
-        "pool_timeout": 30,             # Maximum time to wait for connection from pool
+        "pool_size": 50,                # Larger connection pool for better concurrent performance
+        "max_overflow": 60,             # Allow more overflow connections during peak loads
+        "pool_recycle": 300,            # Recycle connections every 5 minutes to prevent stale connections
+        "pool_pre_ping": True,          # Test connections before use to detect broken connections
+        "pool_timeout": 20,             # Faster timeout for connection pool requests
+        "pool_use_lifo": True,          # LIFO queue to maximize connection reuse and performance
+        "connect_args": {               # PostgreSQL specific optimizations
+            "keepalives": 1,            # Enable TCP keepalives
+            "keepalives_idle": 60,      # Idle time before sending keepalive probes
+            "keepalives_interval": 10,  # Time between keepalive probes
+            "keepalives_count": 3,      # Number of probes before connection is considered dead
+            "options": "-c statement_timeout=90000"  # 90-second statement timeout
+        }
     }
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_TRACK_MODIFICATIONS = False  # Disable unnecessary event tracking
+    SQLALCHEMY_ECHO = False                 # Disable SQL echoing in production for better performance
     
     # Security settings
     SESSION_COOKIE_SECURE = True            # Only send cookies over HTTPS

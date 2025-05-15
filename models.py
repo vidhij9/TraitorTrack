@@ -55,12 +55,14 @@ class Bag(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     qr_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100))
-    type = db.Column(db.String(20), nullable=False)  # 'parent' or 'child'
+    # Add index on type for faster filtering by parent/child
+    type = db.Column(db.String(20), nullable=False, index=True)  # 'parent' or 'child'
     notes = db.Column(db.Text)
     child_count = db.Column(db.Integer, default=0)
-    parent_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
-    linked = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    # Add index on parent_id for faster parent-child lookups
+    parent_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True, index=True)
+    linked = db.Column(db.Boolean, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
     
     # Relationships
     children = db.relationship('Bag', 
@@ -147,13 +149,21 @@ class Location(db.Model):
 class Scan(db.Model):
     """Scan model for recording bag scans"""
     id = db.Column(db.Integer, primary_key=True)
-    parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
-    child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    scan_type = db.Column(db.String(20))  # 'parent' or 'child'
+    # Add indexes for frequently queried relationships
+    parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True, index=True)
+    child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False, index=True)
+    # Add index on timestamp for sorting by time (common operation)
+    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
+    # Add index for filtering by scan type
+    scan_type = db.Column(db.String(20), index=True)  # 'parent' or 'child'
     notes = db.Column(db.Text)
+    
+    # Add composite index for common queries
+    __table_args__ = (
+        db.Index('idx_scan_bag_type_time', 'scan_type', 'timestamp'),
+    )
     
     def __repr__(self):
         if self.parent_bag_id:
