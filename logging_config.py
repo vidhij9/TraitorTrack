@@ -2,111 +2,88 @@
 Logging configuration for the TraceTrack application.
 Optimized for high-traffic environments.
 """
-
+import os
 import logging
 import logging.handlers
-import os
-from logging.config import dictConfig
+from flask import has_request_context, request
 
-# Base directory for log files
-LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 
-# Create log directory if it doesn't exist
-os.makedirs(LOG_DIR, exist_ok=True)
+class RequestFormatter(logging.Formatter):
+    """
+    Formatter that adds request-specific information to logs.
+    """
+    def format(self, record):
+        if has_request_context():
+            record.url = request.url
+            record.remote_addr = request.remote_addr
+            record.method = request.method
+            if hasattr(request, 'user_id'):
+                record.user_id = request.user_id
+            else:
+                record.user_id = 'Anonymous'
+        else:
+            record.url = None
+            record.remote_addr = None
+            record.method = None
+            record.user_id = None
+            
+        return super().format(record)
 
-# Log file paths
-ACCESS_LOG = os.path.join(LOG_DIR, 'access.log')
-ERROR_LOG = os.path.join(LOG_DIR, 'error.log')
-APP_LOG = os.path.join(LOG_DIR, 'app.log')
-
-# Logging configuration dictionary
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'standard': {
-            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-        },
-        'detailed': {
-            'format': '%(asctime)s [%(levelname)s] %(name)s [%(module)s:%(lineno)d]: %(message)s'
-        },
-        'access': {
-            'format': '%(asctime)s [%(levelname)s] %(message)s'
-        }
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'level': 'INFO',
-            'formatter': 'standard',
-            'stream': 'ext://sys.stdout'
-        },
-        'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'level': 'INFO',
-            'formatter': 'detailed',
-            'filename': APP_LOG,
-            'maxBytes': 10485760,  # 10MB
-            'backupCount': 5,
-            'encoding': 'utf8'
-        },
-        'error_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'level': 'ERROR',
-            'formatter': 'detailed',
-            'filename': ERROR_LOG,
-            'maxBytes': 10485760,  # 10MB
-            'backupCount': 5,
-            'encoding': 'utf8'
-        },
-        'access_file': {
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'level': 'INFO',
-            'formatter': 'access',
-            'filename': ACCESS_LOG,
-            'when': 'midnight',
-            'interval': 1,
-            'backupCount': 30,
-            'encoding': 'utf8'
-        }
-    },
-    'loggers': {
-        '': {  # Root logger
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': True
-        },
-        'gunicorn.access': {
-            'handlers': ['access_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'gunicorn.error': {
-            'handlers': ['error_file'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'werkzeug': {
-            'handlers': ['console', 'access_file'],
-            'level': 'WARNING',
-            'propagate': False
-        },
-        'sqlalchemy.engine': {
-            'handlers': ['console', 'file'],
-            'level': 'WARNING',
-            'propagate': False
-        }
-    }
-}
 
 def setup_logging():
     """Configure application logging"""
-    # Create logs directory if it doesn't exist
-    os.makedirs(LOG_DIR, exist_ok=True)
+    # Get the root logger
+    logger = logging.getLogger()
     
-    # Apply logging configuration
-    dictConfig(LOGGING_CONFIG)
+    # Clear any existing handlers
+    logger.handlers = []
     
-    # Log the application startup
-    logger = logging.getLogger(__name__)
+    # Set the log level based on environment
+    log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+    logger.setLevel(getattr(logging, log_level))
+    
+    # Create console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    
+    # Create formatters
+    simple_formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+    )
+    
+    # More detailed formatter for when request context is available
+    detailed_formatter = RequestFormatter(
+        '%(asctime)s [%(levelname)s] %(name)s: %(message)s | '
+        'URL: %(url)s | IP: %(remote_addr)s | Method: %(method)s | User: %(user_id)s'
+    )
+    
+    # Set formatters for handlers
+    console_handler.setFormatter(simple_formatter)
+    
+    # Add handlers to the logger
+    logger.addHandler(console_handler)
+    
+    # Optional file handler for permanent logging
+    if os.environ.get('LOG_TO_FILE'):
+        # Create logs directory if it doesn't exist
+        os.makedirs('logs', exist_ok=True)
+        
+        # Create rotating file handler (10 MB per file, max 5 files)
+        file_handler = logging.handlers.RotatingFileHandler(
+            'logs/tracetrack.log',
+            maxBytes=10*1024*1024,
+            backupCount=5
+        )
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(detailed_formatter)
+        logger.addHandler(file_handler)
+    
+    # Set Flask app logger to use the same configuration
+    app_logger = logging.getLogger('app')
+    app_logger.setLevel(logging.INFO)
+    
+    # Configure SQLAlchemy logger to be less verbose
+    sa_logger = logging.getLogger('sqlalchemy.engine')
+    sa_logger.setLevel(logging.WARNING)
+    
     logger.info("Logging configured successfully")
