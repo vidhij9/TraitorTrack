@@ -11,6 +11,9 @@
         min-height: 90vh;
         padding: 40px 0;
         position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: -2rem;
     }
     
     .login-container::before {
@@ -20,79 +23,150 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.7);
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.7));
         z-index: 1;
     }
     
     .login-card {
         z-index: 2;
         position: relative;
-        background: rgba(33, 37, 41, 0.85);
-        border: none;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 15px 25px rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
     }
     
     .login-header {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(76, 175, 80, 0.2);
+        position: relative;
+    }
+    
+    .login-header::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100px;
+        height: 3px;
+        background-color: var(--success-color);
+        border-radius: 3px;
+    }
+    
+    .form-control, .input-group-text {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        color: var(--dark-text) !important;
+    }
+    
+    .form-control:focus {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border-color: var(--success-color) !important;
+        box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25) !important;
+    }
+    
+    .badge-feature {
+        background-color: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        color: var(--success-color);
+        padding: 0.75rem 1rem;
+        border-radius: 50px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        margin: 0.25rem;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .login-brand {
+        display: inline-flex;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    
+    .login-brand-icon {
+        width: 50px;
+        height: 50px;
+        background: var(--success-color);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
     }
 </style>
 
 <div class="login-container">
     <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card login-card text-white">
-                <div class="card-header login-header">
-                    <h3 class="mb-0">Login</h3>
+        <div class="col-md-6 col-lg-5">
+            <div class="text-center mb-4">
+                <div class="login-brand">
+                    <div class="login-brand-icon">
+                        <i class="fas fa-seedling fa-2x text-white"></i>
+                    </div>
+                    <h2 class="text-white m-0 fw-bold">TraceTrack</h2>
+                </div>
+            </div>
+            
+            <div class="card login-card border-0">
+                <div class="card-header login-header py-3 bg-transparent">
+                    <h3 class="mb-0 text-success">Welcome Back</h3>
                 </div>
                 <div class="card-body">
-                    <div class="text-center mb-4">
-                        <i class="fas fa-user-circle fa-4x text-primary mb-3"></i>
-                        <h4>Sign In to Your Account</h4>
-                        <p class="text-muted">Access your supply chain tracking dashboard</p>
+                    <div class="mb-4">
+                        <h5>Sign In to Your Account</h5>
+                        <p class="text-muted">Enter your credentials to access your supply chain dashboard</p>
                     </div>
                 
-                <form method="post" action="{{ url_for('login') }}">
+                    <form method="post" action="{{ url_for('login') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
                             <div class="input-group">
-                                <span class="input-group-text bg-dark border-secondary">
-                                    <i class="fas fa-user text-primary"></i>
+                                <span class="input-group-text">
+                                    <i class="fas fa-user text-success"></i>
                                 </span>
-                                <input type="text" class="form-control bg-dark text-white border-secondary" id="username" name="username" placeholder="Enter your username" required autofocus>
+                                <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username" required autofocus>
                             </div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between">
+                                <label for="password" class="form-label">Password</label>
+                                <a href="#" class="text-decoration-none small text-success">Forgot password?</a>
+                            </div>
                             <div class="input-group">
-                                <span class="input-group-text bg-dark border-secondary">
-                                    <i class="fas fa-lock text-primary"></i>
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock text-success"></i>
                                 </span>
-                                <input type="password" class="form-control bg-dark text-white border-secondary" id="password" name="password" placeholder="Enter your password" required>
+                                <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
                             </div>
                         </div>
                         
-                        <div class="mb-3 form-check">
+                        <div class="mb-4 form-check">
                             <input type="checkbox" class="form-check-input" id="remember" name="remember">
                             <label class="form-check-label" for="remember">Remember me</label>
                         </div>
                         
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                        <div class="d-grid mb-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Sign In
                             </button>
                         </div>
                     </form>
                     
-                    <div class="text-center mt-4">
-                        <p class="text-light">Don't have an account? <a href="{{ url_for('register') }}" class="text-primary text-decoration-none fw-bold">Sign up</a></p>
-                        <div class="mt-4">
-                            <span class="badge bg-primary me-2 p-2"><i class="fas fa-box me-1"></i> Track Inventory</span>
-                            <span class="badge bg-primary me-2 p-2"><i class="fas fa-qrcode me-1"></i> Scan QR Codes</span>
-                            <span class="badge bg-primary p-2"><i class="fas fa-truck me-1"></i> Monitor Shipments</span>
-                        </div>
+                    <div class="text-center">
+                        <p class="mb-3">Don't have an account? <a href="{{ url_for('register') }}" class="text-success text-decoration-none fw-bold">Create Account</a></p>
                     </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <p class="text-white-50 mb-3">Track your supply chain with enterprise-grade tools</p>
+                <div class="d-flex flex-wrap justify-content-center">
+                    <span class="badge-feature"><i class="fas fa-box me-2"></i> Inventory Tracking</span>
+                    <span class="badge-feature"><i class="fas fa-qrcode me-2"></i> QR Code Scanning</span>
+                    <span class="badge-feature"><i class="fas fa-truck me-2"></i> Shipment Monitoring</span>
                 </div>
             </div>
         </div>

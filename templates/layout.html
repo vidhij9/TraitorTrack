@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -15,11 +15,10 @@
     <!-- Performance optimizations -->
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdn.replit.com" crossorigin>
     
-    <!-- Bootstrap CSS with local fallback for performance -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
-          integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" 
-          crossorigin="anonymous">
+    <!-- Replit-themed Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -31,53 +30,66 @@
 </head>
 <body>
     <!-- Navigation bar -->
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top bg-light">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark border-bottom border-success">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-seedling me-2"></i>TraceTrack
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+                <i class="fas fa-seedling me-2 text-success"></i>
+                <span class="fw-bold">TraceTrack</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav mx-auto">
                     <li class="nav-item">
-                        <a class="nav-link px-3" href="{{ url_for('index') }}">Home</a>
+                        <a class="nav-link px-3 {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
+                            <i class="fas fa-home me-1"></i> Dashboard
+                        </a>
                     </li>
                     
                     {% if current_user.is_authenticated %}
                         {% if current_user.is_admin() %}
                         <!-- Admin-only menu items -->
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('parent_bags') }}">Batches</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('child_bags') }}">Packages</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('scan_child_info') }}">
-                                <i class="fas fa-search me-1"></i>Lookup Package
+                            <a class="nav-link px-3 {{ 'active' if request.endpoint == 'parent_bags' }}" href="{{ url_for('parent_bags') }}">
+                                <i class="fas fa-boxes me-1"></i> Batches
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('locations') }}">Locations</a>
+                            <a class="nav-link px-3 {{ 'active' if request.endpoint == 'child_bags' }}" href="{{ url_for('child_bags') }}">
+                                <i class="fas fa-box me-1"></i> Packages
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 {{ 'active' if request.endpoint == 'scan_child_info' }}" href="{{ url_for('scan_child_info') }}">
+                                <i class="fas fa-search me-1"></i> Lookup
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 {{ 'active' if request.endpoint == 'locations' }}" href="{{ url_for('locations') }}">
+                                <i class="fas fa-map-marker-alt me-1"></i> Locations
+                            </a>
                         </li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle px-3" href="#" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-file-invoice me-1"></i>Bills
+                            <a class="nav-link dropdown-toggle px-3 {{ 'active' if request.endpoint == 'bill_detail' }}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-file-invoice me-1"></i> Bills
                             </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#searchBillModal">Search Bills</a></li>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#searchBillModal">
+                                    <i class="fas fa-search me-1"></i> Search Bills
+                                </a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('init_db') }}">Initialize Demo Data</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('init_db') }}">
+                                    <i class="fas fa-database me-1"></i> Initialize Demo Data
+                                </a></li>
                             </ul>
                         </li>
                         {% endif %}
                         
                         <!-- All authenticated users (both employees and admins) -->
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('select_location') }}">
-                                <i class="fas fa-qrcode me-1"></i>Register Bags
+                            <a class="nav-link px-3 {{ 'active' if request.endpoint == 'select_location' }}" href="{{ url_for('select_location') }}">
+                                <i class="fas fa-qrcode me-1"></i> Scan & Register
                             </a>
                         </li>
                     {% endif %}
@@ -85,36 +97,49 @@
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="avatar bg-success rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <span>{{ current_user.username }}</span>
                             {% if current_user.is_admin() %}
-                            <span class="badge bg-primary ms-1">Admin</span>
+                            <span class="badge bg-info ms-2">Admin</span>
                             {% else %}
-                            <span class="badge bg-success ms-1">Employee</span>
+                            <span class="badge bg-success ms-2">Employee</span>
                             {% endif %}
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
                             <li class="dropdown-item-text">
-                                {% if current_user.is_admin() %}
-                                <small class="text-muted">Administrative access</small>
-                                {% else %}
-                                <small class="text-muted">Employee access</small>
-                                {% endif %}
+                                <small class="text-muted">
+                                    {% if current_user.is_admin() %}
+                                    Administrative access granted
+                                    {% else %}
+                                    Employee level access
+                                    {% endif %}
+                                </small>
                             </li>
                             {% if not current_user.is_admin() %}
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('promote_to_admin') }}"><i class="fas fa-user-shield me-1"></i>Become Administrator</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('promote_to_admin') }}">
+                                <i class="fas fa-user-shield me-2"></i> Become Administrator
+                            </a></li>
                             {% endif %}
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i> Logout
+                            </a></li>
                         </ul>
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="btn btn-sm btn-primary ms-2" href="{{ url_for('login') }}">Login</a>
+                        <a class="btn btn-success btn-sm me-2" href="{{ url_for('login') }}">
+                            <i class="fas fa-sign-in-alt me-1"></i> Login
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="btn btn-sm btn-outline-primary ms-2" href="{{ url_for('register') }}">Register</a>
+                        <a class="btn btn-outline-success btn-sm" href="{{ url_for('register') }}">
+                            <i class="fas fa-user-plus me-1"></i> Register
+                        </a>
                     </li>
                     {% endif %}
                 </ul>
@@ -169,25 +194,46 @@
     </div>
 
     <!-- Footer -->
-    <footer class="py-4 mt-auto">
+    <footer class="py-4 mt-auto bg-dark border-top border-success">
         <div class="container">
-            <div class="row align-items-center">
-                <div class="col-md-4 mb-3 mb-md-0">
+            <div class="row align-items-center gy-2">
+                <div class="col-md-4 mb-2 mb-md-0">
                     <div class="d-flex align-items-center">
-                        <i class="fas fa-leaf me-2 sun-icon"></i>
-                        <span class="fs-5 fw-bold">TraceTrack</span>
+                        <div class="bg-success rounded-circle p-2 me-2">
+                            <i class="fas fa-leaf text-white"></i>
+                        </div>
+                        <span class="fs-5 fw-bold text-success">TraceTrack</span>
                     </div>
-                    <p class="small mb-0 mt-2">
-                        Tracing your agricultural products from farm to table with unmatched precision
+                    <p class="small mt-2 text-muted">
+                        Tracing agricultural products from farm to table with unmatched precision and reliability
                     </p>
                 </div>
-                <div class="col-md-4 mb-3 mb-md-0 text-center">
-                    <p class="mb-0 small">&copy; 2025 TraceTrack. All rights reserved.</p>
+                <div class="col-md-4 mb-2 mb-md-0 text-center d-flex flex-column">
+                    <div class="mb-2">
+                        <a href="#" class="text-decoration-none mx-2">
+                            <i class="fab fa-twitter text-secondary"></i>
+                        </a>
+                        <a href="#" class="text-decoration-none mx-2">
+                            <i class="fab fa-facebook text-secondary"></i>
+                        </a>
+                        <a href="#" class="text-decoration-none mx-2">
+                            <i class="fab fa-linkedin text-secondary"></i>
+                        </a>
+                        <a href="#" class="text-decoration-none mx-2">
+                            <i class="fab fa-instagram text-secondary"></i>
+                        </a>
+                    </div>
+                    <p class="mb-0 small text-muted">&copy; 2025 TraceTrack. All rights reserved.</p>
                 </div>
                 <div class="col-md-4 text-md-end">
-                    <a href="#" class="me-3 small">Privacy</a>
-                    <a href="#" class="me-3 small">Terms</a>
-                    <a href="#" class="small">Support</a>
+                    <div class="d-flex justify-content-md-end justify-content-center">
+                        <a href="#" class="me-3 small text-muted text-decoration-none">Privacy Policy</a>
+                        <a href="#" class="me-3 small text-muted text-decoration-none">Terms of Service</a>
+                        <a href="#" class="small text-muted text-decoration-none">Support</a>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0">
+                        <i class="fas fa-shield-alt me-1"></i> Secured with enterprise-grade encryption
+                    </p>
                 </div>
             </div>
         </div>

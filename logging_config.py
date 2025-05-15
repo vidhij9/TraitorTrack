@@ -17,8 +17,10 @@ class RequestFormatter(logging.Formatter):
             record.url = request.url
             record.remote_addr = request.remote_addr
             record.method = request.method
-            if hasattr(request, 'user_id'):
-                record.user_id = request.user_id
+            
+            from flask_login import current_user
+            if current_user and current_user.is_authenticated:
+                record.user_id = current_user.id
             else:
                 record.user_id = 'Anonymous'
         else:
