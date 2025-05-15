@@ -8,8 +8,8 @@ from werkzeug.security import generate_password_hash
 from functools import wraps
 from app import app, db, limiter
 from models import User, UserRole, Bag, BagType, Link, Location, Scan
-from template_utils import render_cached_template, cached_template
-from cache_utils import invalidate_cache
+from template_utils import render_cached_template
+from cache_utils import invalidate_cache, cached_response
 from password_utils import validate_password_strength, validate_email_address, validate_username
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, validate_location_name, sanitize_input
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
@@ -37,10 +37,9 @@ CHILD_QR_PATTERN = re.compile(r'^C\d+$')
 @login_required
 def index():
     """Home page - requires login"""
-    # Using cached dashboard data
-    return render_cached_template(
+    # Using cached dashboard data with optimized caching strategy
+    return render_template(
         'index.html',
-        timeout=30,  # Cache dashboard for 30 seconds
         recent_scans=get_recent_scans(),
         total_parent_bags=get_parent_bag_count(),
         total_child_bags=get_child_bag_count(),
@@ -48,10 +47,10 @@ def index():
         total_locations=get_location_count()
     )
 
-# Cached data access functions for better performance
-@cached_template(timeout=30)
+# Cached data access functions for better performance using tiered caching
+@cached_response(timeout=30, namespace='dashboard', persist=True)
 def get_recent_scans():
-    """Get recent scans with caching - optimized query"""
+    """Get recent scans with caching - optimized query and persistent cache"""
     # Use subquery and joins to reduce database load
     return db.session.query(
         Scan,
@@ -65,27 +64,27 @@ def get_recent_scans():
         Scan.timestamp.desc()
     ).limit(5).all()
 
-@cached_template(timeout=120)  # Increased cache time for static counts
+@cached_response(timeout=300, namespace='statistics', persist=True)  # 5 minutes cache for counts
 def get_parent_bag_count():
-    """Get parent bag count with caching - optimized"""
+    """Get parent bag count with caching - optimized with persistent caching"""
     # Use specific count to avoid loading full objects
     return db.session.query(db.func.count(Bag.id)).filter(Bag.type == BagType.PARENT.value).scalar()
 
-@cached_template(timeout=120)  # Increased cache time for static counts
+@cached_response(timeout=300, namespace='statistics', persist=True)  # 5 minutes cache for counts
 def get_child_bag_count():
-    """Get child bag count with caching - optimized"""
+    """Get child bag count with caching - optimized with persistent caching"""
     # Use specific count to avoid loading full objects
     return db.session.query(db.func.count(Bag.id)).filter(Bag.type == BagType.CHILD.value).scalar()
 
-@cached_template(timeout=120)  # Increased cache time for static counts
+@cached_response(timeout=300, namespace='statistics', persist=True)  # 5 minutes cache for counts
 def get_scan_count():
-    """Get total scan count with caching - optimized"""
+    """Get total scan count with caching - optimized with persistent caching"""
     # Use specific count to avoid loading full objects
     return db.session.query(db.func.count(Scan.id)).scalar()
 
-@cached_template(timeout=120)  # Increased cache time for static counts
+@cached_response(timeout=300, namespace='statistics', persist=True)  # 5 minutes cache for counts
 def get_location_count():
-    """Get total location count with caching - optimized"""
+    """Get total location count with caching - optimized with persistent caching"""
     # Use specific count to avoid loading full objects
     return db.session.query(db.func.count(Location.id)).scalar()
 
@@ -591,22 +590,24 @@ def scan_complete():
 @admin_required
 def parent_bags():
     """List of all parent bags and their child bags (admin only)"""
-    # Use cached template for better performance under high load
-    return render_cached_template(
-        'parent_bags.html', 
-        timeout=60,  # Increased cache time for better performance
+    # Render directly with cached function result - more efficient
+    return render_template(
+        'parent_bags.html',
         parent_bags=get_all_parent_bags(),
         Scan=Scan
     )
 
-@cached_template(timeout=60)
+@cached_response(timeout=120, namespace='parent_bags', persist=True)
 def get_all_parent_bags():
-    """Get all parent bags with caching for better performance - optimized query"""
-    # Use eager loading to reduce N+1 query problem
+    """
+    Get all parent bags with optimized caching and eager loading
+    Uses persistence for faster repeated access
+    """
+    # Use eager loading with optimization hints to reduce N+1 query problem
     # This loads all parent bags and their children in 2 queries instead of N+1
     return Bag.query.filter_by(type=BagType.PARENT.value).options(
-        db.joinedload(Bag.children),
-        db.joinedload(Bag.parent_scans).joinedload(Scan.location)
+        db.joinedload(Bag.children).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
+        db.joinedload(Bag.parent_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
     ).order_by(Bag.created_at.desc()).all()
 
 @app.route('/child_bags')
@@ -614,13 +615,24 @@ def get_all_parent_bags():
 @admin_required
 def child_bags():
     """List of all child bags and their parent bag (admin only)"""
-    # Optimized query with eager loading to reduce database trips
-    child_bags = Bag.query.filter_by(type=BagType.CHILD.value).options(
-        db.joinedload(Bag.parent_bag),
-        db.joinedload(Bag.child_scans).joinedload(Scan.location)
+    # Render with cached function for better performance
+    return render_template(
+        'child_bags.html', 
+        child_bags=get_all_child_bags(),
+        Scan=Scan
+    )
+
+@cached_response(timeout=120, namespace='child_bags', persist=True)
+def get_all_child_bags():
+    """
+    Get all child bags with optimized caching and eager loading
+    Uses persistence for faster repeated access
+    """
+    # Optimized query with eager loading and column selection to reduce database load
+    return Bag.query.filter_by(type=BagType.CHILD.value).options(
+        db.joinedload(Bag.parent_bag).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
+        db.joinedload(Bag.child_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
     ).order_by(Bag.created_at.desc()).all()
-    
-    return render_template('child_bags.html', child_bags=child_bags, Scan=Scan)
 
 @app.route('/scan_child_info')
 @login_required
