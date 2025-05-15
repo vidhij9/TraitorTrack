@@ -29,13 +29,21 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # Needed for url_for to generate with https
 
-# Configure secure session
+# Configure secure session and security settings
 app.config.update(
+    # Session security
     SESSION_COOKIE_SECURE=True,            # Only send cookies over HTTPS
     SESSION_COOKIE_HTTPONLY=True,          # Prevent JavaScript access to session cookie
     SESSION_COOKIE_SAMESITE='Lax',         # Restrict cookie sending to same-site requests
     PERMANENT_SESSION_LIFETIME=1800,       # Session timeout after 30 minutes
-    SESSION_REFRESH_EACH_REQUEST=True      # Update session with each request
+    SESSION_REFRESH_EACH_REQUEST=True,     # Update session with each request
+    
+    # General security settings
+    SECURITY_STRICT_MODE=False,            # If True, block suspicious requests instead of just logging
+    PREFERRED_URL_SCHEME='https',          # Use HTTPS for generated URLs
+    MAX_CONTENT_LENGTH=10 * 1024 * 1024,   # Limit upload size to 10MB
+    SEND_FILE_MAX_AGE_DEFAULT=31536000,    # Cache static files for 1 year
+    JSON_SORT_KEYS=False                   # Don't sort JSON keys for better performance
 )
 
 # Initialize CSRF protection
@@ -64,10 +72,37 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Initialize the database with the app
 db.init_app(app)
 
-# Add request timing middleware for performance monitoring
+# Add request timing middleware for performance monitoring and security
 @app.before_request
 def before_request():
+    # Record request start time for performance monitoring
     g.start_time = time.time()
+    
+    # Session security monitoring for authenticated users
+    if hasattr(g, 'user') and g.user and g.user.is_authenticated and not request.path.startswith('/static/'):
+        # Check for potential session hijacking by comparing user agent
+        current_ua = request.user_agent.string if request.user_agent else 'Unknown'
+        stored_ua = session.get('user_agent')
+        
+        # Store user agent if it's not already stored
+        if not stored_ua:
+            session['user_agent'] = current_ua
+        
+        # If user agent changed dramatically, this might be a session hijacking attempt
+        elif stored_ua != current_ua:
+            # Log the suspicious activity
+            logger.warning(
+                f"Potential session hijacking detected. User ID: {g.user.id}, "
+                f"Old UA: {stored_ua}, New UA: {current_ua}, IP: {request.remote_addr}"
+            )
+            
+            # For extra security, force logout and session reset
+            from flask_login import logout_user
+            logout_user()
+            session.clear()
+            from flask import flash, redirect, url_for
+            flash('Your session was terminated for security reasons. Please log in again.', 'warning')
+            return redirect(url_for('login'))
     
 @app.after_request
 def after_request(response):
@@ -109,6 +144,10 @@ with app.app_context():
     
     # Create all database tables
     db.create_all()
+    
+    # Set up security middleware
+    from security_middleware import setup_security_middleware
+    setup_security_middleware(app)
     
     # Import and register routes
     import routes  # noqa: F401

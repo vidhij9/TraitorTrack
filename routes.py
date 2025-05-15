@@ -12,6 +12,7 @@ from template_utils import render_cached_template, cached_template
 from cache_utils import invalidate_cache
 from password_utils import validate_password_strength, validate_email_address, validate_username
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, validate_location_name, sanitize_input
+from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 
 def admin_required(func):
     """Decorator to restrict access to admin users only"""
@@ -160,7 +161,7 @@ def register():
 @limiter.limit("10 per minute", methods=["POST"])
 @limiter.limit("5/minute, 100/day", error_message="Too many login attempts, please try again later.")
 def login():
-    """User login page with rate limiting to prevent brute force attacks"""
+    """User login page with rate limiting and account lockout to prevent brute force attacks"""
     # If user is already logged in, redirect to homepage
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -170,6 +171,12 @@ def login():
         password = request.form.get('password')
         remember = 'remember' in request.form
         
+        # Check if the account is locked
+        is_locked, remaining_time = is_account_locked(username)
+        if is_locked:
+            flash(f'Account temporarily locked. Try again in {remaining_time} seconds.', 'danger')
+            return render_template('login.html')
+        
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
@@ -177,6 +184,9 @@ def login():
             if not user.verified:
                 flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
                 return render_template('login.html')
+            
+            # Reset failed attempts on successful login
+            reset_failed_attempts(username)
             
             # Clear session before login to prevent session fixation
             session.clear()
@@ -187,12 +197,20 @@ def login():
             # Set session as permanent to respect the configured lifetime
             session.permanent = True
             
+            # Track login activity
+            track_login_activity(user.id, success=True)
+            
             next_page = request.args.get('next')
             if next_page:
                 return redirect(next_page)
             return redirect(url_for('index'))
         
-        flash('Invalid username or password', 'danger')
+        # Record failed login attempt
+        is_locked, attempts_remaining, lockout_time = record_failed_attempt(username)
+        if is_locked:
+            flash(f'Too many failed login attempts. Account locked for {lockout_time}.', 'danger')
+        else:
+            flash(f'Invalid username or password. You have {attempts_remaining} attempts remaining.', 'danger')
     
     return render_template('login.html')
 
