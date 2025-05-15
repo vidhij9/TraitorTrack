@@ -395,6 +395,10 @@
             // Remove any whitespace or special characters
             qrCode = qrCode.trim();
             
+            // Display the scanned QR code in the manual entry box for visibility
+            const manualQrInput = document.getElementById('manual-qr-code');
+            manualQrInput.value = qrCode;
+            
             // Send to server for processing
             fetch('/process_child_scan', {
                 method: 'POST',
