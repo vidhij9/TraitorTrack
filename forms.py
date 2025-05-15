@@ -1,0 +1,85 @@
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, TextAreaField, IntegerField, HiddenField
+from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError, Regexp, Optional
+from models import User
+
+class LoginForm(FlaskForm):
+    """User login form with validation."""
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    remember = BooleanField('Remember Me')
+    submit = SubmitField('Login')
+
+class RegistrationForm(FlaskForm):
+    """User registration form with validation."""
+    username = StringField('Username', validators=[
+        DataRequired(),
+        Length(min=3, max=20, message="Username must be between 3 and 20 characters."),
+        Regexp('^[A-Za-z0-9_]+$', message="Username can only contain letters, numbers, and underscores.")
+    ])
+    email = StringField('Email', validators=[
+        DataRequired(),
+        Email(message="Please enter a valid email address.")
+    ])
+    password = PasswordField('Password', validators=[
+        DataRequired(),
+        Length(min=8, message="Password must be at least 8 characters long."),
+        # Can add more complex validation based on requirements
+    ])
+    confirm_password = PasswordField('Confirm Password', validators=[
+        DataRequired(),
+        EqualTo('password', message="Passwords must match.")
+    ])
+    submit = SubmitField('Register')
+    
+    def validate_username(self, username):
+        """Check if username already exists."""
+        user = User.query.filter_by(username=username.data).first()
+        if user:
+            raise ValidationError('Username is already taken. Please choose a different one.')
+    
+    def validate_email(self, email):
+        """Check if email already exists."""
+        user = User.query.filter_by(email=email.data).first()
+        if user:
+            raise ValidationError('Email is already registered. Please use a different one or login.')
+
+class LocationSelectionForm(FlaskForm):
+    """Form to select a scanning location."""
+    location = SelectField('Select Location', validators=[DataRequired()], coerce=int)
+    submit = SubmitField('Continue')
+
+class ScanParentForm(FlaskForm):
+    """Form for parent bag scanning."""
+    qr_code = StringField('QR Code', validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
+class ScanChildForm(FlaskForm):
+    """Form for child bag scanning."""
+    qr_code = StringField('QR Code', validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
+class BillCreationForm(FlaskForm):
+    """Form to create a new bill."""
+    bill_id = StringField('Bill ID', validators=[
+        DataRequired(),
+        Length(min=3, max=50, message="Bill ID must be between 3 and 50 characters.")
+    ])
+    submit = SubmitField('Create Bill')
+    
+    def validate_bill_id(self, bill_id):
+        """Check if a bill with this ID already exists."""
+        from models import Bill
+        existing_bill = Bill.query.filter_by(bill_id=bill_id.data).first()
+        if existing_bill:
+            raise ValidationError('A bill with this ID already exists. Please use a different ID.')
+
+class ChildLookupForm(FlaskForm):
+    """Form to look up child bag information."""
+    qr_code = StringField('Child Bag QR Code', validators=[DataRequired()])
+    submit = SubmitField('Lookup')
+
+class PromoteToAdminForm(FlaskForm):
+    """Form for admin promotion."""
+    secret_code = PasswordField('Secret Code', validators=[DataRequired()])
+    submit = SubmitField('Promote to Admin')

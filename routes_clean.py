@@ -34,74 +34,79 @@ def index():
 @limiter.limit("5/minute, 100/day", error_message="Too many login attempts, please try again later.")
 def login():
     """User login page with rate limiting and account lockout to prevent brute force attacks"""
+    from forms import LoginForm
+    
     # If user is already logged in, redirect to homepage
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     
-    # Handle GET requests
-    if request.method == 'GET':
-        return render_template('login.html')
+    form = LoginForm()
     
-    # Process POST (login attempt)
-    username = request.form.get('username')
-    password = request.form.get('password')
-    remember = 'remember' in request.form
-    
-    logging.debug(f"Login attempt for username: {username}")
-    
-    # Check if the account is locked
-    is_locked, remaining_time = is_account_locked(username)
-    if is_locked:
-        flash(f'Account temporarily locked. Try again in {remaining_time} seconds.', 'danger')
-        return render_template('login.html')
-    
-    # Find the user
-    user = User.query.filter_by(username=username).first()
-    
-    # Handle non-existent user
-    if not user:
-        flash('Invalid username or password.', 'danger')
-        return render_template('login.html')
-    
-    # Verify password
-    if not user.check_password(password):
-        # Record failed login attempt
-        is_locked, attempts, lockout_time = record_failed_attempt(username)
+    # Handle login attempts
+    if form.validate_on_submit():
+        username = form.username.data
+        password = form.password.data
+        remember = form.remember.data
         
+        logging.debug(f"Login attempt for username: {username}")
+        
+        # Check if the account is locked
+        is_locked, remaining_time = is_account_locked(username)
         if is_locked:
-            flash(f'Account locked due to too many failed attempts. Try again in {lockout_time}.', 'danger')
-        else:
-            flash(f'Invalid username or password. {attempts} attempts remaining before lockout.', 'danger')
+            flash(f'Account temporarily locked. Try again in {remaining_time} seconds.', 'danger')
+            return render_template('login.html', form=form, login_attempts={'is_locked': True, 'lockout_time': remaining_time})
         
-        return render_template('login.html')
+        # Find the user
+        user = User.query.filter_by(username=username).first()
+        
+        # Handle non-existent user
+        if not user:
+            flash('Invalid username or password.', 'danger')
+            return render_template('login.html', form=form)
+        
+        # Verify password
+        if not user.check_password(password):
+            # Record failed login attempt
+            is_locked, attempts, lockout_time = record_failed_attempt(username)
+            
+            if is_locked:
+                flash(f'Account locked due to too many failed attempts. Try again in {lockout_time}.', 'danger')
+                login_attempts = {'is_locked': True, 'lockout_time': lockout_time}
+            else:
+                flash(f'Invalid username or password. {attempts} attempts remaining before lockout.', 'danger')
+                login_attempts = {'attempts_remaining': attempts}
+            
+            return render_template('login.html', form=form, login_attempts=login_attempts)
+        
+        # Check verification status
+        if not user.verified:
+            flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
+            return render_template('login.html', form=form)
+        
+        # Login successful
+        
+        # Reset failed attempts on successful login
+        reset_failed_attempts(username)
+        
+        # Clear session before login to prevent session fixation
+        session.clear()
+        
+        # Login user with Flask-Login
+        login_user(user, remember=remember)
+        
+        # Set session as permanent to respect the configured lifetime
+        session.permanent = True
+        
+        # Track login activity
+        track_login_activity(user.id, success=True)
+        
+        # Redirect to appropriate page
+        next_page = request.args.get('next')
+        if next_page:
+            return redirect(next_page)
+        return redirect(url_for('index'))
     
-    # Check verification status
-    if not user.verified:
-        flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
-        return render_template('login.html')
-    
-    # Login successful
-    
-    # Reset failed attempts on successful login
-    reset_failed_attempts(username)
-    
-    # Clear session before login to prevent session fixation
-    session.clear()
-    
-    # Login user with Flask-Login
-    login_user(user, remember=remember)
-    
-    # Set session as permanent to respect the configured lifetime
-    session.permanent = True
-    
-    # Track login activity
-    track_login_activity(user.id, success=True)
-    
-    # Redirect to appropriate page
-    next_page = request.args.get('next')
-    if next_page:
-        return redirect(next_page)
-    return redirect(url_for('index'))
+    return render_template('login.html', form=form)
 
 @app.route('/logout')
 @login_required
@@ -118,47 +123,22 @@ def logout():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """User registration page"""
+    """User registration page with form validation"""
+    from forms import RegistrationForm
+    
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password')
-        confirm_password = request.form.get('confirm_password')
-        
-        # Validation
-        errors = []
-        
-        if not username or len(username) < 3:
-            errors.append('Username must be at least 3 characters.')
-        
-        if not email or '@' not in email:
-            errors.append('A valid email address is required.')
-        
-        if not password or len(password) < 8:
-            errors.append('Password must be at least 8 characters.')
-        
-        if password != confirm_password:
-            errors.append('Passwords do not match.')
-        
-        # Check if username or email already exists
-        if User.query.filter_by(username=username).first():
-            errors.append('Username already taken.')
-        
-        if User.query.filter_by(email=email).first():
-            errors.append('Email already registered.')
-        
-        # If there are errors, flash them and return to the registration page
-        if errors:
-            for error in errors:
-                flash(error, 'danger')
-            return render_template('register.html')
-        
+    form = RegistrationForm()
+    
+    if form.validate_on_submit():
         # Create new user
-        user = User(username=username, email=email, verified=True)  # Auto-verify for testing
-        user.set_password(password)
+        user = User(
+            username=form.username.data,
+            email=form.email.data,
+            verified=True  # Auto-verify for testing
+        )
+        user.set_password(form.password.data)
         
         db.session.add(user)
         db.session.commit()
@@ -166,7 +146,7 @@ def register():
         flash('Registration successful! You can now log in.', 'success')
         return redirect(url_for('login'))
     
-    return render_template('register.html')
+    return render_template('register.html', form=form)
 
 @app.route('/promote_admin', methods=['GET', 'POST'])
 @login_required

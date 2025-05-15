@@ -3,51 +3,85 @@
 {% block title %}Login - TraceTrack{% endblock %}
 
 {% block content %}
-<div class="auth-container">
-    <div class="card auth-card">
-        <div class="card-header bg-primary bg-opacity-25 text-light">
-            <h3 class="card-title mb-0">
-                <i class="fas fa-sign-in-alt me-2"></i>Login
-            </h3>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('login') }}">
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
-                    <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="fas fa-user"></i>
-                        </span>
-                        <input type="text" class="form-control" id="username" name="username" required autofocus>
-                    </div>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header bg-primary bg-opacity-25 text-light">
+                    <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Login</h4>
                 </div>
-                
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="fas fa-lock"></i>
-                        </span>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('login') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-user"></i>
+                                </span>
+                                {{ form.username(class="form-control", id="username", placeholder="Enter your username") }}
+                            </div>
+                            {% if form.username.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                {{ form.password(class="form-control", id="password", placeholder="Enter your password") }}
+                            </div>
+                            {% if form.password.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.password.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            {{ form.remember(class="form-check-input", id="remember") }}
+                            <label class="form-check-label" for="remember">
+                                Remember me
+                            </label>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                    <label class="form-check-label" for="remember">Remember me</label>
+                <div class="card-footer bg-dark">
+                    <p class="mb-0 text-center">
+                        Don't have an account? <a href="{{ url_for('register') }}" class="text-primary">Register here</a>
+                    </p>
                 </div>
-                
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-sign-in-alt me-2"></i>Login
-                    </button>
-                </div>
-            </form>
-        </div>
-        <div class="card-footer bg-dark">
-            <div class="text-center">
-                <p class="mb-0">Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
             </div>
+            
+            {% if login_attempts and login_attempts.get('is_locked') %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Account Locked</strong>
+                    <p class="mb-0">Your account has been temporarily locked due to multiple failed login attempts. Please try again in {{ login_attempts.get('lockout_time') }}.</p>
+                </div>
+            {% elif login_attempts and login_attempts.get('attempts_remaining') is not none %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Warning</strong>
+                    <p class="mb-0">{{ login_attempts.get('attempts_remaining') }} login attempts remaining before your account is temporarily locked.</p>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>
