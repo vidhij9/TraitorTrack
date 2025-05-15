@@ -44,8 +44,9 @@ def health_check():
         pool_stats = get_connection_pool_stats()
         
         # Run a simple timing test
+        from sqlalchemy import text
         timing_start = time.time()
-        count_result = db.session.query(db.func.count('*')).select_from(db.text('information_schema.tables')).scalar()
+        count_result = db.session.query(db.func.count('*')).select_from(text('information_schema.tables')).scalar()
         query_time = time.time() - timing_start
         
         response_time = time.time() - start_time
@@ -84,11 +85,12 @@ def db_dashboard():
         pool_stats = get_connection_pool_stats()
         
         # Get table counts
+        from sqlalchemy import text
         table_counts = {
-            'users': db.session.query(db.func.count('*')).select_from(db.text('users')).scalar(),
-            'bags': db.session.query(db.func.count('*')).select_from(db.text('bag')).scalar(),
-            'scans': db.session.query(db.func.count('*')).select_from(db.text('scan')).scalar(),
-            'locations': db.session.query(db.func.count('*')).select_from(db.text('location')).scalar()
+            'users': db.session.query(db.func.count('*')).select_from(text('users')).scalar(),
+            'bags': db.session.query(db.func.count('*')).select_from(text('bag')).scalar(),
+            'scans': db.session.query(db.func.count('*')).select_from(text('scan')).scalar(),
+            'locations': db.session.query(db.func.count('*')).select_from(text('location')).scalar()
         }
         
         # Get recent slow queries (if logging is enabled)

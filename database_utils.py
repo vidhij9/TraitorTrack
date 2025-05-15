@@ -24,7 +24,8 @@ def check_database_connection():
     """
     try:
         # Simple, fast query to check database connectivity
-        db.session.execute("SELECT 1").scalar()
+        from sqlalchemy import text
+        db.session.execute(text("SELECT 1")).scalar()
         return True, None
     except SQLAlchemyError as e:
         error_message = f"Database connection error: {str(e)}"

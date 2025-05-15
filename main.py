@@ -3,6 +3,12 @@ import multiprocessing
 import os
 from gevent.pywsgi import WSGIServer
 
+# Import routes and other modules
+import routes  # noqa: F401
+import api_endpoints  # noqa: F401
+import mobile_api  # noqa: F401
+import db_monitoring  # Load database monitoring module
+
 def run_with_gevent(app):
     """Run the application with gevent's WSGIServer for better performance"""
     http_server = WSGIServer(('0.0.0.0', 5000), app)
