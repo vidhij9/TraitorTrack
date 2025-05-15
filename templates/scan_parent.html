@@ -137,18 +137,20 @@
         // Also keep the button functionality as backup
         startCameraBtn.addEventListener('click', startCamera);
         
-        // Stop camera when button is clicked
-        stopCameraBtn.addEventListener('click', stopCamera);
-        
         // Handle manual entry form submission
-        manualEntryForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const manualQrCode = document.getElementById('manual-qr-code').value.trim();
+        manualEntryForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const manualQrInput = document.getElementById('manual-qr-code');
+            const qrCode = manualQrInput.value.trim();
             
-            if (manualQrCode) {
-                processQrCode(manualQrCode);
+            if (qrCode) {
+                processQrCode(qrCode);
+                manualQrInput.value = '';
             }
         });
+        
+        // Stop camera when button is clicked
+        stopCameraBtn.addEventListener('click', stopCamera);
         
         function startCamera() {
             // Request access to the webcam
@@ -309,6 +311,10 @@
             // Accept any QR code format - no validation required
             // Just clean up the input
             qrCode = qrCode.trim();
+            
+            // Display the scanned QR code in the manual entry box for visibility
+            const manualQrInput = document.getElementById('manual-qr-code');
+            manualQrInput.value = qrCode;
             
             // Send to server for processing
             fetch('/process_parent_scan', {
