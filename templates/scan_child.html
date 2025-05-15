@@ -3,27 +3,54 @@
 {% block title %} - Scan Child Bags{% endblock %}
 
 {% block head %}
-<!-- HTML5-QRCode library - Fixed version -->
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Use jsQR library instead -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
-    #reader {
+    #canvas, #video {
         width: 100%;
         max-width: 500px;
         margin: 0 auto;
         border-radius: 8px;
         overflow: hidden;
     }
+    
+    #video {
+        display: none;
+    }
+    
+    #canvas {
+        background-color: #333;
+        border: 2px solid #007bff;
+    }
+    
     #scan-result {
         display: none;
     }
+    
     .scan-icon {
         font-size: 50px;
         margin-bottom: 20px;
     }
+    
+    .scanning-indicator {
+        animation: pulse 1.5s infinite;
+        display: none;
+        margin-top: 10px;
+        text-align: center;
+        color: #007bff;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 0.5; }
+        50% { opacity: 1; }
+        100% { opacity: 0.5; }
+    }
+    
     .progress {
         height: 20px;
         font-size: 0.8rem;
     }
+    
     .child-bag-pill {
         display: inline-block;
         margin: 4px;
@@ -100,7 +127,13 @@
                             {% endif %}
                         </div>
                         
-                        <div id="reader" class="mb-4"></div>
+                        <div class="mb-4">
+                            <video id="video" playsinline></video>
+                            <canvas id="canvas"></canvas>
+                            <div class="scanning-indicator" id="scanning-indicator">
+                                <i class="fas fa-camera"></i> Scanning...
+                            </div>
+                        </div>
                         
                         <div class="d-flex justify-content-center mb-3">
                             <button class="btn btn-primary me-2" id="start-scanner">
