@@ -6,6 +6,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app_clean import app, db, limiter
 from models import User, UserRole, Bag, BagType, Link, Location, Scan, Bill, BillBag
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
+from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
 # Main routes
 @app.route('/')
@@ -274,7 +275,13 @@ def process_parent_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'No QR code provided'})
     
-    # Accept any QR code format - no validation required\    qr_code = qr_code.strip()
+    # Clean up the QR code
+    qr_code = qr_code.strip()
+    
+    # Validate the QR code using the improved validator that handles any format
+    is_valid, message, child_count = validate_parent_qr_id(qr_code)
+    if not is_valid:
+        return jsonify({'success': False, 'message': message})
     
     # Look up or create the parent bag
     parent_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.PARENT.value).first()
@@ -349,7 +356,10 @@ def process_child_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'No QR code provided'})
     
-    # Accept any QR code format - no format validation
+    # Validate the QR code using the improved validator that handles any format
+    is_valid, message = validate_child_qr_id(qr_code)
+    if not is_valid:
+        return jsonify({'success': False, 'message': message})
     
     # Check if this child bag is already scanned in this session
     child_bags_scanned = session.get('child_bags_scanned', [])
