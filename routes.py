@@ -10,6 +10,7 @@ from app import app, db, limiter
 from models import User, UserRole, Bag, BagType, Link, Location, Scan
 from template_utils import render_cached_template, cached_template
 from cache_utils import invalidate_cache
+from password_utils import validate_password_strength, validate_email_address, validate_username
 
 def admin_required(func):
     """Decorator to restrict access to admin users only"""
@@ -95,6 +96,27 @@ def register():
             flash('Passwords must match!', 'danger')
             return render_template('register.html')
         
+        # Enhanced validation for username
+        is_valid_username, username_message = validate_username(username)
+        if not is_valid_username:
+            flash(username_message, 'danger')
+            return render_template('register.html')
+            
+        # Enhanced validation for email
+        is_valid_email, email_message = validate_email_address(email)
+        if not is_valid_email:
+            flash(f'Invalid email: {email_message}', 'danger')
+            return render_template('register.html')
+        else:
+            # Use normalized email
+            email = email_message
+            
+        # Enhanced validation for password strength
+        is_strong_password, password_message = validate_password_strength(password)
+        if not is_strong_password:
+            flash(password_message, 'danger')
+            return render_template('register.html')
+        
         # Check if username or email already exists
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
@@ -155,7 +177,15 @@ def login():
                 flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
                 return render_template('login.html')
             
+            # Clear session before login to prevent session fixation
+            session.clear()
+            
+            # Login user with Flask-Login
             login_user(user, remember=remember)
+            
+            # Set session as permanent to respect the configured lifetime
+            session.permanent = True
+            
             next_page = request.args.get('next')
             if next_page:
                 return redirect(next_page)
@@ -189,6 +219,24 @@ def promote_to_admin():
         if admin_code == "tracetracksecret":
             current_user.role = UserRole.ADMIN.value
             db.session.commit()
+            
+            # Regenerate session on privilege change to prevent session fixation
+            # Store any important session data that needs to be preserved
+            preserved_data = {}
+            for key in ['current_location_id']:
+                if key in session:
+                    preserved_data[key] = session[key]
+                    
+            # Clear the session and generate a new session ID
+            session.clear()
+            # Flask uses a new session ID automatically when cleared
+
+            # Restore preserved data
+            for key, value in preserved_data.items():
+                session[key] = value
+                
+            login_user(current_user)  # Re-login the user with the new privileges
+            
             flash('You have been promoted to administrator!', 'success')
             return redirect(url_for('index'))
         else:

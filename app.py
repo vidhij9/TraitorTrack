@@ -29,6 +29,15 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # Needed for url_for to generate with https
 
+# Configure secure session
+app.config.update(
+    SESSION_COOKIE_SECURE=True,            # Only send cookies over HTTPS
+    SESSION_COOKIE_HTTPONLY=True,          # Prevent JavaScript access to session cookie
+    SESSION_COOKIE_SAMESITE='Lax',         # Restrict cookie sending to same-site requests
+    PERMANENT_SESSION_LIFETIME=1800,       # Session timeout after 30 minutes
+    SESSION_REFRESH_EACH_REQUEST=True      # Update session with each request
+)
+
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
 
