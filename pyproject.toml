@@ -18,4 +18,7 @@ dependencies = [
     "pyjwt>=2.10.1",
     "flask-dance>=7.1.0",
     "gevent>=25.5.1",
+    "flask-wtf>=1.2.2",
+    "requests>=2.32.3",
+    "flask-limiter>=3.12",
 ]
