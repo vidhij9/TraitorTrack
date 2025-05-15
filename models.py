@@ -30,7 +30,15 @@ class User(UserMixin, db.Model):
         
     def check_password(self, password):
         """Check password against stored hash"""
-        return check_password_hash(self.password_hash, password)
+        if not self.password_hash:
+            return False
+            
+        try:
+            return check_password_hash(self.password_hash, password)
+        except Exception as e:
+            import logging
+            logging.error(f"Password check error: {str(e)}")
+            return False
     
     def is_admin(self):
         """Check if user is an admin"""

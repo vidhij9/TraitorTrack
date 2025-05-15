@@ -35,6 +35,7 @@ def index():
 def login():
     """User login page with rate limiting and account lockout to prevent brute force attacks"""
     from forms import LoginForm
+    import traceback
     
     # If user is already logged in, redirect to homepage
     if current_user.is_authenticated:
@@ -42,69 +43,95 @@ def login():
     
     form = LoginForm()
     
-    # Handle login attempts
-    if form.validate_on_submit():
-        username = form.username.data
-        password = form.password.data
-        remember = form.remember.data
-        
-        logging.debug(f"Login attempt for username: {username}")
-        
-        # Check if the account is locked
-        is_locked, remaining_time = is_account_locked(username)
-        if is_locked:
-            flash(f'Account temporarily locked. Try again in {remaining_time} seconds.', 'danger')
-            return render_template('login.html', form=form, login_attempts={'is_locked': True, 'lockout_time': remaining_time})
-        
-        # Find the user
-        user = User.query.filter_by(username=username).first()
-        
-        # Handle non-existent user
-        if not user:
-            flash('Invalid username or password.', 'danger')
-            return render_template('login.html', form=form)
-        
-        # Verify password
-        if not user.check_password(password):
-            # Record failed login attempt
-            is_locked, attempts, lockout_time = record_failed_attempt(username)
+    try:
+        # Handle login attempts
+        if form.validate_on_submit():
+            username = form.username.data
+            password = form.password.data
+            remember = form.remember.data
             
-            if is_locked:
-                flash(f'Account locked due to too many failed attempts. Try again in {lockout_time}.', 'danger')
-                login_attempts = {'is_locked': True, 'lockout_time': lockout_time}
-            else:
-                flash(f'Invalid username or password. {attempts} attempts remaining before lockout.', 'danger')
-                login_attempts = {'attempts_remaining': attempts}
+            logging.debug(f"Login attempt for username: {username}")
             
-            return render_template('login.html', form=form, login_attempts=login_attempts)
-        
-        # Check verification status
-        if not user.verified:
-            flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
-            return render_template('login.html', form=form)
-        
-        # Login successful
-        
-        # Reset failed attempts on successful login
-        reset_failed_attempts(username)
-        
-        # Clear session before login to prevent session fixation
-        session.clear()
-        
-        # Login user with Flask-Login
-        login_user(user, remember=remember)
-        
-        # Set session as permanent to respect the configured lifetime
-        session.permanent = True
-        
-        # Track login activity
-        track_login_activity(user.id, success=True)
-        
-        # Redirect to appropriate page
-        next_page = request.args.get('next')
-        if next_page:
-            return redirect(next_page)
-        return redirect(url_for('index'))
+            try:
+                # Check if the account is locked
+                is_locked, remaining_time = is_account_locked(username)
+                if is_locked:
+                    flash(f'Account temporarily locked. Try again in {remaining_time} seconds.', 'danger')
+                    return render_template('login.html', form=form, login_attempts={'is_locked': True, 'lockout_time': remaining_time})
+            except Exception as e:
+                logging.error(f"Error checking account lock: {str(e)}")
+                logging.error(traceback.format_exc())
+            
+            try:
+                # Find the user
+                user = User.query.filter_by(username=username).first()
+                
+                # Handle non-existent user
+                if not user:
+                    flash('Invalid username or password.', 'danger')
+                    return render_template('login.html', form=form)
+            except Exception as e:
+                logging.error(f"Error finding user: {str(e)}")
+                logging.error(traceback.format_exc())
+            
+            try:
+                # Verify password
+                if not user.check_password(password):
+                    # Record failed login attempt
+                    is_locked, attempts, lockout_time = record_failed_attempt(username)
+                    
+                    if is_locked:
+                        flash(f'Account locked due to too many failed attempts. Try again in {lockout_time}.', 'danger')
+                        login_attempts = {'is_locked': True, 'lockout_time': lockout_time}
+                    else:
+                        flash(f'Invalid username or password. {attempts} attempts remaining before lockout.', 'danger')
+                        login_attempts = {'attempts_remaining': attempts}
+                    
+                    return render_template('login.html', form=form, login_attempts=login_attempts)
+            except Exception as e:
+                logging.error(f"Error verifying password: {str(e)}")
+                logging.error(traceback.format_exc())
+            
+            try:
+                # Check verification status
+                if not user.verified:
+                    flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
+                    return render_template('login.html', form=form)
+            except Exception as e:
+                logging.error(f"Error checking verification: {str(e)}")
+                logging.error(traceback.format_exc())
+            
+            try:
+                # Login successful
+                
+                # Reset failed attempts on successful login
+                reset_failed_attempts(username)
+                
+                # Clear session before login to prevent session fixation
+                session.clear()
+                
+                # Login user with Flask-Login
+                login_user(user, remember=remember)
+                
+                # Set session as permanent to respect the configured lifetime
+                session.permanent = True
+                
+                # Track login activity
+                track_login_activity(user.id, success=True)
+                
+                # Redirect to appropriate page
+                next_page = request.args.get('next')
+                if next_page:
+                    return redirect(next_page)
+                return redirect(url_for('index'))
+            except Exception as e:
+                logging.error(f"Error during login process: {str(e)}")
+                logging.error(traceback.format_exc())
+                flash('An error occurred during login. Please try again.', 'danger')
+    except Exception as e:
+        logging.error(f"Uncaught exception in login route: {str(e)}")
+        logging.error(traceback.format_exc())
+        flash('An unexpected error occurred. Please try again later.', 'danger')
     
     return render_template('login.html', form=form)
 
