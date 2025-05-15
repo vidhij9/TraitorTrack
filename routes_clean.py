@@ -274,9 +274,7 @@ def process_parent_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'No QR code provided'})
     
-    # Validate parent bag QR code format (e.g., P123-10)
-    if not re.match(r'^P\d+-\d+$', qr_code):
-        return jsonify({'success': False, 'message': 'Invalid parent bag QR format. Expected format: P123-10'})
+    # Accept any QR code format - no validation required\    qr_code = qr_code.strip()
     
     # Look up or create the parent bag
     parent_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.PARENT.value).first()
@@ -503,9 +501,7 @@ def process_bill_parent_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'No QR code provided'})
     
-    # Validate parent bag QR code format (e.g., P123-10)
-    if not re.match(r'^P\d+-\d+$', qr_code):
-        return jsonify({'success': False, 'message': 'Invalid parent bag QR format. Expected format: P123-10'})
+    # Accept any QR code format - no validation required\    qr_code = qr_code.strip()
     
     # Look up or create the parent bag
     parent_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.PARENT.value).first()
@@ -581,9 +577,7 @@ def child_lookup():
             flash('Please enter a child bag QR code', 'warning')
             return render_template('child_lookup.html')
         
-        # Validate child bag QR code format (e.g., C123)
-        if not re.match(r'^C\d+$', qr_code):
-            flash('Invalid child bag QR format. Expected format: C123', 'danger')
+        # Accept any QR code format - no validation required\        qr_code = qr_code.strip()
             return render_template('child_lookup.html')
         
         # Look up the child bag
