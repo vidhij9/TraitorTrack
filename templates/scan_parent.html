@@ -1,152 +1,72 @@
 {% extends "layout.html" %}
 
-{% block title %} - Scan Parent Bag{% endblock %}
+{% block title %}Scan Parent Bag{% endblock %}
 
 {% block head %}
-<!-- Use jsQR library instead -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<style>
-    #canvas, #video {
-        width: 100%;
-        max-width: 500px;
-        margin: 0 auto;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    
-    #video {
-        display: none;
-    }
-    
-    #canvas {
-        background-color: #333;
-        border: 2px solid #007bff;
-    }
-    
-    #scan-result {
-        display: none;
-    }
-    
-    .scan-icon {
-        font-size: 50px;
-        margin-bottom: 20px;
-    }
-    
-    .scanning-indicator {
-        animation: pulse 1.5s infinite;
-        display: none;
-        margin-top: 10px;
-        text-align: center;
-        color: #007bff;
-    }
-    
-    @keyframes pulse {
-        0% { opacity: 0.5; }
-        50% { opacity: 1; }
-        100% { opacity: 0.5; }
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
-        <div class="card bg-dark mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h3 class="mb-0"><i class="fas fa-box me-2"></i>Scan Parent Bag</h3>
-                <span class="badge bg-info">Location: {{ location.name }}</span>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6 mb-4">
-                        <div class="text-center mb-4">
-                            <div class="scan-icon text-primary">
-                                <i class="fas fa-qrcode"></i>
-                            </div>
-                            <h4>Step 2: Scan Parent Bag</h4>
-                            <p class="text-muted">Position the QR code of the parent bag within the scanner</p>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <video id="video" playsinline></video>
-                            <canvas id="canvas"></canvas>
-                            <div class="scanning-indicator" id="scanning-indicator">
-                                <i class="fas fa-camera"></i> Scanning...
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex justify-content-center mb-3">
-                            <button class="btn btn-primary me-2" id="start-scanner">
-                                <i class="fas fa-play me-2"></i>Start Scanner
-                            </button>
-                            <button class="btn btn-secondary" id="stop-scanner">
-                                <i class="fas fa-stop me-2"></i>Stop Scanner
-                            </button>
-                        </div>
-                        
-                        <div class="alert alert-info">
-                            <div class="d-flex">
-                                <div class="me-3">
-                                    <i class="fas fa-info-circle fa-lg"></i>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark text-light border-success mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-barcode me-2"></i>Scan Parent Bag</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i> Please scan a parent bag QR code (format: P123-10)
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8 mx-auto">
+                            <div class="qr-scanner-container">
+                                <video id="qr-video" class="w-100 rounded"></video>
+                                <div class="qr-scanner-overlay">
+                                    <div class="qr-scanner-target">
+                                        <div class="qr-scanner-line"></div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h5 class="alert-heading">Scanner Tips</h5>
-                                    <ul class="mb-0">
-                                        <li>Ensure the QR code is well-lit</li>
-                                        <li>Hold the camera steady</li>
-                                        <li>Position the entire QR code in the scanner</li>
-                                    </ul>
+                                <canvas id="qr-canvas" style="display: none;"></canvas>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mt-3">
+                                <button id="switch-camera-btn" class="btn btn-outline-light">
+                                    <i class="fas fa-sync-alt me-2"></i>Switch Camera
+                                </button>
+                                <button id="pause-scan-btn" class="btn btn-outline-success">
+                                    <i class="fas fa-pause me-2"></i>Pause
+                                </button>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-keyboard"></i></span>
+                                    <input type="text" id="manual-input" class="form-control" placeholder="Manually enter QR code (e.g. P123-10)">
+                                    <button id="manual-submit-btn" class="btn btn-success">Submit</button>
                                 </div>
+                                <div class="form-text text-muted">If scanning doesn't work, you can manually enter the QR code here.</div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-md-6">
-                        <div id="scan-form">
-                            <h4 class="mb-3">Parent Bag Details</h4>
-                            <p class="text-muted">Enter the QR code manually if scanning doesn't work</p>
-                            
-                            <form action="{{ url_for('process_parent_scan') }}" method="post">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <div class="mb-3">
-                                    <label for="qr_id" class="form-label">Parent Bag QR Code</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">
-                                            <i class="fas fa-qrcode"></i>
-                                        </span>
-                                        <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="QR ID (scanned or enter manually)" required>
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="notes" class="form-label">Notes (Optional)</label>
-                                    <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Optional notes about this parent bag"></textarea>
-                                </div>
-                                
-                                <div class="d-grid gap-2">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save me-2"></i>Continue to Child Bags
-                                    </button>
-                                </div>
-                            </form>
+                    <div id="result-container" class="mt-4 d-none">
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully</h5>
+                            <p id="result-message" class="mb-0"></p>
                         </div>
                         
-                        <div id="scan-result" class="mt-4">
-                            <div class="alert alert-success mb-4">
-                                <h4 class="alert-heading"><i class="fas fa-check-circle me-2"></i>QR Code Detected!</h4>
-                                <p>Parent Bag QR Code: <strong id="result-qrid"></strong></p>
-                                <p class="mb-0">Complete the form above to continue.</p>
-                            </div>
+                        <div class="d-grid gap-2 col-md-6 mx-auto mt-3">
+                            <a id="scan-child-btn" href="{{ url_for('scan_child') }}" class="btn btn-lg btn-success">
+                                <i class="fas fa-qrcode me-2"></i>Scan Child Bags
+                            </a>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="text-center my-4">
-            <p>After scanning the parent bag, you'll proceed to scan the child bags.</p>
-            <div class="progress mt-3">
-                <div class="progress-bar bg-primary" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">Step 2 of 4</div>
+                <div class="card-footer text-center">
+                    <a href="{{ url_for('index') }}" class="text-success"><i class="fas fa-home me-2"></i>Back to Dashboard</a>
+                </div>
             </div>
         </div>
     </div>
@@ -155,148 +75,178 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM loaded, initializing basic QR scanner");
-    
-    // DOM elements
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const scanningIndicator = document.getElementById('scanning-indicator');
-    const qrIdInput = document.getElementById('qr_id');
-    const scanResultDiv = document.getElementById('scan-result');
-    const resultQrId = document.getElementById('result-qrid');
-    const startScannerBtn = document.getElementById('start-scanner');
-    const stopScannerBtn = document.getElementById('stop-scanner');
-    
-    // Scanner state
-    let isScanning = false;
-    let scanInterval = null;
-    let stream = null;
-    
-    // Set canvas size once
-    canvas.width = 320;
-    canvas.height = 240;
-    
-    // Event listeners
-    startScannerBtn.addEventListener('click', startScanner);
-    stopScannerBtn.addEventListener('click', stopScanner);
-    
-    // Initialize button states
-    stopScannerBtn.disabled = true;
-    
-    // Scanner functions
-    async function startScanner() {
-        console.log("Starting scanner...");
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('qr-video');
+        const canvas = document.getElementById('qr-canvas');
+        const ctx = canvas.getContext('2d');
+        const switchCameraBtn = document.getElementById('switch-camera-btn');
+        const pauseScanBtn = document.getElementById('pause-scan-btn');
+        const manualInput = document.getElementById('manual-input');
+        const manualSubmitBtn = document.getElementById('manual-submit-btn');
+        const resultContainer = document.getElementById('result-container');
+        const resultMessage = document.getElementById('result-message');
         
-        if (isScanning) {
-            console.log("Scanner already running");
-            return;
-        }
+        let currentStream;
+        let scanning = true;
+        let canvasWidth = 0;
+        let canvasHeight = 0;
+        let usingFrontCamera = false;
         
-        try {
-            // Request camera access
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 320 },
-                    height: { ideal: 240 }
-                },
-                audio: false
-            });
-            
-            // Show scanning indicator and update buttons
-            scanningIndicator.style.display = 'block';
-            startScannerBtn.disabled = true;
-            startScannerBtn.innerText = "Scanner Running";
-            stopScannerBtn.disabled = false;
-            
-            // Connect stream to video element
-            video.srcObject = stream;
-            await video.play();
-            
-            // Start scanning
-            isScanning = true;
-            scanInterval = setInterval(scanFrame, 200); // Scan every 200ms
-            
-            console.log("Scanner started successfully");
-        } catch (error) {
-            console.error("Error starting scanner:", error);
-            alert("Could not start scanner. " + error.message + 
-                  "\nPlease make sure you've granted camera permissions.");
-        }
-    }
-    
-    function stopScanner() {
-        console.log("Stopping scanner...");
-        
-        // Clear scanning interval
-        if (scanInterval) {
-            clearInterval(scanInterval);
-            scanInterval = null;
-        }
-        
-        // Stop camera stream
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-        }
-        
-        // Reset video
-        if (video.srcObject) {
-            video.srcObject = null;
-        }
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Hide scanning indicator and update buttons
-        scanningIndicator.style.display = 'none';
-        startScannerBtn.disabled = false;
-        startScannerBtn.innerText = "Start Scanner";
-        stopScannerBtn.disabled = true;
-        
-        isScanning = false;
-        console.log("Scanner stopped");
-    }
-    
-    function scanFrame() {
-        if (!isScanning || !video.videoWidth) return;
-        
-        // Draw video frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Get image data for QR code scanning
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        try {
-            // Try to find a QR code in the image
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "dontInvert",
-            });
-            
-            if (code) {
-                console.log("QR code found:", code.data);
-                handleSuccessfulScan(code.data);
+        // Initialize camera
+        function initCamera(useBackCamera = true) {
+            if (currentStream) {
+                stopCamera();
             }
-        } catch (error) {
-            console.error("Error processing QR code:", error);
+            
+            usingFrontCamera = !useBackCamera;
+            
+            // Set constraints based on camera choice
+            const constraints = {
+                video: {
+                    facingMode: useBackCamera ? 'environment' : 'user',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+            
+            // Start video stream
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(function(stream) {
+                    currentStream = stream;
+                    video.srcObject = stream;
+                    video.setAttribute('playsinline', true);
+                    video.play();
+                    requestAnimationFrame(scanQRCode);
+                    
+                    // Update canvas size after video loads
+                    video.onloadedmetadata = function() {
+                        canvasWidth = video.videoWidth;
+                        canvasHeight = video.videoHeight;
+                        canvas.width = canvasWidth;
+                        canvas.height = canvasHeight;
+                    };
+                })
+                .catch(function(err) {
+                    console.error('Camera error:', err);
+                    alert('Could not access the camera. Please ensure you have granted camera permissions or try entering the QR code manually.');
+                });
         }
-    }
-    
-    function handleSuccessfulScan(qrData) {
-        // Stop scanner after successful scan
-        stopScanner();
         
-        // Set the QR ID in the form input
-        qrIdInput.value = qrData;
+        // Stop camera
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
         
-        // Show scan result
-        resultQrId.textContent = qrData;
-        scanResultDiv.style.display = 'block';
+        // Toggle scanning pause
+        function togglePause() {
+            scanning = !scanning;
+            pauseScanBtn.innerHTML = scanning ? 
+                '<i class="fas fa-pause me-2"></i>Pause' : 
+                '<i class="fas fa-play me-2"></i>Resume';
+        }
         
-        console.log("QR code processed successfully");
-    }
-});
+        // Process scanned QR code
+        function processQRCode(qrCode) {
+            // Stop scanning once we find a valid code
+            scanning = false;
+            pauseScanBtn.innerHTML = '<i class="fas fa-play me-2"></i>Resume';
+            
+            // Process through API
+            const formData = new FormData();
+            formData.append('qr_code', qrCode);
+            
+            fetch("{{ url_for('process_parent_scan') }}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultMessage.textContent = data.message;
+                    resultContainer.classList.remove('d-none');
+                    window.scrollTo(0, document.body.scrollHeight);
+                } else {
+                    alert('Error: ' + data.message);
+                    scanning = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error processing QR code:', error);
+                alert('Error processing QR code. Please try again.');
+                scanning = true;
+            });
+        }
+        
+        // Scan for QR code in video
+        function scanQRCode() {
+            if (scanning && currentStream) {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    // Draw video frame to canvas
+                    ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+                    
+                    // Get image data for processing
+                    const imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+                    
+                    // Process with jsQR
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "dontInvert",
+                    });
+                    
+                    if (code && code.data) {
+                        console.log("QR Code detected:", code.data);
+                        
+                        // Check if it's a valid parent bag QR code
+                        const parentBagRegex = /^P\d+-\d+$/;
+                        if (parentBagRegex.test(code.data)) {
+                            processQRCode(code.data);
+                        }
+                    }
+                }
+                
+                // Continue scanning
+                requestAnimationFrame(scanQRCode);
+            }
+        }
+        
+        // Manual QR code input
+        manualSubmitBtn.addEventListener('click', function() {
+            const manualCode = manualInput.value.trim();
+            if (manualCode) {
+                processQRCode(manualCode);
+            } else {
+                alert('Please enter a valid QR code.');
+            }
+        });
+        
+        // Also allow pressing Enter on input
+        manualInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const manualCode = manualInput.value.trim();
+                if (manualCode) {
+                    processQRCode(manualCode);
+                }
+            }
+        });
+        
+        // Switch camera button
+        switchCameraBtn.addEventListener('click', function() {
+            initCamera(!usingFrontCamera);
+        });
+        
+        // Pause/resume button
+        pauseScanBtn.addEventListener('click', togglePause);
+        
+        // Initialize with back camera by default
+        initCamera(true);
+        
+        // Cleanup on page leave
+        window.addEventListener('beforeunload', stopCamera);
+    });
 </script>
 {% endblock %}

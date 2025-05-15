@@ -1,79 +1,55 @@
 {% extends "layout.html" %}
 
-{% block title %} - Select Location{% endblock %}
+{% block title %}Select Location{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card bg-dark mb-4">
-            <div class="card-header">
-                <h3 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>Select Location</h3>
-            </div>
-            <div class="card-body">
-                <div class="text-center mb-4">
-                    <div class="display-1 text-primary mb-3">
-                        <i class="fas fa-map-marker-alt"></i>
-                    </div>
-                    <h4>Step 1: Select a Location</h4>
-                    <p class="text-muted">Choose the current location where you're scanning bags</p>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark text-light border-success mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-map-marker-alt me-2"></i>Select Location</h5>
                 </div>
-                
-                <form action="{{ url_for('select_location') }}" method="post">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <div class="mb-4">
-                        <label for="location_id" class="form-label">Select Location</label>
-                        <select class="form-select form-select-lg" id="location_id" name="location_id" required>
-                            <option value="" selected disabled>-- Select a location --</option>
-                            {% for location in locations %}
-                            <option value="{{ location.id }}">{{ location.name }} {% if location.address %}({{ location.address }}){% endif %}</option>
-                            {% endfor %}
-                        </select>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i> Please select a location for scanning operations
                     </div>
                     
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-arrow-right me-2"></i>Continue to Scan Parent Bag
-                        </button>
-                    </div>
-                </form>
-                
-                <div class="text-center mt-4">
-                    <p class="mb-2">Don't see your location?</p>
-                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newLocationForm">
-                        <i class="fas fa-plus me-2"></i>Add New Location
-                    </button>
-                </div>
-                
-                <div class="collapse mt-4" id="newLocationForm">
-                    <div class="card border-primary">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">Add New Location</h5>
-                        </div>
-                        <div class="card-body">
-                            <form action="{{ url_for('locations') }}" method="post">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <div class="mb-3">
-                                    <label for="location_name" class="form-label">Location Name</label>
-                                    <input type="text" class="form-control" id="location_name" name="location_name" required>
+                    <form method="POST" action="{{ url_for('select_location') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" id="location_id" name="location_id" value="">
+                        
+                        <div class="row row-cols-1 row-cols-md-3 g-4 mb-4">
+                            {% if locations %}
+                                {% for location in locations %}
+                                <div class="col">
+                                    <div class="card location-card h-100 bg-dark border-secondary" data-location-id="{{ location.id }}">
+                                        <div class="card-body text-center">
+                                            <h5 class="card-title">{{ location.name }}</h5>
+                                            <p class="card-text text-muted">{{ location.description }}</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="location_address" class="form-label">Address (Optional)</label>
-                                    <input type="text" class="form-control" id="location_address" name="location_address">
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-12">
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-circle me-2"></i> No locations found. Please contact an administrator.
+                                    </div>
                                 </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>Save Location
-                                </button>
-                            </form>
+                            {% endif %}
                         </div>
-                    </div>
+                        
+                        <div class="d-grid gap-2 col-md-6 mx-auto">
+                            <button type="submit" id="select_location_btn" class="btn btn-lg btn-success" disabled>
+                                <i class="fas fa-check-circle me-2"></i>Select Location
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            </div>
-        </div>
-        
-        <div class="text-center my-4">
-            <p>After selecting a location, you'll scan the parent bag first, followed by its child bags.</p>
-            <div class="progress mt-3">
-                <div class="progress-bar bg-primary" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">Step 1 of 4</div>
+                <div class="card-footer text-center">
+                    <a href="{{ url_for('index') }}" class="text-success"><i class="fas fa-home me-2"></i>Back to Dashboard</a>
+                </div>
             </div>
         </div>
     </div>

@@ -1,144 +1,136 @@
-/**
- * TraceTrack Application JS
- * Core functionality for the TraceTrack application
- * Optimized for high-performance and multiple concurrent users
- */
+// TraceTrack Application JavaScript
 
-// Use strict mode for better error checking and performance
-'use strict';
-
-// Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl, {
-            delay: { show: 500, hide: 100 }
-        });
-    });
-
-    // Initialize all popovers
-    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    popoverTriggerList.map(function (popoverTriggerEl) {
-        return new bootstrap.Popover(popoverTriggerEl, {
-            trigger: 'hover focus'
-        });
-    });
-    
-    // Setup flash message auto-dismiss after 5 seconds
-    const flashMessages = document.querySelectorAll('.alert');
-    flashMessages.forEach(function(alert) {
-        setTimeout(function() {
+    // Auto dismiss alerts after 5 seconds
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
             const bsAlert = new bootstrap.Alert(alert);
             bsAlert.close();
-        }, 5000);
-    });
-    
-    // Activate form validation styles
-    const forms = document.querySelectorAll('.needs-validation');
-    Array.from(forms).forEach(form => {
-        form.addEventListener('submit', event => {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            form.classList.add('was-validated');
-        }, false);
-    });
-    
-    // Add event listener for bill search modal
-    setupBillSearchModal();
-    
-    // Setup any QR code scanners on the page
-    setupQRScanners();
-    
-    // Setup any data tables on the page
-    setupDataTables();
-});
-
-/**
- * Setup the bill search modal functionality
- */
-function setupBillSearchModal() {
-    const searchBillBtn = document.getElementById('searchBillBtn');
-    const billIdInput = document.getElementById('billIdSearch');
-    const searchBillForm = document.getElementById('searchBillForm');
-    
-    if (searchBillBtn && billIdInput && searchBillForm) {
-        searchBillBtn.addEventListener('click', function() {
-            if (billIdInput.value.trim() !== '') {
-                const billId = billIdInput.value.trim();
-                const action = searchBillForm.action.replace('PLACEHOLDER', encodeURIComponent(billId));
-                window.location.href = action;
-            }
         });
+    }, 5000);
+
+    // Location selection functionality
+    const locationCards = document.querySelectorAll('.location-card');
+    if (locationCards.length > 0) {
+        locationCards.forEach(function(card) {
+            card.addEventListener('click', function() {
+                // Remove selected class from all cards
+                locationCards.forEach(c => c.classList.remove('selected'));
+                
+                // Add selected class to clicked card
+                this.classList.add('selected');
+                
+                // Set the location ID in the hidden input
+                const locationId = this.dataset.locationId;
+                document.getElementById('location_id').value = locationId;
+                
+                // Enable the submit button
+                document.getElementById('select_location_btn').removeAttribute('disabled');
+            });
+        });
+    }
+
+    // Progress circles update for child bag scanning
+    const updateProgressCircles = function(scannedCount, expectedCount) {
+        const progressCirclesContainer = document.getElementById('progress_circles');
+        if (!progressCirclesContainer) return;
         
-        billIdInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                searchBillBtn.click();
-            }
+        // Clear existing circles
+        progressCirclesContainer.innerHTML = '';
+        
+        // Create new circles
+        for (let i = 1; i <= expectedCount; i++) {
+            const circle = document.createElement('div');
+            circle.className = 'progress-circle' + (i <= scannedCount ? ' completed' : '');
+            circle.textContent = i;
+            progressCirclesContainer.appendChild(circle);
+        }
+        
+        // Update progress text
+        const progressText = document.getElementById('progress_text');
+        if (progressText) {
+            progressText.textContent = `${scannedCount} of ${expectedCount} bags scanned`;
+        }
+        
+        // Enable finish button if all scanned
+        const finishButton = document.getElementById('finish_scanning_btn');
+        if (finishButton && scannedCount >= expectedCount) {
+            finishButton.classList.remove('disabled');
+            finishButton.setAttribute('href', finishButton.dataset.href);
+        }
+    };
+
+    // Expose function globally for use in inline scripts
+    window.updateProgressCircles = updateProgressCircles;
+    
+    // Toast notifications
+    const showToast = function(message, type = 'success') {
+        const toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            // Create toast container if it doesn't exist
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+        }
+        
+        // Create toast element
+        const toastEl = document.createElement('div');
+        toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+        toastEl.setAttribute('role', 'alert');
+        toastEl.setAttribute('aria-live', 'assertive');
+        toastEl.setAttribute('aria-atomic', 'true');
+        
+        // Create toast content
+        toastEl.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Append to container
+        document.getElementById('toast-container').appendChild(toastEl);
+        
+        // Initialize and show toast
+        const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+        toast.show();
+        
+        // Remove after hiding
+        toastEl.addEventListener('hidden.bs.toast', function() {
+            toastEl.remove();
+        });
+    };
+    
+    // Expose toast function globally
+    window.showToast = showToast;
+    
+    // Form validation enhancement
+    const forms = document.querySelectorAll('.needs-validation');
+    if (forms.length > 0) {
+        Array.from(forms).forEach(form => {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
         });
     }
-}
-
-/**
- * Setup QR code scanners if present on the page
- */
-function setupQRScanners() {
-    // This function will be populated when the QR scanner is needed
-    // It's a placeholder for now to maintain structure
-}
-
-/**
- * Setup data tables for any table with the 'data-table' class
- */
-function setupDataTables() {
-    const tables = document.querySelectorAll('table.data-table');
-    if (tables.length === 0) return;
     
-    // This function would be populated when DataTables.js is loaded
-    // It's a placeholder for now
-}
-
-/**
- * Format date objects or ISO strings to a human-readable format
- * @param {Date|string} date - Date object or ISO string
- * @param {boolean} includeTime - Whether to include the time
- * @returns {string} Formatted date string
- */
-function formatDate(date, includeTime = true) {
-    if (!date) return '';
-    
-    if (typeof date === 'string') {
-        date = new Date(date);
+    // Confirm dialogs for dangerous actions
+    const confirmButtons = document.querySelectorAll('[data-confirm]');
+    if (confirmButtons.length > 0) {
+        confirmButtons.forEach(button => {
+            button.addEventListener('click', event => {
+                if (!confirm(button.dataset.confirm)) {
+                    event.preventDefault();
+                }
+            });
+        });
     }
-    
-    const options = {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    };
-    
-    if (includeTime) {
-        options.hour = '2-digit';
-        options.minute = '2-digit';
-    }
-    
-    return date.toLocaleDateString(undefined, options);
-}
-
-/**
- * Debounce function to limit how often a function can be called
- * Useful for search inputs and window resize events
- * @param {Function} func - The function to debounce
- * @param {number} wait - The time to wait in milliseconds
- * @returns {Function} Debounced function
- */
-function debounce(func, wait = 300) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
+});

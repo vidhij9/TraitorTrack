@@ -1,485 +1,83 @@
 {% extends "layout.html" %}
 
-{% block title %} - Home{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="mb-5 fade-in">
-    <div class="row align-items-center">
-        <div class="col-lg-6 mb-4 mb-lg-0">
-            <div class="position-relative">
-                <h1 class="display-3 fw-bold mb-3" style="line-height: 1.2; letter-spacing: -0.03em;">
-                    Trace Any Product. <br>
-                    <span class="text-success">Anywhere.</span>
-                </h1>
-                <div class="position-absolute top-0 start-0 translate-middle-y" style="z-index: -1; opacity: 0.1;">
-                    <i class="fas fa-leaf fa-8x text-success"></i>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark text-light border-success mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-tachometer-alt me-2"></i>TraceTrack Dashboard</h5>
                 </div>
-            </div>
-            
-            <p class="lead mb-4 text-muted">
-                TraceTrack delivers seamless end-to-end visibility for your agricultural supply chain with advanced QR technology.
-            </p>
-            
-            <div class="d-flex flex-wrap gap-3 mb-4">
-                {% if current_user.is_authenticated %}
-                    {% if current_user.is_admin() %}
-                    <a href="{{ url_for('select_location') }}" class="btn btn-success btn-lg">
-                        <i class="fas fa-qrcode me-2"></i>Start Scanning
-                    </a>
-                    <a href="{{ url_for('parent_bags') }}" class="btn btn-outline-success btn-lg">
-                        <i class="fas fa-boxes me-2"></i>View Batches
-                    </a>
-                    {% else %}
-                    <a href="{{ url_for('select_location') }}" class="btn btn-success btn-lg">
-                        <i class="fas fa-qrcode me-2"></i>Register Bags
-                    </a>
-                    {% endif %}
-                {% else %}
-                <a href="{{ url_for('login') }}" class="btn btn-success btn-lg">
-                    <i class="fas fa-sign-in-alt me-2"></i>Get Started
-                </a>
-                <a href="#features" class="btn btn-outline-success btn-lg">
-                    <i class="fas fa-info-circle me-2"></i>Learn More
-                </a>
-                {% endif %}
-            </div>
-            
-            <div class="d-flex align-items-center">
-                <div class="d-flex align-items-center me-4">
-                    <i class="fas fa-shield-alt text-success me-2"></i>
-                    <span class="small text-muted">Enterprise Security</span>
-                </div>
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-mobile-alt text-success me-2"></i>
-                    <span class="small text-muted">Mobile Ready</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-6">
-            <div class="position-relative">
-                <div class="card bg-dark border border-success p-2 rounded-4 shadow-lg">
-                    <img src="{{ url_for('static', filename='img/qr-tracking.svg') }}" 
-                         alt="QR code tracking" 
-                         class="img-fluid rounded-3" 
-                         style="object-fit: cover; width: 100%;">
-                </div>
-                
-                <div class="position-absolute top-0 end-0 translate-middle bg-success rounded-pill p-3 shadow-lg">
-                    <i class="fas fa-seedling fa-2x text-white"></i>
-                </div>
-                
-                <div class="position-absolute bottom-0 start-0 translate-middle badge bg-dark border border-success shadow-lg p-3 rounded-pill">
-                    <div class="d-flex align-items-center">
-                        <div class="me-2">
-                            <i class="fas fa-chart-line text-success"></i>
-                        </div>
-                        <div class="text-start">
-                            <small class="d-block text-muted">Active Tracking</small>
-                            <span class="fw-bold text-white">{{ total_scans|default('0') }}+ Scans</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="features" class="py-5 my-5">
-    <div class="text-center mb-5">
-        <div class="d-inline-block position-relative mb-3">
-            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill fs-6">
-                <i class="fas fa-star me-1"></i> Premium Features
-            </span>
-        </div>
-        <h2 class="display-5 fw-bold mb-3">Complete Traceability System</h2>
-        <p class="lead mx-auto text-muted" style="max-width: 700px;">
-            Everything you need to trace, track and verify your agricultural product journey
-        </p>
-    </div>
-    
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card h-100 border-0 bg-dark">
-                <div class="card-body p-4">
-                    <div class="feature-icon bg-success bg-opacity-10 mb-4">
-                        <i class="fas fa-qrcode fa-2x text-success"></i>
-                    </div>
-                    <h4 class="card-title fw-bold mb-3">Instant QR Scanning</h4>
-                    <p class="card-text text-muted">Quickly capture QR codes with any device to track agricultural products in real-time with unmatched precision and reliability.</p>
-                    <div class="mt-3">
-                        <a href="#" class="text-success text-decoration-none">
-                            Learn more <i class="fas fa-chevron-right ms-1 small"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 border-0 bg-dark">
-                <div class="card-body p-4">
-                    <div class="feature-icon bg-success bg-opacity-10 mb-4">
-                        <i class="fas fa-sitemap fa-2x text-success"></i>
-                    </div>
-                    <h4 class="card-title fw-bold mb-3">Hierarchical Tracking</h4>
-                    <p class="card-text text-muted">Organize products in hierarchical batches with parent-child relationships for complete visibility throughout your supply chain.</p>
-                    <div class="mt-3">
-                        <a href="#" class="text-success text-decoration-none">
-                            Learn more <i class="fas fa-chevron-right ms-1 small"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 border-0 bg-dark">
-                <div class="card-body p-4">
-                    <div class="feature-icon bg-success bg-opacity-10 mb-4">
-                        <i class="fas fa-map-marker-alt fa-2x text-success"></i>
-                    </div>
-                    <h4 class="card-title fw-bold mb-3">Location Intelligence</h4>
-                    <p class="card-text text-muted">Monitor product movement across farms, warehouses, and distribution centers to maintain comprehensive supply chain records.</p>
-                    <div class="mt-3">
-                        <a href="#" class="text-success text-decoration-none">
-                            Learn more <i class="fas fa-chevron-right ms-1 small"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 border-0 bg-dark">
-                <div class="card-body p-4">
-                    <div class="feature-icon bg-success bg-opacity-10 mb-4">
-                        <i class="fas fa-mobile-alt fa-2x text-success"></i>
-                    </div>
-                    <h4 class="card-title fw-bold mb-3">Mobile Native</h4>
-                    <p class="card-text text-muted">Access all features on mobile devices with a fluid, responsive interface and native Android application for field operations.</p>
-                    <div class="mt-3">
-                        <a href="#" class="text-success text-decoration-none">
-                            Learn more <i class="fas fa-chevron-right ms-1 small"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 border-0 bg-dark">
-                <div class="card-body p-4">
-                    <div class="feature-icon bg-success bg-opacity-10 mb-4">
-                        <i class="fas fa-shield-alt fa-2x text-success"></i>
-                    </div>
-                    <h4 class="card-title fw-bold mb-3">Enterprise Security</h4>
-                    <p class="card-text text-muted">Protect your supply chain data with advanced security features including role-based access control and audit logs.</p>
-                    <div class="mt-3">
-                        <a href="#" class="text-success text-decoration-none">
-                            Learn more <i class="fas fa-chevron-right ms-1 small"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 border-0 bg-dark">
-                <div class="card-body p-4">
-                    <div class="feature-icon bg-success bg-opacity-10 mb-4">
-                        <i class="fas fa-file-invoice fa-2x text-success"></i>
-                    </div>
-                    <h4 class="card-title fw-bold mb-3">Bill Integration</h4>
-                    <p class="card-text text-muted">Link batches to bills and invoices for complete financial tracking and regulatory compliance in agricultural commerce.</p>
-                    <div class="mt-3">
-                        <a href="#" class="text-success text-decoration-none">
-                            Learn more <i class="fas fa-chevron-right ms-1 small"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<section class="py-5 my-4 bg-dark">
-    <div class="container">
-        <div class="row">
-            <div class="col-md-6 d-flex align-items-center">
-                <div>
-                    <div class="d-inline-block bg-success bg-opacity-10 px-3 py-2 rounded-pill mb-3">
-                        <span class="text-success fw-bold"><i class="fas fa-info-circle me-1"></i> Simple Process</span>
-                    </div>
-                    <h2 class="display-5 fw-bold mb-4">How It Works</h2>
-                    <p class="lead mb-5 text-muted">Four simple steps to achieve complete agricultural product traceability</p>
+                <div class="card-body">
+                    <h5 class="text-light">Welcome {{ current_user.username }}</h5>
                     
-                    <div class="timeline">
-                        <div class="step-item d-flex mb-5 position-relative">
-                            <div class="me-4 position-relative">
-                                <div class="step-circle d-flex align-items-center justify-content-center mb-2" 
-                                     style="width: 60px; height: 60px; background-color: rgba(40, 167, 69, 0.1); color: var(--success-color); font-weight: bold; border-radius: 50%; font-size: 1.5rem; border: 2px solid rgba(40, 167, 69, 0.2);">
-                                    <i class="fas fa-map-marker-alt"></i>
+                    <div class="row mt-4">
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 bg-dark border-success">
+                                <div class="card-body text-center">
+                                    <h1 class="display-4 text-success"><i class="fas fa-barcode"></i></h1>
+                                    <h5 class="card-title">Parent-Child Scanning</h5>
+                                    <p class="card-text">Scan and link parent bags to child bags</p>
+                                    <a href="{{ url_for('select_location') }}" class="btn btn-success">Start Scanning</a>
                                 </div>
-                                <div class="step-line position-absolute bg-success bg-opacity-25" style="width: 2px; top: 60px; bottom: -20px; left: 29px;"></div>
-                            </div>
-                            <div>
-                                <h4 class="fw-bold mb-2">Select Location</h4>
-                                <p class="text-muted mb-0">Choose your current facility, farm, or distribution center where the scanning will take place.</p>
                             </div>
                         </div>
                         
-                        <div class="step-item d-flex mb-5 position-relative">
-                            <div class="me-4 position-relative">
-                                <div class="step-circle d-flex align-items-center justify-content-center mb-2" 
-                                     style="width: 60px; height: 60px; background-color: rgba(40, 167, 69, 0.1); color: var(--success-color); font-weight: bold; border-radius: 50%; font-size: 1.5rem; border: 2px solid rgba(40, 167, 69, 0.2);">
-                                    <i class="fas fa-boxes"></i>
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 bg-dark border-success">
+                                <div class="card-body text-center">
+                                    <h1 class="display-4 text-success"><i class="fas fa-file-invoice"></i></h1>
+                                    <h5 class="card-title">Bill Management</h5>
+                                    <p class="card-text">Create and manage bills linked to parent bags</p>
+                                    <a href="#" class="btn btn-success">Manage Bills</a>
                                 </div>
-                                <div class="step-line position-absolute bg-success bg-opacity-25" style="width: 2px; top: 60px; bottom: -20px; left: 29px;"></div>
-                            </div>
-                            <div>
-                                <h4 class="fw-bold mb-2">Scan Parent Batch</h4>
-                                <p class="text-muted mb-0">Scan the parent batch QR code to establish the primary tracking record.</p>
                             </div>
                         </div>
                         
-                        <div class="step-item d-flex mb-5 position-relative">
-                            <div class="me-4 position-relative">
-                                <div class="step-circle d-flex align-items-center justify-content-center mb-2" 
-                                     style="width: 60px; height: 60px; background-color: rgba(40, 167, 69, 0.1); color: var(--success-color); font-weight: bold; border-radius: 50%; font-size: 1.5rem; border: 2px solid rgba(40, 167, 69, 0.2);">
-                                    <i class="fas fa-box"></i>
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 bg-dark border-success">
+                                <div class="card-body text-center">
+                                    <h1 class="display-4 text-success"><i class="fas fa-search"></i></h1>
+                                    <h5 class="card-title">Child Bag Lookup</h5>
+                                    <p class="card-text">Find parent bags linked to a child bag</p>
+                                    <a href="#" class="btn btn-success">Lookup Child Bag</a>
                                 </div>
-                                <div class="step-line position-absolute bg-success bg-opacity-25" style="width: 2px; top: 60px; bottom: -20px; left: 29px;"></div>
-                            </div>
-                            <div>
-                                <h4 class="fw-bold mb-2">Scan Child Packages</h4>
-                                <p class="text-muted mb-0">Link individual product packages to the parent batch with our efficient QR scanning system.</p>
-                            </div>
-                        </div>
-                        
-                        <div class="step-item d-flex">
-                            <div class="me-4">
-                                <div class="step-circle d-flex align-items-center justify-content-center mb-2" 
-                                     style="width: 60px; height: 60px; background-color: rgba(40, 167, 69, 0.2); color: var(--success-color); font-weight: bold; border-radius: 50%; font-size: 1.5rem; border: 2px solid rgba(40, 167, 69, 0.3);">
-                                    <i class="fas fa-check"></i>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="bg-success text-white px-3 py-1 d-inline-block rounded-pill mb-2">
-                                    <small class="fw-bold">FINAL STEP</small>
-                                </div>
-                                <h4 class="fw-bold mb-2">Complete Visibility</h4>
-                                <p class="text-muted mb-0">Access comprehensive tracking data across your entire agricultural supply chain.</p>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card bg-dark-surface border-0 shadow-lg mb-4 overflow-hidden">
-                    <div class="card-body p-0">
-                        <div class="px-4 py-4 border-bottom border-dark">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h3 class="fw-bold mb-0 text-success">
-                                    <i class="fas fa-chart-line me-2"></i> Live Statistics
-                                </h3>
-                                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">
-                                    <i class="fas fa-sync-alt me-1"></i> Real-time
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <div class="row g-0">
-                            <div class="col-6 p-4 border-end border-bottom border-dark">
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3">
-                                        <div class="feature-icon bg-success bg-opacity-10">
-                                            <i class="fas fa-boxes text-success"></i>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="fs-1 fw-bold text-white">{{ total_parent_bags|default('0') }}</div>
-                                        <div class="text-muted">Batches Tracked</div>
-                                    </div>
+                    
+                    {% if is_admin %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card bg-dark border-info">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="card-title mb-0"><i class="fas fa-wrench me-2"></i>Admin Tools</h5>
                                 </div>
-                            </div>
-                            <div class="col-6 p-4 border-bottom border-dark">
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3">
-                                        <div class="feature-icon bg-success bg-opacity-10">
-                                            <i class="fas fa-box text-success"></i>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3 mb-3">
+                                            <a href="#" class="btn btn-info w-100">View Scans</a>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <div class="fs-1 fw-bold text-white">{{ total_child_bags|default('0') }}</div>
-                                        <div class="text-muted">Packages Managed</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-6 p-4 border-end border-dark">
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3">
-                                        <div class="feature-icon bg-success bg-opacity-10">
-                                            <i class="fas fa-qrcode text-success"></i>
+                                        <div class="col-md-3 mb-3">
+                                            <a href="#" class="btn btn-info w-100">Manage Locations</a>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <div class="fs-1 fw-bold text-white">{{ total_scans|default('0') }}</div>
-                                        <div class="text-muted">Total Scans</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-6 p-4">
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3">
-                                        <div class="feature-icon bg-success bg-opacity-10">
-                                            <i class="fas fa-map-marker-alt text-success"></i>
+                                        <div class="col-md-3 mb-3">
+                                            <a href="#" class="btn btn-info w-100">Manage Users</a>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <div class="fs-1 fw-bold text-white">{{ total_locations|default('0') }}</div>
-                                        <div class="text-muted">Active Locations</div>
+                                        <div class="col-md-3 mb-3">
+                                            <a href="#" class="btn btn-info w-100">System Stats</a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="card bg-dark-surface border-0 shadow-lg">
-                    <div class="card-header bg-dark border-bottom border-dark py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h4 class="mb-0 fw-bold text-white">
-                                <i class="fas fa-history me-2 text-success"></i> Recent Activity
-                            </h4>
-                            {% if current_user.is_authenticated and current_user.is_admin() %}
-                            <div class="d-flex gap-2">
-                                <a href="{{ url_for('parent_bags') }}" class="btn btn-sm btn-outline-success">
-                                    <i class="fas fa-boxes me-1"></i> Batches
-                                </a>
-                                <a href="{{ url_for('child_bags') }}" class="btn btn-sm btn-outline-success">
-                                    <i class="fas fa-box me-1"></i> Packages
-                                </a>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        {% if recent_scans %}
-                        <div class="table-responsive">
-                            <table class="table table-dark table-hover mb-0">
-                                <thead>
-                                    <tr>
-                                        <th class="px-4 py-3">QR ID</th>
-                                        <th class="py-3">Type</th>
-                                        <th class="py-3">Location</th>
-                                        <th class="py-3">Time</th>
-                                        {% if current_user.is_authenticated and current_user.is_admin() %}
-                                        <th class="text-end pe-4 py-3">Actions</th>
-                                        {% endif %}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for scan in recent_scans %}
-                                    <tr>
-                                        <td class="px-4 py-3 align-middle">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-tag text-muted me-2"></i>
-                                                <span class="fw-medium">{{ scan.bag_qr }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="py-3 align-middle">
-                                            {% if scan.scan_type == 'parent' %}
-                                            <span class="badge bg-info text-dark">
-                                                <i class="fas fa-boxes me-1"></i> Batch
-                                            </span>
-                                            {% else %}
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-box me-1"></i> Package
-                                            </span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="py-3 align-middle">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-map-marker-alt text-danger me-2"></i>
-                                                {{ scan.location_name }}
-                                            </div>
-                                        </td>
-                                        <td class="py-3 align-middle text-muted">
-                                            <i class="far fa-clock me-1"></i>
-                                            {{ format_datetime(scan.timestamp) }}
-                                        </td>
-                                        <td class="text-end pe-4 py-3 align-middle">
-                                            {% if current_user.is_authenticated and current_user.is_admin() %}
-                                            <a href="{{ url_for('bag_detail', qr_id=scan.bag_qr) }}" 
-                                               class="btn btn-sm btn-success rounded-circle" 
-                                               data-bs-toggle="tooltip" 
-                                               title="View Details">
-                                                <i class="fas fa-chevron-right"></i>
-                                            </a>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <div class="p-5 text-center">
-                            <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-dark mb-3" style="width: 80px; height: 80px;">
-                                <i class="fas fa-inbox fa-2x text-muted"></i>
-                            </div>
-                            <p class="text-muted mb-0">No recent scanning activity</p>
-                            <a href="{{ url_for('select_location') }}" class="btn btn-outline-success mt-3">
-                                <i class="fas fa-qrcode me-2"></i>Start Scanning
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-</section>
-
-<section class="py-5 my-5">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-10">
-                <div class="card border-0" style="background: linear-gradient(135deg, rgba(0, 113, 227, 0.1), rgba(0, 0, 0, 0.2)); backdrop-filter: blur(10px);">
-                    <div class="card-body p-5 text-center">
-                        <h2 class="display-4 fw-bold mb-4">Ready to Start Tracking?</h2>
-                        <p class="lead mb-4 mx-auto" style="max-width: 600px; opacity: 0.8;">
-                            Get complete visibility into your product journey from origin to destination with just a few scans.
-                        </p>
-                        
-                        <div class="d-flex justify-content-center gap-3 mt-4">
-                            {% if current_user.is_authenticated %}
-                                {% if current_user.is_admin() %}
-                                <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg px-4 py-3">
-                                    Start Scanning Now
-                                </a>
-                                <a href="{{ url_for('parent_bags') }}" class="btn btn-outline-primary btn-lg px-4 py-3">
-                                    View All Batches
-                                </a>
-                                {% else %}
-                                <a href="{{ url_for('select_location') }}" class="btn btn-primary btn-lg px-4 py-3">
-                                    Register New Bags
-                                </a>
-                                {% endif %}
-                            {% else %}
-                            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-4 py-3">
-                                Create Account
-                            </a>
-                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg px-4 py-3">
-                                Sign In
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
+</div>
 {% endblock %}

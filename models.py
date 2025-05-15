@@ -2,7 +2,7 @@ import datetime
 import enum
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from app import db
+from app_clean import db
 
 class UserRole(enum.Enum):
     ADMIN = "admin"
@@ -38,161 +38,107 @@ class User(UserMixin, db.Model):
     
     def __repr__(self):
         return f"<User {self.username}>"
-    
-    def to_dict(self):
-        """Convert user to dictionary for API response"""
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-            'role': self.role,
-            'verified': self.verified,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-class Bag(db.Model):
-    """Unified bag model for tracking both parent and child bags"""
-    id = db.Column(db.Integer, primary_key=True)
-    qr_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    name = db.Column(db.String(100))
-    # Add index on type for faster filtering by parent/child
-    type = db.Column(db.String(20), nullable=False, index=True)  # 'parent' or 'child'
-    notes = db.Column(db.Text)
-    child_count = db.Column(db.Integer, default=0)
-    # Add index on parent_id for faster parent-child lookups
-    parent_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True, index=True)
-    linked = db.Column(db.Boolean, default=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
-    
-    # Relationships
-    children = db.relationship('Bag', 
-                              backref=db.backref('parent_bag', remote_side=[id]), 
-                              lazy='dynamic',
-                              foreign_keys='Bag.parent_id')
-    parent_scans = db.relationship('Scan', primaryjoin="Scan.parent_bag_id == Bag.id", backref="parent_bag", lazy='dynamic')
-    child_scans = db.relationship('Scan', primaryjoin="Scan.child_bag_id == Bag.id", backref="child_bag", lazy='dynamic')
-    
-    def __repr__(self):
-        return f"<Bag {self.qr_id} - Type: {self.type}>"
-    
-    @property
-    def scans(self):
-        """Get all scans for this bag, whether as parent or child"""
-        from sqlalchemy import or_
-        return Scan.query.filter(or_(Scan.parent_bag_id == self.id, Scan.child_bag_id == self.id))
-    
-    def to_dict(self, include_children=False):
-        """Convert bag to dictionary for API response"""
-        result = {
-            'id': self.id,
-            'qr_id': self.qr_id,
-            'name': self.name,
-            'type': self.type,
-            'notes': self.notes,
-            'parent_id': self.parent_id,
-            'linked': self.linked,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-        
-        if self.type == BagType.PARENT.value:
-            result['child_count'] = self.child_count
-            if include_children:
-                result['children'] = [child.to_dict() for child in self.children]
-        elif self.type == BagType.CHILD.value and self.parent_bag:
-            result['parent_qr_id'] = self.parent_bag.qr_id
-            
-        return result
-
-class Link(db.Model):
-    """Link model for connecting bags to bills"""
-    id = db.Column(db.Integer, primary_key=True)
-    parent_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=False, unique=True)
-    bill_id = db.Column(db.String(64), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    
-    # Relationships
-    parent_bag = db.relationship('Bag', backref=db.backref('link', uselist=False))
-    
-    def __repr__(self):
-        return f"<Link {self.id} - Bill: {self.bill_id}, Parent: {self.parent_id}>"
-    
-    def to_dict(self):
-        """Convert link to dictionary for API response"""
-        return {
-            'id': self.id,
-            'parent_id': self.parent_id,
-            'parent_qr_id': self.parent_bag.qr_id if self.parent_bag else None,
-            'bill_id': self.bill_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
 
 class Location(db.Model):
-    """Location model for tracking bag movements"""
+    """Location model for tracking where bags are scanned"""
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    address = db.Column(db.String(200))
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    scans = db.relationship('Scan', backref='location', lazy='dynamic')
-    
-    def __repr__(self):
-        return f"<Location {self.name}>"
-    
-    def to_dict(self):
-        """Convert location to dictionary for API response"""
-        return {
-            'id': self.id,
-            'name': self.name,
-            'address': self.address,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-class Scan(db.Model):
-    """Scan model for recording bag scans"""
-    id = db.Column(db.Integer, primary_key=True)
-    # Add indexes for frequently queried relationships
-    parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True, index=True)
-    child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False, index=True)
-    # Add index on timestamp for sorting by time (common operation)
-    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
-    # Add index for filtering by scan type
-    scan_type = db.Column(db.String(20), index=True)  # 'parent' or 'child'
-    notes = db.Column(db.Text)
-    
-    # Add composite index for common queries
+    # Index for faster location lookups, especially during scanning
     __table_args__ = (
-        db.Index('idx_scan_bag_type_time', 'scan_type', 'timestamp'),
+        db.Index('idx_location_name', 'name'),
     )
     
     def __repr__(self):
-        if self.parent_bag_id:
-            return f"<Scan {self.id} - ParentBag {self.parent_bag_id}>"
-        elif self.child_bag_id:
-            return f"<Scan {self.id} - ChildBag {self.child_bag_id}>"
-        return f"<Scan {self.id}>"
+        return f"<Location {self.name}>"
+
+class Bag(db.Model):
+    """Base bag model with common properties"""
+    id = db.Column(db.Integer, primary_key=True)
+    qr_id = db.Column(db.String(20), unique=True, nullable=False)
+    type = db.Column(db.String(10), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    # Indexes for faster bag lookups, especially during high-volume scanning
+    __table_args__ = (
+        db.Index('idx_bag_qr_id', 'qr_id'),
+        db.Index('idx_bag_type', 'type'),
+    )
     
-    def to_dict(self):
-        """Convert scan to dictionary for API response"""
-        bag_id = None
-        bag_qr = None
-        
-        if self.parent_bag_id:
-            bag_id = self.parent_bag_id
-            bag_qr = self.parent_bag.qr_id if self.parent_bag else None
-        elif self.child_bag_id:
-            bag_id = self.child_bag_id
-            bag_qr = self.child_bag.qr_id if self.child_bag else None
-            
-        return {
-            'id': self.id,
-            'bag_id': bag_id,
-            'bag_qr': bag_qr,
-            'scan_type': self.scan_type,
-            'user_id': self.user_id,
-            'username': self.scanned_by.username if self.scanned_by else None,
-            'location_id': self.location_id,
-            'location_name': self.location.name if self.location else None,
-            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
-            'notes': self.notes
-        }
+    def __repr__(self):
+        return f"<Bag {self.qr_id} ({self.type})>"
+
+class Link(db.Model):
+    """Link model for associating parent and child bags"""
+    id = db.Column(db.Integer, primary_key=True)
+    parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
+    child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('child_links', lazy='dynamic', cascade='all, delete-orphan'))
+    child_bag = db.relationship('Bag', foreign_keys=[child_bag_id], backref=db.backref('parent_links', lazy='dynamic', cascade='all, delete-orphan'))
+    # Composite index for faster parent-child relationship lookups
+    __table_args__ = (
+        db.Index('idx_link_parent_child', 'parent_bag_id', 'child_bag_id'),
+        db.UniqueConstraint('parent_bag_id', 'child_bag_id', name='uq_parent_child'),
+    )
+    
+    def __repr__(self):
+        return f"<Link Parent:{self.parent_bag_id} -> Child:{self.child_bag_id}>"
+
+class Bill(db.Model):
+    """Bill model for tracking bills and associated parent bags"""
+    id = db.Column(db.Integer, primary_key=True)
+    bill_id = db.Column(db.String(50), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    # Index for faster bill lookups
+    __table_args__ = (
+        db.Index('idx_bill_id', 'bill_id'),
+    )
+    
+    def __repr__(self):
+        return f"<Bill {self.bill_id}>"
+
+class BillBag(db.Model):
+    """Association model for linking bills to parent bags"""
+    id = db.Column(db.Integer, primary_key=True)
+    bill_id = db.Column(db.Integer, db.ForeignKey('bill.id', ondelete='CASCADE'), nullable=False)
+    bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    bill = db.relationship('Bill', backref=db.backref('bag_links', lazy='dynamic', cascade='all, delete-orphan'))
+    bag = db.relationship('Bag', backref=db.backref('bill_links', lazy='dynamic', cascade='all, delete-orphan'))
+    # Composite index for faster bill-bag relationship lookups
+    __table_args__ = (
+        db.Index('idx_billbag_bill_bag', 'bill_id', 'bag_id'),
+        db.UniqueConstraint('bill_id', 'bag_id', name='uq_bill_bag'),
+    )
+    
+    def __repr__(self):
+        return f"<BillBag Bill:{self.bill_id} -> Bag:{self.bag_id}>"
+
+class Scan(db.Model):
+    """Scan model for tracking all scanning activities"""
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
+    child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Relationships with eager loading for performance
+    parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('parent_scans', lazy='dynamic'))
+    child_bag = db.relationship('Bag', foreign_keys=[child_bag_id], backref=db.backref('child_scans', lazy='dynamic'))
+    
+    # Indexes for optimized scan queries and reporting
+    __table_args__ = (
+        db.Index('idx_scan_timestamp', 'timestamp'),
+        db.Index('idx_scan_parent_bag', 'parent_bag_id'),
+        db.Index('idx_scan_child_bag', 'child_bag_id'),
+        db.Index('idx_scan_location', 'location_id'),
+        db.Index('idx_scan_user', 'user_id'),
+    )
+    
+    # Many to one relationship with User and Location
+    location = db.relationship('Location', backref=db.backref('scans', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f"<Scan ID:{self.id} at {self.timestamp}>"

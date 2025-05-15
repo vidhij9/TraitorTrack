@@ -1,561 +1,209 @@
-/* Custom styling for the TraceTrack app - Modern agriculture-themed design with dark mode */
+/* Custom styles for TraceTrack */
 
+/* Additional dark theme colors and overrides */
 :root {
-    /* Primary Colors */
-    --primary-green: #4CAF50;
-    --primary-light: #81C784;
-    --primary-dark: #388E3C;
-    --accent-color: #FF5722;
-    
-    /* Status Colors */
-    --success-color: #28a745;
-    --warning-color: #ffc107;
-    --danger-color: #dc3545;
-    --info-color: #17a2b8;
-    
-    /* Dark Theme Colors */
-    --dark-bg: #212529;
-    --dark-surface: #2b3035;
-    --dark-surface-elevated: #343a40;  /* Slightly lighter for cards on dark backgrounds */
-    --dark-border: #373b3e;
-    --dark-text: #e9ecef;
-    --dark-text-secondary: #adb5bd;
-    
-    /* Agriculture Theme Colors */
-    --leaf-green: #66BB6A;
-    --earth-brown: #795548;
-    --sunny-yellow: #FFEB3B;
-    --water-blue: #2196F3;
-    
-    /* Component Variables */
-    --card-bg: var(--dark-surface);
-    --card-border: var(--dark-border);
-    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --hover-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+  --tt-green: #28a745;
+  --tt-green-dark: #218838;
+  --tt-blue: #17a2b8;
+  --tt-blue-dark: #138496;
+  --tt-dark: #343a40;
+  --tt-darker: #1d2124;
+  --tt-light: #f8f9fa;
+  --tt-gray: #6c757d;
 }
 
-/* General styles */
-body {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--dark-bg);
-    color: var(--dark-text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.5;
-    /* Subtle Leaf Pattern Background */
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path fill="%23ffffff04" d="M30,10 C35,5 45,5 50,10 C55,15 55,25 50,30 C45,35 35,35 30,30 C25,25 25,15 30,10 Z"/><path fill="%23ffffff04" d="M70,60 C75,55 85,55 90,60 C95,65 95,75 90,80 C85,85 75,85 70,80 C65,75 65,65 70,60 Z"/></svg>');
-    background-repeat: repeat;
-    position: relative;
+/* Override some Bootstrap defaults for dark theme */
+.bg-dark {
+  background-color: var(--tt-dark) !important;
 }
 
-/* Modern navigation - Dark Theme */
-.navbar {
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    padding: 0.7rem 1rem;
-    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+.text-success {
+  color: var(--tt-green) !important;
 }
 
-.navbar-brand {
-    font-weight: 700;
-    letter-spacing: -0.5px;
+/* QR Scanner styles */
+.qr-scanner-container {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
-.nav-link {
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    transition: all 0.2s ease;
+.qr-scanner-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
 }
 
-.nav-link:hover {
-    background-color: rgba(76, 175, 80, 0.1);
+.qr-scanner-target {
+  border: 2px solid var(--tt-green);
+  width: 200px;
+  height: 200px;
+  position: relative;
 }
 
-.nav-link.active {
-    background-color: rgba(76, 175, 80, 0.15);
-    color: var(--primary-green) !important;
+.qr-scanner-target::before,
+.qr-scanner-target::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--tt-green);
 }
 
-/* Avatar styling */
-.avatar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background-color: var(--primary-green);
-    color: white;
-    border-radius: 50%;
-    font-weight: bold;
-    transition: all 0.2s ease;
+.qr-scanner-target::before {
+  top: -2px;
+  left: -2px;
+  border-top: 4px solid;
+  border-left: 4px solid;
 }
 
-/* Card styling - Dark Theme */
+.qr-scanner-target::after {
+  bottom: -2px;
+  right: -2px;
+  border-bottom: 4px solid;
+  border-right: 4px solid;
+}
+
+/* Animation for scanning effect */
+@keyframes scanning {
+  0% {
+    height: 0;
+    opacity: 0.1;
+  }
+  50% {
+    height: 100%;
+    opacity: 0.5;
+  }
+  100% {
+    height: 0;
+    opacity: 0.1;
+  }
+}
+
+.qr-scanner-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: rgba(40, 167, 69, 0.8);
+  animation: scanning 3s infinite;
+}
+
+/* Dashboard cards hover effect */
 .card {
-    background-color: var(--card-bg) !important;
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: var(--card-shadow);
-    transition: all 0.3s ease;
-    margin-bottom: 1.5rem;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--hover-shadow);
-    border-color: var(--primary-green);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
-/* Background Colors */
-.bg-dark-surface {
-    background-color: var(--dark-surface) !important;
+/* Custom buttons */
+.btn-scan {
+  background-color: var(--tt-green);
+  border-color: var(--tt-green);
+  color: white;
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
 }
 
-.bg-dark-elevated {
-    background-color: var(--dark-surface-elevated) !important;
+.btn-scan:hover {
+  background-color: var(--tt-green-dark);
+  border-color: var(--tt-green-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.card-header {
-    background-color: rgba(76, 175, 80, 0.1) !important;
-    border-bottom: 1px solid var(--card-border);
-    color: var(--primary-green);
-    font-weight: 600;
-    padding: 1rem 1.25rem;
+/* Location selection styles */
+.location-card {
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
 }
 
-.card-body {
-    padding: 1.25rem;
+.location-card:hover {
+  border-color: var(--tt-green);
 }
 
-.card-footer {
-    background-color: rgba(76, 175, 80, 0.05) !important;
-    border-top: 1px solid var(--card-border);
-    padding: 1rem 1.25rem;
+.location-card.selected {
+  border-color: var(--tt-green);
+  background-color: rgba(40, 167, 69, 0.1);
 }
 
-/* Feature cards */
-.feature-card {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    text-align: center;
-    padding: 2rem 1.5rem;
+/* Progress indicator for child bag scanning */
+.progress-tracker {
+  background-color: var(--tt-darker);
+  border-radius: 4px;
+  margin: 20px 0;
+  padding: 15px;
 }
 
-.feature-icon {
-    background-color: rgba(76, 175, 80, 0.1);
-    width: 70px;
-    height: 70px;
-    margin: 0 auto 1.5rem auto;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: var(--primary-green);
+.progress-circles {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-/* Button styling - Modern Look */
-.btn {
-    border-radius: 6px;
-    font-weight: 500;
-    padding: 0.5rem 1.25rem;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.progress-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--tt-dark);
+  border: 2px solid var(--tt-gray);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 5px;
+  color: var(--tt-gray);
+  transition: all 0.3s ease;
 }
 
-.btn-lg {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
+.progress-circle.completed {
+  background-color: var(--tt-green);
+  border-color: var(--tt-green);
+  color: white;
 }
 
-.btn-sm {
-    padding: 0.25rem 0.75rem;
-    font-size: 0.875rem;
+/* Mobile responsiveness */
+@media (max-width: 767.98px) {
+  .qr-scanner-container {
+    max-width: 100%;
+  }
+  
+  .qr-scanner-target {
+    width: 180px;
+    height: 180px;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+  
+  .progress-circle {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
 }
 
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+/* Enhanced accessibility */
+.btn:focus, .form-control:focus {
+  box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25);
 }
 
-.btn:active {
-    transform: translateY(0);
-}
-
-.btn-success {
-    background-color: var(--success-color);
-    border-color: var(--success-color);
-}
-
-.btn-success:hover {
-    background-color: #218838;
-    border-color: #1e7e34;
-}
-
-.btn-outline-success {
-    color: var(--success-color);
-    border-color: var(--success-color);
-}
-
-.btn-outline-success:hover {
-    background-color: var(--success-color);
-    color: white;
-}
-
-/* Badge styling - Modern Look */
-.badge {
-    border-radius: 6px;
-    padding: 0.4em 0.8em;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-}
-
-.bg-success {
-    background-color: var(--success-color) !important;
-}
-
-.bg-warning {
-    background-color: var(--warning-color) !important;
-}
-
-.bg-danger {
-    background-color: var(--danger-color) !important;
-}
-
-.bg-info {
-    background-color: var(--info-color) !important;
-}
-
-/* Text colors */
-.text-success {
-    color: var(--success-color) !important;
-}
-
-.text-warning {
-    color: var(--warning-color) !important;
-}
-
-.text-danger {
-    color: var(--danger-color) !important;
-}
-
-.text-info {
-    color: var(--info-color) !important;
-}
-
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: var(--primary-dark);
-}
-
-.display-4 {
-    font-weight: 700;
-    letter-spacing: -0.04em;
-}
-
-/* Agriculture-themed elements */
-.leaf-icon {
-    color: var(--leaf-green);
-}
-
-.earth-icon {
-    color: var(--earth-brown);
-}
-
-.water-icon {
-    color: var(--water-blue);
-}
-
-.sun-icon {
-    color: var(--sunny-yellow);
-}
-
-/* Custom Page Headers */
-.page-header {
-    position: relative;
-    padding-bottom: 0.5rem;
-    margin-bottom: 2rem;
-}
-
-.page-header:after {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 4px;
-    width: 60px;
-    background: var(--primary-green);
-    border-radius: 2px;
-}
-
-.page-header:before {
-    content: '🌱';
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    font-size: 1.5rem;
-}
-
-/* Custom table styling */
-.table {
-    color: var(--text-color);
-    border-collapse: separate;
-    border-spacing: 0;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.table th {
-    background-color: var(--primary-green);
-    color: white;
-    border-color: var(--primary-light);
-    padding: 12px 15px;
-    font-weight: 500;
-}
-
-.table td {
-    padding: 10px 15px;
-    border-color: rgba(129, 199, 132, 0.2);
-}
-
-.table-striped tbody tr:nth-of-type(odd) {
-    background-color: rgba(129, 199, 132, 0.1);
-}
-
-.table-hover tbody tr:hover {
-    background-color: rgba(129, 199, 132, 0.15);
-}
-
-/* Animation effects */
-.fade-in {
-    animation: fadeIn 0.5s ease-in;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.map-container {
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-/* Custom marker styles for maps */
-.marker-pin {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    position: relative;
-}
-
-.marker-pin::after {
-    content: '';
-    width: 0;
-    height: 0;
-    position: absolute;
-    bottom: -10px;
-    left: 6px;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 10px solid currentColor;
-}
-
-/* QR Code reader customization */
-#reader {
-    border: 2px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-#reader video {
-    border-radius: 4px;
-}
-
-/* Dashboard card hover effects */
-.status-card {
-    border-left: 5px solid transparent;
-    transition: all 0.3s ease;
-}
-
-.status-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-/* Timeline styling */
-.timeline-item {
-    position: relative;
-    padding-bottom: 15px;
-}
-
-.timeline-content {
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-/* Footer styling */
-footer {
-    margin-top: auto;
-    background-color: rgba(255, 255, 255, 0.95) !important;
-    color: var(--text-color) !important;
-    border-top: 3px solid var(--primary-light);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-}
-
-footer a {
-    color: var(--primary-green) !important;
-    text-decoration: none;
-}
-
-footer a:hover {
-    color: var(--primary-dark) !important;
-    text-decoration: underline;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .timeline::before {
-        left: 10px;
-    }
-    
-    .timeline-marker {
-        left: -18px;
-    }
-    
-    #reader {
-        width: 100%;
-        max-width: 100%;
-    }
-    
-    /* Mobile app specific styling */
-    body {
-        padding-top: 60px; /* Space for fixed navbar */
-        -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
-        -webkit-touch-callout: none; /* Disable callout on long-press */
-        touch-action: manipulation; /* Optimize for touch */
-    }
-    
-    /* Improve touch targets for mobile */
-    .btn, .nav-link, .form-control, button, a {
-        min-height: 44px; /* Apple's recommended minimum */
-        line-height: 44px; /* Vertically center text */
-        padding: 0 12px;
-    }
-    
-    /* Fix for buttons to match min-height */
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    /* Bottom navigation for mobile */
-    .mobile-nav {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: white;
-        display: flex;
-        justify-content: space-around;
-        padding: 10px 0;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-        z-index: 1000;
-    }
-    
-    .mobile-nav-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        font-size: 0.8rem;
-        color: var(--text-color);
-        text-decoration: none;
-    }
-    
-    .mobile-nav-item i {
-        font-size: 1.5rem;
-        margin-bottom: 4px;
-    }
-    
-    .mobile-nav-item.active {
-        color: var(--primary-green);
-    }
-    
-    /* Full-screen modal for mobile */
-    @media (max-width: 576px) {
-        .modal-fullscreen-sm-down {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0 !important;
-            max-width: none;
-        }
-        
-        .modal-fullscreen-sm-down .modal-content {
-            height: 100%;
-            border: 0;
-            border-radius: 0;
-        }
-    }
-    
-    /* Remove hover effects on mobile */
-    .card:hover {
-        transform: none;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Optimize QR Scanner for mobile */
-    #qr-reader {
-        width: 100% !important;
-        border: none !important;
-    }
-    
-    #qr-reader__scan_region {
-        min-height: 300px;
-    }
-    
-    #qr-reader__dashboard {
-        background: white !important;
-    }
-}
-
-/* Custom status badge colors */
-.status-received {
-    color: var(--bs-info);
-}
-
-.status-in-transit {
-    color: var(--bs-warning);
-}
-
-.status-delivered {
-    color: var(--bs-success);
-}
-
-.status-returned, .status-damaged {
-    color: var(--bs-danger);
-}
-
-/* Custom QR code container */
-#qrcode {
-    background-color: white;
-    padding: 10px;
-    border-radius: 4px;
-    display: inline-block;
-}
-
-/* Chart container styling */
-canvas {
-    margin: 0 auto;
+/* Add subtle texture to dark backgrounds */
+.bg-dark {
+  background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.01) 0%, rgba(0, 0, 0, 0.05) 100%);
+  background-repeat: no-repeat;
 }

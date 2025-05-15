@@ -1,8 +1,8 @@
 import logging
-from flask import render_template, redirect, url_for, flash, request, session, jsonify
+from flask import render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
-from app import app, limiter, db
-from models import User, UserRole
+from app_new import app, limiter
+from models_new import User, UserRole
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -122,95 +122,3 @@ def promote_to_admin():
             flash('Invalid secret code.', 'danger')
     
     return render_template('promote_admin.html')
-
-@app.route('/')
-def index():
-    """Main dashboard page"""
-    if not current_user.is_authenticated:
-        return redirect(url_for('login'))
-    
-    return render_template('index.html', 
-                           user=current_user,
-                           is_admin=current_user.is_admin() if current_user.is_authenticated else False)
-
-@app.route('/select_location', methods=['GET', 'POST'])
-@login_required
-def select_location():
-    """Select location for scanning operations"""
-    from models import Location
-    
-    locations = Location.query.all()
-    
-    if request.method == 'POST':
-        location_id = request.form.get('location_id')
-        if location_id:
-            session['current_location_id'] = int(location_id)
-            flash('Location selected successfully.', 'success')
-            return redirect(url_for('scan_parent'))
-        else:
-            flash('Please select a location.', 'warning')
-    
-    # Clear any existing scanning session
-    session.pop('current_parent_bag_id', None)
-    session.pop('child_bags_scanned', None)
-    
-    return render_template('select_location.html', locations=locations)
-
-@app.route('/scan_parent')
-@login_required
-def scan_parent():
-    """Scan parent bag QR code"""
-    # Ensure location is selected
-    if 'current_location_id' not in session:
-        flash('Please select a location first.', 'warning')
-        return redirect(url_for('select_location'))
-    
-    return render_template('scan_parent.html')
-
-@app.route('/process_parent_scan', methods=['POST'])
-@login_required
-def process_parent_scan():
-    """Process the parent bag QR code scan"""
-    from models import Bag, BagType, Scan, Location
-    import re
-    
-    if 'current_location_id' not in session:
-        return jsonify({'success': False, 'message': 'No location selected'})
-    
-    qr_code = request.form.get('qr_code')
-    
-    # Validate parent bag QR code format (e.g., P123-10)
-    if not re.match(r'^P\d+-\d+$', qr_code):
-        return jsonify({'success': False, 'message': 'Invalid parent bag QR format. Expected format: P123-10'})
-    
-    # Look up or create the parent bag
-    parent_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.PARENT.value).first()
-    
-    if not parent_bag:
-        # Create new parent bag
-        parent_bag = Bag(qr_id=qr_code, type=BagType.PARENT.value)
-        db.session.add(parent_bag)
-        db.session.commit()
-    
-    # Record the scan
-    location = Location.query.get(session['current_location_id'])
-    scan = Scan(parent_bag_id=parent_bag.id, location_id=location.id, user_id=current_user.id)
-    db.session.add(scan)
-    db.session.commit()
-    
-    # Store parent bag ID in session
-    session['current_parent_bag_id'] = parent_bag.id
-    
-    # Extract the number of expected child bags from the parent QR code
-    try:
-        expected_child_count = int(qr_code.split('-')[1])
-    except:
-        expected_child_count = 5  # Default if parsing fails
-    
-    return jsonify({
-        'success': True,
-        'parent_id': parent_bag.id,
-        'parent_qr': parent_bag.qr_id,
-        'expected_child_count': expected_child_count,
-        'message': f'Parent bag {qr_code} scanned successfully. Please scan {expected_child_count} child bags.'
-    })

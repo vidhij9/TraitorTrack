@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block title %}Become Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card bg-dark text-light border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-user-shield me-2"></i>Become Admin</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-4">Enter the secret code to promote your account to admin status.</p>
+                    <form method="POST" action="{{ url_for('promote_to_admin') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="secret_code" class="form-label">Secret Code</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-key"></i></span>
+                                <input type="password" class="form-control" id="secret_code" name="secret_code" required autofocus>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-info">
+                                <i class="fas fa-user-shield me-2"></i>Become Admin
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center">
+                    <a href="{{ url_for('index') }}" class="text-info"><i class="fas fa-arrow-left me-2"></i>Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

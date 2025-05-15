@@ -1,113 +1,57 @@
 {% extends "layout.html" %}
 
-{% block title %} - Register{% endblock %}
+{% block title %}Register{% endblock %}
 
 {% block content %}
-<style>
-    .register-container {
-        background-image: url('/static/img/warehouse-bg.png');
-        background-size: cover;
-        background-position: center;
-        min-height: 90vh;
-        padding: 40px 0;
-        position: relative;
-    }
-    
-    .register-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.7);
-        z-index: 1;
-    }
-    
-    .register-card {
-        z-index: 2;
-        position: relative;
-        background: rgba(33, 37, 41, 0.85);
-        border: none;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 15px 25px rgba(0, 0, 0, 0.6);
-    }
-    
-    .register-header {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-</style>
-
-<div class="register-container">
+<div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card register-card text-white">
-                <div class="card-header register-header">
-                    <h3 class="mb-0">Register</h3>
+        <div class="col-md-6">
+            <div class="card bg-dark text-light border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-user-plus me-2"></i>Register</h5>
                 </div>
                 <div class="card-body">
-                    <div class="text-center mb-4">
-                        <i class="fas fa-user-plus fa-4x text-primary mb-3"></i>
-                        <h4>Create an Account</h4>
-                        <p class="text-muted">Join our supply chain tracking platform</p>
-                    </div>
-                
-                <form method="post" action="{{ url_for('register') }}">
+                    <form method="POST" action="{{ url_for('register') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
                             <div class="input-group">
-                                <span class="input-group-text bg-dark border-secondary">
-                                    <i class="fas fa-user text-primary"></i>
-                                </span>
-                                <input type="text" class="form-control bg-dark text-white border-secondary" id="username" name="username" placeholder="Choose a username" required autofocus>
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" class="form-control" id="username" name="username" required autofocus>
                             </div>
+                            <div class="form-text text-muted">Username must be at least 3 characters.</div>
                         </div>
-                        
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
                             <div class="input-group">
-                                <span class="input-group-text bg-dark border-secondary">
-                                    <i class="fas fa-envelope text-primary"></i>
-                                </span>
-                                <input type="email" class="form-control bg-dark text-white border-secondary" id="email" name="email" placeholder="Enter your email address" required>
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" class="form-control" id="email" name="email" required>
                             </div>
                         </div>
-                        
                         <div class="mb-3">
                             <label for="password" class="form-label">Password</label>
                             <div class="input-group">
-                                <span class="input-group-text bg-dark border-secondary">
-                                    <i class="fas fa-lock text-primary"></i>
-                                </span>
-                                <input type="password" class="form-control bg-dark text-white border-secondary" id="password" name="password" placeholder="Create a password" required>
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" class="form-control" id="password" name="password" required>
                             </div>
+                            <div class="form-text text-muted">Password must be at least 8 characters.</div>
                         </div>
-                        
                         <div class="mb-3">
                             <label for="confirm_password" class="form-label">Confirm Password</label>
                             <div class="input-group">
-                                <span class="input-group-text bg-dark border-secondary">
-                                    <i class="fas fa-lock text-primary"></i>
-                                </span>
-                                <input type="password" class="form-control bg-dark text-white border-secondary" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                             </div>
                         </div>
-                        
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
+                            <button type="submit" class="btn btn-success">
                                 <i class="fas fa-user-plus me-2"></i>Register
                             </button>
                         </div>
                     </form>
-                    
-                    <div class="text-center mt-4">
-                        <p class="text-light">Already have an account? <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-bold">Sign in</a></p>
-                        <div class="mt-4">
-                            <span class="badge bg-success me-2 p-2"><i class="fas fa-shield-alt me-1"></i> Secure Tracking</span>
-                            <span class="badge bg-success me-2 p-2"><i class="fas fa-chart-line me-1"></i> Analytics Dashboard</span>
-                            <span class="badge bg-success p-2"><i class="fas fa-barcode me-1"></i> QR Integration</span>
-                        </div>
-                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <p class="mb-0">Already have an account? <a href="{{ url_for('login') }}" class="text-success">Login</a></p>
                 </div>
             </div>
         </div>
