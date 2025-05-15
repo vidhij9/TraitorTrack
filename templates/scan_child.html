@@ -88,9 +88,12 @@
                     <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
                 <div class="card-body p-0">
-                    <div class="video-container">
-                        <video id="video" playsinline></video>
-                        <canvas id="canvas" class="d-none"></canvas>
+                    <div class="video-container position-relative">
+                        <video id="video" playsinline class="d-none"></video>
+                        <canvas id="canvas" class="w-100"></canvas>
+                        <div class="scan-overlay">
+                            <div class="scan-indicator"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
@@ -120,6 +123,7 @@
                     </ul>
                     
                     <form id="manual-entry-form" class="mt-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
                             <div class="input-group">
@@ -140,6 +144,52 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+    /* QR Scanner Styles */
+    .video-container {
+        position: relative;
+        overflow: hidden;
+        max-height: 400px;
+        border-radius: 0;
+    }
+    
+    #canvas {
+        width: 100%;
+        background-color: #1a1a1a;
+    }
+    
+    .scan-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+    }
+    
+    .scan-indicator {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #00ff00, transparent);
+        animation: scan 2s linear infinite;
+        box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+    }
+    
+    @keyframes scan {
+        0% {
+            top: 20%;
+        }
+        50% {
+            top: 80%;
+        }
+        100% {
+            top: 20%;
+        }
+    }
+</style>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video');
@@ -165,7 +215,10 @@
         // Initialize progress circle
         updateProgress();
         
-        // Start camera when button is clicked
+        // Start camera automatically when page loads
+        startCamera();
+        
+        // Also keep the button functionality as backup
         startCameraBtn.addEventListener('click', startCamera);
         
         // Stop camera when button is clicked
@@ -228,16 +281,106 @@
             requestAnimationFrame(scanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                // Draw a scanning marker to help users position the code
                 canvas.height = video.videoHeight;
                 canvas.width = video.videoWidth;
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
+                // Add scanning overlay for user feedback
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                
+                // Draw scanning frame
+                canvasContext.strokeStyle = '#00FF00';
+                canvasContext.lineWidth = 4;
+                canvasContext.beginPath();
+                canvasContext.rect(
+                    centerX - scanSize/2,
+                    centerY - scanSize/2,
+                    scanSize,
+                    scanSize
+                );
+                canvasContext.stroke();
+                
+                // Add corner markers
+                const cornerSize = scanSize * 0.1;
+                canvasContext.fillStyle = '#00FF00';
+                
+                // Top-left corner
+                canvasContext.fillRect(
+                    centerX - scanSize/2,
+                    centerY - scanSize/2,
+                    cornerSize,
+                    4
+                );
+                canvasContext.fillRect(
+                    centerX - scanSize/2,
+                    centerY - scanSize/2,
+                    4,
+                    cornerSize
+                );
+                
+                // Top-right corner
+                canvasContext.fillRect(
+                    centerX + scanSize/2 - cornerSize,
+                    centerY - scanSize/2,
+                    cornerSize,
+                    4
+                );
+                canvasContext.fillRect(
+                    centerX + scanSize/2 - 4,
+                    centerY - scanSize/2,
+                    4,
+                    cornerSize
+                );
+                
+                // Bottom-left corner
+                canvasContext.fillRect(
+                    centerX - scanSize/2,
+                    centerY + scanSize/2 - 4,
+                    cornerSize,
+                    4
+                );
+                canvasContext.fillRect(
+                    centerX - scanSize/2,
+                    centerY + scanSize/2 - cornerSize,
+                    4,
+                    cornerSize
+                );
+                
+                // Bottom-right corner
+                canvasContext.fillRect(
+                    centerX + scanSize/2 - cornerSize,
+                    centerY + scanSize/2 - 4,
+                    cornerSize,
+                    4
+                );
+                canvasContext.fillRect(
+                    centerX + scanSize/2 - 4,
+                    centerY + scanSize/2 - cornerSize,
+                    4,
+                    cornerSize
+                );
+                
+                // Process the image for QR code detection
                 const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
                     inversionAttempts: "dontInvert",
                 });
                 
                 if (code && code.data) {
+                    // Highlight the detected QR code
+                    canvasContext.beginPath();
+                    canvasContext.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
+                    canvasContext.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
+                    canvasContext.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
+                    canvasContext.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
+                    canvasContext.lineTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
+                    canvasContext.lineWidth = 6;
+                    canvasContext.strokeStyle = "#FF0000";
+                    canvasContext.stroke();
+                    
                     // To prevent multiple scans of the same code
                     if (lastDetectedCode !== code.data) {
                         lastDetectedCode = code.data;
@@ -261,8 +404,9 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token() }}'
                 },
-                body: 'qr_code=' + encodeURIComponent(qrCode)
+                body: 'qr_code=' + encodeURIComponent(qrCode) + '&csrf_token={{ csrf_token() }}'
             })
             .then(response => response.json())
             .then(data => {
