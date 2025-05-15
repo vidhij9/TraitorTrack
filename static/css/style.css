@@ -16,6 +16,7 @@
     /* Dark Theme Colors */
     --dark-bg: #212529;
     --dark-surface: #2b3035;
+    --dark-surface-elevated: #343a40;  /* Slightly lighter for cards on dark backgrounds */
     --dark-border: #373b3e;
     --dark-text: #e9ecef;
     --dark-text-secondary: #adb5bd;
@@ -106,6 +107,15 @@ body {
     transform: translateY(-5px);
     box-shadow: var(--hover-shadow);
     border-color: var(--primary-green);
+}
+
+/* Background Colors */
+.bg-dark-surface {
+    background-color: var(--dark-surface) !important;
+}
+
+.bg-dark-elevated {
+    background-color: var(--dark-surface-elevated) !important;
 }
 
 .card-header {
