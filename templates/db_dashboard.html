@@ -1,0 +1,232 @@
+{% extends "layout.html" %}
+
+{% block title %}Database Monitoring Dashboard{% endblock %}
+
+{% block styles %}
+<style>
+    .health-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    .health-green {
+        background-color: var(--bs-success);
+    }
+    .health-red {
+        background-color: var(--bs-danger);
+    }
+    .monitor-card {
+        transition: all 0.3s ease;
+    }
+    .monitor-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    .refresh-button {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    #connectionPoolChart {
+        height: 250px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Database Monitoring Dashboard</h1>
+        <div>
+            <button id="refreshBtn" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <span id="lastUpdated" class="ms-2 text-secondary">Last updated: Just now</span>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card monitor-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Database Connection Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-column align-items-center">
+                        {% if is_connected %}
+                        <div class="health-indicator health-green"></div>
+                        <h3 class="text-success mb-3">Connected</h3>
+                        <p class="mb-0">Database connection is healthy</p>
+                        {% else %}
+                        <div class="health-indicator health-red"></div>
+                        <h3 class="text-danger mb-3">Connection Error</h3>
+                        <p class="mb-0">{{ error_message }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card monitor-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Connection Pool Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="stat-value">{{ pool_stats.size|default(0) }}</div>
+                            <div class="stat-label">Size</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-value">{{ pool_stats.checkedout|default(0) }}</div>
+                            <div class="stat-label">In Use</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-value">{{ pool_stats.overflow|default(0) }}</div>
+                            <div class="stat-label">Overflow</div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <canvas id="connectionPoolChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card monitor-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Table Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <div class="stat-value">{{ table_counts.users|default(0) }}</div>
+                            <div class="stat-label">Users</div>
+                        </div>
+                        <div class="col-3">
+                            <div class="stat-value">{{ table_counts.bags|default(0) }}</div>
+                            <div class="stat-label">Bags</div>
+                        </div>
+                        <div class="col-3">
+                            <div class="stat-value">{{ table_counts.scans|default(0) }}</div>
+                            <div class="stat-label">Scans</div>
+                        </div>
+                        <div class="col-3">
+                            <div class="stat-value">{{ table_counts.locations|default(0) }}</div>
+                            <div class="stat-label">Locations</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card monitor-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Recent Slow Queries</h5>
+                </div>
+                <div class="card-body">
+                    {% if slow_queries %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Query</th>
+                                    <th>Duration</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for query in slow_queries %}
+                                <tr>
+                                    <td><code>{{ query.sql }}</code></td>
+                                    <td>{{ query.duration }} ms</td>
+                                    <td>{{ query.timestamp|datetime }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No slow queries recorded</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Connection Pool Chart
+        const poolCtx = document.getElementById('connectionPoolChart').getContext('2d');
+        const poolChart = new Chart(poolCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Available', 'In Use', 'Overflow'],
+                datasets: [{
+                    data: [
+                        {{ pool_stats.size|default(0) - pool_stats.checkedout|default(0) }}, 
+                        {{ pool_stats.checkedout|default(0) }}, 
+                        {{ pool_stats.overflow|default(0) }}
+                    ],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 99, 132, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Refresh functionality
+        document.getElementById('refreshBtn').addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Update last updated time every minute
+        function updateLastUpdated() {
+            const lastUpdated = document.getElementById('lastUpdated');
+            const now = new Date();
+            lastUpdated.textContent = 'Last updated: ' + now.toLocaleTimeString();
+        }
+        
+        setInterval(updateLastUpdated, 60000);
+    });
+</script>
+{% endblock %}

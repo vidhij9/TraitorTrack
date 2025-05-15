@@ -621,36 +621,26 @@ def get_all_parent_bags():
     Uses persistence for faster repeated access
     Optimized for high concurrency (100+ users)
     """
+    from database_utils import execute_with_retry
+    
+    def query_parent_bags(session):
+        """Inner function to perform the actual database query with the given session"""
+        # Use eager loading with optimization hints to reduce N+1 query problem
+        # This loads all parent bags and their children in 2 queries instead of N+1
+        # Add index hints and limit columns for better performance
+        return session.query(Bag).filter_by(type=BagType.PARENT.value).options(
+            db.joinedload(Bag.children).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
+            db.joinedload(Bag.parent_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
+        ).order_by(Bag.created_at.desc()).all()
+    
     try:
-        # Add query timeout to prevent blocking operations in high concurrency
-        from sqlalchemy.exc import SQLAlchemyError
+        # Use our retry utility that handles connection pooling, retries, and error handling
+        parent_bags = execute_with_retry(query_parent_bags)
         
-        # Use connection pooling optimally with explicit session handling
-        session = db.create_scoped_session({
-            "query_cls": db.Query,
-            "expire_on_commit": False,  # Prevent expired objects issues
-        })
+        # Log successful retrieval for monitoring
+        logger.debug(f"Successfully retrieved {len(parent_bags)} parent bags")
         
-        try:
-            # Use eager loading with optimization hints to reduce N+1 query problem
-            # This loads all parent bags and their children in 2 queries instead of N+1
-            # Add index hints and limit columns for better performance
-            parent_bags = session.query(Bag).filter_by(type=BagType.PARENT.value).options(
-                db.joinedload(Bag.children).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
-                db.joinedload(Bag.parent_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
-            ).order_by(Bag.created_at.desc()).all()
-            
-            # Detach objects from session to prevent session conflicts in high concurrency
-            session.expunge_all()
-            return parent_bags
-        except SQLAlchemyError as e:
-            logger.error(f"Database error in get_all_parent_bags: {str(e)}")
-            # Rollback to release locks and prevent blocking others
-            session.rollback()
-            raise
-        finally:
-            # Always close the session to release resources
-            session.close()
+        return parent_bags
     except Exception as e:
         logger.exception(f"Unexpected error in get_all_parent_bags: {str(e)}")
         # Return empty list instead of failing to improve resilience
@@ -694,38 +684,25 @@ def get_all_child_bags():
     Uses persistence for faster repeated access
     Enhanced for high-concurrency environments (100+ users)
     """
+    from database_utils import execute_with_retry
+    
+    def query_child_bags(session):
+        """Inner function to perform the actual database query with the given session"""
+        # Optimized query with eager loading and column selection to reduce database load
+        # Set execution timeout to prevent long-running queries from blocking server
+        return session.query(Bag).filter_by(type=BagType.CHILD.value).options(
+            db.joinedload(Bag.parent_bag).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
+            db.joinedload(Bag.child_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
+        ).order_by(Bag.created_at.desc()).all()
+    
     try:
-        # Import SQLAlchemy exception handling for better error management
-        from sqlalchemy.exc import SQLAlchemyError
+        # Use our retry utility that handles connection pooling, retries, and error handling
+        child_bags = execute_with_retry(query_child_bags)
         
-        # Use dedicated session to isolate from other operations
-        # This prevents blocking and deadlocks in high concurrency situations
-        session = db.create_scoped_session({
-            "query_cls": db.Query,
-            "expire_on_commit": False,  # Prevent expired objects issues
-        })
+        # Log successful retrieval for monitoring
+        logger.debug(f"Successfully retrieved {len(child_bags)} child bags")
         
-        try:
-            # Optimized query with eager loading and column selection to reduce database load
-            # Set execution timeout to prevent long-running queries from blocking server
-            child_bags = session.query(Bag).filter_by(type=BagType.CHILD.value).options(
-                db.joinedload(Bag.parent_bag).load_only(Bag.id, Bag.qr_id, Bag.name, Bag.type),
-                db.joinedload(Bag.child_scans).joinedload(Scan.location).load_only(Location.id, Location.name)
-            ).order_by(Bag.created_at.desc()).all()
-            
-            # Detach objects from session to prevent session conflicts
-            session.expunge_all()
-            return child_bags
-        except SQLAlchemyError as e:
-            # Log error for monitoring and diagnosis
-            logger.error(f"Database error in get_all_child_bags: {str(e)}")
-            
-            # Rollback transaction to release locks
-            session.rollback()
-            raise
-        finally:
-            # Always close session to release resources
-            session.close()
+        return child_bags
     except Exception as e:
         # Log exception for tracking
         logger.exception(f"Unexpected error in get_all_child_bags: {str(e)}")
