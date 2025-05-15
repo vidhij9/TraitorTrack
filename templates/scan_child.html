@@ -207,138 +207,159 @@
 
 {% block scripts %}
 <script>
-// Simple QR Code Scanner Implementation
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM content loaded, initializing scanner code");
+    console.log("DOM loaded, initializing basic QR scanner for child bags");
     
     // DOM elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const scanningIndicator = document.getElementById('scanning-indicator');
     const qrIdInput = document.getElementById('qr_id');
     const scanResultDiv = document.getElementById('scan-result');
     const resultQrId = document.getElementById('result-qrid');
     const startScannerBtn = document.getElementById('start-scanner');
     const stopScannerBtn = document.getElementById('stop-scanner');
-    const readerDiv = document.getElementById('reader');
     
     // Already scanned child bag QR codes to prevent duplicates
     const scannedChildBags = {{ child_bags_scanned|tojson }};
     
-    // Scanner instance
-    let html5QrCode = null;
+    // Scanner state
     let isScanning = false;
+    let scanInterval = null;
+    let stream = null;
     
-    // Configuration
-    const qrConfig = { 
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        formatsToSupport: [0] // QR Code is format 0
-    };
+    // Set canvas size once
+    canvas.width = 320;
+    canvas.height = 240;
     
-    // Scanner controls
-    startScannerBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        console.log("Start scanner button clicked");
-        
-        if (!html5QrCode) {
-            try {
-                html5QrCode = new Html5Qrcode("reader");
-                console.log("Scanner instance created successfully");
-            } catch (err) {
-                console.error("Error creating scanner instance:", err);
-                alert("Could not initialize scanner. Error: " + err.message);
-                return;
-            }
-        }
-        
-        if (!isScanning) {
-            startScanner();
-        }
-    });
-    
-    stopScannerBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        console.log("Stop scanner button clicked");
-        stopScanner();
-    });
-    
-    // Scanner functions
-    function startScanner() {
-        if (isScanning) {
-            console.log("Scanner is already running");
-            return;
-        }
-        
-        console.log("Starting QR scanner...");
-        
-        // Use rear camera if available (environment), or any camera if not
-        const cameraConfig = { facingMode: "environment" };
-        
-        html5QrCode.start(
-            cameraConfig,
-            qrConfig,
-            onScanSuccess,
-            onScanFailure
-        ).then(() => {
-            isScanning = true;
-            console.log("Scanner started successfully");
-            startScannerBtn.innerText = "Scanner Running";
-            startScannerBtn.disabled = true;
-            stopScannerBtn.disabled = false;
-        }).catch(function (err) {
-            console.error("Error starting scanner:", err);
-            alert("Camera error: " + err + "\nPlease make sure you've granted camera permissions.");
-        });
-    }
-    
-    function stopScanner() {
-        if (!html5QrCode || !isScanning) {
-            console.log("Scanner not running");
-            return;
-        }
-        
-        console.log("Stopping QR scanner...");
-        
-        html5QrCode.stop()
-            .then(() => {
-                isScanning = false;
-                console.log("Scanner stopped successfully");
-                startScannerBtn.innerText = "Start Scanner";
-                startScannerBtn.disabled = false;
-                stopScannerBtn.disabled = true;
-            })
-            .catch(err => {
-                console.error("Error stopping scanner:", err);
-            });
-    }
-    
-    function onScanSuccess(decodedText, decodedResult) {
-        console.log("QR Code scanned successfully:", decodedText);
-        
-        // Check if this child bag was already scanned
-        if (scannedChildBags.includes(decodedText)) {
-            alert('This child bag has already been scanned in this session!');
-            return;
-        }
-        
-        // Stop scanning after successful scan
-        stopScanner();
-        
-        // Set the QR ID in the form and show the result
-        qrIdInput.value = decodedText;
-        showScanResult(decodedText);
-    }
-    
-    function onScanFailure(error) {
-        // Silent failure - just log to console
-        console.log("QR scan failure:", error);
-    }
-    
-    function showScanResult(qrId) {
-        resultQrId.textContent = qrId;
-        scanResultDiv.style.display = 'block';
-    }
+    // Event listeners
+    startScannerBtn.addEventListener('click', startScanner);
+    stopScannerBtn.addEventListener('click', stopScanner);
     
     // Initialize button states
     stopScannerBtn.disabled = true;
+    
+    // Scanner functions
+    async function startScanner() {
+        console.log("Starting scanner...");
+        
+        if (isScanning) {
+            console.log("Scanner already running");
+            return;
+        }
+        
+        try {
+            // Request camera access
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 320 },
+                    height: { ideal: 240 }
+                },
+                audio: false
+            });
+            
+            // Show scanning indicator and update buttons
+            scanningIndicator.style.display = 'block';
+            startScannerBtn.disabled = true;
+            startScannerBtn.innerText = "Scanner Running";
+            stopScannerBtn.disabled = false;
+            
+            // Connect stream to video element
+            video.srcObject = stream;
+            await video.play();
+            
+            // Start scanning
+            isScanning = true;
+            scanInterval = setInterval(scanFrame, 200); // Scan every 200ms
+            
+            console.log("Scanner started successfully");
+        } catch (error) {
+            console.error("Error starting scanner:", error);
+            alert("Could not start scanner. " + error.message + 
+                  "\nPlease make sure you've granted camera permissions.");
+        }
+    }
+    
+    function stopScanner() {
+        console.log("Stopping scanner...");
+        
+        // Clear scanning interval
+        if (scanInterval) {
+            clearInterval(scanInterval);
+            scanInterval = null;
+        }
+        
+        // Stop camera stream
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        
+        // Reset video
+        if (video.srcObject) {
+            video.srcObject = null;
+        }
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Hide scanning indicator and update buttons
+        scanningIndicator.style.display = 'none';
+        startScannerBtn.disabled = false;
+        startScannerBtn.innerText = "Start Scanner";
+        stopScannerBtn.disabled = true;
+        
+        isScanning = false;
+        console.log("Scanner stopped");
+    }
+    
+    function scanFrame() {
+        if (!isScanning || !video.videoWidth) return;
+        
+        // Draw video frame to canvas
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data for QR code scanning
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        try {
+            // Try to find a QR code in the image
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "dontInvert",
+            });
+            
+            if (code) {
+                console.log("QR code found:", code.data);
+                
+                // Check if this child bag was already scanned
+                if (scannedChildBags.includes(code.data)) {
+                    console.warn('This child bag has already been scanned in this session!');
+                    alert('This child bag has already been scanned in this session!');
+                    return;
+                }
+                
+                handleSuccessfulScan(code.data);
+            }
+        } catch (error) {
+            console.error("Error processing QR code:", error);
+        }
+    }
+    
+    function handleSuccessfulScan(qrData) {
+        // Stop scanner after successful scan
+        stopScanner();
+        
+        // Set the QR ID in the form input
+        qrIdInput.value = qrData;
+        
+        // Show scan result
+        resultQrId.textContent = qrData;
+        scanResultDiv.style.display = 'block';
+        
+        console.log("QR code processed successfully");
+    }
 });
 </script>
 {% endblock %}
