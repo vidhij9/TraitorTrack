@@ -48,7 +48,7 @@
                     
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        Child bag QR codes should be in the format <strong>C123</strong>.
+                        Any readable QR code can be scanned and linked to this parent bag.
                     </div>
                 </div>
             </div>
@@ -391,13 +391,9 @@
         }
         
         function processQrCode(qrCode) {
-            // If it's not already in the format "C123", try to format it
-            if (!qrCode.match(/^C\d+$/)) {
-                const formattedQrCode = formatQrCode(qrCode);
-                if (formattedQrCode) {
-                    qrCode = formattedQrCode;
-                }
-            }
+            // Accept any QR code format - server will handle validation
+            // Remove any whitespace or special characters
+            qrCode = qrCode.trim();
             
             // Send to server for processing
             fetch('/process_child_scan', {
@@ -459,15 +455,7 @@
             });
         }
         
-        function formatQrCode(rawCode) {
-            // Extract digits if present
-            const digits = rawCode.match(/\d+/g);
-            if (digits && digits.length > 0) {
-                // Format as C[first number]
-                return `C${digits[0]}`;
-            }
-            return null;
-        }
+        // Removed strict formatting function since we're accepting all QR formats now
         
         function updateProgress() {
             // Update text

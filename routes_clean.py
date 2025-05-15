@@ -347,26 +347,28 @@ def process_child_scan():
     if 'current_parent_bag_id' not in session:
         return jsonify({'success': False, 'message': 'No parent bag selected'})
     
-    qr_code = request.form.get('qr_code')
+    qr_code = request.form.get('qr_code', '').strip()
     if not qr_code:
         return jsonify({'success': False, 'message': 'No QR code provided'})
     
-    # Validate child bag QR code format (e.g., C123)
-    if not re.match(r'^C\d+$', qr_code):
-        return jsonify({'success': False, 'message': 'Invalid child bag QR format. Expected format: C123'})
+    # Accept any QR code format - no format validation
     
     # Check if this child bag is already scanned in this session
     child_bags_scanned = session.get('child_bags_scanned', [])
     if qr_code in child_bags_scanned:
         return jsonify({'success': False, 'message': f'Child bag {qr_code} already scanned'})
     
-    # Look up or create the child bag
-    child_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.CHILD.value).first()
+    # Look up or create the child bag - accepting any QR code format
+    child_bag = Bag.query.filter_by(qr_id=qr_code).first()
     
     if not child_bag:
-        # Create new child bag
+        # Create new child bag with any QR format
         child_bag = Bag(qr_id=qr_code, type=BagType.CHILD.value)
         db.session.add(child_bag)
+        db.session.commit()
+    elif child_bag.type != BagType.CHILD.value:
+        # If the bag exists but isn't marked as a child bag, update it
+        child_bag.type = BagType.CHILD.value
         db.session.commit()
     
     # Record the scan
