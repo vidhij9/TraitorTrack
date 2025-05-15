@@ -3,55 +3,103 @@
 {% block title %}Select Location{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
+<div class="container">
+    <div class="row mb-4">
         <div class="col-12">
-            <div class="card bg-dark text-light border-success mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="card-title mb-0"><i class="fas fa-map-marker-alt me-2"></i>Select Location</h5>
-                </div>
+            <div class="card bg-dark text-light border-primary">
                 <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i> Please select a location for scanning operations
-                    </div>
+                    <h2 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Select Location</h2>
+                    <p class="card-text">Choose a location to start scanning bags. The selected location will be recorded with each scan.</p>
                     
-                    <form method="POST" action="{{ url_for('select_location') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <input type="hidden" id="location_id" name="location_id" value="">
-                        
-                        <div class="row row-cols-1 row-cols-md-3 g-4 mb-4">
-                            {% if locations %}
-                                {% for location in locations %}
-                                <div class="col">
-                                    <div class="card location-card h-100 bg-dark border-secondary" data-location-id="{{ location.id }}">
-                                        <div class="card-body text-center">
-                                            <h5 class="card-title">{{ location.name }}</h5>
-                                            <p class="card-text text-muted">{{ location.description }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="col-12">
-                                    <div class="alert alert-warning">
-                                        <i class="fas fa-exclamation-circle me-2"></i> No locations found. Please contact an administrator.
-                                    </div>
-                                </div>
-                            {% endif %}
+                    <!-- Progress Steps -->
+                    <div class="progress-container">
+                        <div class="progress-indicator">
+                            <div class="progress-step active">
+                                <div class="progress-step-circle">1</div>
+                                <div class="progress-step-label">Select Location</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">2</div>
+                                <div class="progress-step-label">Scan Parent Bag</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">3</div>
+                                <div class="progress-step-label">Scan Child Bags</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">4</div>
+                                <div class="progress-step-label">Complete</div>
+                            </div>
                         </div>
-                        
-                        <div class="d-grid gap-2 col-md-6 mx-auto">
-                            <button type="submit" id="select_location_btn" class="btn btn-lg btn-success" disabled>
-                                <i class="fas fa-check-circle me-2"></i>Select Location
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer text-center">
-                    <a href="{{ url_for('index') }}" class="text-success"><i class="fas fa-home me-2"></i>Back to Dashboard</a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+    
+    <form method="POST" action="{{ url_for('select_location') }}" id="locationForm">
+        <input type="hidden" id="selected_location_id" name="location_id" value="">
+        
+        <!-- Location Selection Cards -->
+        <div class="row row-cols-1 row-cols-md-3 g-4 mb-4">
+            {% if locations %}
+                {% for location in locations %}
+                <div class="col">
+                    <div class="card location-card h-100 bg-dark text-light border-secondary" 
+                         data-location-id="{{ location.id }}" 
+                         onclick="selectLocation(this, {{ location.id }})">
+                        <div class="card-body text-center">
+                            <i class="fas fa-map-marker-alt dashboard-icon text-primary"></i>
+                            <h4 class="card-title">{{ location.name }}</h4>
+                            <p class="card-text">{{ location.description }}</p>
+                            <div class="location-stats mt-3">
+                                <span class="badge bg-primary">{{ location.scans_count|default(0) }} Scans</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>No locations found. Please contact an administrator to set up locations.
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="text-center mb-4">
+            <button type="submit" class="btn btn-primary btn-lg" id="continueBtn" disabled>
+                <i class="fas fa-arrow-right me-2"></i>Continue to Scanning
+            </button>
+        </div>
+    </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function selectLocation(cardElement, locationId) {
+        // Remove selection class from all cards
+        document.querySelectorAll('.location-card').forEach(card => {
+            card.classList.remove('location-selected');
+            card.classList.remove('border-primary');
+            card.classList.add('border-secondary');
+        });
+        
+        // Add selection class to the clicked card
+        cardElement.classList.add('location-selected');
+        cardElement.classList.remove('border-secondary');
+        cardElement.classList.add('border-primary');
+        
+        // Set the location ID in the hidden input
+        document.getElementById('selected_location_id').value = locationId;
+        
+        // Enable the continue button
+        document.getElementById('continueBtn').disabled = false;
+    }
+</script>
 {% endblock %}

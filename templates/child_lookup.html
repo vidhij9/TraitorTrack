@@ -1,0 +1,276 @@
+{% extends "layout.html" %}
+
+{% block title %}Child Bag Lookup{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark text-light border-info">
+                <div class="card-body">
+                    <h2 class="card-title"><i class="fas fa-search me-2"></i>Child Bag Lookup</h2>
+                    <p class="card-text">Scan a child bag QR code to find its linked parent bag and bill.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <!-- QR Scanner -->
+            <div class="card bg-dark text-light">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Scan QR Code</h4>
+                </div>
+                <div class="card-body">
+                    <div class="video-container">
+                        <video id="video" playsinline></video>
+                        <canvas id="canvas" style="display:none;"></canvas>
+                    </div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button id="startButton" class="btn btn-primary">
+                            <i class="fas fa-play me-1"></i> Start Camera
+                        </button>
+                        <button id="stopButton" class="btn btn-danger" disabled>
+                            <i class="fas fa-stop me-1"></i> Stop Camera
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Manual Entry -->
+            <div class="card bg-dark text-light mt-3">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-keyboard me-2"></i>Manual Entry</h4>
+                </div>
+                <div class="card-body">
+                    <p class="card-text small">If scanning doesn't work, enter the child bag code manually:</p>
+                    <form id="manualLookupForm" action="{{ url_for('child_lookup') }}" method="GET">
+                        <div class="input-group">
+                            <input type="text" id="qr_code" name="qr_code" class="form-control" placeholder="e.g., C123">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i> Lookup
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <!-- Lookup Results -->
+            <div class="card bg-dark text-light">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Lookup Results</h4>
+                </div>
+                <div class="card-body">
+                    {% if lookup_result %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>Child bag found!
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">Child Bag</h5>
+                            <div class="row mb-2">
+                                <div class="col-4 fw-bold">QR Code:</div>
+                                <div class="col-8">{{ lookup_result.child_bag.qr_id }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-4 fw-bold">Last Scan:</div>
+                                <div class="col-8">
+                                    {% if lookup_result.child_bag.last_scan %}
+                                        {{ lookup_result.child_bag.last_scan.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                                        at {{ lookup_result.child_bag.last_scan.location.name }}
+                                    {% else %}
+                                        <span class="text-muted">Not scanned yet</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">Parent Bag</h5>
+                            {% if lookup_result.parent_bag %}
+                                <div class="row mb-2">
+                                    <div class="col-4 fw-bold">QR Code:</div>
+                                    <div class="col-8">{{ lookup_result.parent_bag.qr_id }}</div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 fw-bold">Child Bags:</div>
+                                    <div class="col-8">{{ lookup_result.parent_bag.child_bags|length }}</div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-4 fw-bold">Last Scan:</div>
+                                    <div class="col-8">
+                                        {% if lookup_result.parent_bag.last_scan %}
+                                            {{ lookup_result.parent_bag.last_scan.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                                            at {{ lookup_result.parent_bag.last_scan.location.name }}
+                                        {% else %}
+                                            <span class="text-muted">Not scanned yet</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>No parent bag linked to this child bag.
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">Bill Information</h5>
+                            {% if lookup_result.bill %}
+                                <div class="row mb-2">
+                                    <div class="col-4 fw-bold">Bill ID:</div>
+                                    <div class="col-8">{{ lookup_result.bill.bill_id }}</div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 fw-bold">Created:</div>
+                                    <div class="col-8">{{ lookup_result.bill.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 fw-bold">Status:</div>
+                                    <div class="col-8">
+                                        {% if lookup_result.bill.status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif lookup_result.bill.status == 'processing' %}
+                                            <span class="badge bg-warning">Processing</span>
+                                        {% else %}
+                                            <span class="badge bg-info">New</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <a href="{{ url_for('view_bill', bill_id=lookup_result.bill.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye me-1"></i> View Bill Details
+                                    </a>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>No bill associated with this bag.
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% elif error_message %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>{{ error_message }}
+                        </div>
+                    {% else %}
+                        <div id="initialMessage" class="text-center py-5">
+                            <i class="fas fa-search display-1 text-muted mb-3"></i>
+                            <h5 class="text-muted">Scan a child bag or enter its QR code</h5>
+                            <p class="text-muted small">The lookup will show information about the child bag, its parent bag, and associated bill.</p>
+                        </div>
+                        
+                        <div id="loadingMessage" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-info mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <h5 class="text-muted">Looking up bag information...</h5>
+                        </div>
+                        
+                        <div id="resultMessage" class="py-3" style="display: none;">
+                            <!-- Results will be inserted here dynamically -->
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // DOM elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startButton = document.getElementById('startButton');
+    const stopButton = document.getElementById('stopButton');
+    const initialMessage = document.getElementById('initialMessage');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const resultMessage = document.getElementById('resultMessage');
+    const manualLookupForm = document.getElementById('manualLookupForm');
+    
+    // Variables
+    let stream;
+    let scanning = false;
+    
+    // Start camera and QR scanning
+    startButton.addEventListener('click', async () => {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            });
+            video.srcObject = stream;
+            video.setAttribute('playsinline', true);
+            video.play();
+            scanning = true;
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            requestAnimationFrame(tick);
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            alert('Could not access the camera. Please make sure you have granted camera permissions or try using manual entry.');
+        }
+    });
+    
+    // Stop camera
+    stopButton.addEventListener('click', () => {
+        stopScanning();
+    });
+    
+    function stopScanning() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            scanning = false;
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        }
+    }
+    
+    // QR code scanning frame processing
+    function tick() {
+        if (!scanning) return;
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert',
+            });
+            
+            if (code && code.data) {
+                const qrData = code.data;
+                console.log('QR Code detected:', qrData);
+                
+                // Validate child bag format (e.g., C123)
+                if (/^C\d+$/.test(qrData)) {
+                    stopScanning();
+                    // Navigate to the lookup URL
+                    window.location.href = `{{ url_for('child_lookup') }}?qr_code=${encodeURIComponent(qrData)}`;
+                }
+            }
+        }
+        
+        requestAnimationFrame(tick);
+    }
+    
+    // Handle form submission with loading state
+    if (manualLookupForm) {
+        manualLookupForm.addEventListener('submit', () => {
+            initialMessage.style.display = 'none';
+            loadingMessage.style.display = 'block';
+            resultMessage.style.display = 'none';
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+
+{% block title %}Create New Bill{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark text-light border-warning">
+                <div class="card-body">
+                    <h2 class="card-title"><i class="fas fa-file-invoice me-2"></i>Create New Bill</h2>
+                    <p class="card-text">Create a new bill and link parent bags to it.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card bg-dark text-light">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-plus me-2"></i>New Bill Details</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('create_bill') }}">
+                        <div class="mb-3">
+                            <label for="bill_id" class="form-label">Bill ID</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                                <input type="text" class="form-control" id="bill_id" name="bill_id" required>
+                            </div>
+                            <div class="form-text text-muted">
+                                Enter a unique identifier for this bill.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description (Optional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-align-left"></i></span>
+                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="parent_bag_count" class="form-label">Number of Parent Bags</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-box"></i></span>
+                                <input type="number" class="form-control" id="parent_bag_count" name="parent_bag_count" min="1" value="1" required>
+                            </div>
+                            <div class="form-text text-muted">
+                                How many parent bags will be linked to this bill?
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-arrow-right me-1"></i> Continue to Scan Parent Bags
+                            </button>
+                            <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Bill Management
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
