@@ -205,22 +205,52 @@ def promote_admin():
 @login_required
 def select_location():
     """Select location for scanning operations"""
-    locations = Location.query.all()
+    from forms import LocationSelectionForm
+    import traceback
     
-    if request.method == 'POST':
-        location_id = request.form.get('location_id')
-        if location_id:
-            session['current_location_id'] = int(location_id)
+    try:
+        # Get all locations
+        locations = Location.query.all()
+        
+        # Create form and set choices
+        form = LocationSelectionForm()
+        form.location.choices = [(loc.id, loc.name) for loc in locations]
+        
+        if form.validate_on_submit():
+            location_id = form.location.data
+            session['current_location_id'] = location_id
             flash('Location selected successfully.', 'success')
             return redirect(url_for('scan_parent'))
-        else:
-            flash('Please select a location.', 'warning')
-    
-    # Clear any existing scanning session
-    session.pop('current_parent_bag_id', None)
-    session.pop('child_bags_scanned', None)
-    
-    return render_template('select_location.html', locations=locations)
+            
+        # If POST request but form validation failed
+        elif request.method == 'POST':
+            # Check for direct form submission
+            location_id = request.form.get('location_id')
+            if location_id:
+                try:
+                    location_id = int(location_id)
+                    # Verify location exists
+                    location = Location.query.get(location_id)
+                    if location:
+                        session['current_location_id'] = location_id
+                        flash('Location selected successfully.', 'success')
+                        return redirect(url_for('scan_parent'))
+                except Exception as e:
+                    logging.error(f"Error processing location selection: {str(e)}")
+                    logging.error(traceback.format_exc())
+            
+            flash('Please select a valid location.', 'warning')
+        
+        # Clear any existing scanning session
+        session.pop('current_parent_bag_id', None)
+        session.pop('child_bags_scanned', None)
+        
+        return render_template('select_location.html', locations=locations, form=form)
+    except Exception as e:
+        logging.error(f"Error in select_location: {str(e)}")
+        logging.error(traceback.format_exc())
+        flash('An error occurred while loading locations. Please try again.', 'danger')
+        return redirect(url_for('index'))
 
 @app.route('/scan_parent')
 @login_required

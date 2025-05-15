@@ -43,13 +43,16 @@
     </div>
     
     <form method="POST" action="{{ url_for('select_location') }}">
+        <!-- Add CSRF Token -->
+        {{ form.csrf_token }}
+        
         <div class="row g-4">
             {% for location in locations %}
                 <div class="col-lg-4 col-md-6">
                     <div class="card location-card h-100" onclick="document.getElementById('location_{{ location.id }}').checked = true;">
                         <div class="card-body text-center p-4">
                             <div class="form-check">
-                                <input class="form-check-input visually-hidden" type="radio" name="location_id" 
+                                <input class="form-check-input visually-hidden" type="radio" name="location" 
                                        id="location_{{ location.id }}" value="{{ location.id }}">
                                 <label class="form-check-label w-100" for="location_{{ location.id }}">
                                     <div class="mb-3">
