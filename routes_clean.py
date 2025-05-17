@@ -437,9 +437,19 @@ def scan_complete():
     child_bags_info = []
     
     for child_id in child_bags:
-        child_bag = Bag.query.get(child_id)
-        if child_bag:
-            child_bags_info.append(child_bag)
+        # Get the child bag by its ID (numeric) not by its QR code (string)
+        try:
+            # Ensure we're querying with a numeric ID
+            if isinstance(child_id, str) and not child_id.isdigit():
+                # If it's a QR code, find the bag by QR code instead
+                child_bag = Bag.query.filter_by(qr_id=child_id).first()
+            else:
+                child_bag = Bag.query.get(child_id)
+                
+            if child_bag:
+                child_bags_info.append(child_bag)
+        except Exception as e:
+            app.logger.error(f"Error retrieving child bag {child_id}: {str(e)}")
             
     return render_template('scan_complete.html', 
                           parent_bag=parent_bag,

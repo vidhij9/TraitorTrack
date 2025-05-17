@@ -29,8 +29,8 @@
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
                                 <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="Scan QR code or enter QR ID" required autofocus>
-                                <button type="button" class="btn btn-outline-primary" id="startScanBtn">
-                                    <i class="fas fa-camera me-1"></i>Scan
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
+                                    <i class="fas fa-search me-1"></i>Search
                                 </button>
                             </div>
                             <div class="form-text">Enter any QR code format</div>
@@ -81,7 +81,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Elements
     const qrIdInput = document.getElementById('qr_id');
-    const startScanBtn = document.getElementById('startScanBtn');
     const closeScanner = document.getElementById('closeScanner');
     const scannerContainer = document.getElementById('scanner-container');
     
@@ -153,7 +152,6 @@ document.addEventListener('DOMContentLoaded', function() {
     startScanner();
     
     // Event listeners
-    startScanBtn.addEventListener('click', startScanner);
     closeScanner.addEventListener('click', stopScanner);
     
     // Clean up on page unload
