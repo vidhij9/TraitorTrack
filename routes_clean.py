@@ -497,7 +497,7 @@ def bill_management():
 @login_required
 def create_bill():
     """Create a new bill"""
-    # Create a form instance to get CSRF token
+    # Create a form instance with CSRF token
     form = BillCreationForm()
     
     if request.method == 'POST':
@@ -514,7 +514,7 @@ def create_bill():
             return render_template('create_bill.html', form=form)
         
         try:
-            # Create new bill
+            # Create new bill using direct property assignment
             new_bill = Bill()
             new_bill.bill_id = bill_id
             db.session.add(new_bill)
@@ -532,6 +532,34 @@ def create_bill():
             return render_template('create_bill.html', form=form)
     
     return render_template('create_bill.html', form=form)
+    
+@app.route('/delete_bill/<int:bill_id>')
+@login_required
+def delete_bill(bill_id):
+    """Delete a bill and all its bag links"""
+    try:
+        bill = Bill.query.get(bill_id)
+        if not bill:
+            flash('Bill not found', 'danger')
+            return redirect(url_for('bill_management'))
+            
+        # Get the bill ID for the flash message
+        bill_id_text = bill.bill_id
+        
+        # Delete all BillBag links for this bill
+        BillBag.query.filter_by(bill_id=bill_id).delete()
+        
+        # Delete the bill itself
+        db.session.delete(bill)
+        db.session.commit()
+        
+        flash(f'Bill {bill_id_text} deleted successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting bill: {str(e)}")
+        flash(f'Error deleting bill: {str(e)}', 'danger')
+        
+    return redirect(url_for('bill_management'))
 
 @app.route('/scan_bill_parent')
 @app.route('/scan_bill_parent/<int:bill_id>')
