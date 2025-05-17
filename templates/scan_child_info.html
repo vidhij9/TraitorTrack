@@ -24,6 +24,7 @@
                 </div>
                 <div class="card-body">
                     <form method="post" action="{{ url_for('process_child_info_scan') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="qr_id" class="form-label">Child Bag QR ID</label>
                             <div class="input-group">
@@ -37,7 +38,7 @@
                         </div>
                         
                         <!-- QR Code Scanner Container -->
-                        <div class="card mb-3 d-none" id="scanner-container">
+                        <div class="card mb-3" id="scanner-container">
                             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0">Scan QR Code</h6>
                                 <button type="button" class="btn-close" id="closeScanner"></button>
@@ -136,9 +137,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Set the QR code value in the input field
         qrIdInput.value = decodedText;
         
-        // Accept any QR code format
-        // Set the value and auto-submit the form
-        qrIdInput.form.submit();
+        // Show a success message
+        const resultMsg = document.createElement('div');
+        resultMsg.className = 'alert alert-success mt-2';
+        resultMsg.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR code scanned successfully. Processing...';
+        qrIdInput.parentNode.parentNode.appendChild(resultMsg);
+        
+        // Accept any QR code format and auto-submit the form after a brief delay
+        setTimeout(() => {
+            qrIdInput.form.submit();
+        }, 500);
     }
     
     // Scan failure handler
@@ -148,8 +156,12 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`QR scan failure: ${error}`);
     }
     
-    // Start camera automatically when page loads
-    startScanner();
+    // Start camera automatically when page loads with a slight delay
+    // to ensure DOM is fully loaded
+    setTimeout(() => {
+        startScanner();
+        console.log("Auto-starting camera...");
+    }, 800);
     
     // Event listeners
     closeScanner.addEventListener('click', stopScanner);
