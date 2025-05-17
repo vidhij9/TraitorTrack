@@ -700,10 +700,16 @@ def child_lookup():
         # Get scan history
         child_scans = Scan.query.filter_by(child_bag_id=child_bag.id).order_by(Scan.timestamp.desc()).all()
         
+        # Count bill bags for display
+        bill_bag_count = 0
+        if bill:
+            bill_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
+            
         return render_template('child_lookup_result.html',
                               child_bag=child_bag,
                               parent_bag=parent_bag,
                               bill=bill,
+                              bill_bag=bill_bag_count,
                               child_scans=child_scans)
     
     return render_template('child_lookup.html')
