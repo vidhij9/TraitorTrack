@@ -534,17 +534,21 @@ def create_bill():
     return render_template('create_bill.html', form=form)
 
 @app.route('/scan_bill_parent')
+@app.route('/scan_bill_parent/<int:bill_id>')
 @login_required
-def scan_bill_parent():
+def scan_bill_parent(bill_id=None):
     """Scan parent bags to add to bill"""
-    # Ensure bill is selected
-    if 'current_bill_id' not in session:
-        flash('Please create or select a bill first', 'warning')
-        return redirect(url_for('bill_management'))
-    
     try:
-        bill_id = session['current_bill_id']
-        bill = Bill.query.get(bill_id)
+        # Use bill_id from URL if provided, otherwise from session
+        if bill_id:
+            bill = Bill.query.get(bill_id)
+            # Update session with current bill
+            session['current_bill_id'] = bill_id
+        elif 'current_bill_id' in session:
+            bill = Bill.query.get(session['current_bill_id'])
+        else:
+            flash('Please create or select a bill first', 'warning')
+            return redirect(url_for('bill_management'))
         
         if not bill:
             flash('Selected bill not found. Please create a new bill.', 'danger')
