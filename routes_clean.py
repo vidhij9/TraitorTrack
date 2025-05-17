@@ -1,10 +1,15 @@
 import logging
 import re
+import io
+import base64
+import qrcode
 from flask import render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
+from flask_wtf.csrf import generate_csrf
 
 from app_clean import app, db, limiter
 from models import User, UserRole, Bag, BagType, Link, Location, Scan, Bill, BillBag
+from forms import LoginForm, RegistrationForm, LocationSelectionForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromoteToAdminForm, BillCreationForm
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
@@ -537,14 +542,29 @@ def scan_bill_parent():
         flash('Please create or select a bill first', 'warning')
         return redirect(url_for('bill_management'))
     
-    bill = Bill.query.get(session['current_bill_id'])
-    
-    # Get parent bags already linked to this bill
-    linked_parent_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
-    
-    return render_template('scan_bill_parent.html', 
-                           bill=bill,
-                           linked_parent_bags=linked_parent_bags)
+    try:
+        bill_id = session['current_bill_id']
+        bill = Bill.query.get(bill_id)
+        
+        if not bill:
+            flash('Selected bill not found. Please create a new bill.', 'danger')
+            # Clear the invalid bill ID from session
+            session.pop('current_bill_id', None)
+            return redirect(url_for('create_bill'))
+            
+        # Get parent bags already linked to this bill
+        linked_parent_bags = db.session.query(Bag).join(
+            BillBag, Bag.id == BillBag.bag_id
+        ).filter(BillBag.bill_id == bill.id).all()
+        
+        return render_template('scan_bill_parent.html', 
+                            bill=bill,
+                            linked_parent_bags=linked_parent_bags)
+                            
+    except Exception as e:
+        app.logger.error(f"Error in scan_bill_parent: {str(e)}")
+        flash(f'An error occurred: {str(e)}', 'danger')
+        return redirect(url_for('bill_management'))
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
 @login_required
