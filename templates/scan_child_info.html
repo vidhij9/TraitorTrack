@@ -143,10 +143,9 @@ document.addEventListener('DOMContentLoaded', function() {
         resultMsg.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR code scanned successfully. Processing...';
         qrIdInput.parentNode.parentNode.appendChild(resultMsg);
         
-        // Accept any QR code format and auto-submit the form after a brief delay
-        setTimeout(() => {
-            qrIdInput.form.submit();
-        }, 500);
+        // Instead of submitting form directly, click the submit button
+        // This ensures all form validations run correctly including CSRF
+        document.getElementById('submitBtn').click();
     }
     
     // Scan failure handler

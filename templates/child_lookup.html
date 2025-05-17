@@ -44,7 +44,8 @@
                     <h4 class="mb-0"><i class="fas fa-keyboard me-2"></i>Manual Lookup</h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('child_lookup') }}">
+                    <form method="POST" action="{{ url_for('child_lookup') }}" id="lookupForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="qr_code" class="form-label">Child Bag QR Code</label>
                             <div class="input-group">
@@ -52,7 +53,7 @@
                                     <i class="fas fa-tag"></i>
                                 </span>
                                 <input type="text" class="form-control" id="qr_code" name="qr_code" placeholder="e.g., C123" required>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary" id="lookupBtn">
                                     <i class="fas fa-search me-2"></i>Lookup
                                 </button>
                             </div>
@@ -180,8 +181,10 @@
         let canvasContext = canvas.getContext('2d');
         let lastDetectedCode = null;
         
-        // Start camera when button is clicked
-        startCameraBtn.addEventListener('click', startCamera);
+        // Automatically start camera when page loads
+        setTimeout(() => {
+            startCamera();
+        }, 1000);
         
         // Stop camera when button is clicked
         stopCameraBtn.addEventListener('click', stopCamera);
@@ -259,8 +262,9 @@
                             }
                         }
                         
-                        // Redirect to lookup results
-                        window.location.href = `{{ url_for('child_lookup') }}?qr_code=${encodeURIComponent(qrCode)}`;
+                        // Fill the form and submit it with proper CSRF token
+                        document.getElementById('qr_code').value = qrCode;
+                        document.getElementById('lookupForm').submit();
                     }
                 }
             }

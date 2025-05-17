@@ -673,8 +673,8 @@ def child_lookup():
             flash('Please enter a child bag QR code', 'warning')
             return render_template('child_lookup.html')
         
-        # Accept any QR code format - no validation required\        qr_code = qr_code.strip()
-            return render_template('child_lookup.html')
+        # Accept any QR code format - no validation required
+        qr_code = qr_code.strip()
         
         # Look up the child bag
         child_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.CHILD.value).first()
