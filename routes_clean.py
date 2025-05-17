@@ -492,31 +492,41 @@ def bill_management():
 @login_required
 def create_bill():
     """Create a new bill"""
+    # Create a form instance to get CSRF token
+    form = BillCreationForm()
+    
     if request.method == 'POST':
         bill_id = request.form.get('bill_id', '').strip()
         
         if not bill_id:
             flash('Bill ID is required', 'danger')
-            return render_template('create_bill.html')
+            return render_template('create_bill.html', form=form)
         
         # Check if bill_id already exists
         existing_bill = Bill.query.filter_by(bill_id=bill_id).first()
         if existing_bill:
             flash(f'Bill ID {bill_id} already exists', 'danger')
-            return render_template('create_bill.html')
+            return render_template('create_bill.html', form=form)
         
-        # Create new bill
-        bill = Bill(bill_id=bill_id)
-        db.session.add(bill)
-        db.session.commit()
-        
-        # Store bill in session for scanning parent bags
-        session['current_bill_id'] = bill.id
-        
-        flash(f'Bill {bill_id} created successfully. Please scan parent bags to add to this bill.', 'success')
-        return redirect(url_for('scan_bill_parent'))
+        try:
+            # Create new bill
+            new_bill = Bill()
+            new_bill.bill_id = bill_id
+            db.session.add(new_bill)
+            db.session.commit()
+            
+            # Store bill in session for scanning parent bags
+            session['current_bill_id'] = new_bill.id
+            
+            flash(f'Bill {bill_id} created successfully. Please scan parent bags to add to this bill.', 'success')
+            return redirect(url_for('scan_bill_parent'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error creating bill: {str(e)}")
+            flash(f'Error creating bill: {str(e)}', 'danger')
+            return render_template('create_bill.html', form=form)
     
-    return render_template('create_bill.html')
+    return render_template('create_bill.html', form=form)
 
 @app.route('/scan_bill_parent')
 @login_required

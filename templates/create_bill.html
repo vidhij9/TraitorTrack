@@ -45,6 +45,9 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('create_bill') }}">
+                        <!-- Add CSRF protection token -->
+                        {{ form.csrf_token if form else csrf_token() }}
+                        
                         <div class="mb-4">
                             <label for="bill_id" class="form-label">Bill ID</label>
                             <div class="input-group">
