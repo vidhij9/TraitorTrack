@@ -298,7 +298,9 @@
                                 listItem.remove();
                                 
                                 // Update count
-                                progressText.textContent = data.parent_count + ' parent bags scanned';
+                                const linkedCount = data.linked_count || data.parent_count;
+                                const expectedCount = {{ bill.parent_bag_count }};
+                                progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
                                 
                                 // Show success message
                                 resultContainer.className = 'alert alert-info';
@@ -308,10 +310,12 @@
                     });
                     
                     // Update progress text
-                    progressText.textContent = data.parent_count + ' parent bags scanned';
+                    const linkedCount = data.linked_count || data.parent_count;
+                    const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
+                    progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
                     
                     // Check if we've added enough parent bags to complete the bill
-                    if (data.parent_count >= 5) { // Assuming 5 is enough to complete a bill
+                    if (linkedCount >= expectedCount) {
                         // Show completion message
                         resultContainer.className = 'alert alert-success';
                         resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Enough parent bags added! You can complete the bill now.';

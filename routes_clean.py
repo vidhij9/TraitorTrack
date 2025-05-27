@@ -732,6 +732,8 @@ def remove_bag_from_bill():
         return jsonify({
             'success': True,
             'parent_count': parent_count,
+            'linked_count': parent_count,
+            'expected_count': bill.parent_bag_count,
             'message': f'Parent bag {parent_qr} removed from bill {bill.bill_id}'
         })
     else:
