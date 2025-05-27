@@ -561,6 +561,34 @@ def delete_bill(bill_id):
         
     return redirect(url_for('bill_management'))
 
+@app.route('/finish_bill_scan/<int:bill_id>')
+@login_required
+def finish_bill_scan(bill_id):
+    """Complete the bill scanning process"""
+    try:
+        bill = Bill.query.get(bill_id)
+        if not bill:
+            flash('Bill not found', 'danger')
+            return redirect(url_for('bill_management'))
+        
+        # Update bill status to completed
+        bill.status = 'completed'
+        db.session.commit()
+        
+        # Clear session data
+        session.pop('current_bill_id', None)
+        
+        # Count linked bags
+        linked_count = BillBag.query.filter_by(bill_id=bill_id).count()
+        
+        flash(f'Bill {bill.bill_id} completed successfully with {linked_count} parent bags linked.', 'success')
+        return redirect(url_for('bill_management'))
+        
+    except Exception as e:
+        app.logger.error(f"Error finishing bill scan: {str(e)}")
+        flash(f'Error completing bill: {str(e)}', 'danger')
+        return redirect(url_for('bill_management'))
+
 @app.route('/scan_bill_parent')
 @app.route('/scan_bill_parent/<int:bill_id>')
 @login_required
