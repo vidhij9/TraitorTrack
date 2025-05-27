@@ -48,6 +48,12 @@ app.config.update(
 db.init_app(app)
 csrf.init_app(app)
 login_manager.init_app(app)
+
+# Exempt AJAX endpoints from CSRF validation
+csrf.exempt('/process_bill_parent_scan')
+csrf.exempt('/remove_bag_from_bill')
+csrf.exempt('/process_parent_scan')
+csrf.exempt('/process_child_scan')
 limiter.init_app(app)
 
 # Configure login

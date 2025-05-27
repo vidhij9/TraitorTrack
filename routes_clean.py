@@ -502,9 +502,19 @@ def create_bill():
     
     if request.method == 'POST':
         bill_id = request.form.get('bill_id', '').strip()
+        parent_bag_count = request.form.get('parent_bag_count', '5')
         
         if not bill_id:
             flash('Bill ID is required', 'danger')
+            return render_template('create_bill.html', form=form)
+        
+        try:
+            parent_bag_count = int(parent_bag_count)
+            if parent_bag_count < 1 or parent_bag_count > 50:
+                flash('Parent bag count must be between 1 and 50', 'danger')
+                return render_template('create_bill.html', form=form)
+        except ValueError:
+            flash('Invalid parent bag count', 'danger')
             return render_template('create_bill.html', form=form)
         
         # Check if bill_id already exists
@@ -517,13 +527,14 @@ def create_bill():
             # Create new bill using direct property assignment
             new_bill = Bill()
             new_bill.bill_id = bill_id
+            new_bill.parent_bag_count = parent_bag_count
             db.session.add(new_bill)
             db.session.commit()
             
             # Store bill in session for scanning parent bags
             session['current_bill_id'] = new_bill.id
             
-            flash(f'Bill {bill_id} created successfully. Please scan parent bags to add to this bill.', 'success')
+            flash(f'Bill {bill_id} created successfully. Please scan {parent_bag_count} parent bags to add to this bill.', 'success')
             return redirect(url_for('scan_bill_parent'))
         except Exception as e:
             db.session.rollback()
@@ -679,7 +690,9 @@ def process_bill_parent_scan():
         'parent_id': parent_bag.id,
         'parent_qr': parent_bag.qr_id,
         'bill_id': bill.bill_id,
+        'parent_count': linked_count,
         'linked_count': linked_count,
+        'expected_count': bill.parent_bag_count,
         'message': f'Parent bag {qr_code} linked to bill {bill.bill_id} successfully'
     })
 
