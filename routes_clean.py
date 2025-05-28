@@ -677,6 +677,14 @@ def process_bill_parent_scan():
             'message': f'Parent bag {qr_code} already linked to bill {bill.bill_id}'
         })
     
+    # Check if bill has reached maximum parent bag count
+    current_count = BillBag.query.filter_by(bill_id=bill_id).count()
+    if current_count >= bill.parent_bag_count:
+        return jsonify({
+            'success': False,
+            'message': f'Bill already has maximum {bill.parent_bag_count} parent bags linked'
+        })
+    
     # Create new link
     bill_bag = BillBag(bill_id=bill_id, bag_id=parent_bag.id)
     db.session.add(bill_bag)
