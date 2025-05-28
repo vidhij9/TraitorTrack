@@ -45,7 +45,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('child_lookup') }}" id="lookupForm">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <!-- CSRF token temporarily disabled -->
                         <div class="mb-3">
                             <label for="qr_code" class="form-label">Child Bag QR Code</label>
                             <div class="input-group">
