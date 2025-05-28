@@ -95,8 +95,8 @@
                                                 <span class="fw-bold">{{ bill_bag.bag.qr_id }}</span>
                                             </td>
                                             <td>
-                                                {% if bill_bag.bag.child_links %}
-                                                    <span class="badge bg-info">{{ bill_bag.bag.child_links|length }}</span>
+                                                {% if bill_bag.bag.child_links.count() > 0 %}
+                                                    <span class="badge bg-info">{{ bill_bag.bag.child_links.count() }}</span>
                                                 {% else %}
                                                     <span class="badge bg-warning">0</span>
                                                 {% endif %}
