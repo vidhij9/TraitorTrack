@@ -104,9 +104,9 @@
                                             <td>{{ parent_bag_data.parent_bag.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    <a href="{{ url_for('view_parent_bag', qr_id=parent_bag_data.parent_bag.qr_id) }}" class="btn btn-outline-primary">
-                                                        <i class="fas fa-eye"></i> View Details
-                                                    </a>
+                                                    <button type="button" class="btn btn-outline-info" data-bs-toggle="collapse" data-bs-target="#children-{{ loop.index }}" aria-expanded="false">
+                                                        <i class="fas fa-eye me-1"></i>View Child Bags
+                                                    </button>
                                                     
                                                     {% if current_user.role == 'admin' %}
                                                         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#unlinkModal{{ loop.index }}">
@@ -138,6 +138,34 @@
                                                             </div>
                                                         </div>
                                                     </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr class="collapse" id="children-{{ loop.index }}">
+                                            <td colspan="4">
+                                                <div class="bg-light p-3 rounded">
+                                                    <h6 class="mb-2"><i class="fas fa-boxes me-2"></i>Child Bags for {{ parent_bag_data.parent_bag.qr_id }}:</h6>
+                                                    {% if parent_bag_data.child_bags %}
+                                                        <div class="row">
+                                                            {% for child_bag in parent_bag_data.child_bags %}
+                                                                <div class="col-md-4 mb-2">
+                                                                    <div class="card">
+                                                                        <div class="card-body py-2">
+                                                                            <small class="d-block">
+                                                                                <span class="badge bg-secondary me-1">Child</span>
+                                                                                {{ child_bag.qr_id }}
+                                                                            </small>
+                                                                            <small class="text-muted">
+                                                                                Scanned: {{ child_bag.created_at.strftime('%m/%d %H:%M') }}
+                                                                            </small>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            {% endfor %}
+                                                        </div>
+                                                    {% else %}
+                                                        <p class="text-muted mb-0">No child bags linked yet.</p>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>
