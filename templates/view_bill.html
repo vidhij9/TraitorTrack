@@ -87,29 +87,29 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% if bill.bag_links %}
-                                    {% for bill_bag in bill.bag_links %}
+                                {% if parent_bags %}
+                                    {% for parent_bag_data in parent_bags %}
                                         <tr>
                                             <td>
                                                 <span class="badge bg-primary me-2">Parent</span>
-                                                <span class="fw-bold">{{ bill_bag.bag.qr_id }}</span>
+                                                <span class="fw-bold">{{ parent_bag_data.parent_bag.qr_id }}</span>
                                             </td>
                                             <td>
-                                                {% if bill_bag.bag.child_links.count() > 0 %}
-                                                    <span class="badge bg-info">{{ bill_bag.bag.child_links.count() }}</span>
+                                                {% if parent_bag_data.child_count > 0 %}
+                                                    <span class="badge bg-info">{{ parent_bag_data.child_count }}</span>
                                                 {% else %}
                                                     <span class="badge bg-warning">0</span>
                                                 {% endif %}
                                             </td>
-                                            <td>{{ bill_bag.bag.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                            <td>{{ parent_bag_data.parent_bag.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    <a href="{{ url_for('view_parent_bag', qr_id=bill_bag.bag.qr_id) }}" class="btn btn-outline-primary">
+                                                    <a href="{{ url_for('view_parent_bag', qr_id=parent_bag_data.parent_bag.qr_id) }}" class="btn btn-outline-primary">
                                                         <i class="fas fa-eye"></i> View Details
                                                     </a>
                                                     
                                                     {% if current_user.role == 'admin' %}
-                                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#unlinkModal{{ bill_bag.id }}">
+                                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#unlinkModal{{ loop.index }}">
                                                             <i class="fas fa-unlink"></i> Remove
                                                         </button>
                                                     {% endif %}

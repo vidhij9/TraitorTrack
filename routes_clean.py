@@ -761,9 +761,11 @@ def view_bill(bill_id):
     for bill_bag in bill.bag_links:
         parent_bag = bill_bag.bag
         child_bags = [link.child_bag for link in parent_bag.child_links]
+        child_count = len(child_bags)
         parent_bags.append({
             'parent_bag': parent_bag,
-            'child_bags': child_bags
+            'child_bags': child_bags,
+            'child_count': child_count
         })
     
     return render_template('view_bill.html', bill=bill, parent_bags=parent_bags)
