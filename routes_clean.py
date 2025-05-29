@@ -758,6 +758,8 @@ def view_bill(bill_id):
     
     # Get all parent bags linked to this bill with their child bags
     parent_bags = []
+    bag_links_count = len(list(bill.bag_links))
+    
     for bill_bag in bill.bag_links:
         parent_bag = bill_bag.bag
         child_bags = [link.child_bag for link in parent_bag.child_links]
@@ -768,7 +770,7 @@ def view_bill(bill_id):
             'child_count': child_count
         })
     
-    return render_template('view_bill.html', bill=bill, parent_bags=parent_bags)
+    return render_template('view_bill.html', bill=bill, parent_bags=parent_bags, bag_links_count=bag_links_count)
 
 @app.route('/finish_bill')
 @login_required
