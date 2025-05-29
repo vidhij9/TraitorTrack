@@ -116,23 +116,25 @@
                                                 </div>
                                                 
                                                 <!-- Unlink Confirmation Modal -->
-                                                <div class="modal fade" id="unlinkModal{{ bill_bag.id }}" tabindex="-1" aria-labelledby="unlinkModalLabel{{ bill_bag.id }}" aria-hidden="true">
+                                                <div class="modal fade" id="unlinkModal{{ loop.index }}" tabindex="-1" aria-labelledby="unlinkModalLabel{{ loop.index }}" aria-hidden="true">
                                                     <div class="modal-dialog">
                                                         <div class="modal-content">
                                                             <div class="modal-header bg-danger text-white">
-                                                                <h5 class="modal-title" id="unlinkModalLabel{{ bill_bag.id }}">
-                                                                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Unlink
+                                                                <h5 class="modal-title" id="unlinkModalLabel{{ loop.index }}">
+                                                                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Remove
                                                                 </h5>
                                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                             </div>
                                                             <div class="modal-body">
-                                                                <p>Are you sure you want to unlink parent bag <strong>{{ bill_bag.bag.qr_id }}</strong> from this bill?</p>
+                                                                <p>Are you sure you want to remove parent bag <strong>{{ parent_bag_data.parent_bag.qr_id }}</strong> from this bill?</p>
                                                             </div>
                                                             <div class="modal-footer">
                                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                                <form action="{{ url_for('unlink_bill_parent', bill_bag_id=bill_bag.id) }}" method="POST" class="d-inline">
+                                                                <form method="POST" action="{{ url_for('remove_bag_from_bill') }}" class="d-inline">
+                                                                    <input type="hidden" name="parent_qr" value="{{ parent_bag_data.parent_bag.qr_id }}">
+                                                                    <input type="hidden" name="bill_id" value="{{ bill.id }}">
                                                                     <button type="submit" class="btn btn-danger">
-                                                                        <i class="fas fa-unlink me-2"></i>Unlink
+                                                                        <i class="fas fa-times me-2"></i>Remove
                                                                     </button>
                                                                 </form>
                                                             </div>
