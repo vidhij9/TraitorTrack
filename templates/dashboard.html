@@ -18,16 +18,43 @@
 {% endblock %}
 
 {% block content %}
+<!-- Welcome Section with Agricultural Theme -->
+<div class="welcome-section mb-4">
+    <h1 class="display-4 mb-3">
+        <i class="fas fa-seedling me-3"></i>
+        STAR Agriseeds TraceTrack
+    </h1>
+    <p class="lead mb-0">Cultivating transparency in agricultural supply chains</p>
+    <small class="text-light">Advanced Farm-to-Market Traceability System</small>
+</div>
+
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">Supply Chain Dashboard</h1>
+    <h1 class="h2">
+        <i class="fas fa-chart-line me-2"></i>
+        Farm Analytics Dashboard
+    </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
             <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-data">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-file-export"></i> Export
-            </button>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-file-export"></i> Export Reports
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('export_data', format='csv') }}">
+                        <i class="fas fa-file-csv me-2"></i>Export as CSV
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('export_data', format='pdf') }}">
+                        <i class="fas fa-file-pdf me-2"></i>Export as PDF
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('export_data', format='analytics') }}">
+                        <i class="fas fa-chart-bar me-2"></i>Analytics Report
+                    </a></li>
+                </ul>
+            </div>
         </div>
         <div class="dropdown">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -45,66 +72,38 @@
     </div>
 </div>
 
-<!-- Status Cards -->
+<!-- Agricultural Status Cards -->
 <div class="row mb-4" id="status-cards">
     <div class="col-md-3 mb-4">
-        <div class="card bg-dark text-white status-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title text-muted">Total Products</h6>
-                        <h2 class="card-text" id="total-products">Loading...</h2>
-                    </div>
-                    <div class="bg-primary rounded p-3">
-                        <i class="fas fa-box fa-2x text-white"></i>
-                    </div>
-                </div>
-            </div>
+        <div class="stats-card card text-center p-3">
+            <div class="feature-icon">🌾</div>
+            <h3 class="text-primary" id="total-parent-bags">Loading...</h3>
+            <p class="text-muted mb-0">Parent Bags</p>
+            <small class="text-success">Seed Batches Tracked</small>
         </div>
     </div>
     <div class="col-md-3 mb-4">
-        <div class="card bg-dark text-white status-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title text-muted">Total Scans</h6>
-                        <h2 class="card-text" id="total-scans">Loading...</h2>
-                    </div>
-                    <div class="bg-info rounded p-3">
-                        <i class="fas fa-qrcode fa-2x text-white"></i>
-                    </div>
-                </div>
-            </div>
+        <div class="stats-card card text-center p-3">
+            <div class="feature-icon">🌱</div>
+            <h3 class="text-success" id="total-child-bags">Loading...</h3>
+            <p class="text-muted mb-0">Child Bags</p>
+            <small class="text-success">Individual Products</small>
         </div>
     </div>
     <div class="col-md-3 mb-4">
-        <div class="card bg-dark text-white status-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title text-muted">Delivered</h6>
-                        <h2 class="card-text" id="delivered-count">Loading...</h2>
-                    </div>
-                    <div class="bg-success rounded p-3">
-                        <i class="fas fa-check-circle fa-2x text-white"></i>
-                    </div>
-                </div>
-            </div>
+        <div class="stats-card card text-center p-3">
+            <div class="feature-icon">📋</div>
+            <h3 class="text-warning" id="total-bills">Loading...</h3>
+            <p class="text-muted mb-0">Active Bills</p>
+            <small class="text-warning">Shipment Orders</small>
         </div>
     </div>
     <div class="col-md-3 mb-4">
-        <div class="card bg-dark text-white status-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title text-muted">In Transit</h6>
-                        <h2 class="card-text" id="in-transit-count">Loading...</h2>
-                    </div>
-                    <div class="bg-warning rounded p-3">
-                        <i class="fas fa-truck fa-2x text-white"></i>
-                    </div>
-                </div>
-            </div>
+        <div class="stats-card card text-center p-3">
+            <div class="feature-icon">🔍</div>
+            <h3 class="text-info" id="total-scans">Loading...</h3>
+            <p class="text-muted mb-0">Total Scans</p>
+            <small class="text-info">Traceability Events</small>
         </div>
     </div>
 </div>

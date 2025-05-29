@@ -1,0 +1,282 @@
+/* STAR Agriseeds Agricultural Theme */
+:root {
+    /* Farm-inspired color palette */
+    --primary-green: #2d5a3d;
+    --secondary-green: #4a7c59;
+    --accent-gold: #d4a574;
+    --earth-brown: #8b5a2b;
+    --sky-blue: #87ceeb;
+    --wheat-yellow: #f5deb3;
+    --soil-dark: #3e2723;
+    --leaf-light: #a8d8a8;
+    --sunrise-orange: #ff8c42;
+    --seed-beige: #f7f3e9;
+}
+
+/* Global theme adjustments */
+body {
+    background: linear-gradient(135deg, var(--seed-beige) 0%, var(--wheat-yellow) 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--soil-dark);
+}
+
+/* Header with agricultural gradient */
+.navbar {
+    background: linear-gradient(45deg, var(--primary-green), var(--secondary-green)) !important;
+    box-shadow: 0 4px 15px rgba(45, 90, 61, 0.3);
+    border-bottom: 3px solid var(--accent-gold);
+}
+
+.navbar-brand {
+    font-weight: bold;
+    color: white !important;
+    font-size: 1.5rem;
+}
+
+.navbar-brand::before {
+    content: "🌱 ";
+    margin-right: 8px;
+}
+
+/* Card styling with organic feel */
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(45, 90, 61, 0.15);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background: linear-gradient(45deg, var(--secondary-green), var(--primary-green));
+    color: white;
+    border-radius: 15px 15px 0 0 !important;
+    border-bottom: 2px solid var(--accent-gold);
+    font-weight: 600;
+}
+
+/* Button enhancements with agricultural metaphors */
+.btn-primary {
+    background: linear-gradient(45deg, var(--primary-green), var(--secondary-green));
+    border: 2px solid var(--accent-gold);
+    border-radius: 25px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(45deg, var(--secondary-green), var(--leaf-light));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(45, 90, 61, 0.3);
+}
+
+.btn-success {
+    background: linear-gradient(45deg, var(--leaf-light), var(--secondary-green));
+    border: 2px solid var(--accent-gold);
+    border-radius: 25px;
+}
+
+.btn-warning {
+    background: linear-gradient(45deg, var(--accent-gold), var(--sunrise-orange));
+    border: 2px solid var(--earth-brown);
+    color: var(--soil-dark);
+    border-radius: 25px;
+}
+
+/* Dashboard stats cards */
+.stats-card {
+    background: linear-gradient(135deg, rgba(168, 216, 168, 0.2), rgba(255, 255, 255, 0.9));
+    border-left: 5px solid var(--primary-green);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(45, 90, 61, 0.2);
+}
+
+/* Agricultural icons and decorations */
+.feature-icon {
+    font-size: 2.5rem;
+    color: var(--primary-green);
+    margin-bottom: 1rem;
+    display: block;
+    text-align: center;
+}
+
+/* Progress bars with growth theme */
+.progress {
+    height: 12px;
+    border-radius: 10px;
+    background-color: var(--seed-beige);
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(45deg, var(--leaf-light), var(--primary-green));
+    border-radius: 10px;
+    transition: width 0.8s ease-in-out;
+}
+
+/* Form enhancements */
+.form-control {
+    border: 2px solid var(--leaf-light);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 0.2rem rgba(45, 90, 61, 0.25);
+}
+
+/* Table styling */
+.table {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.table thead th {
+    background: linear-gradient(45deg, var(--primary-green), var(--secondary-green));
+    color: white;
+    border: none;
+    font-weight: 600;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(168, 216, 168, 0.1);
+}
+
+/* Alert styling */
+.alert-success {
+    background: linear-gradient(45deg, rgba(168, 216, 168, 0.2), rgba(255, 255, 255, 0.9));
+    border: 2px solid var(--leaf-light);
+    border-radius: 10px;
+    color: var(--primary-green);
+}
+
+.alert-danger {
+    background: linear-gradient(45deg, rgba(255, 140, 66, 0.2), rgba(255, 255, 255, 0.9));
+    border: 2px solid var(--sunrise-orange);
+    border-radius: 10px;
+    color: var(--earth-brown);
+}
+
+/* Loading animations */
+@keyframes growPlant {
+    0% { transform: scale(0.8) rotate(-5deg); opacity: 0.7; }
+    50% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.loading-plant {
+    animation: growPlant 2s ease-in-out infinite;
+}
+
+/* QR code scanning interface */
+.qr-scanner-container {
+    background: linear-gradient(135deg, var(--primary-green), var(--secondary-green));
+    border-radius: 20px;
+    padding: 2rem;
+    color: white;
+    text-align: center;
+}
+
+.qr-preview {
+    border: 3px solid var(--accent-gold);
+    border-radius: 15px;
+    background: white;
+    padding: 1rem;
+    margin: 1rem auto;
+    max-width: 300px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+        border-radius: 10px;
+    }
+    
+    .btn {
+        border-radius: 20px;
+        padding: 0.6rem 1.2rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+}
+
+/* Accessibility enhancements */
+.focus-visible {
+    outline: 3px solid var(--accent-gold);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --primary-green: #1a4027;
+        --secondary-green: #2d5a3d;
+        --accent-gold: #b8860b;
+    }
+}
+
+/* Micro-interactions */
+.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clickable:hover {
+    transform: scale(1.02);
+}
+
+/* Badge styling */
+.badge {
+    border-radius: 15px;
+    padding: 0.5rem 0.8rem;
+    font-weight: 600;
+}
+
+.badge-success {
+    background: linear-gradient(45deg, var(--leaf-light), var(--primary-green));
+}
+
+.badge-warning {
+    background: linear-gradient(45deg, var(--accent-gold), var(--sunrise-orange));
+    color: var(--soil-dark);
+}
+
+/* Dashboard welcome section */
+.welcome-section {
+    background: linear-gradient(135deg, var(--primary-green), var(--secondary-green));
+    color: white;
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.welcome-section::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="70" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+    animation: float 20s linear infinite;
+}
+
+@keyframes float {
+    0% { transform: translateX(-50%) translateY(-50%) rotate(0deg); }
+    100% { transform: translateX(-50%) translateY(-50%) rotate(360deg); }
+}
