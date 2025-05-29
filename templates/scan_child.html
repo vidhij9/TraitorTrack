@@ -123,7 +123,7 @@
                     </ul>
                     
                     <form id="manual-entry-form" class="mt-4">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <div class="mb-3">
                             <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
                             <div class="input-group">
@@ -403,10 +403,9 @@
             fetch('/process_child_scan', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': '{{ csrf_token() }}'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: 'qr_code=' + encodeURIComponent(qrCode) + '&csrf_token={{ csrf_token() }}'
+                body: 'qr_code=' + encodeURIComponent(qrCode)
             })
             .then(response => response.json())
             .then(data => {

@@ -24,7 +24,7 @@
                 </div>
                 <div class="card-body">
                     <form method="post" action="{{ url_for('process_child_info_scan') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
                         <div class="mb-3">
                             <label for="qr_id" class="form-label">Child Bag QR ID</label>
                             <div class="input-group">
