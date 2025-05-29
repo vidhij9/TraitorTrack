@@ -127,8 +127,8 @@
                     </a>
                     
                     {% if is_parent %}
-                    <a href="{{ url_for('link_to_bill', parent_qr_id=bag.qr_id) }}" class="btn btn-outline-info">
-                        <i class="fas fa-link me-2"></i>{% if link %}Update{% else %}Link to{% endif %} Bill
+                    <a href="{{ url_for('bill_management') }}" class="btn btn-outline-info">
+                        <i class="fas fa-file-invoice me-2"></i>Manage Bills
                     </a>
                     {% endif %}
                 </div>
