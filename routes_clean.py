@@ -491,8 +491,25 @@ def finish_scanning():
 @app.route('/bill_management')
 @login_required
 def bill_management():
-    """Bill management dashboard"""
-    bills = Bill.query.order_by(Bill.created_at.desc()).all()
+    """Bill management dashboard with search functionality"""
+    # Get search parameters
+    search_bill_id = request.args.get('search_bill_id', '').strip()
+    status_filter = request.args.get('status_filter', 'all')
+    
+    # Start with base query
+    query = Bill.query
+    
+    # Apply search filters
+    if search_bill_id:
+        # Search by bill ID (partial match)
+        query = query.filter(Bill.bill_id.ilike(f'%{search_bill_id}%'))
+    
+    if status_filter != 'all':
+        query = query.filter(Bill.status == status_filter)
+    
+    # Execute query
+    bills = query.order_by(Bill.created_at.desc()).all()
+    
     return render_template('bill_management.html', bills=bills)
 
 @app.route('/create_bill', methods=['GET', 'POST'])

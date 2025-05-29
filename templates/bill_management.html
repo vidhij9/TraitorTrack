@@ -21,11 +21,62 @@
         </div>
     </div>
     
+    <!-- Bill Search -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success bg-opacity-25 text-light">
+                    <h4 class="mb-0"><i class="fas fa-search me-2"></i>Search Bills</h4>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('bill_management') }}" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="search_bill_id" class="form-label">Bill ID</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-file-invoice"></i>
+                                </span>
+                                <input type="text" class="form-control" id="search_bill_id" name="search_bill_id" 
+                                       placeholder="Enter bill ID (e.g., 32)" value="{{ request.args.get('search_bill_id', '') }}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-2"></i>Search
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="status_filter" class="form-label">Status Filter</label>
+                            <select class="form-select" id="status_filter" name="status_filter">
+                                <option value="all" {% if request.args.get('status_filter', 'all') == 'all' %}selected{% endif %}>All Status</option>
+                                <option value="in_progress" {% if request.args.get('status_filter') == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                <option value="completed" {% if request.args.get('status_filter') == 'completed' %}selected{% endif %}>Completed</option>
+                            </select>
+                        </div>
+                    </form>
+                    {% if request.args.get('search_bill_id') %}
+                    <div class="mt-3">
+                        <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times me-1"></i>Clear Search
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header bg-info bg-opacity-25 text-light">
-                    <h4 class="mb-0"><i class="fas fa-list me-2"></i>All Bills</h4>
+                    <h4 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        {% if request.args.get('search_bill_id') %}
+                            Search Results for "{{ request.args.get('search_bill_id') }}"
+                        {% else %}
+                            All Bills
+                        {% endif %}
+                        <span class="badge bg-primary ms-2">{{ bills|length }}</span>
+                    </h4>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -114,7 +165,15 @@
                                 {% else %}
                                     <tr>
                                         <td colspan="5" class="text-center py-3">
-                                            <p class="mb-0 text-muted">No bills found. Click "Create New Bill" to get started.</p>
+                                            {% if request.args.get('search_bill_id') %}
+                                                <div class="text-center">
+                                                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                                                    <p class="mb-0 text-muted">No bills found matching "{{ request.args.get('search_bill_id') }}"</p>
+                                                    <p class="text-muted">Try a different search term or clear the search.</p>
+                                                </div>
+                                            {% else %}
+                                                <p class="mb-0 text-muted">No bills found. Click "Create New Bill" to get started.</p>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 {% endif %}
