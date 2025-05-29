@@ -262,11 +262,7 @@
                                     <a href="{{ url_for('bag_detail', qr_id=bag.qr_id) }}" class="btn btn-outline-primary btn-sm" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    {% if bag.type == 'parent' and current_user.is_admin() %}
-                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="quickLinkToBill('{{ bag.qr_id }}')" title="Link to Bill">
-                                        <i class="fas fa-link"></i>
-                                    </button>
-                                    {% endif %}
+
                                 </div>
                             </td>
                         </tr>
@@ -288,30 +284,7 @@
     </div>
 </div>
 
-<!-- Quick Link to Bill Modal -->
-<div class="modal fade" id="quickLinkModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content bg-dark">
-            <div class="modal-header">
-                <h5 class="modal-title">Link to Bill</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="quickLinkForm">
-                    <input type="hidden" id="parentQrId" name="parent_qr_id">
-                    <div class="mb-3">
-                        <label for="billId" class="form-label">Bill ID</label>
-                        <input type="text" class="form-control" id="billId" name="bill_id" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="submitQuickLink()">Link to Bill</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <script>
 function clearFilters() {
@@ -329,36 +302,6 @@ function exportData(format) {
     const params = new URLSearchParams(window.location.search);
     params.set('export', format);
     window.open(`{{ url_for('bag_management') }}?${params.toString()}`);
-}
-
-function quickLinkToBill(qrId) {
-    document.getElementById('parentQrId').value = qrId;
-    const modal = new bootstrap.Modal(document.getElementById('quickLinkModal'));
-    modal.show();
-}
-
-function submitQuickLink() {
-    const form = document.getElementById('quickLinkForm');
-    const formData = new FormData(form);
-    
-    fetch('{{ url_for("link_to_bill") }}', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        alert('Error linking to bill');
-    });
 }
 
 // Auto-submit filters on change for better UX
