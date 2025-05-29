@@ -9,9 +9,9 @@
             <div class="card bg-dark text-light">
                 <div class="card-body">
                     <h2 class="card-title">
-                        <i class="fas fa-search me-2"></i>Child Bag Lookup
+                        <i class="fas fa-search me-2"></i>Universal Bag Lookup
                     </h2>
-                    <p class="card-text">Scan or enter a child bag QR code to find its parent bag and associated bill.</p>
+                    <p class="card-text">Scan or enter any bag QR code (parent or child) to view its details, relationships, and bill information.</p>
                 </div>
             </div>
         </div>
@@ -47,17 +47,17 @@
                     <form method="POST" action="{{ url_for('child_lookup') }}" id="lookupForm">
                         <!-- CSRF token temporarily disabled -->
                         <div class="mb-3">
-                            <label for="qr_code" class="form-label">Child Bag QR Code</label>
+                            <label for="qr_code" class="form-label">Bag QR Code</label>
                             <div class="input-group">
                                 <span class="input-group-text">
-                                    <i class="fas fa-tag"></i>
+                                    <i class="fas fa-search"></i>
                                 </span>
-                                <input type="text" class="form-control" id="qr_code" name="qr_code" placeholder="e.g., C123" required>
+                                <input type="text" class="form-control" id="qr_code" name="qr_code" placeholder="e.g., P3-1 or C123" required>
                                 <button type="submit" class="btn btn-primary" id="lookupBtn">
                                     <i class="fas fa-search me-2"></i>Lookup
                                 </button>
                             </div>
-                            <div class="form-text">Enter the QR code from the child bag.</div>
+                            <div class="form-text">Enter any bag QR code (parent or child).</div>
                         </div>
                     </form>
                 </div>

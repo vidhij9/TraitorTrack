@@ -787,52 +787,71 @@ def finish_bill():
 @app.route('/child_lookup', methods=['GET', 'POST'])
 @login_required
 def child_lookup():
-    """Look up parent bag and bill from child bag QR code"""
+    """Universal bag lookup - works with both parent and child bag QR codes"""
     if request.method == 'POST':
         qr_code = request.form.get('qr_code', '').strip()
         
         if not qr_code:
-            flash('Please enter a child bag QR code', 'warning')
+            flash('Please enter a bag QR code', 'warning')
             return render_template('child_lookup.html')
         
         # Accept any QR code format - no validation required
         qr_code = qr_code.strip()
         
-        # Look up the child bag
-        child_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.CHILD.value).first()
+        # Look up any bag with this QR code
+        bag = Bag.query.filter_by(qr_id=qr_code).first()
         
-        if not child_bag:
-            flash(f'Child bag {qr_code} not found', 'danger')
+        if not bag:
+            flash(f'Bag {qr_code} not found', 'danger')
             return render_template('child_lookup.html')
         
-        # Find linked parent bag
-        link = Link.query.filter_by(child_bag_id=child_bag.id).first()
-        
-        if not link:
-            flash(f'Child bag {qr_code} is not linked to any parent bag', 'warning')
-            return render_template('child_lookup.html', child_bag=child_bag)
-        
-        # Get parent bag
-        parent_bag = Bag.query.get(link.parent_bag_id)
-        
-        # Find bill linked to parent bag
-        bill_bag = BillBag.query.filter_by(bag_id=parent_bag.id).first()
-        bill = Bill.query.get(bill_bag.bill_id) if bill_bag else None
-        
-        # Get scan history
-        child_scans = Scan.query.filter_by(child_bag_id=child_bag.id).order_by(Scan.timestamp.desc()).all()
-        
-        # Count bill bags for display
-        bill_bag_count = 0
-        if bill:
-            bill_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        # Handle based on bag type
+        if bag.type == BagType.CHILD.value:
+            # Child bag - find parent and bill
+            link = Link.query.filter_by(child_bag_id=bag.id).first()
             
-        return render_template('child_lookup_result.html',
-                              child_bag=child_bag,
-                              parent_bag=parent_bag,
-                              bill=bill,
-                              bill_bag=bill_bag_count,
-                              child_scans=child_scans)
+            if not link:
+                flash(f'Child bag {qr_code} is not linked to any parent bag', 'warning')
+                return render_template('child_lookup.html', searched_bag=bag, bag_type='child')
+            
+            parent_bag = Bag.query.get(link.parent_bag_id)
+            child_scans = Scan.query.filter_by(child_bag_id=bag.id).order_by(Scan.timestamp.desc()).all()
+            
+            # Find bill linked to parent bag
+            bill_bag = BillBag.query.filter_by(bag_id=parent_bag.id).first()
+            bill = Bill.query.get(bill_bag.bill_id) if bill_bag else None
+            
+            # Get all children of this parent for context
+            all_children_links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
+            all_children = [link.child_bag for link in all_children_links]
+            
+            return render_template('bag_lookup_result.html',
+                                  searched_bag=bag,
+                                  bag_type='child',
+                                  parent_bag=parent_bag,
+                                  child_bags=all_children,
+                                  bill=bill,
+                                  scans=child_scans)
+        
+        else:
+            # Parent bag - find children and bill
+            children_links = Link.query.filter_by(parent_bag_id=bag.id).all()
+            child_bags = [link.child_bag for link in children_links]
+            
+            # Find bill linked to this parent bag
+            bill_bag = BillBag.query.filter_by(bag_id=bag.id).first()
+            bill = Bill.query.get(bill_bag.bill_id) if bill_bag else None
+            
+            # Get scan history for parent bag
+            parent_scans = Scan.query.filter_by(parent_bag_id=bag.id).order_by(Scan.timestamp.desc()).all()
+            
+            return render_template('bag_lookup_result.html',
+                                  searched_bag=bag,
+                                  bag_type='parent',
+                                  parent_bag=bag,
+                                  child_bags=child_bags,
+                                  bill=bill,
+                                  scans=parent_scans)
     
     return render_template('child_lookup.html')
 
