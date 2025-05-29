@@ -851,12 +851,8 @@ def bag_management():
     location_filter = request.args.get('location', 'all')
     bill_status = request.args.get('bill_status', 'all')
     
-    # Build optimized query with joins for better performance
-    query = db.session.query(Bag).options(
-        db.joinedload(Bag.child_links),
-        db.joinedload(Bag.parent_links),
-        db.joinedload(Bag.bill_links)
-    )
+    # Build optimized query
+    query = Bag.query
     
     # Apply basic filters directly in SQL
     if bag_type == 'parent':
@@ -935,10 +931,26 @@ def bag_management():
     parent_bags = len([b for b in bags if b.type == BagType.PARENT.value])
     child_bags = total_bags - parent_bags
     
-    # Quick stats calculation using cached relationships
-    linked_bags = len([b for b in bags if (b.child_links and b.child_links.count() > 0) or (b.parent_links and b.parent_links.count() > 0)])
+    # Calculate stats using database queries for accuracy
+    bag_ids = [b.id for b in bags]
+    
+    # Count linked bags
+    linked_parent_count = db.session.query(Link.parent_bag_id).filter(Link.parent_bag_id.in_(bag_ids)).distinct().count()
+    linked_child_count = db.session.query(Link.child_bag_id).filter(Link.child_bag_id.in_(bag_ids)).distinct().count()
+    linked_bags = linked_parent_count + linked_child_count
     unlinked_bags = total_bags - linked_bags
-    orphaned_bags = len([b for b in bags if b.type == BagType.PARENT.value and b.child_links.count() > 0 and b.bill_links.count() == 0])
+    
+    # Count orphaned bags (parent bags with children but no bill)
+    parent_bag_ids = [b.id for b in bags if b.type == BagType.PARENT.value]
+    if parent_bag_ids:
+        parents_with_children = db.session.query(Link.parent_bag_id).filter(Link.parent_bag_id.in_(parent_bag_ids)).distinct().subquery()
+        parents_with_bills = db.session.query(BillBag.bag_id).filter(BillBag.bag_id.in_(parent_bag_ids)).distinct().subquery()
+        orphaned_count = db.session.query(parents_with_children.c.parent_bag_id).filter(
+            parents_with_children.c.parent_bag_id.notin_(db.session.query(parents_with_bills.c.bag_id))
+        ).count()
+        orphaned_bags = orphaned_count
+    else:
+        orphaned_bags = 0
     
     stats = {
         'total_bags': total_bags,
