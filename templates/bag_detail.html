@@ -276,29 +276,44 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/qrcode.js@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Generate QR code
-        const qrcode = new QRCode(document.getElementById("qrcode"), {
-            text: "{{ bag.qr_id }}",
-            width: 128,
-            height: 128,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
+        // Generate QR code using qrcode-generator library
+        const qr = qrcode(0, 'M');
+        qr.addData("{{ bag.qr_id }}");
+        qr.make();
+        
+        // Create QR code HTML and insert it
+        const qrCodeContainer = document.getElementById("qrcode");
+        qrCodeContainer.innerHTML = qr.createImgTag(4, 8); // cellSize=4, margin=8
+        
+        // Style the QR code image
+        const qrImg = qrCodeContainer.querySelector('img');
+        if (qrImg) {
+            qrImg.style.maxWidth = '128px';
+            qrImg.style.height = 'auto';
+            qrImg.style.border = '2px solid #fff';
+            qrImg.style.borderRadius = '8px';
+        }
         
         // QR code download button
         const downloadQrBtn = document.getElementById('download-qr');
         if (downloadQrBtn) {
             downloadQrBtn.addEventListener('click', function() {
-                const qrCanvas = document.querySelector('#qrcode canvas');
-                if (!qrCanvas) return;
+                const qrImg = document.querySelector('#qrcode img');
+                if (!qrImg) return;
                 
-                const image = qrCanvas.toDataURL("image/png");
+                // Create a canvas to convert the image for download
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = qrImg.naturalWidth;
+                canvas.height = qrImg.naturalHeight;
+                ctx.drawImage(qrImg, 0, 0);
+                
+                const image = canvas.toDataURL("image/png");
                 const link = document.createElement('a');
-                link.download = `QR_{{ bag.qr_id }}.png`;
+                link.download = 'QR_{{ bag.qr_id }}.png';
                 link.href = image;
                 link.click();
             });
