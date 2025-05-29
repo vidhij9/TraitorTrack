@@ -377,12 +377,14 @@
         }
         
         function removeBagFromBill(parentQr, billId) {
+            const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
             fetch('/remove_bag_from_bill', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
                 },
-                body: 'parent_qr=' + encodeURIComponent(parentQr) + '&bill_id=' + billId
+                body: 'parent_qr=' + encodeURIComponent(parentQr) + '&bill_id=' + billId + '&csrf_token=' + encodeURIComponent(csrfToken)
             })
             .then(response => response.json())
             .then(data => {
