@@ -85,7 +85,7 @@
                     {% endif %}
                     
                     <dt class="col-sm-5">Created At:</dt>
-                    <dd class="col-sm-7">{{ format_datetime(bag.created_at) }}</dd>
+                    <dd class="col-sm-7">{{ bag.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
                     
                     <dt class="col-sm-5">Total Scans:</dt>
                     <dd class="col-sm-7">{{ scans|length }}</dd>

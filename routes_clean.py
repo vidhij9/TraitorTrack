@@ -840,27 +840,30 @@ def child_lookup():
 @app.route('/bags')
 @login_required
 def bag_management():
-    """Enhanced bag management with comprehensive filtering options"""
+    """Optimized bag management with efficient filtering"""
     
     # Get filter parameters
-    bag_type = request.args.get('type', 'all')  # all, parent, child
+    bag_type = request.args.get('type', 'all')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
-    linked_status = request.args.get('linked_status', 'all')  # all, linked, unlinked, orphaned
+    linked_status = request.args.get('linked_status', 'all')
     search_query = request.args.get('search', '')
     location_filter = request.args.get('location', 'all')
-    bill_status = request.args.get('bill_status', 'all')  # all, billed, unbilled
+    bill_status = request.args.get('bill_status', 'all')
     
-    # Start with base query
-    query = Bag.query
+    # Build optimized query with joins for better performance
+    query = db.session.query(Bag).options(
+        db.joinedload(Bag.child_links),
+        db.joinedload(Bag.parent_links),
+        db.joinedload(Bag.bill_links)
+    )
     
-    # Apply bag type filter
+    # Apply basic filters directly in SQL
     if bag_type == 'parent':
         query = query.filter(Bag.type == BagType.PARENT.value)
     elif bag_type == 'child':
         query = query.filter(Bag.type == BagType.CHILD.value)
     
-    # Apply date filter
     if date_from:
         try:
             from_date = datetime.strptime(date_from, '%Y-%m-%d')
@@ -875,98 +878,79 @@ def bag_management():
         except ValueError:
             flash('Invalid to date format', 'warning')
     
-    # Apply search filter
     if search_query:
         query = query.filter(Bag.qr_id.ilike(f'%{search_query}%'))
     
-    # Apply location filter (get location from latest scan)
-    if location_filter != 'all':
-        # Subquery to get bags that have scans at the specified location
-        location_subquery = db.session.query(Scan.parent_bag_id, Scan.child_bag_id).join(Location).filter(Location.name == location_filter).subquery()
-        query = query.filter(or_(
-            Bag.id.in_(db.session.query(location_subquery.c.parent_bag_id).filter(location_subquery.c.parent_bag_id.isnot(None))),
-            Bag.id.in_(db.session.query(location_subquery.c.child_bag_id).filter(location_subquery.c.child_bag_id.isnot(None)))
-        ))
-    
-    # Get all bags with the current filters
-    bags = query.order_by(Bag.created_at.desc()).all()
-    
-    # Apply linked status filter (requires post-processing)
+    # Apply advanced filters using subqueries for better performance
     if linked_status != 'all':
-        filtered_bags = []
-        for bag in bags:
-            if bag.type == BagType.PARENT.value:
-                # For parent bags, check child links and bill links
-                has_children = Link.query.filter_by(parent_bag_id=bag.id).count() > 0
-                has_bill = BillBag.query.filter_by(bag_id=bag.id).count() > 0
-                
-                if linked_status == 'unlinked' and not has_children:
-                    filtered_bags.append(bag)
-                elif linked_status == 'linked' and has_children:
-                    filtered_bags.append(bag)
-                elif linked_status == 'orphaned' and has_children and not has_bill:
-                    filtered_bags.append(bag)
-            else:
-                # For child bags, check parent links
-                has_parent = Link.query.filter_by(child_bag_id=bag.id).count() > 0
-                
-                if linked_status == 'unlinked' and not has_parent:
-                    filtered_bags.append(bag)
-                elif linked_status == 'linked' and has_parent:
-                    filtered_bags.append(bag)
-        
-        bags = filtered_bags
+        if linked_status == 'unlinked':
+            # Bags with no links
+            linked_parent_ids = db.session.query(Link.parent_bag_id).distinct()
+            linked_child_ids = db.session.query(Link.child_bag_id).distinct()
+            query = query.filter(and_(
+                Bag.id.notin_(linked_parent_ids),
+                Bag.id.notin_(linked_child_ids)
+            ))
+        elif linked_status == 'linked':
+            # Bags with links
+            linked_parent_ids = db.session.query(Link.parent_bag_id).distinct()
+            linked_child_ids = db.session.query(Link.child_bag_id).distinct()
+            query = query.filter(or_(
+                Bag.id.in_(linked_parent_ids),
+                Bag.id.in_(linked_child_ids)
+            ))
+        elif linked_status == 'orphaned':
+            # Parent bags with children but no bill
+            orphaned_parents = db.session.query(Link.parent_bag_id).distinct().subquery()
+            billed_parents = db.session.query(BillBag.bag_id).distinct().subquery()
+            query = query.filter(and_(
+                Bag.type == BagType.PARENT.value,
+                Bag.id.in_(db.session.query(orphaned_parents.c.parent_bag_id)),
+                Bag.id.notin_(db.session.query(billed_parents.c.bag_id))
+            ))
     
-    # Apply bill status filter for parent bags
-    if bill_status != 'all' and bag_type in ['all', 'parent']:
-        filtered_bags = []
-        for bag in bags:
-            if bag.type == BagType.PARENT.value:
-                has_bill = BillBag.query.filter_by(bag_id=bag.id).count() > 0
-                
-                if bill_status == 'billed' and has_bill:
-                    filtered_bags.append(bag)
-                elif bill_status == 'unbilled' and not has_bill:
-                    filtered_bags.append(bag)
-            else:
-                # Include child bags if showing all types
-                if bag_type == 'all':
-                    filtered_bags.append(bag)
-        
-        bags = filtered_bags
+    if bill_status != 'all':
+        billed_bag_ids = db.session.query(BillBag.bag_id).distinct()
+        if bill_status == 'billed':
+            query = query.filter(Bag.id.in_(billed_bag_ids))
+        elif bill_status == 'unbilled':
+            query = query.filter(Bag.id.notin_(billed_bag_ids))
     
-    # Get summary statistics
+    if location_filter != 'all':
+        # Get bags scanned at specific location
+        location_bag_ids = db.session.query(Scan.parent_bag_id).join(Location).filter(
+            Location.name == location_filter, Scan.parent_bag_id.isnot(None)
+        ).union(
+            db.session.query(Scan.child_bag_id).join(Location).filter(
+                Location.name == location_filter, Scan.child_bag_id.isnot(None)
+            )
+        )
+        query = query.filter(Bag.id.in_(location_bag_ids))
+    
+    # Execute query with pagination for better performance
+    bags = query.order_by(Bag.created_at.desc()).limit(1000).all()
+    
+    # Calculate statistics efficiently
+    total_bags = len(bags)
+    parent_bags = len([b for b in bags if b.type == BagType.PARENT.value])
+    child_bags = total_bags - parent_bags
+    
+    # Quick stats calculation using cached relationships
+    linked_bags = len([b for b in bags if (b.child_links and b.child_links.count() > 0) or (b.parent_links and b.parent_links.count() > 0)])
+    unlinked_bags = total_bags - linked_bags
+    orphaned_bags = len([b for b in bags if b.type == BagType.PARENT.value and b.child_links.count() > 0 and b.bill_links.count() == 0])
+    
     stats = {
-        'total_bags': len(bags),
-        'parent_bags': len([b for b in bags if b.type == BagType.PARENT.value]),
-        'child_bags': len([b for b in bags if b.type == BagType.CHILD.value]),
-        'linked_bags': 0,
-        'unlinked_bags': 0,
-        'orphaned_bags': 0
+        'total_bags': total_bags,
+        'parent_bags': parent_bags,
+        'child_bags': child_bags,
+        'linked_bags': linked_bags,
+        'unlinked_bags': unlinked_bags,
+        'orphaned_bags': orphaned_bags
     }
     
-    # Calculate link statistics
-    for bag in bags:
-        if bag.type == BagType.PARENT.value:
-            has_children = Link.query.filter_by(parent_bag_id=bag.id).count() > 0
-            has_bill = BillBag.query.filter_by(bag_id=bag.id).count() > 0
-            
-            if has_children:
-                stats['linked_bags'] += 1
-                if not has_bill:
-                    stats['orphaned_bags'] += 1
-            else:
-                stats['unlinked_bags'] += 1
-        else:
-            has_parent = Link.query.filter_by(child_bag_id=bag.id).count() > 0
-            if has_parent:
-                stats['linked_bags'] += 1
-            else:
-                stats['unlinked_bags'] += 1
-    
-    # Get available locations for filter dropdown from scan locations
-    locations = db.session.query(Location.name).distinct().all()
-    locations = [loc[0] for loc in locations if loc[0]]
+    # Get locations efficiently
+    locations = [loc[0] for loc in db.session.query(Location.name).distinct().all()]
     
     return render_template('bag_management.html', 
                          bags=bags,

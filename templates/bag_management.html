@@ -304,22 +304,20 @@ function exportData(format) {
     window.open(`{{ url_for('bag_management') }}?${params.toString()}`);
 }
 
-// Auto-submit filters on change for better UX
+// Manual filter submission for better performance
 document.addEventListener('DOMContentLoaded', function() {
-    const filterInputs = ['type', 'linked_status', 'bill_status', 'location'];
-    filterInputs.forEach(id => {
-        document.getElementById(id).addEventListener('change', function() {
+    // Add Enter key support for search input
+    document.getElementById('search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
             document.getElementById('filterForm').submit();
-        });
+        }
     });
     
-    // Auto-submit dates after small delay
-    ['date_from', 'date_to'].forEach(id => {
-        document.getElementById(id).addEventListener('change', function() {
-            setTimeout(() => {
-                document.getElementById('filterForm').submit();
-            }, 500);
-        });
+    // Show loading indicator when filters are applied
+    document.getElementById('filterForm').addEventListener('submit', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Applying...';
+        submitBtn.disabled = true;
     });
 });
 </script>
