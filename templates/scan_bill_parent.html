@@ -105,9 +105,13 @@
                                     <span>{{ bill_bag.bag.qr_id }}</span>
                                 </div>
                                 <div>
-                                    <button class="btn btn-sm btn-outline-danger me-1 edit-btn" onclick="removeBagFromBill('{{ bill_bag.bag.qr_id }}', {{ bill.id }})">
-                                        <i class="fas fa-times me-1"></i>Remove
-                                    </button>
+                                    <form method="POST" action="{{ url_for('remove_bag_from_bill') }}" style="display: inline;">
+                                        <input type="hidden" name="parent_qr" value="{{ bill_bag.bag.qr_id }}">
+                                        <input type="hidden" name="bill_id" value="{{ bill.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger me-1 edit-btn" onclick="return confirm('Remove {{ bill_bag.bag.qr_id }}?')">
+                                            <i class="fas fa-times me-1"></i>Remove
+                                        </button>
+                                    </form>
                                     <span class="badge bg-warning rounded-pill">
                                         <i class="fas fa-link me-1"></i>Added
                                     </span>
