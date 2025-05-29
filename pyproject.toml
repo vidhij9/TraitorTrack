@@ -24,4 +24,6 @@ dependencies = [
     "bleach>=6.2.0",
     "psutil>=7.0.0",
     "aiohttp>=3.11.18",
+    "reportlab>=4.4.1",
+    "wtforms>=3.2.1",
 ]
