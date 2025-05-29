@@ -6,6 +6,8 @@ import qrcode
 from flask import render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import generate_csrf
+from datetime import datetime, timedelta
+from sqlalchemy import and_, or_
 
 from app_clean import app, db, limiter
 from models import User, UserRole, Bag, BagType, Link, Location, Scan, Bill, BillBag
@@ -833,3 +835,144 @@ def child_lookup():
                               child_scans=child_scans)
     
     return render_template('child_lookup.html')
+
+# Enhanced Bag Management with Filtering
+@app.route('/bags')
+@login_required
+def bag_management():
+    """Enhanced bag management with comprehensive filtering options"""
+    
+    # Get filter parameters
+    bag_type = request.args.get('type', 'all')  # all, parent, child
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    linked_status = request.args.get('linked_status', 'all')  # all, linked, unlinked, orphaned
+    search_query = request.args.get('search', '')
+    location_filter = request.args.get('location', 'all')
+    bill_status = request.args.get('bill_status', 'all')  # all, billed, unbilled
+    
+    # Start with base query
+    query = Bag.query
+    
+    # Apply bag type filter
+    if bag_type == 'parent':
+        query = query.filter(Bag.type == BagType.PARENT.value)
+    elif bag_type == 'child':
+        query = query.filter(Bag.type == BagType.CHILD.value)
+    
+    # Apply date filter
+    if date_from:
+        try:
+            from_date = datetime.strptime(date_from, '%Y-%m-%d')
+            query = query.filter(Bag.created_at >= from_date)
+        except ValueError:
+            flash('Invalid from date format', 'warning')
+    
+    if date_to:
+        try:
+            to_date = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(Bag.created_at < to_date)
+        except ValueError:
+            flash('Invalid to date format', 'warning')
+    
+    # Apply search filter
+    if search_query:
+        query = query.filter(Bag.qr_id.ilike(f'%{search_query}%'))
+    
+    # Apply location filter
+    if location_filter != 'all':
+        query = query.filter(Bag.location == location_filter)
+    
+    # Get all bags with the current filters
+    bags = query.order_by(Bag.created_at.desc()).all()
+    
+    # Apply linked status filter (requires post-processing)
+    if linked_status != 'all':
+        filtered_bags = []
+        for bag in bags:
+            if bag.type == BagType.PARENT.value:
+                # For parent bags, check child links and bill links
+                has_children = Link.query.filter_by(parent_bag_id=bag.id).count() > 0
+                has_bill = BillBag.query.filter_by(bag_id=bag.id).count() > 0
+                
+                if linked_status == 'unlinked' and not has_children:
+                    filtered_bags.append(bag)
+                elif linked_status == 'linked' and has_children:
+                    filtered_bags.append(bag)
+                elif linked_status == 'orphaned' and has_children and not has_bill:
+                    filtered_bags.append(bag)
+            else:
+                # For child bags, check parent links
+                has_parent = Link.query.filter_by(child_bag_id=bag.id).count() > 0
+                
+                if linked_status == 'unlinked' and not has_parent:
+                    filtered_bags.append(bag)
+                elif linked_status == 'linked' and has_parent:
+                    filtered_bags.append(bag)
+        
+        bags = filtered_bags
+    
+    # Apply bill status filter for parent bags
+    if bill_status != 'all' and bag_type in ['all', 'parent']:
+        filtered_bags = []
+        for bag in bags:
+            if bag.type == BagType.PARENT.value:
+                has_bill = BillBag.query.filter_by(bag_id=bag.id).count() > 0
+                
+                if bill_status == 'billed' and has_bill:
+                    filtered_bags.append(bag)
+                elif bill_status == 'unbilled' and not has_bill:
+                    filtered_bags.append(bag)
+            else:
+                # Include child bags if showing all types
+                if bag_type == 'all':
+                    filtered_bags.append(bag)
+        
+        bags = filtered_bags
+    
+    # Get summary statistics
+    stats = {
+        'total_bags': len(bags),
+        'parent_bags': len([b for b in bags if b.type == BagType.PARENT.value]),
+        'child_bags': len([b for b in bags if b.type == BagType.CHILD.value]),
+        'linked_bags': 0,
+        'unlinked_bags': 0,
+        'orphaned_bags': 0
+    }
+    
+    # Calculate link statistics
+    for bag in bags:
+        if bag.type == BagType.PARENT.value:
+            has_children = Link.query.filter_by(parent_bag_id=bag.id).count() > 0
+            has_bill = BillBag.query.filter_by(bag_id=bag.id).count() > 0
+            
+            if has_children:
+                stats['linked_bags'] += 1
+                if not has_bill:
+                    stats['orphaned_bags'] += 1
+            else:
+                stats['unlinked_bags'] += 1
+        else:
+            has_parent = Link.query.filter_by(child_bag_id=bag.id).count() > 0
+            if has_parent:
+                stats['linked_bags'] += 1
+            else:
+                stats['unlinked_bags'] += 1
+    
+    # Get available locations for filter dropdown
+    locations = db.session.query(Bag.location).distinct().filter(Bag.location.isnot(None)).all()
+    locations = [loc[0] for loc in locations if loc[0]]
+    
+    return render_template('bag_management.html', 
+                         bags=bags,
+                         stats=stats,
+                         locations=locations,
+                         filters={
+                             'type': bag_type,
+                             'date_from': date_from,
+                             'date_to': date_to,
+                             'linked_status': linked_status,
+                             'search': search_query,
+                             'location': location_filter,
+                             'bill_status': bill_status
+                         })

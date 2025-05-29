@@ -202,6 +202,11 @@
                         </li>
                         
                         {% if current_user.is_admin %}
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/bags' in request.path %} active{% endif %}" href="{{ url_for('bag_management') }}">
+                                    <i class="fas fa-boxes"></i> All Bags
+                                </a>
+                            </li>
                             
                             <li class="nav-item">
                                 <a class="nav-link{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup') }}">
