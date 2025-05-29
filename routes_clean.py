@@ -712,20 +712,16 @@ def remove_bag_from_bill():
     bill_id = request.form.get('bill_id')
     
     if not parent_qr or not bill_id:
-        return jsonify({
-            'success': False,
-            'message': 'Missing parent_qr or bill_id'
-        })
+        flash('Missing parent QR code or bill ID', 'error')
+        return redirect(url_for('scan_bill_parent', bill_id=bill_id))
     
     # Get bill and parent bag
     bill = Bill.query.get(bill_id)
     parent_bag = Bag.query.filter_by(qr_id=parent_qr).first()
     
     if not bill or not parent_bag:
-        return jsonify({
-            'success': False,
-            'message': 'Bill or parent bag not found'
-        })
+        flash('Bill or parent bag not found', 'error')
+        return redirect(url_for('scan_bill_parent', bill_id=bill_id))
     
     # Find and remove the link
     bill_bag = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
@@ -733,22 +729,11 @@ def remove_bag_from_bill():
     if bill_bag:
         db.session.delete(bill_bag)
         db.session.commit()
-        
-        # Get updated count
-        parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
-        
-        return jsonify({
-            'success': True,
-            'parent_count': parent_count,
-            'linked_count': parent_count,
-            'expected_count': bill.parent_bag_count,
-            'message': f'Parent bag {parent_qr} removed from bill {bill.bill_id}'
-        })
+        flash(f'Parent bag {parent_qr} removed from bill {bill.bill_id}', 'success')
     else:
-        return jsonify({
-            'success': False,
-            'message': f'Parent bag {parent_qr} not linked to bill {bill.bill_id}'
-        })
+        flash(f'Parent bag {parent_qr} not linked to bill {bill.bill_id}', 'error')
+    
+    return redirect(url_for('scan_bill_parent', bill_id=bill_id))
 
 @app.route('/view_bill/<int:bill_id>')
 @login_required
