@@ -377,27 +377,35 @@
         }
         
         function removeBagFromBill(parentQr, billId) {
-            const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
-            fetch('/remove_bag_from_bill', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken
-                },
-                body: 'parent_qr=' + encodeURIComponent(parentQr) + '&bill_id=' + billId + '&csrf_token=' + encodeURIComponent(csrfToken)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Reload the page to refresh the list
-                    location.reload();
-                } else {
-                    showAlert(data.message, 'danger');
-                }
-            })
-            .catch(error => {
-                showAlert('Error removing bag: ' + error.message, 'danger');
-            });
+            // Create a form and submit it to avoid CSRF issues
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/remove_bag_from_bill';
+            
+            const parentQrInput = document.createElement('input');
+            parentQrInput.type = 'hidden';
+            parentQrInput.name = 'parent_qr';
+            parentQrInput.value = parentQr;
+            form.appendChild(parentQrInput);
+            
+            const billIdInput = document.createElement('input');
+            billIdInput.type = 'hidden';
+            billIdInput.name = 'bill_id';
+            billIdInput.value = billId;
+            form.appendChild(billIdInput);
+            
+            // Add CSRF token from existing form
+            const existingCsrfInput = document.querySelector('input[name="csrf_token"]');
+            if (existingCsrfInput) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = existingCsrfInput.value;
+                form.appendChild(csrfInput);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
         }
 
         function formatQrCode(rawCode) {
