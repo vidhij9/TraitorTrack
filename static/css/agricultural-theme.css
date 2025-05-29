@@ -166,15 +166,143 @@ body {
     color: var(--earth-brown);
 }
 
-/* Loading animations */
+/* Advanced Loading Animations with Agricultural Growth */
 @keyframes growPlant {
-    0% { transform: scale(0.8) rotate(-5deg); opacity: 0.7; }
-    50% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+    0% { transform: scale(0.3) translateY(20px); opacity: 0; }
+    25% { transform: scale(0.6) translateY(10px); opacity: 0.5; }
+    50% { transform: scale(0.9) translateY(5px); opacity: 0.8; }
+    75% { transform: scale(1.05) translateY(-2px); opacity: 0.9; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes seedSprout {
+    0% { transform: scaleY(0); transform-origin: bottom; opacity: 0; }
+    30% { transform: scaleY(0.3); opacity: 0.6; }
+    60% { transform: scaleY(0.7); opacity: 0.8; }
+    100% { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes leafGrow {
+    0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+    50% { transform: scale(0.8) rotate(-20deg); opacity: 0.7; }
     100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes farmPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+@keyframes cropWave {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(-5px) rotate(2deg); }
+    75% { transform: translateY(5px) rotate(-2deg); }
+}
+
+.loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--seed-beige), var(--wheat-yellow));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
 }
 
 .loading-plant {
     animation: growPlant 2s ease-in-out infinite;
+    font-size: 4rem;
+    margin-bottom: 2rem;
+}
+
+.loading-seeds {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.seed {
+    width: 12px;
+    height: 12px;
+    background: var(--earth-brown);
+    border-radius: 50%;
+    animation: seedSprout 1.5s ease-in-out infinite;
+}
+
+.seed:nth-child(1) { animation-delay: 0s; }
+.seed:nth-child(2) { animation-delay: 0.3s; }
+.seed:nth-child(3) { animation-delay: 0.6s; }
+.seed:nth-child(4) { animation-delay: 0.9s; }
+.seed:nth-child(5) { animation-delay: 1.2s; }
+
+.loading-text {
+    color: var(--primary-green);
+    font-size: 1.2rem;
+    font-weight: 600;
+    animation: farmPulse 2s ease-in-out infinite;
+    text-align: center;
+}
+
+.crop-animation {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.crop-icon {
+    font-size: 2rem;
+    animation: cropWave 3s ease-in-out infinite;
+}
+
+.crop-icon:nth-child(1) { animation-delay: 0s; }
+.crop-icon:nth-child(2) { animation-delay: 0.5s; }
+.crop-icon:nth-child(3) { animation-delay: 1s; }
+.crop-icon:nth-child(4) { animation-delay: 1.5s; }
+
+/* Micro-interactions with agricultural metaphors */
+.btn-plant {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-plant::before {
+    content: "🌱";
+    position: absolute;
+    top: 50%;
+    left: -30px;
+    transform: translateY(-50%);
+    transition: left 0.3s ease;
+    opacity: 0;
+}
+
+.btn-plant:hover::before {
+    left: 10px;
+    opacity: 1;
+}
+
+.btn-plant:hover {
+    padding-left: 2.5rem;
+}
+
+.seed-progress {
+    width: 100%;
+    height: 8px;
+    background: var(--seed-beige);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
+.seed-progress-bar {
+    height: 100%;
+    background: linear-gradient(45deg, var(--leaf-light), var(--primary-green));
+    border-radius: 10px;
+    animation: seedSprout 2s ease-in-out infinite;
+    transform-origin: left;
 }
 
 /* QR code scanning interface */
@@ -195,20 +323,76 @@ body {
     max-width: 300px;
 }
 
-/* Mobile responsiveness */
-@media (max-width: 768px) {
+/* Mobile-first responsive design */
+@media (max-width: 576px) {
+    .welcome-section {
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    .welcome-section h1 {
+        font-size: 1.8rem;
+    }
+    
+    .stats-card {
+        margin-bottom: 1rem;
+    }
+    
+    .feature-icon {
+        font-size: 2rem;
+    }
+    
     .card {
         margin-bottom: 1rem;
         border-radius: 10px;
     }
     
     .btn {
-        border-radius: 20px;
-        padding: 0.6rem 1.2rem;
+        border-radius: 15px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
     }
     
     .navbar-brand {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+    
+    /* Mobile navigation */
+    .navbar-toggler {
+        border-color: var(--accent-gold);
+    }
+    
+    .navbar-collapse {
+        background: rgba(45, 90, 61, 0.95);
+        border-radius: 10px;
+        margin-top: 0.5rem;
+        padding: 1rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .welcome-section h1 {
+        font-size: 2.2rem;
+    }
+    
+    .stats-card {
+        margin-bottom: 1.2rem;
+    }
+    
+    .col-md-3 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+@media (min-width: 769px) {
+    .stats-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 35px rgba(45, 90, 61, 0.3);
     }
 }
 

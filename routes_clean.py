@@ -15,6 +15,108 @@ from forms import LoginForm, RegistrationForm, LocationSelectionForm, ScanParent
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
+# Export functionality
+@app.route('/export/<format>')
+@login_required
+def export_data(format):
+    """Export data in various formats"""
+    if not current_user.is_admin:
+        flash('Admin access required for exports.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        if format == 'csv':
+            # Export all bags data
+            from io import StringIO
+            import csv
+            
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow(['Type', 'QR ID', 'Name', 'Created At', 'Status'])
+            
+            bags = Bag.query.all()
+            for bag in bags:
+                bag_type = 'Parent' if bag.type == BagType.PARENT.value else 'Child'
+                writer.writerow([
+                    bag_type,
+                    bag.qr_id,
+                    bag.name or f'{bag_type} Bag',
+                    bag.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'Active'
+                ])
+            
+            output.seek(0)
+            response = app.response_class(
+                output.getvalue(),
+                mimetype='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=tracetrack_export.csv'}
+            )
+            return response
+            
+        elif format == 'analytics':
+            # Generate analytics report
+            stats = {
+                'total_parent_bags': Bag.query.filter_by(type=BagType.PARENT.value).count(),
+                'total_child_bags': Bag.query.filter_by(type=BagType.CHILD.value).count(),
+                'total_bills': Bill.query.count(),
+                'total_scans': Scan.query.count(),
+                'recent_scans': Scan.query.order_by(Scan.timestamp.desc()).limit(10).all()
+            }
+            return render_template('analytics_report.html', stats=stats)
+            
+    except Exception as e:
+        flash(f'Export failed: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+
+# User management routes
+@app.route('/users')
+@login_required
+def manage_users():
+    """User management for administrators"""
+    if not current_user.is_admin:
+        flash('Admin access required.', 'danger')
+        return redirect(url_for('index'))
+    
+    users = User.query.all()
+    return render_template('user_management.html', users=users)
+
+@app.route('/api/users/<int:user_id>/role', methods=['POST'])
+@login_required
+def update_user_role(user_id):
+    """Update user role"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Admin access required'})
+    
+    data = request.get_json()
+    new_role = data.get('role')
+    
+    if new_role not in ['admin', 'employee']:
+        return jsonify({'success': False, 'message': 'Invalid role'})
+    
+    user = User.query.get_or_404(user_id)
+    user.is_admin = (new_role == 'admin')
+    
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'User role updated to {new_role}'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+# Webhook notifications
+@app.route('/api/webhook/scan', methods=['POST'])
+def webhook_scan_notification():
+    """Webhook endpoint for scan notifications"""
+    data = request.get_json()
+    
+    # Log critical movements
+    if data.get('bag_type') == 'parent' and data.get('location_change'):
+        # This would integrate with external notification services
+        # For now, we'll log the event
+        app.logger.info(f"Critical movement detected: {data}")
+    
+    return jsonify({'status': 'received'})
+
 # Main routes
 @app.route('/')
 def index():
