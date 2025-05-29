@@ -196,9 +196,8 @@
                                 <td>{{ child.name or "Child Bag" }}</td>
                                 <td>{{ child.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                                 <td>
-                                    {% set last_scan = child.scans.order_by(Scan.timestamp.desc()).first() %}
-                                    {% if last_scan %}
-                                        {{ last_scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                                    {% if child.last_scan %}
+                                        {{ child.last_scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
                                     {% else %}
                                         <span class="text-muted">No scans</span>
                                     {% endif %}
