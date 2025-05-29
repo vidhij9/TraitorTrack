@@ -47,22 +47,22 @@
                     
                     <div class="mb-3">
                         <p class="text-muted mb-1">Status</p>
-                        {% if bill.parent_bags|length > 0 %}
+                        {% if bill.bag_links|length >= bill.parent_bag_count %}
                             <span class="badge bg-success fs-6 px-3 py-2">Complete</span>
                         {% else %}
-                            <span class="badge bg-warning fs-6 px-3 py-2">Pending</span>
+                            <span class="badge bg-warning fs-6 px-3 py-2">In Progress ({{ bill.bag_links|length }}/{{ bill.parent_bag_count }})</span>
                         {% endif %}
                     </div>
                     
                     <div class="mb-3">
-                        <p class="text-muted mb-1">Total Parent Bags</p>
-                        <p class="fs-4 fw-bold">{{ bill.parent_bags|length }}</p>
+                        <p class="text-muted mb-1">Parent Bags Linked</p>
+                        <p class="fs-4 fw-bold">{{ bill.bag_links|length }} / {{ bill.parent_bag_count }}</p>
                     </div>
                     
-                    {% if bill.parent_bags|length == 0 %}
+                    {% if bill.bag_links|length < bill.parent_bag_count %}
                         <div class="d-grid gap-2 mt-4">
                             <a href="{{ url_for('scan_bill_parent', bill_id=bill.id) }}" class="btn btn-primary">
-                                <i class="fas fa-qrcode me-2"></i>Scan Parent Bags
+                                <i class="fas fa-qrcode me-2"></i>Add More Parent Bags
                             </a>
                         </div>
                     {% endif %}
