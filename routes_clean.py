@@ -853,6 +853,8 @@ def child_lookup():
                                   bill=bill,
                                   scans=parent_scans)
     
+    # Store navigation context for backtracing
+    session['previous_page'] = request.referrer or url_for('index')
     return render_template('child_lookup.html')
 
 # Enhanced Bag Management with Filtering
@@ -1024,9 +1026,13 @@ def bag_detail(qr_id):
     bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
     bill = bill_link.bill if bill_link else None
     
+    # Store navigation context for backtracing
+    session['previous_page'] = request.referrer or url_for('bag_management')
+    
     return render_template('bag_detail.html',
                          bag=bag,
                          scans=scans,
                          linked_bags=linked_bags,
+                         child_bags=linked_bags if bag.type == BagType.PARENT.value else [],
                          bill=bill,
                          is_parent=(bag.type == BagType.PARENT.value))
