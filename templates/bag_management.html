@@ -198,8 +198,9 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if bag.location %}
-                                    <span class="badge bg-secondary">{{ bag.location }}</span>
+                                {% set last_scan = bag.last_scan %}
+                                {% if last_scan and last_scan.location %}
+                                    <span class="badge bg-secondary">{{ last_scan.location.name }}</span>
                                 {% else %}
                                     <span class="text-muted">No location</span>
                                 {% endif %}
@@ -209,10 +210,10 @@
                             </td>
                             <td>
                                 {% if bag.type == 'parent' %}
-                                    {% set has_children = bag.child_links|length > 0 %}
-                                    {% set has_bill = bag.bill_links|length > 0 %}
-                                    {% if has_children %}
-                                        <span class="badge bg-success">{{ bag.child_links|length }} children</span>
+                                    {% set children_count = bag.child_links.count() %}
+                                    {% set has_bill = bag.bill_links.count() > 0 %}
+                                    {% if children_count > 0 %}
+                                        <span class="badge bg-success">{{ children_count }} children</span>
                                         {% if not has_bill %}
                                             <br><span class="badge bg-warning">Orphaned</span>
                                         {% endif %}
@@ -220,10 +221,10 @@
                                         <span class="badge bg-danger">Unlinked</span>
                                     {% endif %}
                                 {% else %}
-                                    {% set has_parent = bag.parent_link %}
-                                    {% if has_parent %}
+                                    {% set parent_link = bag.parent_links.first() %}
+                                    {% if parent_link %}
                                         <span class="badge bg-success">Linked</span>
-                                        <br><small class="text-muted">to {{ has_parent.parent_bag.qr_id }}</small>
+                                        <br><small class="text-muted">to {{ parent_link.parent_bag.qr_id }}</small>
                                     {% else %}
                                         <span class="badge bg-danger">Unlinked</span>
                                     {% endif %}
@@ -231,7 +232,7 @@
                             </td>
                             <td>
                                 {% if bag.type == 'parent' %}
-                                    {% set bill_link = bag.bill_links|first %}
+                                    {% set bill_link = bag.bill_links.first() %}
                                     {% if bill_link %}
                                         <span class="badge bg-primary">Bill {{ bill_link.bill.bill_id }}</span>
                                         <br><small class="text-muted">{{ bill_link.created_at.strftime('%Y-%m-%d') }}</small>
@@ -239,8 +240,9 @@
                                         <span class="badge bg-secondary">No Bill</span>
                                     {% endif %}
                                 {% else %}
-                                    {% if bag.parent_link and bag.parent_link.parent_bag.bill_links %}
-                                        {% set parent_bill = bag.parent_link.parent_bag.bill_links|first %}
+                                    {% set parent_link = bag.parent_links.first() %}
+                                    {% if parent_link and parent_link.parent_bag.bill_links.first() %}
+                                        {% set parent_bill = parent_link.parent_bag.bill_links.first() %}
                                         <span class="badge bg-primary">Via {{ parent_bill.bill.bill_id }}</span>
                                     {% else %}
                                         <span class="text-muted">N/A</span>
@@ -248,7 +250,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% set last_scan = bag.scans|sort(attribute='timestamp', reverse=true)|first %}
+                                {% set last_scan = bag.last_scan %}
                                 {% if last_scan %}
                                     <small>{{ last_scan.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
                                 {% else %}

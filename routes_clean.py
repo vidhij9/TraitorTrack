@@ -879,9 +879,14 @@ def bag_management():
     if search_query:
         query = query.filter(Bag.qr_id.ilike(f'%{search_query}%'))
     
-    # Apply location filter
+    # Apply location filter (get location from latest scan)
     if location_filter != 'all':
-        query = query.filter(Bag.location == location_filter)
+        # Subquery to get bags that have scans at the specified location
+        location_subquery = db.session.query(Scan.parent_bag_id, Scan.child_bag_id).join(Location).filter(Location.name == location_filter).subquery()
+        query = query.filter(or_(
+            Bag.id.in_(db.session.query(location_subquery.c.parent_bag_id).filter(location_subquery.c.parent_bag_id.isnot(None))),
+            Bag.id.in_(db.session.query(location_subquery.c.child_bag_id).filter(location_subquery.c.child_bag_id.isnot(None)))
+        ))
     
     # Get all bags with the current filters
     bags = query.order_by(Bag.created_at.desc()).all()
@@ -959,8 +964,8 @@ def bag_management():
             else:
                 stats['unlinked_bags'] += 1
     
-    # Get available locations for filter dropdown
-    locations = db.session.query(Bag.location).distinct().filter(Bag.location.isnot(None)).all()
+    # Get available locations for filter dropdown from scan locations
+    locations = db.session.query(Location.name).distinct().all()
     locations = [loc[0] for loc in locations if loc[0]]
     
     return render_template('bag_management.html', 
@@ -976,3 +981,37 @@ def bag_management():
                              'location': location_filter,
                              'bill_status': bill_status
                          })
+
+@app.route('/bag_detail/<qr_id>')
+@login_required
+def bag_detail(qr_id):
+    """Display detailed information about a specific bag"""
+    bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
+    
+    # Get scan history
+    scans = Scan.query.filter(
+        or_(Scan.parent_bag_id == bag.id, Scan.child_bag_id == bag.id)
+    ).order_by(Scan.timestamp.desc()).all()
+    
+    # Get linked bags
+    linked_bags = []
+    if bag.type == BagType.PARENT.value:
+        # Get child bags
+        links = Link.query.filter_by(parent_bag_id=bag.id).all()
+        linked_bags = [link.child_bag for link in links]
+    else:
+        # Get parent bag
+        link = Link.query.filter_by(child_bag_id=bag.id).first()
+        if link:
+            linked_bags = [link.parent_bag]
+    
+    # Get bill information
+    bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
+    bill = bill_link.bill if bill_link else None
+    
+    return render_template('bag_detail.html',
+                         bag=bag,
+                         scans=scans,
+                         linked_bags=linked_bags,
+                         bill=bill,
+                         is_parent=(bag.type == BagType.PARENT.value))
