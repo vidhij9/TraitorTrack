@@ -53,9 +53,9 @@
             {% if is_parent %}Parent{% else %}Child{% endif %} Bag Details
         </h1>
         <div class="btn-toolbar mb-2 mb-md-0">
-            <a href="{{ session.get('previous_page', url_for('bag_management')) }}" class="btn btn-secondary me-2">
+            <button onclick="history.back()" class="btn btn-secondary me-2">
                 <i class="fas fa-arrow-left me-2"></i>Back
-            </a>
+            </button>
             <a href="{{ url_for('child_lookup') }}" class="btn btn-outline-primary">
                 <i class="fas fa-search me-2"></i>Search Another Bag
             </a>
@@ -92,11 +92,11 @@
                     <dt class="col-sm-5">QR ID:</dt>
                     <dd class="col-sm-7"><code>{{ bag.qr_id }}</code></dd>
                     
-                    {% if not is_parent and bag.parent %}
+                    {% if not is_parent and bag.parent_bag %}
                     <dt class="col-sm-5">Parent Bag:</dt>
                     <dd class="col-sm-7">
-                        <a href="{{ url_for('bag_detail', qr_id=bag.parent.qr_id) }}">
-                            <code>{{ bag.parent.qr_id }}</code>
+                        <a href="{{ url_for('bag_detail', qr_id=bag.parent_bag.qr_id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-box me-1"></i><code>{{ bag.parent_bag.qr_id }}</code>
                         </a>
                     </dd>
                     {% endif %}
@@ -130,7 +130,7 @@
                                     <i class="fas fa-receipt me-1"></i>{{ link.bill_id }}
                                 </a>
                             </p>
-                            <p><small class="text-muted">Linked on: {{ format_datetime(link.created_at) }}</small></p>
+                            <p><small class="text-muted">Linked on: {{ link.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</small></p>
                         {% else %}
                             <p class="text-muted">No bill linked to this parent bag.</p>
                         {% endif %}
@@ -188,13 +188,17 @@
                         <tbody>
                             {% for child in child_bags %}
                             <tr>
-                                <td><code>{{ child.qr_id }}</code></td>
+                                <td>
+                                    <a href="{{ url_for('bag_detail', qr_id=child.qr_id) }}" class="text-decoration-none">
+                                        <code>{{ child.qr_id }}</code>
+                                    </a>
+                                </td>
                                 <td>{{ child.name or "Child Bag" }}</td>
-                                <td>{{ format_datetime(child.created_at) }}</td>
+                                <td>{{ child.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                                 <td>
                                     {% set last_scan = child.scans.order_by(Scan.timestamp.desc()).first() %}
                                     {% if last_scan %}
-                                        {{ format_datetime(last_scan.timestamp) }}
+                                        {{ last_scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
                                     {% else %}
                                         <span class="text-muted">No scans</span>
                                     {% endif %}
