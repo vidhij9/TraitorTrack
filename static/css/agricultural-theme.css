@@ -129,19 +129,18 @@ body {
     font-size: 0.85rem;
 }
 
-/* Highly visible stats cards with vibrant colors */
+/* Highly visible stats cards with dark text on white background */
 .stats-card {
     padding: 2rem 1.5rem;
     text-align: center;
-    border: none;
+    border: 3px solid var(--primary);
     border-radius: 16px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
-    color: var(--white);
+    background: var(--white);
+    color: var(--dark);
     margin-bottom: 1.5rem;
     transition: all 0.3s ease;
-    box-shadow: 0 8px 25px rgba(25, 135, 84, 0.2);
+    box-shadow: 0 8px 25px rgba(25, 135, 84, 0.15);
     position: relative;
-    overflow: hidden;
 }
 
 .stats-card::before {
@@ -150,35 +149,36 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #fff, rgba(255,255,255,0.5), #fff);
+    height: 6px;
+    background: var(--primary);
+    border-radius: 12px 12px 0 0;
 }
 
 .stats-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 35px rgba(25, 135, 84, 0.3);
-    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    transform: translateY(-4px);
+    box-shadow: 0 12px 35px rgba(25, 135, 84, 0.25);
+    border-color: var(--primary-dark);
 }
 
 .stats-card h3 {
     margin: 0.5rem 0;
-    font-size: 2.5rem;
+    font-size: 2.8rem;
     font-weight: 700;
-    color: var(--white);
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: var(--primary);
+    text-shadow: none;
 }
 
 .stats-card p {
     margin: 0;
-    font-size: 0.9rem;
-    color: rgba(255,255,255,0.9);
+    font-size: 0.95rem;
+    color: var(--gray-700);
     font-weight: 500;
 }
 
 .stats-card small {
-    font-size: 0.9rem;
-    color: rgba(255,255,255,0.9);
-    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--gray-600);
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }

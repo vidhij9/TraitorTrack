@@ -196,9 +196,14 @@
 
 {% block scripts %}
 <script>
+// User management functionality disabled until proper routing is implemented
 function toggleRole(userId, newRole) {
-    if (confirm(`Change user role to ${newRole}?`)) {
-        fetch(`{{ url_for('update_user_role') }}`, {
+    alert('User role management feature is being updated. Please contact administrator.');
+}
+
+function toggleStatus(userId) {
+    alert('User status management feature is being updated. Please contact administrator.');
+}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

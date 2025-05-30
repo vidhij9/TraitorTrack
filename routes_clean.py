@@ -78,7 +78,7 @@ def manage_users():
         return redirect(url_for('index'))
     
     users = User.query.all()
-    return render_template('user_management.html', users=users)
+    return render_template('user_management_fixed.html', users=users)
 
 @app.route('/api/users/<int:user_id>/role', methods=['POST'])
 @login_required
