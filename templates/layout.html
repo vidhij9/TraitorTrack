@@ -178,39 +178,27 @@
                     
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link{% if '/scan_parent' in request.path %} active{% endif %}" href="{{ url_for('select_location') }}">
-                                <i class="fas fa-qrcode"></i> Scan Parent Bag
+                            <a class="nav-link{% if '/scan_parent' in request.path %} active{% endif %}" href="{{ url_for('scan_parent') }}">
+                                <i class="fas fa-qrcode"></i> Scan
                             </a>
                         </li>
                         
                         {% if current_user.is_admin %}
                             <li class="nav-item">
                                 <a class="nav-link{% if '/bags' in request.path %} active{% endif %}" href="{{ url_for('bag_management') }}">
-                                    <i class="fas fa-boxes"></i> All Bags
+                                    <i class="fas fa-boxes"></i> Bags
                                 </a>
                             </li>
                             
                             <li class="nav-item">
                                 <a class="nav-link{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup') }}">
-                                    <i class="fas fa-search"></i> Bag Lookup
+                                    <i class="fas fa-search"></i> Search
                                 </a>
                             </li>
                             
                             <li class="nav-item">
                                 <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management') }}">
-                                    <i class="fas fa-file-invoice"></i> Bill Management
-                                </a>
-                            </li>
-                            
-                            <li class="nav-item">
-                                <a class="nav-link{% if '/users' in request.path %} active{% endif %}" href="{{ url_for('manage_users') }}">
-                                    <i class="fas fa-users"></i> User Management
-                                </a>
-                            </li>
-                            
-                            <li class="nav-item">
-                                <a class="nav-link{% if '/analytics' in request.path %} active{% endif %}" href="{{ url_for('export_data', format='analytics') }}">
-                                    <i class="fas fa-chart-bar"></i> Analytics
+                                    <i class="fas fa-file-invoice"></i> Bills
                                 </a>
                             </li>
                         {% endif %}

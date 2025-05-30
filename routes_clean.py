@@ -365,11 +365,22 @@ def select_location():
 @app.route('/scan_parent')
 @login_required
 def scan_parent():
-    """Scan parent bag QR code"""
-    # Ensure location is selected
+    """Scan parent bag QR code - Direct scan without location selection"""
+    # Clear any existing scanning session
+    session.pop('current_parent_bag_id', None)
+    session.pop('child_bags_scanned', None)
+    
+    # Set default location if none exists
     if 'current_location_id' not in session:
-        flash('Please select a location first.', 'warning')
-        return redirect(url_for('select_location'))
+        default_location = Location.query.first()
+        if default_location:
+            session['current_location_id'] = default_location.id
+        else:
+            # Create a default location if none exists
+            default_location = Location(name='Default Location', description='Mobile scanning location')
+            db.session.add(default_location)
+            db.session.commit()
+            session['current_location_id'] = default_location.id
     
     return render_template('scan_parent.html')
 
