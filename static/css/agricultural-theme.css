@@ -12,6 +12,8 @@
     --light: #f8f9fa;
     --gray-100: #f1f3f4;
     --gray-200: #e9ecef;
+    --gray-600: #6c757d;
+    --gray-700: #495057;
     --dark: #212529;
     --border: #dee2e6;
     --accent: #20c997;
@@ -129,58 +131,45 @@ body {
     font-size: 0.85rem;
 }
 
-/* Highly visible stats cards with dark text on white background */
+/* Bold visible stats cards with strong contrast */
 .stats-card {
     padding: 2rem 1.5rem;
     text-align: center;
-    border: 3px solid var(--primary);
+    border: none;
     border-radius: 16px;
-    background: var(--white);
-    color: var(--dark);
+    background: #ffffff;
     margin-bottom: 1.5rem;
     transition: all 0.3s ease;
-    box-shadow: 0 8px 25px rgba(25, 135, 84, 0.15);
-    position: relative;
-}
-
-.stats-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 6px;
-    background: var(--primary);
-    border-radius: 12px 12px 0 0;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-left: 8px solid #198754;
 }
 
 .stats-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 35px rgba(25, 135, 84, 0.25);
-    border-color: var(--primary-dark);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
 }
 
 .stats-card h3 {
     margin: 0.5rem 0;
-    font-size: 2.8rem;
-    font-weight: 700;
-    color: var(--primary);
+    font-size: 3rem;
+    font-weight: 900;
+    color: #198754;
     text-shadow: none;
 }
 
 .stats-card p {
     margin: 0;
-    font-size: 0.95rem;
-    color: var(--gray-700);
-    font-weight: 500;
+    font-size: 1rem;
+    color: #495057;
+    font-weight: 600;
 }
 
 .stats-card small {
-    font-size: 0.85rem;
-    color: var(--gray-600);
-    font-weight: 600;
+    font-size: 0.9rem;
+    color: #495057;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
 }
 
 /* Enhanced tables with better visibility */
