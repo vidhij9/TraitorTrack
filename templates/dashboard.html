@@ -18,14 +18,14 @@
 {% endblock %}
 
 {% block content %}
-<!-- Welcome Section with Agricultural Theme -->
+<!-- Welcome Section -->
 <div class="welcome-section mb-4">
     <h1 class="display-4 mb-3">
-        <i class="fas fa-seedling me-3"></i>
-        STAR Agriseeds TraceTrack
+        <i class="fas fa-chart-line me-3"></i>
+        TraceTrack Dashboard
     </h1>
-    <p class="lead mb-0">Cultivating transparency in agricultural supply chains</p>
-    <small class="text-light">Advanced Farm-to-Market Traceability System</small>
+    <p class="lead mb-0">Advanced Supply Chain Management System</p>
+    <small class="text-light">Real-time tracking and analytics platform</small>
 </div>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
@@ -72,38 +72,46 @@
     </div>
 </div>
 
-<!-- Agricultural Status Cards -->
+<!-- Status Cards -->
 <div class="row mb-4" id="status-cards">
     <div class="col-md-3 mb-4">
-        <div class="stats-card card text-center p-3">
-            <div class="feature-icon">🌾</div>
+        <div class="stats-card">
+            <div class="text-primary mb-2">
+                <i class="fas fa-boxes fa-2x"></i>
+            </div>
             <h3 class="text-primary" id="total-parent-bags">Loading...</h3>
             <p class="text-muted mb-0">Parent Bags</p>
-            <small class="text-success">Seed Batches Tracked</small>
+            <small class="text-primary">Primary Items</small>
         </div>
     </div>
     <div class="col-md-3 mb-4">
-        <div class="stats-card card text-center p-3">
-            <div class="feature-icon">🌱</div>
+        <div class="stats-card">
+            <div class="text-success mb-2">
+                <i class="fas fa-cube fa-2x"></i>
+            </div>
             <h3 class="text-success" id="total-child-bags">Loading...</h3>
             <p class="text-muted mb-0">Child Bags</p>
-            <small class="text-success">Individual Products</small>
+            <small class="text-success">Sub Items</small>
         </div>
     </div>
     <div class="col-md-3 mb-4">
-        <div class="stats-card card text-center p-3">
-            <div class="feature-icon">📋</div>
+        <div class="stats-card">
+            <div class="text-warning mb-2">
+                <i class="fas fa-file-invoice fa-2x"></i>
+            </div>
             <h3 class="text-warning" id="total-bills">Loading...</h3>
             <p class="text-muted mb-0">Active Bills</p>
-            <small class="text-warning">Shipment Orders</small>
+            <small class="text-warning">Open Orders</small>
         </div>
     </div>
     <div class="col-md-3 mb-4">
-        <div class="stats-card card text-center p-3">
-            <div class="feature-icon">🔍</div>
+        <div class="stats-card">
+            <div class="text-info mb-2">
+                <i class="fas fa-qrcode fa-2x"></i>
+            </div>
             <h3 class="text-info" id="total-scans">Loading...</h3>
             <p class="text-muted mb-0">Total Scans</p>
-            <small class="text-info">Traceability Events</small>
+            <small class="text-info">Scan Events</small>
         </div>
     </div>
 </div>

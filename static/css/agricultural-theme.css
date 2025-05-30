@@ -1,13 +1,17 @@
-/* Clean Mobile-First Theme */
+/* Enhanced Mobile-First Theme */
 :root {
-    --primary: #28a745;
+    --primary: #007bff;
+    --primary-dark: #0056b3;
     --secondary: #6c757d;
-    --success: #20c997;
+    --success: #28a745;
     --warning: #ffc107;
+    --danger: #dc3545;
+    --info: #17a2b8;
     --white: #ffffff;
     --light: #f8f9fa;
     --dark: #212529;
     --border: #dee2e6;
+    --accent: #6f42c1;
 }
 
 /* Mobile-first base styles */
@@ -71,14 +75,21 @@ body {
     font-size: 0.8125rem;
 }
 
-/* Mobile stats cards */
+/* Enhanced stats cards */
 .stats-card {
     padding: 1rem;
     text-align: center;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 8px;
     background: var(--white);
     margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.15);
 }
 
 .stats-card h3 {
@@ -113,14 +124,15 @@ body {
     font-size: 0.875rem;
 }
 
-/* Welcome section - mobile friendly */
+/* Welcome section - vibrant design */
 .welcome-section {
-    background: linear-gradient(135deg, var(--primary), var(--success));
+    background: linear-gradient(135deg, var(--primary), var(--accent));
     color: white;
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
     text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
 }
 
 .welcome-section h1 {
