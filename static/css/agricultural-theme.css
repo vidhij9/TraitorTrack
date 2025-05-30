@@ -129,38 +129,58 @@ body {
     font-size: 0.85rem;
 }
 
-/* Beautiful stats cards with green accents */
+/* Highly visible stats cards with vibrant colors */
 .stats-card {
-    padding: 1.5rem;
+    padding: 2rem 1.5rem;
     text-align: center;
     border: none;
-    border-radius: 12px;
-    background: var(--white);
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: var(--white);
     margin-bottom: 1.5rem;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    border-left: 4px solid var(--primary);
+    box-shadow: 0 8px 25px rgba(25, 135, 84, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #fff, rgba(255,255,255,0.5), #fff);
 }
 
 .stats-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(25, 135, 84, 0.15);
-    border-left-color: var(--primary-light);
+    transform: translateY(-6px);
+    box-shadow: 0 12px 35px rgba(25, 135, 84, 0.3);
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
 }
 
 .stats-card h3 {
     margin: 0.5rem 0;
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--white);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .stats-card p {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.9);
+    font-weight: 500;
 }
 
 .stats-card small {
-    font-size: 0.75rem;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.9);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* Enhanced tables with better visibility */

@@ -198,7 +198,7 @@
 <script>
 function toggleRole(userId, newRole) {
     if (confirm(`Change user role to ${newRole}?`)) {
-        fetch(`{{ url_for('user_management.update_user_role') }}`, {
+        fetch(`{{ url_for('update_user_role') }}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
