@@ -28,21 +28,21 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Navigation - Mobile-First Agricultural Header */
+/* Navigation - Compact Mobile Header */
 .navbar {
     background: linear-gradient(135deg, var(--forest-green) 0%, var(--leaf-green) 100%) !important;
-    border-bottom: 3px solid var(--harvest-gold);
-    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
-    padding: 1rem 0;
-    min-height: 70px;
+    border-bottom: 2px solid var(--harvest-gold);
+    box-shadow: 0 1px 4px rgba(45, 80, 22, 0.3);
+    padding: 0.5rem 0;
+    min-height: 56px;
 }
 
 .navbar-brand {
     color: var(--cream-white) !important;
     font-weight: 700;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-    padding: 0.5rem 0;
+    padding: 0.25rem 0;
 }
 
 .navbar-nav {
@@ -51,9 +51,9 @@ body {
 
 .navbar-nav .nav-link {
     color: var(--cream-white) !important;
-    font-weight: 600;
-    padding: 1rem 1.5rem !important;
-    font-size: 1.1rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9rem;
     border-bottom: 1px solid rgba(255, 248, 220, 0.1);
     text-align: left;
     display: block;
@@ -78,26 +78,53 @@ body {
 
 /* Mobile navbar improvements */
 .navbar-toggler {
-    border: 2px solid var(--cream-white);
-    padding: 0.5rem;
+    border: 1px solid var(--cream-white);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
 }
 
 .navbar-toggler:focus {
-    box-shadow: 0 0 0 0.2rem rgba(255, 248, 220, 0.5);
+    box-shadow: 0 0 0 0.1rem rgba(255, 248, 220, 0.5);
 }
 
 .navbar-collapse {
-    border-top: 2px solid var(--harvest-gold);
-    margin-top: 1rem;
-    padding-top: 1rem;
+    border-top: 1px solid var(--harvest-gold);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+}
+
+/* Compact mobile layout */
+@media (max-width: 991px) {
+    .container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    .content {
+        padding: 1rem 0;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.4rem 1rem !important;
+        font-size: 0.85rem;
+    }
+    
+    .welcome-section {
+        padding: 1.5rem 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .welcome-section h1 {
+        font-size: 1.8rem;
+    }
 }
 
 @media (min-width: 992px) {
     .navbar-nav .nav-link {
-        padding: 0.75rem 1rem !important;
-        font-size: 1rem;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.9rem;
         border-bottom: none;
-        border-radius: 6px;
+        border-radius: 4px;
         margin: 0 0.25rem;
         width: auto;
     }
@@ -109,14 +136,15 @@ body {
     }
 }
 
-/* Cards - Agricultural Theme */
+/* Cards - Compact Agricultural Theme */
 .card {
     background: linear-gradient(145deg, #ffffff 0%, var(--cream-white) 100%) !important;
     border: 2px solid var(--sage-green) !important;
     color: var(--soil-dark) !important;
-    box-shadow: 0 4px 12px rgba(60, 36, 21, 0.15);
-    border-radius: 12px !important;
+    box-shadow: 0 2px 6px rgba(60, 36, 21, 0.15);
+    border-radius: 8px !important;
     overflow: hidden;
+    margin-bottom: 1rem;
 }
 
 .card-header {
@@ -124,13 +152,29 @@ body {
     color: var(--cream-white) !important;
     border-bottom: 2px solid var(--harvest-gold) !important;
     font-weight: 600;
-    padding: 1rem 1.25rem;
+    padding: 0.75rem 1rem;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    font-size: 0.95rem;
 }
 
 .card-body {
     color: var(--soil-dark) !important;
-    padding: 1.5rem;
+    padding: 1rem;
+}
+
+@media (max-width: 767px) {
+    .card {
+        margin-bottom: 0.75rem;
+    }
+    
+    .card-header {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
 }
 
 /* Tables - Mobile-First Agricultural Theme */
@@ -437,18 +481,18 @@ a:hover {
     color: #212529 !important;
 }
 
-/* Stats cards - Mobile-First Agricultural Dashboard */
+/* Stats cards - Compact Mobile Dashboard */
 .stats-card {
     background: linear-gradient(145deg, var(--cream-white) 0%, #ffffff 100%) !important;
-    border: 3px solid var(--sage-green) !important;
-    border-left: 6px solid var(--harvest-gold) !important;
+    border: 2px solid var(--sage-green) !important;
+    border-left: 4px solid var(--harvest-gold) !important;
     color: var(--soil-dark) !important;
-    padding: 2rem 1rem;
-    border-radius: 12px;
+    padding: 1rem 0.75rem;
+    border-radius: 8px;
     text-align: center;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 6px 16px rgba(139, 69, 19, 0.15);
-    min-height: 140px;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 2px 6px rgba(139, 69, 19, 0.15);
+    min-height: 90px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -457,15 +501,15 @@ a:hover {
 /* Remove hover effects that cause problems on mobile */
 .stats-card:hover {
     transform: none;
-    box-shadow: 0 6px 16px rgba(139, 69, 19, 0.15);
+    box-shadow: 0 2px 6px rgba(139, 69, 19, 0.15);
     border-color: var(--sage-green);
 }
 
 .stats-card h3 {
     color: var(--forest-green) !important;
-    font-size: 2.8rem;
+    font-size: 2rem;
     font-weight: 800;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     line-height: 1;
 }
@@ -473,25 +517,26 @@ a:hover {
 .stats-card small {
     color: var(--earth-brown) !important;
     text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 1px;
-    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-size: 0.75rem;
 }
 
 /* Mobile stats layout */
 @media (max-width: 767px) {
     .stats-card {
-        padding: 1.5rem 1rem;
-        margin-bottom: 1rem;
-        min-height: 120px;
+        padding: 0.75rem 0.5rem;
+        margin-bottom: 0.5rem;
+        min-height: 80px;
     }
     
     .stats-card h3 {
-        font-size: 2.2rem;
+        font-size: 1.8rem;
+        margin-bottom: 0.1rem;
     }
     
     .stats-card small {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
     }
 }
 
@@ -503,17 +548,27 @@ a:hover {
 
 /* Quick Actions mobile optimization */
 .quick-actions .btn {
-    margin-bottom: 1rem;
-    min-height: 60px;
-    font-size: 1rem;
-    padding: 1rem;
+    margin-bottom: 0.5rem;
+    min-height: 44px;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+@media (max-width: 767px) {
+    .quick-actions .btn {
+        min-height: 40px;
+        font-size: 0.85rem;
+        padding: 0.6rem 0.8rem;
+    }
 }
 
 @media (min-width: 768px) {
     .quick-actions .btn {
         margin-bottom: 0;
-        margin-right: 1rem;
-        min-height: 48px;
+        margin-right: 0.75rem;
+        min-height: 44px;
     }
 }
 
