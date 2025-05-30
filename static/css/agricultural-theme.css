@@ -163,14 +163,43 @@ body {
     font-size: 0.75rem;
 }
 
-/* Mobile table */
+/* Enhanced tables with better visibility */
 .table-responsive {
-    font-size: 0.8125rem;
+    font-size: 0.9rem;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
-.table td, .table th {
-    padding: 0.5rem;
+.table {
+    margin-bottom: 0;
+    background: var(--white);
+}
+
+.table thead th {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: var(--white);
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 1rem 0.75rem;
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table tbody td {
+    padding: 0.875rem 0.75rem;
     vertical-align: middle;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 0.9rem;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 /* Mobile forms */
