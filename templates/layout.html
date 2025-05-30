@@ -1,21 +1,18 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}TraceTrack{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Agricultural Theme CSS -->
-    <link href="{{ url_for('static', filename='css/agricultural-theme.css') }}" rel="stylesheet">
-    
-    <!-- Emergency Contrast Fix -->
-    <link href="{{ url_for('static', filename='css/fix-contrast.css') }}" rel="stylesheet">
+    <!-- Clean Theme CSS -->
+    <link href="{{ url_for('static', filename='css/clean-theme.css') }}" rel="stylesheet">
     
     <!-- jsQR for QR code scanning -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
@@ -44,7 +41,9 @@
             height: 0;
             padding-bottom: 75%;
             overflow: hidden;
-            background-color: var(--bs-dark);
+            background-color: #000000;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
         }
         
         .video-container video {
@@ -79,8 +78,8 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background-color: var(--bs-gray-700);
-            color: var(--bs-light);
+            background-color: #6c757d;
+            color: #ffffff;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -89,22 +88,22 @@
         }
         
         .progress-step.active .progress-step-circle {
-            background-color: var(--bs-primary);
+            background-color: #3498db;
         }
         
         .progress-step.completed .progress-step-circle {
-            background-color: var(--bs-success);
+            background-color: #27ae60;
         }
         
         .progress-step-label {
             font-size: 0.875rem;
-            color: var(--bs-light);
+            color: #212529;
         }
         
         .progress-line {
             flex-grow: 1;
             height: 3px;
-            background-color: var(--bs-gray-700);
+            background-color: #6c757d;
             margin: 0 10px;
             position: relative;
             top: -20px;
@@ -112,7 +111,7 @@
         }
         
         .progress-line-completed {
-            background-color: var(--bs-success);
+            background-color: #27ae60;
         }
         
         .notifications-badge {
@@ -127,48 +126,25 @@
         }
         
         .sidebar .nav-link {
-            color: var(--bs-light);
+            color: #212529;
             padding: 0.75rem 1.25rem;
             border-radius: 4px;
             margin-bottom: 0.25rem;
         }
         
         .sidebar .nav-link:hover {
-            background-color: var(--bs-gray-700);
+            background-color: #f8f9fa;
         }
         
         .sidebar .nav-link.active {
-            background-color: var(--bs-primary);
-            color: var(--bs-white);
+            background-color: #3498db;
+            color: #ffffff;
         }
         
         .sidebar .nav-link i {
             margin-right: 0.5rem;
             width: 20px;
             text-align: center;
-        }
-        
-        .footer {
-            background-color: var(--bs-gray-900);
-            padding: 1.5rem 0;
-            margin-top: auto;
-        }
-        
-        .card {
-            border: none;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.15);
-            background-color: var(--bs-gray-800);
-            margin-bottom: 1.5rem;
-        }
-        
-        .card-header {
-            font-weight: 600;
-            border-bottom: none;
-        }
-        
-        .dropdown-menu {
-            border: none;
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
         }
         
         @media (max-width: 767.98px) {
@@ -182,7 +158,7 @@
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+    <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
                 <i class="fas fa-qrcode me-2"></i>TraceTrack
