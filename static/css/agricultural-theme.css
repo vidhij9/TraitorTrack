@@ -27,23 +27,37 @@ body {
     body { font-size: 16px; }
 }
 
-/* Compact navigation */
+/* Fixed navigation with proper contrast */
 .navbar {
-    background: var(--white) !important;
+    background: var(--dark) !important;
     border-bottom: 1px solid var(--border);
     min-height: 56px;
 }
 
 .navbar-brand {
     font-weight: 600;
-    color: var(--primary) !important;
-    font-size: 1rem;
+    color: var(--white) !important;
+    font-size: 1.1rem;
 }
 
 .navbar-nav .nav-link {
-    color: var(--dark) !important;
-    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: 0.9rem;
     padding: 0.5rem 0.75rem !important;
+    border-radius: 4px;
+    margin: 0 2px;
+    transition: all 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: var(--white) !important;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-nav .nav-link.active {
+    color: var(--white) !important;
+    background: var(--primary);
+    font-weight: 500;
 }
 
 /* Compact cards */
