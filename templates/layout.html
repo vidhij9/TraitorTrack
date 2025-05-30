@@ -307,12 +307,20 @@
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
             
+            // Initialize dropdowns
+            const dropdownTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="dropdown"]'))
+            dropdownTriggerList.map(function (dropdownTriggerEl) {
+                return new bootstrap.Dropdown(dropdownTriggerEl)
+            });
+            
             // Auto-dismiss alerts after 5 seconds
             setTimeout(function() {
                 const alerts = document.querySelectorAll('.alert');
                 alerts.forEach(function(alert) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
+                    if (alert && alert.classList.contains('alert')) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        if (bsAlert) bsAlert.close();
+                    }
                 });
             }, 5000);
         });

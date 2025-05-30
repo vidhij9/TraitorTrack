@@ -224,9 +224,14 @@ body {
     background-color: #ffffff !important;
 }
 
-/* Fix hover invisibility - remove problematic hover effects */
+/* Fix hover invisibility - ensure text stays visible */
 .table tbody tr:hover {
-    background-color: #ffffff !important;
+    background-color: #f8f9fa !important;
+}
+
+.table tbody tr:hover td {
+    color: var(--soil-dark) !important;
+    background-color: #f8f9fa !important;
 }
 
 .table tbody tr:nth-child(even) {
@@ -234,7 +239,12 @@ body {
 }
 
 .table tbody tr:nth-child(even):hover {
-    background-color: var(--cream-white) !important;
+    background-color: #f1f8e9 !important;
+}
+
+.table tbody tr:nth-child(even):hover td {
+    color: var(--soil-dark) !important;
+    background-color: #f1f8e9 !important;
 }
 
 /* Force visibility for all table content */
@@ -474,16 +484,32 @@ a:hover {
 /* Dropdown menus */
 .dropdown-menu {
     background-color: #ffffff !important;
-    border: 1px solid #dee2e6 !important;
+    border: 2px solid var(--sage-green) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(74, 124, 89, 0.2) !important;
+    min-width: 200px;
 }
 
 .dropdown-item {
-    color: #212529 !important;
+    color: var(--soil-dark) !important;
+    padding: 0.75rem 1rem !important;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
-.dropdown-item:hover {
-    background-color: #f8f9fa !important;
-    color: #212529 !important;
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--sage-green) !important;
+    color: var(--cream-white) !important;
+}
+
+.dropdown-item i {
+    color: inherit !important;
+}
+
+.dropdown-divider {
+    border-color: var(--sage-green) !important;
+    margin: 0.5rem 0 !important;
 }
 
 /* Stats cards - Compact Mobile Dashboard */
