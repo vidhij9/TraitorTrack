@@ -47,19 +47,7 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f"<User {self.username}>"
 
-class Location(db.Model):
-    """Location model for tracking where bags are scanned"""
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    description = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    # Index for faster location lookups, especially during scanning
-    __table_args__ = (
-        db.Index('idx_location_name', 'name'),
-    )
-    
-    def __repr__(self):
-        return f"<Location {self.name}>"
+# Location model removed - no longer needed
 
 class Bag(db.Model):
     """Base bag model with common properties"""
@@ -170,13 +158,12 @@ class Scan(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
     child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
-    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
+    # location_id removed - no longer tracking locations
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # Relationships with eager loading for performance
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('parent_scans', lazy='dynamic'))
     child_bag = db.relationship('Bag', foreign_keys=[child_bag_id], backref=db.backref('child_scans', lazy='dynamic'))
-    location = db.relationship('Location', backref=db.backref('scans', lazy='dynamic'))
     user = db.relationship('User', backref=db.backref('user_scans', lazy='dynamic', overlaps="scanned_by,scans"), overlaps="scanned_by,scans")
     
     # Indexes for optimized scan queries and reporting
@@ -184,7 +171,6 @@ class Scan(db.Model):
         db.Index('idx_scan_timestamp', 'timestamp'),
         db.Index('idx_scan_parent_bag', 'parent_bag_id'),
         db.Index('idx_scan_child_bag', 'child_bag_id'),
-        db.Index('idx_scan_location', 'location_id'),
         db.Index('idx_scan_user', 'user_id'),
     )
     

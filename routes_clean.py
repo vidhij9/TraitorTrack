@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import and_, or_
 
 from app_clean import app, db, limiter
-from models import User, UserRole, Bag, BagType, Link, Location, Scan, Bill, BillBag
+from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag
 from forms import LoginForm, RegistrationForm, LocationSelectionForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromoteToAdminForm, BillCreationForm
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
@@ -31,7 +31,6 @@ def analytics():
     total_scans = Scan.query.count()
     total_bags = Bag.query.count()
     active_users = User.query.filter(User.verified == True).count()
-    total_locations = Location.query.count()
     
     # User activity statistics
     user_stats = []

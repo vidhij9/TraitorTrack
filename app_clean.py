@@ -62,7 +62,7 @@ login_manager.login_message_category = 'info'
 
 # Import models for database tables
 with app.app_context():
-    from models import User, UserRole, Bag, BagType, Link, Location, Scan, Bill, BillBag
+    from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag
     db.create_all()
 
 @login_manager.user_loader
