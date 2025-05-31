@@ -214,13 +214,13 @@
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle" href="#" id="user-dropdown" onclick="toggleUserDropdown(event)">
                                 <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
                                 {% if current_user.is_admin %}
                                     <span class="badge bg-danger ms-1">Admin</span>
                                 {% endif %}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
+                            <ul class="dropdown-menu dropdown-menu-end" id="user-dropdown-menu">
                                 <!-- Profile link removed as the route doesn't exist yet -->
                                 <!-- Will be added in a future update -->
                                 {% if not current_user.is_admin %}
@@ -313,55 +313,24 @@
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
             
-            // Initialize dropdowns with fallback handling
-            const dropdownTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="dropdown"]'))
-            dropdownTriggerList.forEach(function (dropdownTriggerEl) {
-                try {
-                    // Try Bootstrap initialization first
-                    const dropdown = new bootstrap.Dropdown(dropdownTriggerEl);
-                } catch (e) {
-                    console.log('Bootstrap dropdown failed, using fallback');
-                }
+            // Simple dropdown functionality
+            window.toggleUserDropdown = function(event) {
+                event.preventDefault();
+                event.stopPropagation();
                 
-                // Add manual toggle functionality as fallback
-                dropdownTriggerEl.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const targetId = dropdownTriggerEl.getAttribute('data-bs-target') || 
-                                   dropdownTriggerEl.getAttribute('href') ||
-                                   dropdownTriggerEl.nextElementSibling;
-                    
-                    let dropdownMenu;
-                    if (typeof targetId === 'string') {
-                        dropdownMenu = document.querySelector(targetId);
-                    } else {
-                        dropdownMenu = dropdownTriggerEl.nextElementSibling;
-                        if (!dropdownMenu || !dropdownMenu.classList.contains('dropdown-menu')) {
-                            dropdownMenu = dropdownTriggerEl.parentNode.querySelector('.dropdown-menu');
-                        }
-                    }
-                    
-                    if (dropdownMenu) {
-                        // Close all other dropdowns
-                        document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                            if (menu !== dropdownMenu) {
-                                menu.classList.remove('show');
-                            }
-                        });
-                        
-                        // Toggle this dropdown
-                        dropdownMenu.classList.toggle('show');
-                    }
-                });
-            });
+                const dropdownMenu = document.getElementById('user-dropdown-menu');
+                if (dropdownMenu) {
+                    dropdownMenu.classList.toggle('show');
+                }
+            };
             
-            // Close dropdowns when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('.dropdown')) {
-                    document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                        menu.classList.remove('show');
-                    });
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const dropdown = document.querySelector('.dropdown');
+                const dropdownMenu = document.getElementById('user-dropdown-menu');
+                
+                if (dropdown && dropdownMenu && !dropdown.contains(event.target)) {
+                    dropdownMenu.classList.remove('show');
                 }
             });
             
