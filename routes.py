@@ -88,6 +88,8 @@ def analytics():
         'user_stats': user_stats,
         'max_user_scans': max_user_scans,
         'recent_scans': recent_scans,
+        'scans_over_time': scan_data_7days,
+        'location_data': [],
         'scan_data_7days': json.dumps(scan_data_7days),
         'user_scan_distribution': json.dumps([{
             'username': username,
