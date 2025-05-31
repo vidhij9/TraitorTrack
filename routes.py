@@ -998,3 +998,18 @@ def api_recent_scans():
             'success': False,
             'error': str(e)
         }), 500
+
+@app.route('/scan/<int:scan_id>')
+@login_required
+def view_scan_details(scan_id):
+    """View detailed information about a specific scan"""
+    scan = Scan.query.get_or_404(scan_id)
+    
+    # Get the bag information
+    bag = None
+    if scan.parent_bag_id:
+        bag = Bag.query.get(scan.parent_bag_id)
+    elif scan.child_bag_id:
+        bag = Bag.query.get(scan.child_bag_id)
+    
+    return render_template('scan_details.html', scan=scan, bag=bag)
