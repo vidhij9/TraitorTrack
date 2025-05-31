@@ -107,29 +107,29 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for user in users %}
-                        <tr data-user-id="{{ user.id }}">
+                        {% for data in user_data %}
+                        <tr data-user-id="{{ data.user.id }}">
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
-                                        {{ user.username[0].upper() }}
+                                        {{ data.user.username[0].upper() }}
                                     </div>
                                     <div>
-                                        <div class="fw-bold">{{ user.username }}</div>
-                                        {% if user.id == current_user.id %}
+                                        <div class="fw-bold">{{ data.user.username }}</div>
+                                        {% if data.user.id == current_user.id %}
                                             <small class="text-muted">(You)</small>
                                         {% endif %}
                                     </div>
                                 </div>
                             </td>
-                            <td>{{ user.email }}</td>
+                            <td>{{ data.user.email }}</td>
                             <td>
-                                <span class="badge {% if user.is_admin() %}bg-warning{% else %}bg-secondary{% endif %}">
-                                    {{ user.role.title() }}
+                                <span class="badge {% if data.user.is_admin() %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ data.user.role.title() }}
                                 </span>
                             </td>
                             <td>
-                                {% if user.verified %}
+                                {% if data.user.verified %}
                                     <span class="badge bg-success">
                                         <i class="fas fa-check me-1"></i>Verified
                                     </span>
@@ -139,31 +139,31 @@
                                     </span>
                                 {% endif %}
                             </td>
-                            <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ data.user.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
-                                {% if user.last_activity %}
-                                    {{ user.last_activity.strftime('%Y-%m-%d %H:%M') }}
+                                {% if data.last_scan %}
+                                    {{ data.last_scan.strftime('%Y-%m-%d %H:%M') }}
                                 {% else %}
                                     <span class="text-muted">Never</span>
                                 {% endif %}
                             </td>
-                            <td>{{ user.scan_count }}</td>
+                            <td>{{ data.scan_count }}</td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-primary" onclick="editUser({{ user.id }})" title="Edit User">
+                                    <button class="btn btn-outline-primary" onclick="editUser({{ data.user.id }})" title="Edit User">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    {% if not user.is_admin() %}
-                                        <button class="btn btn-outline-warning" onclick="promoteUser({{ user.id }})" title="Promote to Admin">
+                                    {% if not data.user.is_admin() %}
+                                        <button class="btn btn-outline-warning" onclick="promoteUser({{ data.user.id }})" title="Promote to Admin">
                                             <i class="fas fa-user-shield"></i>
                                         </button>
                                     {% else %}
-                                        <button class="btn btn-outline-info" onclick="demoteUser({{ user.id }})" title="Demote to Employee">
+                                        <button class="btn btn-outline-info" onclick="demoteUser({{ data.user.id }})" title="Demote to Employee">
                                             <i class="fas fa-user"></i>
                                         </button>
                                     {% endif %}
-                                    {% if user.id != current_user.id %}
-                                        <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }})" title="Delete User">
+                                    {% if data.user.id != current_user.id %}
+                                        <button class="btn btn-outline-danger" onclick="deleteUser({{ data.user.id }})" title="Delete User">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     {% endif %}
