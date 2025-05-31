@@ -1,44 +1,53 @@
 /* Table visibility and consistency fixes */
 
-/* Dark table improvements */
+/* Convert all tables to light theme with white background */
+.table,
 .table-dark {
-    --bs-table-bg: #212529 !important;
-    --bs-table-color: #ffffff !important;
-    --bs-table-border-color: #495057 !important;
-    --bs-table-striped-bg: #2c3034 !important;
-    --bs-table-striped-color: #ffffff !important;
-    --bs-table-active-bg: #373b3e !important;
-    --bs-table-active-color: #ffffff !important;
-    --bs-table-hover-bg: #323539 !important;
-    --bs-table-hover-color: #ffffff !important;
+    --bs-table-bg: #ffffff !important;
+    --bs-table-color: #212529 !important;
+    --bs-table-border-color: #dee2e6 !important;
+    --bs-table-striped-bg: #f8f9fa !important;
+    --bs-table-striped-color: #212529 !important;
+    --bs-table-active-bg: #e9ecef !important;
+    --bs-table-active-color: #212529 !important;
+    --bs-table-hover-bg: #f5f5f5 !important;
+    --bs-table-hover-color: #212529 !important;
+    background-color: #ffffff !important;
+    color: #212529 !important;
 }
 
+.table th,
+.table td,
 .table-dark th,
 .table-dark td {
-    background-color: var(--bs-table-bg) !important;
-    color: var(--bs-table-color) !important;
-    border-color: var(--bs-table-border-color) !important;
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border-color: #dee2e6 !important;
     padding: 0.75rem !important;
     vertical-align: middle !important;
     font-size: 0.875rem !important;
+    font-weight: 500 !important;
 }
 
+.table thead th,
 .table-dark thead th {
-    background-color: #495057 !important;
-    color: #ffffff !important;
-    font-weight: 600 !important;
+    background-color: #f8f9fa !important;
+    color: #495057 !important;
+    font-weight: 700 !important;
     text-transform: uppercase !important;
     font-size: 0.75rem !important;
     letter-spacing: 0.5px !important;
-    border-bottom: 2px solid #6c757d !important;
+    border-bottom: 2px solid #dee2e6 !important;
 }
 
+.table tbody tr:nth-of-type(odd),
 .table-dark tbody tr:nth-of-type(odd) {
-    background-color: var(--bs-table-striped-bg) !important;
+    background-color: #f8f9fa !important;
 }
 
+.table tbody tr:hover,
 .table-dark tbody tr:hover {
-    background-color: var(--bs-table-hover-bg) !important;
+    background-color: #e9ecef !important;
 }
 
 /* Badge improvements for better visibility */
