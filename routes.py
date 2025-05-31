@@ -121,7 +121,14 @@ def user_management():
             'last_scan': last_scan.timestamp if last_scan else None
         })
     
-    return render_template('user_management.html', user_data=user_data)
+    # Add user stats for the template
+    user_stats = {
+        'total_users': User.query.count(),
+        'admin_users': User.query.filter(User.role == UserRole.ADMIN.value).count(),
+        'verified_users': User.query.filter(User.verified == True).count()
+    }
+    
+    return render_template('user_management.html', user_data=user_data, user_stats=user_stats)
 
 @app.route('/create_user', methods=['POST'])
 @login_required
@@ -656,7 +663,14 @@ def bag_management():
         page=page, per_page=20, error_out=False
     )
     
-    return render_template('bag_management.html', bags=bags, bag_type=bag_type, search_query=search_query)
+    # Add stats for the template
+    stats = {
+        'total_bags': Bag.query.count(),
+        'parent_bags': Bag.query.filter(Bag.type == BagType.PARENT.value).count(),
+        'child_bags': Bag.query.filter(Bag.type == BagType.CHILD.value).count()
+    }
+    
+    return render_template('bag_management.html', bags=bags, bag_type=bag_type, search_query=search_query, stats=stats)
 
 # Bill management routes
 @app.route('/bills')

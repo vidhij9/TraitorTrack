@@ -1,0 +1,307 @@
+/* Text visibility fixes for TraceTrack */
+
+/* Ensure all text has proper contrast and visibility */
+* {
+    color: inherit !important;
+}
+
+/* Base text colors - dark text on light backgrounds */
+body {
+    color: #212529 !important;
+    background-color: #ffffff !important;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+/* Paragraphs and general text */
+p, div, span, li, label {
+    color: #212529 !important;
+}
+
+/* Links with proper contrast */
+a {
+    color: #0d6efd !important;
+    text-decoration: none !important;
+}
+
+a:hover {
+    color: #0b5ed7 !important;
+    text-decoration: underline !important;
+}
+
+/* Cards - ensure dark text on white background */
+.card {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.card-header {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.card-body {
+    color: #212529 !important;
+    background-color: #ffffff !important;
+}
+
+.card-title {
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+.card-text {
+    color: #212529 !important;
+}
+
+/* Tables with high contrast */
+.table {
+    color: #212529 !important;
+    background-color: #ffffff !important;
+}
+
+.table th {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid #dee2e6 !important;
+}
+
+.table td {
+    color: #212529 !important;
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.table tbody tr:hover {
+    background-color: #f5f5f5 !important;
+}
+
+.table tbody tr:hover td {
+    color: #212529 !important;
+    background-color: #f5f5f5 !important;
+}
+
+/* Stats cards with clear text */
+.stats-card {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.stats-card h3 {
+    color: #0d6efd !important;
+    font-weight: 700 !important;
+}
+
+.stats-card small {
+    color: #6c757d !important;
+    font-weight: 500 !important;
+}
+
+/* Navigation with proper contrast */
+.navbar {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.navbar-brand {
+    color: #212529 !important;
+    font-weight: 700 !important;
+}
+
+.navbar-nav .nav-link {
+    color: #495057 !important;
+}
+
+.navbar-nav .nav-link:hover {
+    color: #212529 !important;
+}
+
+.navbar-nav .nav-link.active {
+    color: #0d6efd !important;
+    font-weight: 600 !important;
+}
+
+/* Buttons with clear text */
+.btn {
+    font-weight: 500 !important;
+}
+
+.btn-primary {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+.btn-success {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+    color: #ffffff !important;
+}
+
+.btn-secondary {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: #ffffff !important;
+}
+
+.btn-danger {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+/* Forms with readable text */
+.form-control {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #ced4da !important;
+}
+
+.form-control:focus {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border-color: #86b7fe !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+.form-label {
+    color: #212529 !important;
+    font-weight: 500 !important;
+}
+
+/* Alerts with proper contrast */
+.alert {
+    color: #212529 !important;
+}
+
+.alert-success {
+    background-color: #d1e7dd !important;
+    border-color: #badbcc !important;
+    color: #0f5132 !important;
+}
+
+.alert-danger {
+    background-color: #f8d7da !important;
+    border-color: #f5c2c7 !important;
+    color: #842029 !important;
+}
+
+.alert-warning {
+    background-color: #fff3cd !important;
+    border-color: #ffecb5 !important;
+    color: #664d03 !important;
+}
+
+.alert-info {
+    background-color: #d1ecf1 !important;
+    border-color: #b6d4ea !important;
+    color: #055160 !important;
+}
+
+/* Badges with clear text */
+.badge {
+    font-weight: 600 !important;
+    color: #ffffff !important;
+}
+
+.badge.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000000 !important;
+}
+
+/* Dropdown menus */
+.dropdown-menu {
+    background-color: #ffffff !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.dropdown-item {
+    color: #212529 !important;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+/* Footer with proper contrast */
+.footer {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+    border-top: 1px solid #dee2e6 !important;
+}
+
+.footer h5 {
+    color: #212529 !important;
+}
+
+.footer .text-muted {
+    color: #6c757d !important;
+}
+
+/* Override any theme that might hide text */
+.text-white {
+    color: #212529 !important;
+}
+
+.text-light {
+    color: #212529 !important;
+}
+
+.bg-dark {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+}
+
+.bg-dark .card-header {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+/* Progress bars and indicators */
+.progress {
+    background-color: #e9ecef !important;
+}
+
+.progress-bar {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+/* Small text elements */
+small, .small {
+    color: #6c757d !important;
+}
+
+/* List groups */
+.list-group-item {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+}
