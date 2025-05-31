@@ -15,6 +15,362 @@ from forms import LoginForm, RegistrationForm, LocationSelectionForm, ScanParent
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
+# Analytics and User Management functionality
+@app.route('/analytics')
+@login_required
+def analytics():
+    """Analytics dashboard for system insights"""
+    if not current_user.is_admin():
+        flash('Admin access required for analytics.', 'danger')
+        return redirect(url_for('index'))
+    
+    from datetime import datetime, timedelta
+    from sqlalchemy import func, and_
+    
+    # Basic statistics
+    total_scans = Scan.query.count()
+    total_bags = Bag.query.count()
+    active_users = User.query.filter(User.verified == True).count()
+    total_locations = Location.query.count()
+    
+    # User activity statistics
+    user_stats = []
+    today = datetime.now().date()
+    
+    users = User.query.all()
+    max_user_scans = 0
+    
+    for user in users:
+        total_user_scans = Scan.query.filter_by(user_id=user.id).count()
+        today_scans = Scan.query.filter(
+            Scan.user_id == user.id,
+            func.date(Scan.timestamp) == today
+        ).count()
+        
+        last_scan = Scan.query.filter_by(user_id=user.id).order_by(Scan.timestamp.desc()).first()
+        last_active = last_scan.timestamp if last_scan else None
+        
+        user_stats.append({
+            'username': user.username,
+            'is_admin': user.is_admin(),
+            'total_scans': total_user_scans,
+            'today_scans': today_scans,
+            'last_active': last_active
+        })
+        
+        if total_user_scans > max_user_scans:
+            max_user_scans = total_user_scans
+    
+    # Scans over time (last 7 days)
+    scans_over_time = {'labels': [], 'data': []}
+    for i in range(6, -1, -1):
+        date = datetime.now().date() - timedelta(days=i)
+        scan_count = Scan.query.filter(func.date(Scan.timestamp) == date).count()
+        scans_over_time['labels'].append(date.strftime('%m/%d'))
+        scans_over_time['data'].append(scan_count)
+    
+    # Location data
+    location_data = {'labels': [], 'data': []}
+    locations = Location.query.all()
+    for location in locations:
+        scan_count = Scan.query.filter_by(location_id=location.id).count()
+        if scan_count > 0:
+            location_data['labels'].append(location.name)
+            location_data['data'].append(scan_count)
+    
+    # Performance metrics
+    daily_scans = Scan.query.filter(func.date(Scan.timestamp) == today).count()
+    daily_performance = min((daily_scans / max(total_scans / 30, 1)) * 100, 100) if total_scans > 0 else 0
+    
+    linked_bags = db.session.query(Link.parent_bag_id).distinct().count() + db.session.query(Link.child_bag_id).distinct().count()
+    bag_utilization = (linked_bags / max(total_bags, 1)) * 100 if total_bags > 0 else 0
+    
+    active_locations = db.session.query(Scan.location_id).distinct().count()
+    location_coverage = (active_locations / max(total_locations, 1)) * 100 if total_locations > 0 else 0
+    
+    # Recent activity
+    recent_activity = (Scan.query
+                      .join(Location, Scan.location_id == Location.id, isouter=True)
+                      .join(User, Scan.user_id == User.id, isouter=True)
+                      .order_by(Scan.timestamp.desc())
+                      .limit(20)
+                      .all())
+    
+    analytics_data = {
+        'total_scans': total_scans,
+        'total_bags': total_bags,
+        'active_users': active_users,
+        'total_locations': total_locations,
+        'user_stats': user_stats,
+        'max_user_scans': max_user_scans,
+        'scans_over_time': scans_over_time,
+        'location_data': location_data,
+        'daily_performance': round(daily_performance, 1),
+        'bag_utilization': round(bag_utilization, 1),
+        'location_coverage': round(location_coverage, 1),
+        'recent_activity': recent_activity
+    }
+    
+    return render_template('analytics.html', analytics=analytics_data)
+
+@app.route('/admin/users')
+@login_required
+def user_management():
+    """User management dashboard for admins"""
+    if not current_user.is_admin():
+        flash('Admin access required for user management.', 'danger')
+        return redirect(url_for('index'))
+    
+    from datetime import datetime, timedelta
+    from sqlalchemy import func
+    
+    # Get all users with additional data
+    users = User.query.all()
+    today = datetime.now().date()
+    week_ago = datetime.now() - timedelta(days=7)
+    
+    # Add scan counts and last activity to users
+    for user in users:
+        user.scan_count = Scan.query.filter_by(user_id=user.id).count()
+        last_scan = Scan.query.filter_by(user_id=user.id).order_by(Scan.timestamp.desc()).first()
+        user.last_activity = last_scan.timestamp if last_scan else None
+    
+    # User statistics
+    user_stats = {
+        'total_users': len(users),
+        'active_users': Scan.query.filter(func.date(Scan.timestamp) == today).distinct(Scan.user_id).count(),
+        'admin_users': User.query.filter_by(role=UserRole.ADMIN.value).count(),
+        'new_users_this_week': User.query.filter(User.created_at >= week_ago).count()
+    }
+    
+    return render_template('user_management.html', users=users, user_stats=user_stats)
+
+@app.route('/admin/users/create', methods=['POST'])
+@login_required
+def create_user():
+    """Create a new user"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        role = request.form.get('role', 'employee')
+        
+        # Validation
+        if not username or not email or not password:
+            flash('All fields are required.', 'danger')
+            return redirect(url_for('user_management'))
+        
+        # Check if user already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists.', 'danger')
+            return redirect(url_for('user_management'))
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists.', 'danger')
+            return redirect(url_for('user_management'))
+        
+        # Create new user
+        new_user = User()
+        new_user.username = username
+        new_user.email = email
+        new_user.set_password(password)
+        new_user.role = role
+        new_user.verified = True  # Admin-created users are automatically verified
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash(f'User {username} created successfully.', 'success')
+        return redirect(url_for('user_management'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error creating user: {str(e)}")
+        flash('Error creating user. Please try again.', 'danger')
+        return redirect(url_for('user_management'))
+
+@app.route('/admin/users/<int:user_id>')
+@login_required
+def get_user(user_id):
+    """Get user data for editing"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    return jsonify({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'role': user.role
+    })
+
+@app.route('/admin/users/<int:user_id>/edit', methods=['POST'])
+@login_required
+def edit_user(user_id):
+    """Edit user details"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        user = User.query.get_or_404(user_id)
+        
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '').strip()
+        role = request.form.get('role', 'employee')
+        
+        # Validation
+        if not username or not email:
+            flash('Username and email are required.', 'danger')
+            return redirect(url_for('user_management'))
+        
+        # Check for duplicate username/email (excluding current user)
+        existing_user = User.query.filter(User.username == username, User.id != user_id).first()
+        if existing_user:
+            flash('Username already exists.', 'danger')
+            return redirect(url_for('user_management'))
+        
+        existing_email = User.query.filter(User.email == email, User.id != user_id).first()
+        if existing_email:
+            flash('Email already exists.', 'danger')
+            return redirect(url_for('user_management'))
+        
+        # Update user
+        user.username = username
+        user.email = email
+        user.role = role
+        
+        if password:
+            user.set_password(password)
+        
+        db.session.commit()
+        flash(f'User {username} updated successfully.', 'success')
+        return redirect(url_for('user_management'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating user: {str(e)}")
+        flash('Error updating user. Please try again.', 'danger')
+        return redirect(url_for('user_management'))
+
+@app.route('/admin/users/<int:user_id>/promote', methods=['POST'])
+@login_required
+def promote_user(user_id):
+    """Promote user to admin"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        user = User.query.get_or_404(user_id)
+        user.role = UserRole.ADMIN.value
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'User {user.username} promoted to admin'})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error promoting user: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error promoting user'}), 500
+
+@app.route('/admin/users/<int:user_id>/demote', methods=['POST'])
+@login_required
+def demote_user(user_id):
+    """Demote admin to employee"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        user = User.query.get_or_404(user_id)
+        if user.id == current_user.id:
+            return jsonify({'success': False, 'message': 'Cannot demote yourself'}), 400
+        
+        user.role = UserRole.EMPLOYEE.value
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'User {user.username} demoted to employee'})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error demoting user: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error demoting user'}), 500
+
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    """Delete user account"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        user = User.query.get_or_404(user_id)
+        if user.id == current_user.id:
+            return jsonify({'success': False, 'message': 'Cannot delete yourself'}), 400
+        
+        username = user.username
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'User {username} deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting user: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error deleting user'}), 500
+
+@app.route('/export/analytics_csv')
+@login_required
+def export_analytics_csv():
+    """Export analytics data as CSV"""
+    if not current_user.is_admin():
+        flash('Admin access required for exports.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        from io import StringIO
+        import csv
+        from datetime import datetime
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write analytics summary
+        writer.writerow(['TraceTrack Analytics Export'])
+        writer.writerow(['Generated on:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        writer.writerow([])
+        
+        # System statistics
+        writer.writerow(['System Statistics'])
+        writer.writerow(['Total Scans', Scan.query.count()])
+        writer.writerow(['Total Bags', Bag.query.count()])
+        writer.writerow(['Active Users', User.query.filter(User.verified == True).count()])
+        writer.writerow(['Total Locations', Location.query.count()])
+        writer.writerow([])
+        
+        # User activity
+        writer.writerow(['User Activity'])
+        writer.writerow(['Username', 'Email', 'Role', 'Total Scans', 'Created Date'])
+        
+        users = User.query.all()
+        for user in users:
+            scan_count = Scan.query.filter_by(user_id=user.id).count()
+            writer.writerow([
+                user.username,
+                user.email,
+                user.role,
+                scan_count,
+                user.created_at.strftime('%Y-%m-%d')
+            ])
+        
+        output.seek(0)
+        response = app.response_class(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=analytics_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'}
+        )
+        return response
+        
+    except Exception as e:
+        logging.error(f"Error exporting analytics: {str(e)}")
+        flash('Error exporting analytics data.', 'danger')
+        return redirect(url_for('analytics'))
+
 # Export functionality
 @app.route('/export/<format>')
 @login_required

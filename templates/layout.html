@@ -26,6 +26,9 @@
     <!-- jsQR for QR code scanning -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <!-- Custom styles -->
     <style>
         body {
@@ -208,6 +211,18 @@
                             <li class="nav-item">
                                 <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management') }}">
                                     <i class="fas fa-file-invoice"></i> Bills
+                                </a>
+                            </li>
+                            
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/analytics' in request.path %} active{% endif %}" href="{{ url_for('analytics') }}">
+                                    <i class="fas fa-chart-bar"></i> Analytics
+                                </a>
+                            </li>
+                            
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/admin/users' in request.path %} active{% endif %}" href="{{ url_for('user_management') }}">
+                                    <i class="fas fa-users-cog"></i> Users
                                 </a>
                             </li>
                         {% endif %}
