@@ -638,6 +638,202 @@ def bag_management():
     
     return render_template('bag_management.html', bags=bags, bag_type=bag_type, search_query=search_query)
 
+# Bill management routes
+@app.route('/bills')
+@login_required
+def bill_management():
+    """Bill management dashboard with search functionality"""
+    search_query = request.args.get('search', '').strip()
+    
+    if search_query:
+        bills = Bill.query.filter(
+            or_(
+                Bill.bill_id.contains(search_query),
+                Bill.description.contains(search_query)
+            )
+        ).order_by(desc(Bill.created_at)).all()
+    else:
+        bills = Bill.query.order_by(desc(Bill.created_at)).limit(50).all()
+    
+    # Get parent bags count for each bill
+    bill_data = []
+    for bill in bills:
+        parent_bags = db.session.query(Bag).join(BillBag).filter(BillBag.bill_id == bill.id).all()
+        bill_data.append({
+            'bill': bill,
+            'parent_bags': parent_bags,
+            'parent_count': len(parent_bags)
+        })
+    
+    return render_template('bill_management.html', bill_data=bill_data, search_query=search_query)
+
+@app.route('/bill/create', methods=['POST'])
+@login_required
+def create_bill():
+    """Create a new bill"""
+    form = BillCreationForm()
+    
+    if form.validate_on_submit():
+        try:
+            bill_id = sanitize_input(form.bill_id.data).upper()
+            description = sanitize_input(getattr(form, 'description', form).data) if hasattr(form, 'description') and form.description.data else ''
+            parent_bag_count = getattr(form, 'parent_bag_count', form).data or 1
+            
+            if not validate_bill_id(bill_id):
+                flash('Invalid bill ID format.', 'error')
+                return redirect(url_for('bill_management'))
+            
+            # Check if bill already exists
+            existing_bill = Bill.query.filter_by(bill_id=bill_id).first()
+            if existing_bill:
+                flash('Bill ID already exists.', 'error')
+                return redirect(url_for('bill_management'))
+            
+            # Create new bill
+            bill = Bill(
+                bill_id=bill_id,
+                description=description,
+                parent_bag_count=parent_bag_count,
+                status='new'
+            )
+            
+            db.session.add(bill)
+            db.session.commit()
+            
+            flash('Bill created successfully!', 'success')
+            return redirect(url_for('scan_bill_parent', bill_id=bill.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Error creating bill. Please try again.', 'error')
+            app.logger.error(f'Bill creation error: {str(e)}')
+    
+    return redirect(url_for('bill_management'))
+
+@app.route('/bill/<int:bill_id>/delete', methods=['POST'])
+@login_required
+def delete_bill(bill_id):
+    """Delete a bill and all its bag links"""
+    try:
+        bill = Bill.query.get_or_404(bill_id)
+        
+        # Delete all bag links first
+        BillBag.query.filter_by(bill_id=bill.id).delete()
+        
+        # Delete the bill
+        db.session.delete(bill)
+        db.session.commit()
+        
+        flash('Bill deleted successfully.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting bill.', 'error')
+        app.logger.error(f'Bill deletion error: {str(e)}')
+    
+    return redirect(url_for('bill_management'))
+
+@app.route('/bill/scan_parent')
+@app.route('/bill/<int:bill_id>/scan_parent')
+@login_required
+def scan_bill_parent(bill_id=None):
+    """Scan parent bags to add to bill"""
+    if bill_id:
+        bill = Bill.query.get_or_404(bill_id)
+    else:
+        # If no bill_id provided, redirect to bill management
+        flash('Please select a bill first.', 'info')
+        return redirect(url_for('bill_management'))
+    
+    form = ScanParentForm()
+    
+    # Get current parent bags linked to this bill
+    linked_bags = db.session.query(Bag).join(BillBag).filter(BillBag.bill_id == bill.id).all()
+    
+    return render_template('scan_bill_parent.html', form=form, bill=bill, linked_bags=linked_bags)
+
+@app.route('/bill/<int:bill_id>/scan_parent', methods=['POST'])
+@login_required
+def process_bill_parent_scan():
+    """Process a parent bag scan for bill linking"""
+    bill_id = request.form.get('bill_id')
+    if not bill_id:
+        flash('Bill ID missing.', 'error')
+        return redirect(url_for('bill_management'))
+    
+    bill = Bill.query.get_or_404(bill_id)
+    form = ScanParentForm()
+    
+    if form.validate_on_submit():
+        try:
+            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
+            
+            if not validate_parent_qr_id(qr_id):
+                flash('Invalid parent bag QR code format.', 'error')
+                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
+            
+            # Look up the parent bag
+            parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+            
+            if not parent_bag:
+                flash('Parent bag not found. Please check the QR code.', 'error')
+                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
+            
+            # Check if already linked to this bill
+            existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
+            if existing_link:
+                flash('This parent bag is already linked to this bill.', 'warning')
+                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
+            
+            # Create bill-bag link
+            bill_bag = BillBag(
+                bill_id=bill.id,
+                bag_id=parent_bag.id
+            )
+            
+            db.session.add(bill_bag)
+            db.session.commit()
+            
+            flash(f'Parent bag {qr_id} linked to bill successfully!', 'success')
+            return redirect(url_for('scan_bill_parent', bill_id=bill_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Error linking parent bag to bill.', 'error')
+            app.logger.error(f'Bill parent scan error: {str(e)}')
+    
+    return redirect(url_for('scan_bill_parent', bill_id=bill_id))
+
+@app.route('/bill/<int:bill_id>')
+@login_required
+def view_bill(bill_id):
+    """View bill details with parent bags and child bags"""
+    bill = Bill.query.get_or_404(bill_id)
+    
+    # Get all parent bags linked to this bill
+    parent_bags = db.session.query(Bag).join(BillBag).filter(BillBag.bill_id == bill.id).all()
+    
+    # Get all child bags for these parent bags
+    child_bags = []
+    for parent_bag in parent_bags:
+        children = db.session.query(Bag).join(Link).filter(Link.parent_bag_id == parent_bag.id).all()
+        child_bags.extend(children)
+    
+    # Get scan history for all bags in this bill
+    all_bag_ids = [bag.id for bag in parent_bags + child_bags]
+    scans = Scan.query.filter(
+        or_(
+            Scan.parent_bag_id.in_([bag.id for bag in parent_bags]),
+            Scan.child_bag_id.in_([bag.id for bag in child_bags])
+        )
+    ).order_by(desc(Scan.timestamp)).all()
+    
+    return render_template('view_bill.html', 
+                         bill=bill, 
+                         parent_bags=parent_bags, 
+                         child_bags=child_bags,
+                         scans=scans)
+
 @app.route('/bag/<qr_id>')
 @login_required
 def bag_detail(qr_id):
