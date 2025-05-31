@@ -97,20 +97,55 @@ nav.navbar,
     width: 100% !important;
 }
 
-/* Ensure dropdown items are visible */
+/* Ensure dropdown items are visible and functional */
 .dropdown-menu {
     background-color: #ffffff !important;
     border: 1px solid #dee2e6 !important;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    z-index: 1060 !important;
+    display: none !important;
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    min-width: 10rem !important;
+    padding: 0.5rem 0 !important;
+    margin: 0.125rem 0 0 !important;
+    border-radius: 0.375rem !important;
+}
+
+.dropdown-menu.show {
+    display: block !important;
 }
 
 .dropdown-item {
     color: #495057 !important;
+    text-decoration: none !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    padding: 0.25rem 1rem !important;
+    clear: both !important;
+    font-weight: 400 !important;
+    text-align: inherit !important;
+    white-space: nowrap !important;
 }
 
-.dropdown-item:hover {
+.dropdown-item:hover,
+.dropdown-item:focus {
     background-color: #f8f9fa !important;
     color: #212529 !important;
+}
+
+.dropdown-toggle::after {
+    display: inline-block !important;
+    margin-left: 0.255em !important;
+    vertical-align: 0.255em !important;
+    content: "" !important;
+    border-top: 0.3em solid !important;
+    border-right: 0.3em solid transparent !important;
+    border-bottom: 0 !important;
+    border-left: 0.3em solid transparent !important;
 }
 
 /* Force override any theme that might be hiding the navbar */
