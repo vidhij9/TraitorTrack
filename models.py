@@ -176,6 +176,8 @@ class Scan(db.Model):
     # Relationships with eager loading for performance
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('parent_scans', lazy='dynamic'))
     child_bag = db.relationship('Bag', foreign_keys=[child_bag_id], backref=db.backref('child_scans', lazy='dynamic'))
+    location = db.relationship('Location', backref=db.backref('scans', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('user_scans', lazy='dynamic'))
     
     # Indexes for optimized scan queries and reporting
     __table_args__ = (
@@ -185,9 +187,6 @@ class Scan(db.Model):
         db.Index('idx_scan_location', 'location_id'),
         db.Index('idx_scan_user', 'user_id'),
     )
-    
-    # Many to one relationship with User and Location
-    location = db.relationship('Location', backref=db.backref('scans', lazy='dynamic'))
     
     def __repr__(self):
         return f"<Scan ID:{self.id} at {self.timestamp}>"

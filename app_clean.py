@@ -47,10 +47,14 @@ app.config.update(
 # Initialize extensions
 db.init_app(app)
 login_manager.init_app(app)
-
-# Temporarily disable CSRF to test QR scanning functionality
-# csrf.init_app(app)
+csrf.init_app(app)
 limiter.init_app(app)
+
+# Add CSRF token to template context
+@app.context_processor
+def inject_csrf_token():
+    from flask_wtf.csrf import generate_csrf
+    return dict(csrf_token=generate_csrf)
 
 # Configure login
 login_manager.login_view = 'login'
