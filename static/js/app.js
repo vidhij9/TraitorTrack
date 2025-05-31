@@ -108,6 +108,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Expose toast function globally
     window.showToast = showToast;
     
+    // User dropdown toggle functionality
+    window.toggleUserDropdown = function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const dropdownMenu = document.getElementById('user-dropdown-menu');
+        if (dropdownMenu) {
+            dropdownMenu.classList.toggle('show');
+        }
+    };
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('user-dropdown');
+        const dropdownMenu = document.getElementById('user-dropdown-menu');
+        
+        if (dropdown && dropdownMenu && !dropdown.contains(event.target)) {
+            dropdownMenu.classList.remove('show');
+        }
+    });
+    
     // Form validation enhancement
     const forms = document.querySelectorAll('.needs-validation');
     if (forms.length > 0) {
