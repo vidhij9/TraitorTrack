@@ -11,14 +11,14 @@
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Navbar fixes - Load BEFORE theme to override properly -->
+    <link href="{{ url_for('static', filename='css/navbar-fixes.css') }}" rel="stylesheet">
+    
     <!-- Clean Theme CSS -->
     <link href="{{ url_for('static', filename='css/clean-theme.css') }}" rel="stylesheet">
     
     <!-- Visibility and interaction fixes -->
     <link href="{{ url_for('static', filename='css/fixes.css') }}" rel="stylesheet">
-    
-    <!-- Navbar fixes -->
-    <link href="{{ url_for('static', filename='css/navbar-fixes.css') }}" rel="stylesheet">
     
     <!-- jsQR for QR code scanning -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
