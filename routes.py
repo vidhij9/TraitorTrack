@@ -76,6 +76,9 @@ def analytics():
         func.count(Scan.id).label('scan_count')
     ).join(Scan).group_by(User.id, User.username).order_by(desc('scan_count')).limit(10).all()
     
+    # Calculate max user scans for progress bars
+    max_user_scans = max([len(user_stats)] + [stat['total_scans'] for stat in user_stats]) if user_stats else 1
+    
     analytics_data = {
         'total_scans': total_scans,
         'total_bags': total_bags,
@@ -83,6 +86,7 @@ def analytics():
         'child_bags': child_bags_count,
         'active_users': active_users,
         'user_stats': user_stats,
+        'max_user_scans': max_user_scans,
         'recent_scans': recent_scans,
         'scan_data_7days': json.dumps(scan_data_7days),
         'user_scan_distribution': json.dumps([{
