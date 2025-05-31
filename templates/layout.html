@@ -214,12 +214,12 @@
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="user-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <button class="btn nav-link dropdown-toggle border-0 bg-transparent" type="button" id="user-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
                                 {% if current_user.is_admin %}
                                     <span class="badge bg-danger ms-1">Admin</span>
                                 {% endif %}
-                            </a>
+                            </button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="user-dropdown">
                                 <!-- Profile link removed as the route doesn't exist yet -->
                                 <!-- Will be added in a future update -->

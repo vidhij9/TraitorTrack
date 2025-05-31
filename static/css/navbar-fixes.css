@@ -160,6 +160,31 @@ nav.navbar,
 .dropdown-toggle {
     cursor: pointer !important;
     text-decoration: none !important;
+    pointer-events: auto !important;
+}
+
+.nav-link.dropdown-toggle {
+    pointer-events: auto !important;
+    z-index: 1001 !important;
+}
+
+/* Style the button dropdown to look like nav-link */
+.nav-item .btn.nav-link.dropdown-toggle {
+    color: rgba(255, 255, 255, 0.75) !important;
+    padding: 0.5rem 1rem !important;
+    border: none !important;
+    background: transparent !important;
+    text-decoration: none !important;
+    transition: color 0.15s ease-in-out !important;
+}
+
+.nav-item .btn.nav-link.dropdown-toggle:hover {
+    color: rgba(255, 255, 255, 1) !important;
+}
+
+.nav-item .btn.nav-link.dropdown-toggle:focus {
+    box-shadow: none !important;
+    outline: none !important;
 }
 
 .dropdown-menu {
