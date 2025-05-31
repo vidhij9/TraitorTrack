@@ -940,3 +940,74 @@ def bag_detail(qr_id):
                          parent_bag=parent_bag,
                          bills=bills,
                          scans=scans)
+
+# API endpoints for dashboard data
+@app.route('/api/stats')
+@login_required
+def api_dashboard_stats():
+    """Get dashboard statistics"""
+    try:
+        total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
+        total_child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
+        total_scans = Scan.query.count()
+        total_bills = Bill.query.count() if 'Bill' in globals() else 0
+        
+        # Update dashboard elements - show 0 if count is zero
+        stats = {
+            'total_parent_bags': total_parent_bags,
+            'total_child_bags': total_child_bags,
+            'total_scans': total_scans,
+            'total_bills': total_bills,
+            'total_products': total_parent_bags + total_child_bags,
+            'status_counts': {
+                'active': total_parent_bags + total_child_bags,
+                'scanned': total_scans
+            },
+            'location_stats': {}
+        }
+        
+        return jsonify({
+            'success': True,
+            'statistics': stats
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/scans')
+@login_required
+def api_recent_scans():
+    """Get recent scans for dashboard"""
+    try:
+        limit = request.args.get('limit', 20, type=int)
+        scans = Scan.query.order_by(desc(Scan.timestamp)).limit(limit).all()
+        
+        scan_data = []
+        for scan in scans:
+            bag = None
+            if scan.parent_bag_id:
+                bag = Bag.query.get(scan.parent_bag_id)
+            elif scan.child_bag_id:
+                bag = Bag.query.get(scan.child_bag_id)
+            
+            scan_data.append({
+                'id': scan.id,
+                'timestamp': scan.timestamp.isoformat() if scan.timestamp else None,
+                'product_qr': bag.qr_id if bag else 'Unknown',
+                'product_name': bag.name if bag else 'Unknown Product',
+                'location_name': 'Main Facility',
+                'status': 'scanned',
+                'username': scan.scanned_by.username if scan.scanned_by else 'Unknown'
+            })
+        
+        return jsonify({
+            'success': True,
+            'scans': scan_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

@@ -72,8 +72,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateStatistics(stats) {
-        if (totalProductsEl) totalProductsEl.textContent = stats.total_products.toLocaleString();
-        if (totalScansEl) totalScansEl.textContent = stats.total_scans.toLocaleString();
+        // Update dashboard counters with correct element IDs
+        const parentBagsEl = document.getElementById('total-parent-bags');
+        const childBagsEl = document.getElementById('total-child-bags');
+        const billsEl = document.getElementById('total-bills');
+        const scansEl = document.getElementById('total-scans');
+        
+        if (parentBagsEl) parentBagsEl.textContent = (stats.total_parent_bags || 0).toLocaleString();
+        if (childBagsEl) childBagsEl.textContent = (stats.total_child_bags || 0).toLocaleString();
+        if (billsEl) billsEl.textContent = (stats.total_bills || 0).toLocaleString();
+        if (scansEl) scansEl.textContent = (stats.total_scans || 0).toLocaleString();
+        
+        // Legacy element updates for compatibility
+        if (totalProductsEl) totalProductsEl.textContent = (stats.total_products || 0).toLocaleString();
+        if (totalScansEl) totalScansEl.textContent = (stats.total_scans || 0).toLocaleString();
         
         // Update status counts
         const deliveredCount = stats.status_counts['delivered'] || 0;
