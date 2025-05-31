@@ -260,6 +260,20 @@ def export_analytics_csv():
     
     return response
 
+@app.route('/export/<format>')
+@login_required
+def export_data(format):
+    """Export data in various formats"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    if format == 'csv':
+        return export_analytics_csv()
+    else:
+        flash('Unsupported export format.', 'error')
+        return redirect(url_for('analytics'))
+
 # Core application routes
 
 @app.route('/')
