@@ -17,9 +17,85 @@
     color: inherit;
 }
 
+/* Force text visibility */
+h1, h2, h3, h4, h5, h6, p, span, div, label, input, textarea, select, button, a {
+    color: #ffffff !important;
+}
+
+/* Card and content backgrounds */
+.card {
+    background-color: #3a3a3a !important;
+    border: 1px solid #555 !important;
+    color: #ffffff !important;
+}
+
+.card-body, .card-header, .card-footer {
+    background-color: transparent !important;
+    color: #ffffff !important;
+}
+
+/* Table styling */
+.table {
+    color: #ffffff !important;
+    background-color: transparent !important;
+}
+
+.table td, .table th {
+    color: #ffffff !important;
+    border-color: #555 !important;
+}
+
+.table-dark {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+}
+
+/* Form controls */
+.form-control, .form-select {
+    background-color: #2a2a2a !important;
+    border: 1px solid #555 !important;
+    color: #ffffff !important;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: #2a2a2a !important;
+    border-color: var(--harvest-gold) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 0.2rem rgba(218, 165, 32, 0.25) !important;
+}
+
+/* Alert styling */
+.alert {
+    color: #000 !important;
+}
+
+.alert-success {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    color: #155724 !important;
+}
+
+.alert-danger {
+    background-color: #f8d7da !important;
+    border-color: #f5c6cb !important;
+    color: #721c24 !important;
+}
+
+.alert-warning {
+    background-color: #fff3cd !important;
+    border-color: #ffeaa7 !important;
+    color: #856404 !important;
+}
+
+.alert-info {
+    background-color: #cce7ff !important;
+    border-color: #bee5eb !important;
+    color: #0c5460 !important;
+}
+
 body {
-    background: linear-gradient(135deg, var(--cream-white) 0%, #f8f9fa 100%) !important;
-    color: var(--soil-dark) !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%) !important;
+    color: #ffffff !important;
     font-family: system-ui, -apple-system, sans-serif;
     line-height: 1.6;
     min-height: 100vh;
