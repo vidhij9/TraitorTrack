@@ -130,7 +130,15 @@ def index():
     
     recent_scans = []
     if current_user.is_authenticated:
-        recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(10).all()
+        # Optimized query with eager loading to reduce N+1 queries
+        from sqlalchemy.orm import joinedload
+        recent_scans = (Scan.query
+                       .join(Location, Scan.location_id == Location.id, isouter=True)
+                       .join(Bag, Scan.parent_bag_id == Bag.id, isouter=True)
+                       .join(User, Scan.user_id == User.id, isouter=True)
+                       .order_by(Scan.timestamp.desc())
+                       .limit(10)
+                       .all())
     
     return render_template('index.html', 
                            user=current_user,
@@ -1077,16 +1085,17 @@ def bag_management():
     # Execute query with pagination for better performance
     bags = query.order_by(Bag.created_at.desc()).limit(1000).all()
     
-    # Calculate statistics efficiently
-    total_bags = len(bags)
-    parent_bags = len([b for b in bags if b.type == BagType.PARENT.value])
-    child_bags = total_bags - parent_bags
+    # Calculate statistics efficiently using count queries instead of loading all data
+    total_bags = query.count()
+    parent_bags = query.filter(Bag.type == BagType.PARENT.value).count()
+    child_bags = query.filter(Bag.type == BagType.CHILD.value).count()
     
-    # Calculate stats using database queries for accuracy
+    # Calculate linked stats efficiently
     bag_ids = [b.id for b in bags]
-    
-    # Count linked bags
-    linked_parent_count = db.session.query(Link.parent_bag_id).filter(Link.parent_bag_id.in_(bag_ids)).distinct().count()
+    if bag_ids:
+        linked_parent_count = db.session.query(Link.parent_bag_id).filter(Link.parent_bag_id.in_(bag_ids)).distinct().count()
+    else:
+        linked_parent_count = 0
     linked_child_count = db.session.query(Link.child_bag_id).filter(Link.child_bag_id.in_(bag_ids)).distinct().count()
     linked_bags = linked_parent_count + linked_child_count
     unlinked_bags = total_bags - linked_bags
