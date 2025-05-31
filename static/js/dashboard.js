@@ -98,7 +98,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateCharts(stats) {
         updateScanActivityChart();
         updateStatusDistributionChart(stats.status_counts);
-        updateLocationStatsChart(stats.location_stats);
     }
     
     function updateScanActivityChart() {
@@ -213,56 +212,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function updateLocationStatsChart(locationStats) {
-        const ctx = document.getElementById('location-stats-chart');
-        if (!ctx) return;
-        
-        const locations = Object.keys(locationStats || {});
-        const counts = locations.map(location => locationStats[location]);
-        
-        if (locationStatsChart) {
-            locationStatsChart.destroy();
-        }
-        
-        locationStatsChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: locations,
-                datasets: [{
-                    label: 'Scans',
-                    data: counts,
-                    backgroundColor: '#0d6efd'
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    }
-                }
-            }
-        });
-    }
+
     
-    function filterLocationData(filter) {
-        console.log(`Filtering locations by: ${filter}`);
-        // This would typically re-fetch data with the filter
-        // For now, we'll just log the action
-    }
+
     
     function updateRecentScansTable(scans) {
         if (!recentScansTable) return;

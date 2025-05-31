@@ -44,10 +44,7 @@ class RegistrationForm(FlaskForm):
         if user:
             raise ValidationError('Email is already registered. Please use a different one or login.')
 
-class LocationSelectionForm(FlaskForm):
-    """Form to select a scanning location."""
-    location = SelectField('Select Location', validators=[DataRequired()], coerce=int)
-    submit = SubmitField('Continue')
+
 
 class ScanParentForm(FlaskForm):
     """Form for parent bag scanning."""

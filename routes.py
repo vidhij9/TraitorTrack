@@ -951,8 +951,7 @@ def api_dashboard_stats():
             'status_counts': {
                 'active': total_parent_bags + total_child_bags,
                 'scanned': total_scans
-            },
-            'location_stats': {}
+            }
         }
         
         return jsonify({
