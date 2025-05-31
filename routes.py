@@ -999,6 +999,51 @@ def api_recent_scans():
             'error': str(e)
         }), 500
 
+@app.route('/api/activity/<int:days>')
+@login_required
+def api_activity_stats(days):
+    """Get scan activity statistics for the past X days"""
+    try:
+        from datetime import datetime, timedelta
+        from sqlalchemy import func
+        
+        # Calculate date range
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days-1)
+        
+        # Query scan counts by date
+        activity_data = db.session.query(
+            func.date(Scan.timestamp).label('date'),
+            func.count(Scan.id).label('scan_count')
+        ).filter(
+            func.date(Scan.timestamp) >= start_date,
+            func.date(Scan.timestamp) <= end_date
+        ).group_by(
+            func.date(Scan.timestamp)
+        ).all()
+        
+        # Convert to list of dictionaries
+        activity_list = []
+        for date_obj, count in activity_data:
+            activity_list.append({
+                'date': date_obj.isoformat(),
+                'scan_count': count
+            })
+        
+        return jsonify({
+            'success': True,
+            'activity': activity_list,
+            'start_date': start_date.isoformat(),
+            'end_date': end_date.isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f'Activity API error: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/scan/<int:scan_id>')
 @login_required
 def view_scan_details(scan_id):
