@@ -214,13 +214,13 @@
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="user-dropdown" onclick="toggleUserDropdown(event)">
+                            <a class="nav-link dropdown-toggle" href="#" id="user-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
                                 {% if current_user.is_admin %}
                                     <span class="badge bg-danger ms-1">Admin</span>
                                 {% endif %}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" id="user-dropdown-menu">
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="user-dropdown">
                                 <!-- Profile link removed as the route doesn't exist yet -->
                                 <!-- Will be added in a future update -->
                                 {% if not current_user.is_admin %}
@@ -313,26 +313,7 @@
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
             
-            // Simple dropdown functionality
-            window.toggleUserDropdown = function(event) {
-                event.preventDefault();
-                event.stopPropagation();
-                
-                const dropdownMenu = document.getElementById('user-dropdown-menu');
-                if (dropdownMenu) {
-                    dropdownMenu.classList.toggle('show');
-                }
-            };
-            
-            // Close dropdown when clicking outside
-            document.addEventListener('click', function(event) {
-                const dropdown = document.querySelector('.dropdown');
-                const dropdownMenu = document.getElementById('user-dropdown-menu');
-                
-                if (dropdown && dropdownMenu && !dropdown.contains(event.target)) {
-                    dropdownMenu.classList.remove('show');
-                }
-            });
+
             
             // Auto-dismiss alerts after 5 seconds
             setTimeout(function() {
