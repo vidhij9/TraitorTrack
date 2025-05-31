@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Charts
     let scanActivityChart = null;
-    let statusDistributionChart = null;
+    // Removed status distribution chart
     let locationStatsChart = null;
     
     // Initialize dashboard
@@ -97,89 +97,125 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function updateCharts(stats) {
         updateScanActivityChart();
-        updateStatusDistributionChart(stats.status_counts);
     }
     
     function updateScanActivityChart() {
-        // This would typically fetch additional time-series data
-        // For now, we'll create a sample chart with random data
         const ctx = document.getElementById('scan-activity-chart');
         if (!ctx) return;
         
-        const labels = [];
-        const data = [];
-        
-        // Generate last 14 days
-        for (let i = 13; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-            
-            // Random data for demonstration
-            data.push(Math.floor(Math.random() * 50) + 10);
-        }
-        
-        if (scanActivityChart) {
-            scanActivityChart.destroy();
-        }
-        
-        scanActivityChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Scans',
-                    data: data,
-                    fill: true,
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
+        // Fetch real scan activity data
+        fetch('/api/activity/14')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const labels = [];
+                    const scanCounts = [];
+                    
+                    // Generate last 14 days and get actual scan counts
+                    for (let i = 13; i >= 0; i--) {
+                        const date = new Date();
+                        date.setDate(date.getDate() - i);
+                        const dateStr = date.toISOString().split('T')[0];
+                        labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                        
+                        // Get actual scan count for this date
+                        const dayData = data.activity.find(d => d.date === dateStr);
+                        scanCounts.push(dayData ? dayData.scan_count : 0);
                     }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        }
+                    
+                    if (scanActivityChart) {
+                        scanActivityChart.destroy();
                     }
+                    
+                    scanActivityChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Scans',
+                                data: scanCounts,
+                                fill: true,
+                                borderColor: '#0d6efd',
+                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(255, 255, 255, 0.1)'
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                }
+                            }
+                        }
+                    });
                 }
-            }
-        });
+            })
+            .catch(error => {
+                console.error('Error fetching scan activity data:', error);
+                // Fall back to showing empty chart
+                if (scanActivityChart) {
+                    scanActivityChart.destroy();
+                }
+                
+                const labels = [];
+                const data = [];
+                for (let i = 13; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                    data.push(0);
+                }
+                
+                scanActivityChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Scans',
+                            data: data,
+                            fill: true,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
     }
-    
-    function updateStatusDistributionChart(statusCounts) {
-        const ctx = document.getElementById('status-distribution-chart');
-        if (!ctx) return;
-        
-        const statuses = Object.keys(statusCounts || {});
-        const counts = statuses.map(status => statusCounts[status]);
-        
-        // Define colors for different statuses
-        const backgroundColors = statuses.map(status => {
-            switch(status) {
-                case 'delivered': return '#28a745';
-                case 'in-transit': return '#17a2b8';
-                case 'received': return '#0d6efd';
-                case 'returned': return '#ffc107';
-                case 'damaged': return '#dc3545';
-                default: return '#6c757d';
             }
         });
         
