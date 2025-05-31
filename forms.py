@@ -62,6 +62,9 @@ class BillCreationForm(FlaskForm):
         DataRequired(),
         Length(min=3, max=50, message="Bill ID must be between 3 and 50 characters.")
     ])
+    description = StringField('Description', validators=[
+        Length(max=200, message="Description must be 200 characters or less.")
+    ])
     submit = SubmitField('Create Bill')
     
     def validate_bill_id(self, bill_id):
@@ -81,17 +84,3 @@ class PromoteToAdminForm(FlaskForm):
     secret_code = PasswordField('Secret Code', validators=[DataRequired()])
     submit = SubmitField('Promote to Admin')
 
-class BillCreationForm(FlaskForm):
-    """Form to create a new bill."""
-    bill_id = StringField('Bill ID', validators=[
-        DataRequired(),
-        Length(min=3, max=50, message="Bill ID must be between 3 and 50 characters.")
-    ])
-    submit = SubmitField('Create Bill')
-    
-    def validate_bill_id(self, bill_id):
-        """Check if a bill with this ID already exists."""
-        from models import Bill
-        existing_bill = Bill.query.filter_by(bill_id=bill_id.data).first()
-        if existing_bill:
-            raise ValidationError('A bill with this ID already exists.')
