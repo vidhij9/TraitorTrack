@@ -313,10 +313,56 @@
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
             
-            // Initialize dropdowns
+            // Initialize dropdowns with fallback handling
             const dropdownTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="dropdown"]'))
-            dropdownTriggerList.map(function (dropdownTriggerEl) {
-                return new bootstrap.Dropdown(dropdownTriggerEl)
+            dropdownTriggerList.forEach(function (dropdownTriggerEl) {
+                try {
+                    // Try Bootstrap initialization first
+                    const dropdown = new bootstrap.Dropdown(dropdownTriggerEl);
+                } catch (e) {
+                    console.log('Bootstrap dropdown failed, using fallback');
+                }
+                
+                // Add manual toggle functionality as fallback
+                dropdownTriggerEl.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const targetId = dropdownTriggerEl.getAttribute('data-bs-target') || 
+                                   dropdownTriggerEl.getAttribute('href') ||
+                                   dropdownTriggerEl.nextElementSibling;
+                    
+                    let dropdownMenu;
+                    if (typeof targetId === 'string') {
+                        dropdownMenu = document.querySelector(targetId);
+                    } else {
+                        dropdownMenu = dropdownTriggerEl.nextElementSibling;
+                        if (!dropdownMenu || !dropdownMenu.classList.contains('dropdown-menu')) {
+                            dropdownMenu = dropdownTriggerEl.parentNode.querySelector('.dropdown-menu');
+                        }
+                    }
+                    
+                    if (dropdownMenu) {
+                        // Close all other dropdowns
+                        document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                            if (menu !== dropdownMenu) {
+                                menu.classList.remove('show');
+                            }
+                        });
+                        
+                        // Toggle this dropdown
+                        dropdownMenu.classList.toggle('show');
+                    }
+                });
+            });
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.dropdown')) {
+                    document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                        menu.classList.remove('show');
+                    });
+                }
             });
             
             // Auto-dismiss alerts after 5 seconds
