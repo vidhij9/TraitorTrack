@@ -1,34 +1,65 @@
-// Dashboard JavaScript for TraceTrack
 document.addEventListener('DOMContentLoaded', function() {
-    // Elements
-    const totalParentBagsEl = document.getElementById('total-parent-bags');
-    const totalChildBagsEl = document.getElementById('total-child-bags');
+    // DOM elements
+    const refreshBtn = document.getElementById('refresh-data');
+    const totalProductsEl = document.getElementById('total-products');
     const totalScansEl = document.getElementById('total-scans');
-    const totalBillsEl = document.getElementById('total-bills');
+    const deliveredCountEl = document.getElementById('delivered-count');
+    const inTransitCountEl = document.getElementById('in-transit-count');
     const recentScansTable = document.getElementById('recent-scans-table');
     
     // Charts
     let scanActivityChart = null;
+    // Removed status distribution chart
+    let locationStatsChart = null;
     
     // Initialize dashboard
     loadDashboardData();
     
-    function loadDashboardData() {
-        // Load statistics
+    // Event listeners
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadDashboardData);
+    }
+    
+    // Time period filter
+    document.querySelectorAll('[data-period]').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.preventDefault();
+            const period = e.target.getAttribute('data-period');
+            loadDashboardData(period);
+        });
+    });
+    
+    // Location filter
+    document.querySelectorAll('[data-filter]').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.preventDefault();
+            const filter = e.target.getAttribute('data-filter');
+            filterLocationData(filter);
+        });
+    });
+    
+    function loadDashboardData(period = 'all') {
+        // Show loading indicators
+        if (totalProductsEl) totalProductsEl.textContent = 'Loading...';
+        if (totalScansEl) totalScansEl.textContent = 'Loading...';
+        if (deliveredCountEl) deliveredCountEl.textContent = 'Loading...';
+        if (inTransitCountEl) inTransitCountEl.textContent = 'Loading...';
+        
+        // Fetch statistics
         fetch('/api/stats')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     updateStatistics(data.statistics);
-                    updateCharts();
+                    updateCharts(data.statistics);
                 }
             })
             .catch(error => {
-                console.error('Error loading dashboard data:', error);
+                console.error('Error fetching dashboard data:', error);
             });
         
-        // Load recent scans
-        fetch('/api/scans?limit=10')
+        // Fetch recent scans
+        fetch('/api/scans?limit=20')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -36,18 +67,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error loading recent scans:', error);
+                console.error('Error fetching recent scans:', error);
             });
     }
     
     function updateStatistics(stats) {
-        if (totalParentBagsEl) totalParentBagsEl.textContent = stats.total_parent_bags.toLocaleString();
-        if (totalChildBagsEl) totalChildBagsEl.textContent = stats.total_child_bags.toLocaleString();
-        if (totalScansEl) totalScansEl.textContent = stats.total_scans.toLocaleString();
-        if (totalBillsEl) totalBillsEl.textContent = stats.total_bills.toLocaleString();
+        // Update dashboard counters with correct element IDs
+        const parentBagsEl = document.getElementById('total-parent-bags');
+        const childBagsEl = document.getElementById('total-child-bags');
+        const billsEl = document.getElementById('total-bills');
+        const scansEl = document.getElementById('total-scans');
+        
+        if (parentBagsEl) parentBagsEl.textContent = (stats.total_parent_bags || 0).toLocaleString();
+        if (childBagsEl) childBagsEl.textContent = (stats.total_child_bags || 0).toLocaleString();
+        if (billsEl) billsEl.textContent = (stats.total_bills || 0).toLocaleString();
+        if (scansEl) scansEl.textContent = (stats.total_scans || 0).toLocaleString();
+        
+        // Legacy element updates for compatibility
+        if (totalProductsEl) totalProductsEl.textContent = (stats.total_products || 0).toLocaleString();
+        if (totalScansEl) totalScansEl.textContent = (stats.total_scans || 0).toLocaleString();
+        
+        // Update status counts
+        const deliveredCount = stats.status_counts['delivered'] || 0;
+        const inTransitCount = stats.status_counts['in-transit'] || 0;
+        
+        if (deliveredCountEl) deliveredCountEl.textContent = deliveredCount.toLocaleString();
+        if (inTransitCountEl) inTransitCountEl.textContent = inTransitCount.toLocaleString();
     }
     
-    function updateCharts() {
+    function updateCharts(stats) {
         updateScanActivityChart();
     }
     
@@ -167,8 +215,42 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 });
-            });
     }
+            }
+        });
+        
+        if (statusDistributionChart) {
+            statusDistributionChart.destroy();
+        }
+        
+        statusDistributionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: statuses.map(s => s.charAt(0).toUpperCase() + s.slice(1)),
+                datasets: [{
+                    data: counts,
+                    backgroundColor: backgroundColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+
+    
+
     
     function updateRecentScansTable(scans) {
         if (!recentScansTable) return;
@@ -195,13 +277,14 @@ document.addEventListener('DOMContentLoaded', function() {
             row.innerHTML = `
                 <td>${scan.product_name || 'Unknown'}</td>
                 <td>${scan.product_qr}</td>
+
                 <td><span class="badge ${statusClass}">${scan.status}</span></td>
                 <td>${scan.username}</td>
                 <td>${formatDateTime(scan.timestamp)}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewScanDetails('${scan.id}')">
+                    <a href="/product/${scan.product_qr}" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-eye"></i>
-                    </button>
+                    </a>
                 </td>
             `;
             
@@ -209,28 +292,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function formatDateTime(dateStr) {
-        if (!dateStr) return 'N/A';
-        
-        const date = new Date(dateStr);
-        return date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+    function formatDateTime(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleString();
     }
-    
-    // Global functions
-    window.viewScanDetails = function(scanId) {
-        // Implementation for viewing scan details
-        console.log('View scan details:', scanId);
-    };
-    
-    window.refreshDashboard = function() {
-        loadDashboardData();
-    };
-    
-    // Auto-refresh every 30 seconds
-    setInterval(loadDashboardData, 30000);
 });
