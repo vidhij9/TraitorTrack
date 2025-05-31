@@ -223,8 +223,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Global functions
     window.viewScanDetails = function(scanId) {
-        // Implementation for viewing scan details
-        console.log('View scan details:', scanId);
+        // Navigate to scan details page
+        window.location.href = `/scan/${scanId}`;
     };
     
     window.refreshDashboard = function() {
