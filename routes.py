@@ -1,214 +1,667 @@
-import logging
-from flask import render_template, redirect, url_for, flash, request, session, jsonify
+"""
+Routes for TraceTrack application - Location functionality completely removed
+"""
+from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response
 from flask_login import login_user, logout_user, login_required, current_user
-from app import app, limiter, db
-from models import User, UserRole
-from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
+from werkzeug.security import check_password_hash, generate_password_hash
+from sqlalchemy import desc, func, and_, or_
+from datetime import datetime, timedelta
 
-@app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute", methods=["POST"])
-@limiter.limit("5/minute, 100/day", error_message="Too many login attempts, please try again later.")
-def login():
-    """User login page with rate limiting and account lockout to prevent brute force attacks"""
-    # Add debug logging
-    logging.debug("Login route accessed with method: %s", request.method)
-    
-    # If user is already logged in, redirect to homepage
-    if current_user.is_authenticated:
-        logging.debug("User already authenticated, redirecting to index")
+from app_clean import app, db, limiter
+from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag
+from forms import LoginForm, RegistrationForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromoteToAdminForm, BillCreationForm
+from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
+from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
+
+import csv
+import io
+import json
+import secrets
+import random
+
+@app.route('/analytics')
+@login_required
+def analytics():
+    """Analytics dashboard for system insights"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
         return redirect(url_for('index'))
     
-    # Handle GET requests
-    if request.method == 'GET':
-        return render_template('login.html')
+    # Basic statistics
+    total_scans = Scan.query.count()
+    total_bags = Bag.query.count()
+    active_users = User.query.filter(User.verified == True).count()
     
-    # Process POST (login attempt)
-    username = request.form.get('username')
-    password = request.form.get('password')
-    remember = 'remember' in request.form
+    # User activity statistics
+    user_stats = []
+    today = datetime.now().date()
     
-    logging.debug("Login attempt for username: %s", username)
-    
-    # Check if the account is locked
-    is_locked, remaining_time = is_account_locked(username)
-    if is_locked:
-        logging.debug("Account locked: %s", username)
-        flash(f'Account temporarily locked. Try again in {remaining_time} seconds.', 'danger')
-        return render_template('login.html')
-    
-    # Find the user
-    user = User.query.filter_by(username=username).first()
-    
-    # Handle non-existent user
-    if not user:
-        logging.debug("User not found: %s", username)
-        flash('Invalid username or password.', 'danger')
-        return render_template('login.html')
-    
-    # Verify password
-    logging.debug("User found: %s, verifying password", username)
-    if not user.check_password(password):
-        logging.debug("Invalid password for user: %s", username)
-        # Record failed login attempt
-        is_locked, attempts, lockout_time = record_failed_attempt(username)
+    users = User.query.all()
+    for user in users:
+        user_scans_today = Scan.query.filter(
+            Scan.user_id == user.id,
+            func.date(Scan.timestamp) == today
+        ).count()
         
+        user_scans_total = Scan.query.filter(Scan.user_id == user.id).count()
+        
+        user_stats.append({
+            'username': user.username,
+            'scans_today': user_scans_today,
+            'total_scans': user_scans_total,
+            'role': user.role
+        })
+    
+    # Recent activity
+    recent_scans = Scan.query.order_by(desc(Scan.timestamp)).limit(10).all()
+    
+    # Bag statistics
+    parent_bags_count = Bag.query.filter(Bag.type == BagType.PARENT.value).count()
+    child_bags_count = Bag.query.filter(Bag.type == BagType.CHILD.value).count()
+    
+    # Time-based scan data for charts
+    scan_data_7days = []
+    for i in range(7):
+        date = today - timedelta(days=i)
+        scans_count = Scan.query.filter(func.date(Scan.timestamp) == date).count()
+        scan_data_7days.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'count': scans_count
+        })
+    scan_data_7days.reverse()
+    
+    # User scan distribution
+    user_scan_distribution = db.session.query(
+        User.username,
+        func.count(Scan.id).label('scan_count')
+    ).join(Scan).group_by(User.id, User.username).order_by(desc('scan_count')).limit(10).all()
+    
+    analytics_data = {
+        'total_scans': total_scans,
+        'total_bags': total_bags,
+        'parent_bags': parent_bags_count,
+        'child_bags': child_bags_count,
+        'active_users': active_users,
+        'user_stats': user_stats,
+        'recent_scans': recent_scans,
+        'scan_data_7days': json.dumps(scan_data_7days),
+        'user_scan_distribution': json.dumps([{
+            'username': username,
+            'count': count
+        } for username, count in user_scan_distribution])
+    }
+    
+    return render_template('analytics.html', analytics=analytics_data)
+
+@app.route('/user_management')
+@login_required
+def user_management():
+    """User management dashboard for admins"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    users = User.query.order_by(User.created_at.desc()).all()
+    
+    # Get statistics for each user
+    user_data = []
+    for user in users:
+        scan_count = Scan.query.filter(Scan.user_id == user.id).count()
+        last_scan = Scan.query.filter(Scan.user_id == user.id).order_by(desc(Scan.timestamp)).first()
+        
+        user_data.append({
+            'user': user,
+            'scan_count': scan_count,
+            'last_scan': last_scan.timestamp if last_scan else None
+        })
+    
+    return render_template('user_management.html', user_data=user_data)
+
+@app.route('/create_user', methods=['POST'])
+@login_required
+def create_user():
+    """Create a new user"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    try:
+        data = request.get_json()
+        
+        # Check if user already exists
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({'success': False, 'error': 'Username already exists'})
+        
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({'success': False, 'error': 'Email already exists'})
+        
+        # Create new user
+        user = User(
+            username=data['username'],
+            email=data['email'],
+            role=data.get('role', UserRole.EMPLOYEE.value),
+            verified=True
+        )
+        user.set_password(data['password'])
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'User created successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/seed_sample_data')
+@login_required
+def seed_sample_data():
+    """Create sample data for testing analytics (admin only)"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        # Create sample bags if few exist
+        if Bag.query.count() < 10:
+            for i in range(20):
+                # Create parent bags
+                parent_bag = Bag(
+                    qr_id=f"PARENT_{i+1:03d}_{secrets.token_hex(4).upper()}",
+                    type=BagType.PARENT.value,
+                    name=f"Parent Bag {i+1}",
+                    child_count=random.randint(1, 5)
+                )
+                db.session.add(parent_bag)
+                db.session.flush()  # Get the ID
+                
+                # Create child bags for this parent
+                for j in range(parent_bag.child_count):
+                    child_bag = Bag(
+                        qr_id=f"CHILD_{i+1:03d}_{j+1:02d}_{secrets.token_hex(3).upper()}",
+                        type=BagType.CHILD.value,
+                        name=f"Child Bag {i+1}-{j+1}",
+                        parent_id=parent_bag.id
+                    )
+                    db.session.add(child_bag)
+                    
+                    # Create link
+                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+                    db.session.add(link)
+            
+            db.session.commit()
+        
+        # Create sample scans for the past 30 days
+        bags = Bag.query.all()
+        if bags and Scan.query.count() < 50:
+            for _ in range(100):
+                bag = random.choice(bags)
+                scan = Scan(
+                    timestamp=datetime.utcnow() - timedelta(days=random.randint(0, 30)),
+                    user_id=current_user.id
+                )
+                
+                if bag.type == BagType.PARENT.value:
+                    scan.parent_bag_id = bag.id
+                else:
+                    scan.child_bag_id = bag.id
+                
+                db.session.add(scan)
+            
+            db.session.commit()
+        
+        flash('Sample data created successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error creating sample data: {str(e)}', 'error')
+    
+    return redirect(url_for('analytics'))
+
+@app.route('/export/analytics.csv')
+@login_required
+def export_analytics_csv():
+    """Export analytics data as CSV"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write headers
+    writer.writerow(['Date', 'Total Scans', 'Parent Scans', 'Child Scans', 'Active Users'])
+    
+    # Get data for the past 30 days
+    for i in range(30):
+        date = datetime.now().date() - timedelta(days=i)
+        
+        total_scans = Scan.query.filter(func.date(Scan.timestamp) == date).count()
+        parent_scans = Scan.query.filter(
+            func.date(Scan.timestamp) == date,
+            Scan.parent_bag_id.isnot(None)
+        ).count()
+        child_scans = Scan.query.filter(
+            func.date(Scan.timestamp) == date,
+            Scan.child_bag_id.isnot(None)
+        ).count()
+        
+        # Count unique users who scanned on this date
+        active_users = db.session.query(Scan.user_id).filter(
+            func.date(Scan.timestamp) == date
+        ).distinct().count()
+        
+        writer.writerow([date, total_scans, parent_scans, child_scans, active_users])
+    
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=analytics_{datetime.now().strftime("%Y%m%d")}.csv'
+    
+    return response
+
+# Core application routes
+
+@app.route('/')
+def index():
+    """Main dashboard page"""
+    if not current_user.is_authenticated:
+        return render_template('landing.html')
+    
+    # Dashboard data for logged-in users
+    today = datetime.now().date()
+    
+    # User's scan activity today
+    user_scans_today = Scan.query.filter(
+        Scan.user_id == current_user.id,
+        func.date(Scan.timestamp) == today
+    ).count()
+    
+    # Recent scans by current user
+    recent_scans = Scan.query.filter(Scan.user_id == current_user.id)\
+                             .order_by(desc(Scan.timestamp))\
+                             .limit(5).all()
+    
+    # System-wide statistics (for context)
+    total_scans_today = Scan.query.filter(func.date(Scan.timestamp) == today).count()
+    total_bags = Bag.query.count()
+    
+    return render_template('dashboard.html',
+                         user_scans_today=user_scans_today,
+                         recent_scans=recent_scans,
+                         total_scans_today=total_scans_today,
+                         total_bags=total_bags)
+
+@app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
+def login():
+    """User login page with rate limiting and account lockout to prevent brute force attacks"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    form = LoginForm()
+    
+    if form.validate_on_submit():
+        username = sanitize_input(form.username.data)
+        password = form.password.data
+        
+        # Check if account is locked
+        is_locked, remaining_time = is_account_locked(username)
         if is_locked:
-            flash(f'Account locked due to too many failed attempts. Try again in {lockout_time}.', 'danger')
-        else:
-            flash(f'Invalid username or password. {attempts} attempts remaining before lockout.', 'danger')
+            flash(f'Account locked due to too many failed attempts. Try again in {remaining_time // 60} minutes.', 'error')
+            return render_template('login.html', form=form)
         
-        return render_template('login.html')
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            if not user.verified:
+                flash('Please verify your email address before logging in.', 'warning')
+                return render_template('login.html', form=form)
+            
+            # Successful login
+            reset_failed_attempts(username)
+            login_user(user, remember=getattr(form, 'remember_me', None) and form.remember_me.data)
+            track_login_activity(user.id, success=True)
+            
+            next_page = request.args.get('next')
+            if not next_page or not next_page.startswith('/'):
+                next_page = url_for('index')
+            
+            flash(f'Welcome back, {user.username}!', 'success')
+            return redirect(next_page)
+        else:
+            # Failed login
+            is_locked, attempts_remaining, lockout_time = record_failed_attempt(username)
+            if user:
+                track_login_activity(user.id, success=False)
+            
+            if is_locked:
+                flash('Account locked due to too many failed attempts. Please try again later.', 'error')
+            else:
+                flash(f'Invalid credentials. {attempts_remaining} attempts remaining.', 'error')
     
-    # Check verification status
-    if not user.verified:
-        logging.debug("User not verified: %s", username)
-        flash('Your account is not verified. Please check your email for verification instructions.', 'warning')
-        return render_template('login.html')
-    
-    # Login successful
-    logging.debug("Login successful for user: %s", username)
-    
-    # Reset failed attempts on successful login
-    reset_failed_attempts(username)
-    
-    # Clear session before login to prevent session fixation
-    session.clear()
-    
-    # Login user with Flask-Login
-    login_user(user, remember=remember)
-    
-    # Set session as permanent to respect the configured lifetime
-    session.permanent = True
-    
-    # Track login activity
-    track_login_activity(user.id, success=True)
-    
-    # Redirect to appropriate page
-    next_page = request.args.get('next')
-    if next_page:
-        return redirect(next_page)
-    return redirect(url_for('index'))
+    return render_template('login.html', form=form)
 
 @app.route('/logout')
 @login_required
 def logout():
     """User logout"""
     logout_user()
-    # Clear any scanning session data
-    session.pop('current_location_id', None)
-    session.pop('current_parent_bag_id', None)
-    session.pop('child_bags_scanned', None)
-    
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
-@app.route('/promote-to-admin', methods=['GET', 'POST'])
-@login_required
-def promote_to_admin():
-    """Allow users to promote themselves to admin with secret code"""
-    if current_user.is_admin():
-        flash('You are already an admin.', 'info')
+@app.route('/register', methods=['GET', 'POST'])
+@limiter.limit("3 per minute")
+def register():
+    """User registration page with form validation"""
+    if current_user.is_authenticated:
         return redirect(url_for('index'))
     
-    if request.method == 'POST':
-        secret_code = request.form.get('secret_code')
+    form = RegistrationForm()
+    
+    if form.validate_on_submit():
+        try:
+            username = sanitize_input(form.username.data)
+            email = sanitize_input(form.email.data).lower()
+            
+            # Create new user
+            user = User(
+                username=username,
+                email=email,
+                role=UserRole.EMPLOYEE.value,
+                verified=True
+            )
+            user.set_password(form.password.data)
+            
+            db.session.add(user)
+            db.session.commit()
+            
+            flash('Registration successful! You can now log in.', 'success')
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Registration failed. Please try again.', 'error')
+            app.logger.error(f'Registration error: {str(e)}')
+    
+    return render_template('register.html', form=form)
+
+@app.route('/promote_admin', methods=['GET', 'POST'])
+@login_required
+def promote_admin():
+    """Allow users to promote themselves to admin with secret code"""
+    form = PromoteToAdminForm()
+    
+    if form.validate_on_submit():
+        secret_code = form.secret_code.data
         
-        if secret_code == 'tracetracksecret':
+        # Simple secret code check - in production, use environment variable
+        if secret_code == "ADMIN2024":
             current_user.role = UserRole.ADMIN.value
             db.session.commit()
             flash('You have been promoted to admin!', 'success')
             return redirect(url_for('index'))
         else:
-            flash('Invalid secret code.', 'danger')
+            flash('Invalid admin code.', 'error')
     
-    return render_template('promote_admin.html')
+    return render_template('promote_admin.html', form=form)
 
-@app.route('/')
-def index():
-    """Main dashboard page"""
-    if not current_user.is_authenticated:
-        return redirect(url_for('login'))
-    
-    return render_template('index.html', 
-                           user=current_user,
-                           is_admin=current_user.is_admin() if current_user.is_authenticated else False)
+# Scanning workflow routes (simplified without location selection)
 
-@app.route('/select_location', methods=['GET', 'POST'])
-@login_required
-def select_location():
-    """Select location for scanning operations"""
-    from models import Location
-    
-    locations = Location.query.all()
-    
-    if request.method == 'POST':
-        location_id = request.form.get('location_id')
-        if location_id:
-            session['current_location_id'] = int(location_id)
-            flash('Location selected successfully.', 'success')
-            return redirect(url_for('scan_parent'))
-        else:
-            flash('Please select a location.', 'warning')
-    
-    # Clear any existing scanning session
-    session.pop('current_parent_bag_id', None)
-    session.pop('child_bags_scanned', None)
-    
-    return render_template('select_location.html', locations=locations)
-
-@app.route('/scan_parent')
+@app.route('/scan/parent')
 @login_required
 def scan_parent():
-    """Scan parent bag QR code"""
-    # Ensure location is selected
-    if 'current_location_id' not in session:
-        flash('Please select a location first.', 'warning')
-        return redirect(url_for('select_location'))
-    
-    return render_template('scan_parent.html')
+    """Scan parent bag QR code - Direct scan without location selection"""
+    form = ScanParentForm()
+    return render_template('scan_parent.html', form=form)
 
-@app.route('/process_parent_scan', methods=['POST'])
+@app.route('/scan/parent', methods=['POST'])
 @login_required
 def process_parent_scan():
     """Process the parent bag QR code scan"""
-    from models import Bag, BagType, Scan, Location
-    import re
+    form = ScanParentForm()
     
-    if 'current_location_id' not in session:
-        return jsonify({'success': False, 'message': 'No location selected'})
+    if form.validate_on_submit():
+        try:
+            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
+            
+            if not validate_parent_qr_id(qr_id):
+                flash('Invalid parent bag QR code format.', 'error')
+                return render_template('scan_parent.html', form=form)
+            
+            # Look up the parent bag
+            parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+            
+            if not parent_bag:
+                flash('Parent bag not found. Please check the QR code.', 'error')
+                return render_template('scan_parent.html', form=form)
+            
+            # Record the scan
+            scan = Scan(
+                parent_bag_id=parent_bag.id,
+                user_id=current_user.id,
+                timestamp=datetime.utcnow()
+            )
+            
+            db.session.add(scan)
+            db.session.commit()
+            
+            # Store in session for the completion page
+            session['last_scan'] = {
+                'type': 'parent',
+                'qr_id': qr_id,
+                'bag_name': parent_bag.name,
+                'timestamp': scan.timestamp.isoformat()
+            }
+            
+            flash('Parent bag scanned successfully!', 'success')
+            return redirect(url_for('scan_complete'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Error processing scan. Please try again.', 'error')
+            app.logger.error(f'Parent scan error: {str(e)}')
     
-    qr_code = request.form.get('qr_code')
+    return render_template('scan_parent.html', form=form)
+
+@app.route('/scan/child')
+@login_required
+def scan_child():
+    """Scan child bag QR code"""
+    form = ScanChildForm()
+    return render_template('scan_child.html', form=form)
+
+@app.route('/scan/child', methods=['POST'])
+@login_required
+def process_child_scan():
+    """Process the child bag QR code scan"""
+    form = ScanChildForm()
     
-    # Accept any QR code format - no validation required\    qr_code = qr_code.strip()
+    if form.validate_on_submit():
+        try:
+            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
+            
+            if not validate_child_qr_id(qr_id):
+                flash('Invalid child bag QR code format.', 'error')
+                return render_template('scan_child.html', form=form)
+            
+            # Look up the child bag
+            child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
+            
+            if not child_bag:
+                flash('Child bag not found. Please check the QR code.', 'error')
+                return render_template('scan_child.html', form=form)
+            
+            # Record the scan
+            scan = Scan(
+                child_bag_id=child_bag.id,
+                user_id=current_user.id,
+                timestamp=datetime.utcnow()
+            )
+            
+            db.session.add(scan)
+            db.session.commit()
+            
+            # Get parent bag info if linked
+            parent_bag = None
+            link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+            if link:
+                parent_bag = link.parent_bag
+            
+            # Store in session for the completion page
+            session['last_scan'] = {
+                'type': 'child',
+                'qr_id': qr_id,
+                'bag_name': child_bag.name,
+                'parent_qr_id': parent_bag.qr_id if parent_bag else None,
+                'parent_name': parent_bag.name if parent_bag else None,
+                'timestamp': scan.timestamp.isoformat()
+            }
+            
+            flash('Child bag scanned successfully!', 'success')
+            return redirect(url_for('scan_complete'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Error processing scan. Please try again.', 'error')
+            app.logger.error(f'Child scan error: {str(e)}')
     
-    # Look up or create the parent bag
-    parent_bag = Bag.query.filter_by(qr_id=qr_code, type=BagType.PARENT.value).first()
+    return render_template('scan_child.html', form=form)
+
+@app.route('/scan/complete')
+@login_required
+def scan_complete():
+    """Completion page for scanning workflow"""
+    last_scan = session.get('last_scan')
+    if not last_scan:
+        flash('No recent scan found.', 'info')
+        return redirect(url_for('index'))
     
-    if not parent_bag:
-        # Create new parent bag
-        parent_bag = Bag(qr_id=qr_code, type=BagType.PARENT.value)
-        db.session.add(parent_bag)
-        db.session.commit()
+    return render_template('scan_complete.html', scan_data=last_scan)
+
+@app.route('/scan/finish')
+@login_required
+def finish_scanning():
+    """Complete the scanning process"""
+    # Clear session data
+    session.pop('last_scan', None)
+    flash('Scanning session completed.', 'success')
+    return redirect(url_for('index'))
+
+# Bag lookup and management routes
+
+@app.route('/lookup', methods=['GET', 'POST'])
+@login_required
+def child_lookup():
+    """Universal bag lookup - works with both parent and child bag QR codes"""
+    form = ChildLookupForm()
+    bag_info = None
     
-    # Record the scan
-    location = Location.query.get(session['current_location_id'])
-    scan = Scan(parent_bag_id=parent_bag.id, location_id=location.id, user_id=current_user.id)
-    db.session.add(scan)
-    db.session.commit()
+    if form.validate_on_submit():
+        qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
+        
+        # Look up the bag (could be parent or child)
+        bag = Bag.query.filter_by(qr_id=qr_id).first()
+        
+        if bag:
+            # Get related information based on bag type
+            if bag.type == BagType.PARENT.value:
+                # Get child bags
+                child_bags = db.session.query(Bag).join(Link).filter(Link.parent_bag_id == bag.id).all()
+                
+                # Get bills this parent bag is linked to
+                bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == bag.id).all()
+                
+                bag_info = {
+                    'bag': bag,
+                    'type': 'parent',
+                    'child_bags': child_bags,
+                    'bills': bills,
+                    'parent_bag': None
+                }
+            else:  # Child bag
+                # Get parent bag
+                link = Link.query.filter_by(child_bag_id=bag.id).first()
+                parent_bag = link.parent_bag if link else None
+                
+                # Get bills through parent bag
+                bills = []
+                if parent_bag:
+                    bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == parent_bag.id).all()
+                
+                bag_info = {
+                    'bag': bag,
+                    'type': 'child',
+                    'child_bags': [],
+                    'bills': bills,
+                    'parent_bag': parent_bag
+                }
+            
+            # Get scan history
+            if bag.type == BagType.PARENT.value:
+                scans = Scan.query.filter_by(parent_bag_id=bag.id).order_by(desc(Scan.timestamp)).limit(10).all()
+            else:
+                scans = Scan.query.filter_by(child_bag_id=bag.id).order_by(desc(Scan.timestamp)).limit(10).all()
+            
+            bag_info['scans'] = scans
+        else:
+            flash('Bag not found. Please check the QR code.', 'error')
     
-    # Store parent bag ID in session
-    session['current_parent_bag_id'] = parent_bag.id
+    return render_template('child_lookup.html', form=form, bag_info=bag_info)
+
+@app.route('/bags')
+@login_required
+def bag_management():
+    """Optimized bag management with efficient filtering"""
+    page = request.args.get('page', 1, type=int)
+    bag_type = request.args.get('type', 'all')
+    search_query = request.args.get('search', '').strip()
     
-    # Extract the number of expected child bags from the parent QR code
-    try:
-        expected_child_count = int(qr_code.split('-')[1])
-    except:
-        expected_child_count = 5  # Default if parsing fails
+    # Build query
+    query = Bag.query
     
-    return jsonify({
-        'success': True,
-        'parent_id': parent_bag.id,
-        'parent_qr': parent_bag.qr_id,
-        'expected_child_count': expected_child_count,
-        'message': f'Parent bag {qr_code} scanned successfully. Please scan {expected_child_count} child bags.'
-    })
+    if bag_type != 'all':
+        query = query.filter(Bag.type == bag_type)
+    
+    if search_query:
+        query = query.filter(
+            or_(
+                Bag.qr_id.contains(search_query),
+                Bag.name.contains(search_query)
+            )
+        )
+    
+    # Paginate results
+    bags = query.order_by(desc(Bag.created_at)).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    return render_template('bag_management.html', bags=bags, bag_type=bag_type, search_query=search_query)
+
+@app.route('/bag/<qr_id>')
+@login_required
+def bag_detail(qr_id):
+    """Display detailed information about a specific bag"""
+    bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
+    
+    # Get related information
+    if bag.type == BagType.PARENT.value:
+        child_bags = db.session.query(Bag).join(Link).filter(Link.parent_bag_id == bag.id).all()
+        parent_bag = None
+        bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == bag.id).all()
+        scans = Scan.query.filter_by(parent_bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
+    else:
+        child_bags = []
+        link = Link.query.filter_by(child_bag_id=bag.id).first()
+        parent_bag = link.parent_bag if link else None
+        bills = []
+        if parent_bag:
+            bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == parent_bag.id).all()
+        scans = Scan.query.filter_by(child_bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
+    
+    return render_template('bag_detail.html',
+                         bag=bag,
+                         child_bags=child_bags,
+                         parent_bag=parent_bag,
+                         bills=bills,
+                         scans=scans)

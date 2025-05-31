@@ -368,9 +368,11 @@
                 return new bootstrap.Tooltip(tooltipTriggerEl)
             });
             
-
-            
-
+            // Initialize dropdowns
+            const dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
+            dropdownElementList.map(function (dropdownToggleEl) {
+                return new bootstrap.Dropdown(dropdownToggleEl)
+            });
             
             // Auto-dismiss alerts after 5 seconds
             setTimeout(function() {

@@ -1,4 +1,5 @@
 from app_clean import app
+import routes  # noqa: F401
 
 # Expose app for gunicorn
 application = app

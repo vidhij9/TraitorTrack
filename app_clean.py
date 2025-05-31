@@ -70,9 +70,7 @@ def load_user(user_id):
     from models import User
     return User.query.get(int(user_id))
 
-# This will prevent circular imports
-# The routes are imported after the app is fully initialized
-from routes_clean import *
+# Routes will be imported via main.py to prevent circular imports
 
 # Temporarily comment out API endpoints to fix circular imports
 # We'll uncomment and fix these later if needed
