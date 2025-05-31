@@ -1,0 +1,183 @@
+{% extends "layout.html" %}
+
+{% block title %}Scan History - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-history me-2"></i>Scan History</h2>
+            <p class="text-muted">View and manage all scanning activities</p>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stats-card">
+                <h3>{{ stats.total_scans }}</h3>
+                <small>Total Scans</small>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stats-card">
+                <h3>{{ stats.today_scans }}</h3>
+                <small>Today's Scans</small>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stats-card">
+                <h3>{{ stats.parent_scans }}</h3>
+                <small>Parent Scans</small>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stats-card">
+                <h3>{{ stats.child_scans }}</h3>
+                <small>Child Scans</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-search me-2"></i>Search Scans</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-8">
+                    <input type="text" class="form-control" name="search" 
+                           placeholder="Search by QR code..." value="{{ search_query }}">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scan History Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Recent Scans</h5>
+            <span class="badge bg-primary">{{ scans.total }} scans</span>
+        </div>
+        <div class="card-body p-0">
+            {% if scans.items %}
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Bag Type</th>
+                                <th>QR Code</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scan in scans.items %}
+                            <tr>
+                                <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ scan.scanned_by.username if scan.scanned_by else 'Unknown' }}</td>
+                                <td>
+                                    {% if scan.parent_bag_id %}
+                                        <span class="badge bg-primary">Parent</span>
+                                    {% elif scan.child_bag_id %}
+                                        <span class="badge bg-success">Child</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if scan.parent_bag_id and scan.parent_bag %}
+                                        {{ scan.parent_bag.qr_id }}
+                                    {% elif scan.child_bag_id and scan.child_bag %}
+                                        {{ scan.child_bag.qr_id }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if scan.parent_bag_id and scan.parent_bag %}
+                                        <a href="{{ url_for('bag_detail', qr_id=scan.parent_bag.qr_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    {% elif scan.child_bag_id and scan.child_bag %}
+                                        <a href="{{ url_for('bag_detail', qr_id=scan.child_bag.qr_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No scans found</h5>
+                    <p class="text-muted">
+                        {% if search_query %}
+                            No scans match your search criteria.
+                        {% else %}
+                            Start scanning to see activity here.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if scans.pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="Scan pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if scans.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('scan_history', page=scans.prev_num, search=search_query) }}">
+                                Previous
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in scans.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != scans.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('scan_history', page=page_num, search=search_query) }}">
+                                        {{ page_num }}
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if scans.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('scan_history', page=scans.next_num, search=search_query) }}">
+                                Next
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

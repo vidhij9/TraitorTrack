@@ -636,6 +636,51 @@ def child_lookup():
     
     return render_template('child_lookup.html', form=form, bag_info=bag_info)
 
+@app.route('/scans')
+@login_required
+def scan_history():
+    """Scan history dashboard with filtering"""
+    page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('search', '').strip()
+    
+    # Build query
+    query = Scan.query
+    
+    if search_query:
+        query = query.join(Bag, or_(
+            Scan.parent_bag_id == Bag.id,
+            Scan.child_bag_id == Bag.id
+        )).filter(Bag.qr_id.contains(search_query))
+    
+    # Paginate results
+    scans = query.order_by(desc(Scan.timestamp)).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    # Add stats for the template
+    stats = {
+        'total_scans': Scan.query.count(),
+        'today_scans': Scan.query.filter(func.date(Scan.timestamp) == datetime.now().date()).count(),
+        'parent_scans': Scan.query.filter(Scan.parent_bag_id.isnot(None)).count(),
+        'child_scans': Scan.query.filter(Scan.child_bag_id.isnot(None)).count()
+    }
+    
+    return render_template('scan_history.html', scans=scans, search_query=search_query, stats=stats)
+
+@app.route('/locations')
+@login_required
+def location_management():
+    """Location management dashboard"""
+    locations = Location.query.all() if 'Location' in globals() else []
+    
+    # Add stats for the template
+    stats = {
+        'total_locations': len(locations),
+        'active_locations': len(locations)  # Assuming all are active for now
+    }
+    
+    return render_template('location_management.html', locations=locations, stats=stats)
+
 @app.route('/bags')
 @login_required
 def bag_management():
