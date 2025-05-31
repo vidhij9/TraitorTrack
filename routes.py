@@ -904,7 +904,7 @@ def view_bill(bill_id):
 
 @app.route('/bag/<qr_id>')
 @login_required
-def bag_detail(qr_id):
+def bag_details(qr_id):
     """Display detailed information about a specific bag"""
     bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
     
