@@ -201,46 +201,27 @@
 </div>
 
 <div class="row mb-4">
-    <!-- Location Map -->
-    <div class="col-md-6 mb-4">
+    <!-- Activity Overview -->
+    <div class="col-md-12 mb-4">
         <div class="card bg-dark">
             <div class="card-header">
-                <h5 class="mb-0">Location Map</h5>
-            </div>
-            <div class="card-body p-0">
-                <div id="location-map" class="map-container">
-                    <div class="d-flex justify-content-center align-items-center h-100">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary mb-3" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p>Loading map...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Locations Stats -->
-    <div class="col-md-6 mb-4">
-        <div class="card bg-dark">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Location Statistics</h5>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        Filter
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" data-filter="all">All Locations</a></li>
-                        <li><a class="dropdown-item" href="#" data-filter="warehouse">Warehouses</a></li>
-                        <li><a class="dropdown-item" href="#" data-filter="distribution">Distribution Centers</a></li>
-                        <li><a class="dropdown-item" href="#" data-filter="retail">Retail Locations</a></li>
-                    </ul>
-                </div>
+                <h5 class="mb-0">System Activity Overview</h5>
             </div>
             <div class="card-body">
-                <canvas id="location-stats-chart" height="300"></canvas>
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <h3 class="text-primary">Active</h3>
+                        <p class="text-muted">System Status</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h3 class="text-success">24/7</h3>
+                        <p class="text-muted">Monitoring</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h3 class="text-info">Real-time</h3>
+                        <p class="text-muted">Data Processing</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -259,7 +240,7 @@
                     <tr>
                         <th>Product</th>
                         <th>QR ID</th>
-                        <th>Location</th>
+
                         <th>Status</th>
                         <th>User</th>
                         <th>Timestamp</th>
@@ -268,7 +249,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td colspan="7" class="text-center">Loading recent scans...</td>
+                        <td colspan="6" class="text-center">Loading recent scans...</td>
                     </tr>
                 </tbody>
             </table>

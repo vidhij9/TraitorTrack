@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = recentScansTable.querySelector('tbody');
         
         if (scans.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No recent scans found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No recent scans found</td></tr>';
             return;
         }
         
@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
             row.innerHTML = `
                 <td>${scan.product_name || 'Unknown'}</td>
                 <td>${scan.product_qr}</td>
-                <td>${scan.location_name}</td>
+
                 <td><span class="badge ${statusClass}">${scan.status}</span></td>
                 <td>${scan.username}</td>
                 <td>${formatDateTime(scan.timestamp)}</td>

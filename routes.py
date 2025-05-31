@@ -667,19 +667,7 @@ def scan_history():
     
     return render_template('scan_history.html', scans=scans, search_query=search_query, stats=stats)
 
-@app.route('/locations')
-@login_required
-def location_management():
-    """Location management dashboard"""
-    locations = Location.query.all() if 'Location' in globals() else []
-    
-    # Add stats for the template
-    stats = {
-        'total_locations': len(locations),
-        'active_locations': len(locations)  # Assuming all are active for now
-    }
-    
-    return render_template('location_management.html', locations=locations, stats=stats)
+
 
 @app.route('/bags')
 @login_required
@@ -715,7 +703,8 @@ def bag_management():
         'child_bags': Bag.query.filter(Bag.type == BagType.CHILD.value).count()
     }
     
-    return render_template('bag_management.html', bags=bags, bag_type=bag_type, search_query=search_query, stats=stats)
+    filters = {'type': bag_type}
+    return render_template('bag_management.html', bags=bags, bag_type=bag_type, search_query=search_query, stats=stats, filters=filters)
 
 # Bill management routes
 @app.route('/bills')
@@ -997,7 +986,6 @@ def api_recent_scans():
                 'timestamp': scan.timestamp.isoformat() if scan.timestamp else None,
                 'product_qr': bag.qr_id if bag else 'Unknown',
                 'product_name': bag.name if bag else 'Unknown Product',
-                'location_name': 'Main Facility',
                 'status': 'scanned',
                 'username': scan.scanned_by.username if scan.scanned_by else 'Unknown'
             })
