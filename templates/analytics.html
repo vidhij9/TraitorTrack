@@ -12,6 +12,11 @@
             <a href="{{ url_for('export_analytics_csv') }}" class="btn btn-outline-success">
                 <i class="fas fa-download me-2"></i>Export CSV
             </a>
+            {% if analytics.total_scans < 10 %}
+            <a href="{{ url_for('seed_sample_data') }}" class="btn btn-outline-warning">
+                <i class="fas fa-database me-2"></i>Generate Sample Data
+            </a>
+            {% endif %}
         </div>
     </div>
 
@@ -231,9 +236,11 @@
 <script>
 // Analytics data from backend
 const analyticsData = {
-    scansOverTime: {{ analytics.scans_over_time | tojson }},
-    locationData: {{ analytics.location_data | tojson }}
+    scansOverTime: {{ analytics.scans_over_time | tojson | safe }},
+    locationData: {{ analytics.location_data | tojson | safe }}
 };
+
+console.log('Analytics data loaded:', analyticsData);
 
 // Initialize charts
 document.addEventListener('DOMContentLoaded', function() {

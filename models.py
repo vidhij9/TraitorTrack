@@ -177,7 +177,7 @@ class Scan(db.Model):
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('parent_scans', lazy='dynamic'))
     child_bag = db.relationship('Bag', foreign_keys=[child_bag_id], backref=db.backref('child_scans', lazy='dynamic'))
     location = db.relationship('Location', backref=db.backref('scans', lazy='dynamic'))
-    user = db.relationship('User', backref=db.backref('user_scans', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('user_scans', lazy='dynamic', overlaps="scanned_by,scans"), overlaps="scanned_by,scans")
     
     # Indexes for optimized scan queries and reporting
     __table_args__ = (

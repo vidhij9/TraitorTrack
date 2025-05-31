@@ -74,9 +74,13 @@ def analytics():
     locations = Location.query.all()
     for location in locations:
         scan_count = Scan.query.filter_by(location_id=location.id).count()
-        if scan_count > 0:
-            location_data['labels'].append(location.name)
-            location_data['data'].append(scan_count)
+        location_data['labels'].append(location.name)
+        location_data['data'].append(scan_count)
+    
+    # Ensure we have some default data if no locations exist
+    if not location_data['labels']:
+        location_data['labels'] = ['No Data']
+        location_data['data'] = [0]
     
     # Performance metrics
     daily_scans = Scan.query.filter(func.date(Scan.timestamp) == today).count()
@@ -88,13 +92,8 @@ def analytics():
     active_locations = db.session.query(Scan.location_id).distinct().count()
     location_coverage = (active_locations / max(total_locations, 1)) * 100 if total_locations > 0 else 0
     
-    # Recent activity
-    recent_activity = (Scan.query
-                      .join(Location, Scan.location_id == Location.id, isouter=True)
-                      .join(User, Scan.user_id == User.id, isouter=True)
-                      .order_by(Scan.timestamp.desc())
-                      .limit(20)
-                      .all())
+    # Recent activity with proper relationships
+    recent_activity = Scan.query.order_by(Scan.timestamp.desc()).limit(20).all()
     
     analytics_data = {
         'total_scans': total_scans,
@@ -313,6 +312,92 @@ def delete_user(user_id):
         db.session.rollback()
         logging.error(f"Error deleting user: {str(e)}")
         return jsonify({'success': False, 'message': 'Error deleting user'}), 500
+
+@app.route('/admin/seed_data')
+@login_required
+def seed_sample_data():
+    """Create sample data for testing analytics (admin only)"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        from datetime import datetime, timedelta
+        import random
+        
+        # Create locations if none exist
+        if Location.query.count() == 0:
+            locations_data = [
+                {'name': 'Warehouse A', 'address': '123 Storage St'},
+                {'name': 'Warehouse B', 'address': '456 Logistics Ave'},
+                {'name': 'Distribution Center', 'address': '789 Supply Chain Blvd'},
+                {'name': 'Retail Store', 'address': '321 Commerce St'}
+            ]
+            
+            for loc_data in locations_data:
+                location = Location()
+                location.name = loc_data['name']
+                db.session.add(location)
+            
+            db.session.commit()
+        
+        # Create sample bags if few exist
+        if Bag.query.count() < 10:
+            for i in range(1, 11):
+                if not Bag.query.filter_by(qr_id=f"PAR{i:03d}").first():
+                    bag = Bag()
+                    bag.qr_id = f"PAR{i:03d}"
+                    bag.type = BagType.PARENT.value
+                    bag.name = f"Parent Bag {i}"
+                    db.session.add(bag)
+            
+            for i in range(1, 21):
+                if not Bag.query.filter_by(qr_id=f"CHI{i:03d}").first():
+                    bag = Bag()
+                    bag.qr_id = f"CHI{i:03d}"
+                    bag.type = BagType.CHILD.value
+                    bag.name = f"Child Bag {i}"
+                    db.session.add(bag)
+            
+            db.session.commit()
+        
+        # Create sample scans for analytics
+        if Scan.query.count() < 20:
+            locations = Location.query.all()
+            bags = Bag.query.all()
+            
+            if locations and bags:
+                for days_ago in range(7):
+                    scan_date = datetime.now() - timedelta(days=days_ago)
+                    scans_for_day = random.randint(3, 8)
+                    
+                    for _ in range(scans_for_day):
+                        scan = Scan()
+                        scan.timestamp = scan_date.replace(
+                            hour=random.randint(8, 18),
+                            minute=random.randint(0, 59)
+                        )
+                        scan.location_id = random.choice(locations).id
+                        scan.user_id = current_user.id
+                        
+                        bag = random.choice(bags)
+                        if bag.type == BagType.PARENT.value:
+                            scan.parent_bag_id = bag.id
+                        else:
+                            scan.child_bag_id = bag.id
+                        
+                        db.session.add(scan)
+                
+                db.session.commit()
+        
+        flash('Sample data created successfully for analytics testing.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error creating sample data: {str(e)}")
+        flash('Error creating sample data.', 'danger')
+    
+    return redirect(url_for('analytics'))
 
 @app.route('/export/analytics_csv')
 @login_required
