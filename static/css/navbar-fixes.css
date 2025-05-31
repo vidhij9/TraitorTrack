@@ -237,6 +237,57 @@ nav.navbar,
 .table-dark th {
     color: #ffffff !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+    background-color: #495057 !important;
+}
+
+.table-dark td {
+    background-color: #343a40 !important;
+    color: #ffffff !important;
+    border-color: #495057 !important;
+}
+
+/* Fix table row readability */
+.table-dark tbody tr {
+    background-color: #343a40 !important;
+}
+
+.table-dark tbody tr:nth-of-type(odd) {
+    background-color: #3d444a !important;
+}
+
+.table-dark tbody tr:hover {
+    background-color: #495057 !important;
+}
+
+/* Badge contrast improvements */
+.badge {
+    font-weight: 600 !important;
+    font-size: 0.75rem !important;
+}
+
+.badge.bg-primary {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+    color: #ffffff !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+.badge.bg-warning {
+    background-color: #fd7e14 !important;
+    color: #ffffff !important;
+}
+
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+    color: #000000 !important;
 }
 
 /* Button text improvements */
@@ -257,6 +308,72 @@ nav.navbar,
 .btn-outline-secondary:hover {
     background-color: #6c757d !important;
     color: #ffffff !important;
+}
+
+/* Form element consistency */
+.form-control, .form-select, .input-group-text {
+    font-size: 0.875rem !important;
+    padding: 0.5rem 0.75rem !important;
+    border: 1px solid #ced4da !important;
+    background-color: #ffffff !important;
+    color: #212529 !important;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+.input-group .form-control:not(:first-child) {
+    border-left: 0 !important;
+}
+
+.input-group .btn {
+    border-left: 0 !important;
+}
+
+/* Card consistency */
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.125) !important;
+    border-radius: 0.375rem !important;
+}
+
+.card-body {
+    padding: 1.25rem !important;
+}
+
+/* Statistics cards uniformity */
+.card.bg-dark {
+    background-color: #212529 !important;
+    color: #ffffff !important;
+}
+
+.card.bg-dark .card-title {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.card.bg-dark .card-text {
+    font-size: 0.875rem !important;
+    opacity: 0.8 !important;
+}
+
+/* Button sizing consistency */
+.btn {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
+    border-radius: 0.375rem !important;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem !important;
+    font-size: 1rem !important;
 }
 
 .dropdown-menu {
