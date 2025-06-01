@@ -257,7 +257,7 @@
                                             </div>
                                             <div>
                                                 <div class="fw-bold">{{ session.username }}</div>
-                                                <small class="text-muted">{{ session.email }}</small>
+                                                <small class="text-muted">admin@traitortrack.com</small>
                                             </div>
                                         </div>
                                     </h6>
@@ -266,19 +266,19 @@
                                 <li>
                                     <span class="dropdown-item-text">
                                         <i class="fas fa-user-tag me-2"></i>
-                                        Role: <span class="badge {% if session.is_admin() %}bg-warning{% else %}bg-secondary{% endif %}">
-                                            {{ session.role.title() }}
+                                        Role: <span class="badge {% if session.user_role == 'admin' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                            {{ session.user_role.title() if session.user_role else 'Guest' }}
                                         </span>
                                     </span>
                                 </li>
                                 <li>
                                     <span class="dropdown-item-text">
                                         <i class="fas fa-calendar me-2"></i>
-                                        Member since: {{ session.created_at.strftime('%B %Y') }}
+                                        Member since: June 2025
                                     </span>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
-                                {% if session.is_admin() %}
+                                {% if session.user_role == 'admin' %}
 
                                     <li>
                                         <a class="dropdown-item" href="{{ url_for('user_management') }}">
