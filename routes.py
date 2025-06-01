@@ -709,7 +709,21 @@ def scan_child():
         if parent_qr_id:
             parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
     
-    return render_template('scan_child.html', form=form, parent_bag=parent_bag)
+    # Calculate child bag counts for the parent
+    scanned_child_count = 0
+    expected_child_count = 5  # Default
+    
+    if parent_bag:
+        # Count how many child bags are already linked to this parent
+        scanned_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        # Get expected count from parent bag's child_count field or default to 5
+        expected_child_count = parent_bag.child_count or 5
+    
+    return render_template('scan_child.html', 
+                         form=form, 
+                         parent_bag=parent_bag,
+                         scanned_child_count=scanned_child_count,
+                         expected_child_count=expected_child_count)
 
 @app.route('/scan/child', methods=['POST'])
 @login_required
