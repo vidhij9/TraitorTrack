@@ -99,7 +99,23 @@ def debug_deployment():
         <li>Logged In: {info['logged_in']}</li>
         <li>Authenticated: {info['authenticated']}</li>
     </ul>
-    <p><a href="/setup">Run Setup</a> | <a href="/login">Login Page</a> | <a href="/test-login">Test Login</a></p>
+    <p><a href="/setup">Run Setup</a> | <a href="/login">Login Page</a> | <a href="/test-login">Test Login</a> | <a href="/session-test">Session Test</a></p>
+    """
+
+@app.route('/session-test')
+def session_test():
+    """Test session persistence"""
+    if 'visit_count' not in session:
+        session['visit_count'] = 0
+    session['visit_count'] += 1
+    session.permanent = True
+    
+    return f"""
+    <h2>Session Persistence Test</h2>
+    <p>Visit count: {session['visit_count']}</p>
+    <p>Session ID: {request.cookies.get('tracetrack_session', 'No session cookie')}</p>
+    <p>Full session: {dict(session)}</p>
+    <p><a href="/session-test">Refresh Page</a> | <a href="/debug-deployment">Debug Info</a></p>
     """
 
 @app.route('/test-login', methods=['GET', 'POST'])

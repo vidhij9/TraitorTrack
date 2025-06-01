@@ -451,7 +451,7 @@ def index():
     logging.info(f"Logged in status: {session.get('logged_in')}")
     
     # Check session-based authentication
-    if not session.get('logged_in'):
+    if not session.get('logged_in') and not session.get('authenticated'):
         logging.info("User not logged in, showing landing page")
         return render_template('landing.html')
     
