@@ -175,7 +175,7 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
+            <a class="navbar-brand" href="{{ url_for('index', s=request.args.get('s')) }}">
                 <i class="fas fa-qrcode me-2"></i>Traitor Track
             </a>
             
@@ -186,7 +186,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link{% if request.path == url_for('index') %} active{% endif %}" href="{{ url_for('index') }}">
+                        <a class="nav-link{% if request.path == url_for('index') %} active{% endif %}" href="{{ url_for('index', s=request.args.get('s')) }}">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                     </li>
@@ -293,7 +293,7 @@
                                 {% if session.user_role == 'admin' %}
 
                                     <li>
-                                        <a class="dropdown-item" href="{{ url_for('user_management') }}">
+                                        <a class="dropdown-item" href="{{ url_for('user_management', s=request.args.get('s')) }}">
                                             <i class="fas fa-users-cog me-2"></i>User Management
                                         </a>
                                     </li>

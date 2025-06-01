@@ -30,27 +30,41 @@ def login_required(f):
     return decorated_function
 
 class CurrentUser:
-    """Mock current_user object for compatibility"""
+    """Current user object for working authentication"""
     @property
     def id(self):
-        from final_auth import get_current_user_final
-        user_data = get_current_user_final()
-        return user_data.get('user_id') if user_data else session.get('user_id')
+        from working_auth import get_auth_session
+        user_data = get_auth_session()
+        return user_data.get('user_id') if user_data else None
     
     @property
     def username(self):
-        from final_auth import get_current_user_final
-        user_data = get_current_user_final()
-        return user_data.get('username') if user_data else session.get('username')
+        from working_auth import get_auth_session
+        user_data = get_auth_session()
+        return user_data.get('username') if user_data else None
+    
+    @property
+    def email(self):
+        from working_auth import get_auth_session
+        user_data = get_auth_session()
+        return user_data.get('email') if user_data else None
+    
+    @property
+    def role(self):
+        from working_auth import get_auth_session
+        user_data = get_auth_session()
+        return user_data.get('role') if user_data else None
     
     @property
     def is_authenticated(self):
-        from final_auth import is_authenticated_final
-        return is_authenticated_final()
+        from working_auth import is_authenticated_working
+        return is_authenticated_working()
     
     def is_admin(self):
-        from final_auth import get_current_user_final
-        user_data = get_current_user_final()
+        """Check if user is admin"""
+        from working_auth import get_auth_session
+        user_data = get_auth_session()
+        return user_data.get('role') == 'admin' if user_data else False
         return user_data.get('role') == 'admin' if user_data else session.get('user_role') == 'admin'
 
 current_user = CurrentUser()
