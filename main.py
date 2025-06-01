@@ -7,7 +7,7 @@ from models import User
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if session.get('logged_in'):
+    if session.get('logged_in') and request.method == 'GET':
         return redirect(url_for('index'))
     
     if request.method == 'POST':

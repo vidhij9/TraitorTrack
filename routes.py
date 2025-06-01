@@ -480,8 +480,8 @@ def index():
 def logout():
     """User logout"""
     session.clear()
-    flash('You have been logged out.', 'info')
-    return redirect(url_for('index'))
+    flash('You have been logged out successfully.', 'success')
+    return redirect(url_for('login'))
 
 @app.route('/fix-admin-password')
 def fix_admin_password():
