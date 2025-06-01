@@ -833,7 +833,7 @@ def bill_management():
     # Get parent bags count for each bill
     bill_data = []
     for bill in bills:
-        parent_bags = db.session.query(Bag).join(BillBag).filter(BillBag.bill_id == bill.id).all()
+        parent_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
         bill_data.append({
             'bill': bill,
             'parent_bags': parent_bags,
@@ -942,12 +942,12 @@ def view_bill(bill_id):
     bill = Bill.query.get_or_404(bill_id)
     
     # Get all parent bags linked to this bill
-    parent_bags = db.session.query(Bag).join(BillBag).filter(BillBag.bill_id == bill.id).all()
+    parent_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
     
     # Get all child bags for these parent bags
     child_bags = []
     for parent_bag in parent_bags:
-        children = db.session.query(Bag).join(Link).filter(Link.parent_bag_id == parent_bag.id).all()
+        children = db.session.query(Bag).join(Link, Bag.id == Link.child_bag_id).filter(Link.parent_bag_id == parent_bag.id).all()
         child_bags.extend(children)
     
     # Get scan history for all bags in this bill
@@ -1013,7 +1013,7 @@ def scan_bill_parent(bill_id=None):
     form = ScanParentForm()
     
     # Get current parent bags linked to this bill
-    linked_bags = db.session.query(Bag).join(BillBag).filter(BillBag.bill_id == bill.id).all()
+    linked_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
     
     return render_template('scan_bill_parent.html', form=form, bill=bill, linked_bags=linked_bags)
 
