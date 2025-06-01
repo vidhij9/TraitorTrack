@@ -409,7 +409,8 @@ def export_data(format):
 @app.route('/')
 def index():
     """Main dashboard page"""
-    if not current_user.is_authenticated:
+    # Check session-based authentication
+    if 'user_id' not in session:
         return render_template('landing.html')
     
     # Dashboard data for logged-in users
@@ -490,10 +491,9 @@ def login():
     return render_template('login.html', form=form)
 
 @app.route('/logout')
-@login_required
 def logout():
     """User logout"""
-    logout_user()
+    session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
