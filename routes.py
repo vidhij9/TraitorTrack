@@ -586,18 +586,28 @@ def process_parent_scan():
     
     if form.validate_on_submit():
         try:
-            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
+            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).strip()
             
-            if not validate_parent_qr_id(qr_id):
-                flash('Invalid parent bag QR code format.', 'error')
+            # Accept any QR code format - no validation restrictions
+            if not qr_id:
+                flash('Please enter a QR code.', 'error')
                 return render_template('scan_parent.html', form=form)
             
-            # Look up the parent bag
+            # Look up the parent bag first, if not found create it automatically
             parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
             
             if not parent_bag:
-                flash('Parent bag not found. Please check the QR code.', 'error')
-                return render_template('scan_parent.html', form=form)
+                # Create new parent bag automatically for any QR code
+                parent_bag = Bag(
+                    qr_id=qr_id,
+                    name=f"Bag {qr_id}",
+                    type=BagType.PARENT.value,
+                    description=f"Auto-created parent bag for QR: {qr_id}",
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(parent_bag)
+                db.session.commit()
+                flash(f'New parent bag created for QR code: {qr_id}', 'info')
             
             # Record the scan
             scan = Scan(
@@ -642,18 +652,28 @@ def process_child_scan():
     
     if form.validate_on_submit():
         try:
-            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
+            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).strip()
             
-            if not validate_child_qr_id(qr_id):
-                flash('Invalid child bag QR code format.', 'error')
+            # Accept any QR code format - no validation restrictions
+            if not qr_id:
+                flash('Please enter a QR code.', 'error')
                 return render_template('scan_child.html', form=form)
             
-            # Look up the child bag
+            # Look up the child bag first, if not found create it automatically
             child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
             
             if not child_bag:
-                flash('Child bag not found. Please check the QR code.', 'error')
-                return render_template('scan_child.html', form=form)
+                # Create new child bag automatically for any QR code
+                child_bag = Bag(
+                    qr_id=qr_id,
+                    name=f"Bag {qr_id}",
+                    type=BagType.CHILD.value,
+                    description=f"Auto-created child bag for QR: {qr_id}",
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(child_bag)
+                db.session.commit()
+                flash(f'New child bag created for QR code: {qr_id}', 'info')
             
             # Record the scan
             scan = Scan(
