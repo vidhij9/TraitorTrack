@@ -959,11 +959,15 @@ def view_bill(bill_id):
         )
     ).order_by(desc(Scan.timestamp)).all()
     
+    # Count of parent bags linked to this bill
+    bag_links_count = len(parent_bags)
+    
     return render_template('view_bill.html', 
                          bill=bill, 
                          parent_bags=parent_bags, 
                          child_bags=child_bags,
-                         scans=scans)
+                         scans=scans,
+                         bag_links_count=bag_links_count)
 
 @app.route('/bill/<int:bill_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -994,6 +998,45 @@ def edit_bill(bill_id):
             flash(f'Error updating bill: {str(e)}', 'error')
     
     return render_template('edit_bill.html', bill=bill)
+
+@app.route('/remove_bag_from_bill', methods=['POST'])
+@login_required
+def remove_bag_from_bill():
+    """Remove a parent bag from a bill - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required to remove bags from bills.', 'error')
+        return redirect(url_for('bill_management'))
+    
+    try:
+        parent_qr = request.form.get('parent_qr')
+        bill_id = request.form.get('bill_id', type=int)
+        
+        if not parent_qr or not bill_id:
+            flash('Missing required information.', 'error')
+            return redirect(url_for('bill_management'))
+        
+        # Find the parent bag
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+        if not parent_bag:
+            flash('Parent bag not found.', 'error')
+            return redirect(url_for('view_bill', bill_id=bill_id))
+        
+        # Find and remove the bill-bag link
+        bill_bag = BillBag.query.filter_by(bill_id=bill_id, bag_id=parent_bag.id).first()
+        if bill_bag:
+            db.session.delete(bill_bag)
+            db.session.commit()
+            flash(f'Parent bag {parent_qr} removed from bill successfully.', 'success')
+        else:
+            flash('Bag link not found.', 'error')
+        
+        return redirect(url_for('view_bill', bill_id=bill_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('Error removing bag from bill.', 'error')
+        app.logger.error(f'Remove bag from bill error: {str(e)}')
+        return redirect(url_for('bill_management'))
 
 @app.route('/bill/scan_parent')
 @app.route('/bill/<int:bill_id>/scan_parent')
