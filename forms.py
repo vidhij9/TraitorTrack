@@ -76,7 +76,7 @@ class BillCreationForm(FlaskForm):
 
 class ChildLookupForm(FlaskForm):
     """Form to look up child bag information."""
-    qr_code = StringField('Child Bag QR Code', validators=[DataRequired()])
+    qr_id = StringField('Child Bag QR Code', validators=[DataRequired()])
     submit = SubmitField('Lookup')
 
 class PromoteToAdminForm(FlaskForm):
