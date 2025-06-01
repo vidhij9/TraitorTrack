@@ -992,8 +992,18 @@ def edit_bill(bill_id):
     
     if request.method == 'POST':
         try:
+            # Debug logging
+            app.logger.info(f'Edit bill POST request for bill_id: {bill_id}')
+            app.logger.info(f'Form data: {dict(request.form)}')
+            
             description = request.form.get('description', '').strip()
             parent_bag_count = request.form.get('parent_bag_count', type=int)
+            
+            app.logger.info(f'Parsed - description: "{description}", parent_bag_count: {parent_bag_count}')
+            
+            # Store original values for comparison
+            original_description = bill.description
+            original_count = bill.parent_bag_count
             
             # Always update description (can be empty)
             bill.description = description
@@ -1001,9 +1011,16 @@ def edit_bill(bill_id):
             # Update parent bag count if valid
             if parent_bag_count and parent_bag_count > 0:
                 bill.parent_bag_count = parent_bag_count
+            
+            # Check if anything actually changed
+            if bill.description != original_description or bill.parent_bag_count != original_count:
+                db.session.commit()
+                app.logger.info(f'Bill {bill_id} updated successfully')
+                flash('Bill updated successfully!', 'success')
+            else:
+                app.logger.info(f'No changes detected for bill {bill_id}')
+                flash('No changes were made to the bill.', 'info')
                 
-            db.session.commit()
-            flash('Bill updated successfully!', 'success')
             return redirect(url_for('view_bill', bill_id=bill_id))
             
         except Exception as e:
