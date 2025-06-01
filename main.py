@@ -1,82 +1,9 @@
-"""
-Traitor Track - Fixed authentication system
-"""
-import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy.orm import DeclarativeBase
-from datetime import datetime
+# Import the working application but with fixed authentication
+from app_clean import app, db
 
-class Base(DeclarativeBase):
-    pass
-
-# Create Flask app
-app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-change-in-production")
-
-# Database configuration
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
-
-# Initialize database
-db = SQLAlchemy(app, model_class=Base)
-
-# User model
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256))
-    role = db.Column(db.String(20), default='employee')
-    verified = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-# Routes
-@app.route('/')
-def index():
-    if not session.get('logged_in'):
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Traitor Track</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        </head>
-        <body>
-            <div class="container mt-5 text-center">
-                <h1>Welcome to Traitor Track</h1>
-                <p>Advanced supply chain traceability platform</p>
-                <a href="/login" class="btn btn-primary">Login</a>
-            </div>
-        </body>
-        </html>
-        """
-    
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Traitor Track Dashboard</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    </head>
-    <body>
-        <div class="container mt-5">
-            <h1>Welcome to Traitor Track Dashboard</h1>
-            <div class="alert alert-success">Login successful!</div>
-            <p>Hello, {session.get('username')}!</p>
-            <p>Role: {session.get('user_role')}</p>
-            <a href="/logout" class="btn btn-danger">Logout</a>
-        </div>
-    </body>
-    </html>
-    """
+# Override the problematic login route with working authentication
+from flask import request, redirect, url_for, session, render_template
+from models import User
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -105,15 +32,10 @@ def login():
     
     return render_template('simple_login.html')
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('index'))
-
 @app.route('/setup')
 def setup():
     """Setup admin user"""
-    db.create_all()
+    from werkzeug.security import generate_password_hash
     
     # Check if admin exists
     admin = User.query.filter_by(username='admin').first()
@@ -133,10 +55,11 @@ def setup():
         db.session.commit()
         return "Admin password updated. Username: admin, Password: admin"
 
+# Import all the routes to restore full functionality
+import routes
+
 # Expose app for gunicorn
 application = app
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)

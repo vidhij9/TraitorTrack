@@ -410,7 +410,7 @@ def export_data(format):
 def index():
     """Main dashboard page"""
     # Check session-based authentication
-    if 'user_id' not in session:
+    if not session.get('logged_in'):
         return render_template('landing.html')
     
     # Dashboard data for logged-in users
@@ -437,36 +437,7 @@ def index():
                          total_scans_today=total_scans_today,
                          total_bags=total_bags)
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """User login page"""
-    if session.get('logged_in'):
-        return redirect(url_for('index'))
-    
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        
-        if not username or not password:
-            flash('Please enter both username and password.', 'error')
-            return render_template('login.html')
-        
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password):
-            # Set session data
-            session.permanent = True
-            session['logged_in'] = True
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['user_role'] = user.role
-            
-            flash(f'Welcome back, {user.username}!', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('Invalid username or password.', 'error')
-    
-    return render_template('login.html')
+# Login route is now defined in main.py
 
 @app.route('/logout')
 def logout():
