@@ -16,7 +16,11 @@
                             <a href="{{ url_for('bill_management') }}" class="btn btn-outline-light">
                                 <i class="fas fa-arrow-left me-2"></i>Back to Bills
                             </a>
-
+                            {% if current_user.role == 'admin' %}
+                                <a href="{{ url_for('edit_bill', bill_id=bill.id) }}" class="btn btn-warning ms-2">
+                                    <i class="fas fa-edit me-2"></i>Edit Bill
+                                </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -43,25 +47,46 @@
                     
                     <div class="mb-3">
                         <p class="text-muted mb-1">Status</p>
-                        {% if bag_links_count > 0 %}
-                            <span class="badge bg-success fs-6 px-3 py-2">Active</span>
+                        {% if bag_links_count == bill.parent_bag_count %}
+                            <span class="badge bg-success fs-6 px-3 py-2">Complete</span>
+                        {% elif bag_links_count > 0 %}
+                            <span class="badge bg-warning fs-6 px-3 py-2">In Progress</span>
                         {% else %}
-                            <span class="badge bg-warning fs-6 px-3 py-2">Empty</span>
+                            <span class="badge bg-secondary fs-6 px-3 py-2">Empty</span>
                         {% endif %}
                     </div>
                     
                     <div class="mb-3">
-                        <p class="text-muted mb-1">Parent Bags Linked</p>
-                        <p class="fs-4 fw-bold">{{ bag_links_count }}</p>
+                        <p class="text-muted mb-1">Parent Bags Progress</p>
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="fs-4 fw-bold me-2">{{ bag_links_count }}</span>
+                            <span class="text-muted">of</span>
+                            <span class="fs-4 fw-bold ms-2">{{ bill.parent_bag_count }}</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar {% if bag_links_count == bill.parent_bag_count %}bg-success{% else %}bg-warning{% endif %}" 
+                                 style="width: {{ (bag_links_count / bill.parent_bag_count * 100) if bill.parent_bag_count > 0 else 0 }}%"></div>
+                        </div>
                     </div>
                     
-                    {% if bag_links_count == 0 %}
-                        <div class="d-grid gap-2 mt-4">
+                    <div class="d-grid gap-2 mt-4">
+                        {% if bag_links_count < bill.parent_bag_count %}
                             <a href="{{ url_for('scan_bill_parent', bill_id=bill.id) }}" class="btn btn-primary">
-                                <i class="fas fa-qrcode me-2"></i>Add More Parent Bags
+                                <i class="fas fa-qrcode me-2"></i>Add Parent Bags ({{ bill.parent_bag_count - bag_links_count }} remaining)
                             </a>
-                        </div>
-                    {% endif %}
+                        {% elif bag_links_count == bill.parent_bag_count %}
+                            <div class="alert alert-success mb-2">
+                                <i class="fas fa-check-circle me-2"></i>Bill is complete with all required parent bags!
+                            </div>
+                        {% endif %}
+                        
+                        {% if bag_links_count > bill.parent_bag_count %}
+                            <div class="alert alert-warning mb-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Too many bags! This bill should have {{ bill.parent_bag_count }} bags but has {{ bag_links_count }}.
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>

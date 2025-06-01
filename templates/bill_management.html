@@ -106,10 +106,12 @@
                                                 <span class="badge bg-primary">{{ data.parent_count }}</span>
                                             </td>
                                             <td>
-                                                {% if data.parent_count > 0 %}
+                                                {% if data.parent_count == data.bill.parent_bag_count %}
                                                     <span class="badge bg-success">Complete</span>
+                                                {% elif data.parent_count > 0 %}
+                                                    <span class="badge bg-warning">In Progress ({{ data.parent_count }}/{{ data.bill.parent_bag_count }})</span>
                                                 {% else %}
-                                                    <span class="badge bg-warning">Pending</span>
+                                                    <span class="badge bg-secondary">Empty</span>
                                                 {% endif %}
                                             </td>
                                             <td>

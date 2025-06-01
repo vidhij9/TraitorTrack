@@ -1127,6 +1127,12 @@ def process_bill_parent_scan():
                 flash('This parent bag is already linked to this bill.', 'warning')
                 return redirect(url_for('scan_bill_parent', bill_id=bill_id))
             
+            # Check if bill already has the maximum number of bags
+            current_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
+            if current_bag_count >= bill.parent_bag_count:
+                flash(f'Bill already has the maximum number of parent bags ({bill.parent_bag_count}). Cannot add more bags.', 'error')
+                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
+            
             # Create bill-bag link
             bill_bag = BillBag(
                 bill_id=bill.id,
