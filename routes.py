@@ -464,18 +464,18 @@ def login():
             
             # Successful login
             reset_failed_attempts(username)
-            login_user(user, remember=form.remember.data)
+            
+            # Set session as permanent first
+            session.permanent = True
+            session['user_id'] = user.id
+            session['username'] = user.username
+            
+            # Then login with Flask-Login
+            login_user(user, remember=form.remember.data, force=True)
             track_login_activity(user.id, success=True)
             
-            # Force a redirect to dashboard to ensure proper page load
             flash(f'Welcome back, {user.username}!', 'success')
-            
-            # Clear any cached responses and force redirect to dashboard
-            response = make_response(redirect(url_for('index')))
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-            return response
+            return redirect(url_for('index'))
         else:
             # Failed login
             is_locked, attempts_remaining, lockout_time = record_failed_attempt(username)

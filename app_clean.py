@@ -34,16 +34,17 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 
-# Security settings
+# Security settings - Fix session management for deployment
 app.config.update(
-    SESSION_COOKIE_SECURE=False if os.environ.get('FLASK_ENV') == 'development' else True,
+    SESSION_COOKIE_SECURE=False,  # Temporarily disable for troubleshooting
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SAMESITE=None,  # Allow cross-site for deployment
     PERMANENT_SESSION_LIFETIME=1800,
     SESSION_REFRESH_EACH_REQUEST=True,
     PREFERRED_URL_SCHEME='https',
-    WTF_CSRF_TIME_LIMIT=None,  # Remove CSRF time limit for better compatibility
-    WTF_CSRF_SSL_STRICT=False,  # Allow CSRF over HTTP for development
+    WTF_CSRF_TIME_LIMIT=None,
+    WTF_CSRF_SSL_STRICT=False,
+    SESSION_TYPE='filesystem',  # Use filesystem sessions
 )
 
 # Initialize extensions
