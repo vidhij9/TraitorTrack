@@ -240,10 +240,22 @@
                             <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <div class="d-flex align-items-center">
                                     <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                        <span style="font-size: 14px;">{{ session.username[0].upper() }}</span>
+                                        <span style="font-size: 14px;">
+                                            {% if current_user.is_authenticated %}
+                                                {{ current_user.username[0].upper() if current_user.username else 'U' }}
+                                            {% else %}
+                                                U
+                                            {% endif %}
+                                        </span>
                                     </div>
-                                    <span class="d-none d-md-inline">{{ session.username }}</span>
-                                    {% if session.user_role == 'admin' %}
+                                    <span class="d-none d-md-inline">
+                                        {% if current_user.is_authenticated %}
+                                            {{ current_user.username or 'User' }}
+                                        {% else %}
+                                            User
+                                        {% endif %}
+                                    </span>
+                                    {% if current_user.is_admin() %}
                                         <span class="badge bg-warning ms-2 d-none d-md-inline">Admin</span>
                                     {% endif %}
                                 </div>

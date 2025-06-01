@@ -108,3 +108,9 @@ def load_user(user_id):
 
 # from mobile_api import mobile_api
 # app.register_blueprint(mobile_api)
+
+@app.context_processor
+def inject_current_user():
+    """Make current_user available in all templates"""
+    from routes import current_user
+    return dict(current_user=current_user)

@@ -33,14 +33,25 @@ class CurrentUser:
     """Mock current_user object for compatibility"""
     @property
     def id(self):
-        return session.get('user_id')
+        from final_auth import get_current_user_final
+        user_data = get_current_user_final()
+        return user_data.get('user_id') if user_data else session.get('user_id')
+    
+    @property
+    def username(self):
+        from final_auth import get_current_user_final
+        user_data = get_current_user_final()
+        return user_data.get('username') if user_data else session.get('username')
     
     @property
     def is_authenticated(self):
-        return session.get('logged_in', False)
+        from final_auth import is_authenticated_final
+        return is_authenticated_final()
     
     def is_admin(self):
-        return session.get('user_role') == 'admin'
+        from final_auth import get_current_user_final
+        user_data = get_current_user_final()
+        return user_data.get('role') == 'admin' if user_data else session.get('user_role') == 'admin'
 
 current_user = CurrentUser()
 from sqlalchemy import desc, func, and_, or_
