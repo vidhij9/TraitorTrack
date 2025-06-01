@@ -942,30 +942,41 @@ def view_bill(bill_id):
     bill = Bill.query.get_or_404(bill_id)
     
     # Get all parent bags linked to this bill
-    parent_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
+    parent_bags_raw = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
     
-    # Get all child bags for these parent bags
-    child_bags = []
-    for parent_bag in parent_bags:
+    # Format parent bags data for template
+    parent_bags = []
+    for parent_bag in parent_bags_raw:
+        # Get child bags for this parent
+        child_bags = db.session.query(Bag).join(Link, Bag.id == Link.child_bag_id).filter(Link.parent_bag_id == parent_bag.id).all()
+        
+        parent_bags.append({
+            'parent_bag': parent_bag,
+            'child_count': len(child_bags),
+            'child_bags': child_bags
+        })
+    
+    # Get all child bags for scan history
+    all_child_bags = []
+    for parent_bag in parent_bags_raw:
         children = db.session.query(Bag).join(Link, Bag.id == Link.child_bag_id).filter(Link.parent_bag_id == parent_bag.id).all()
-        child_bags.extend(children)
+        all_child_bags.extend(children)
     
     # Get scan history for all bags in this bill
-    all_bag_ids = [bag.id for bag in parent_bags + child_bags]
     scans = Scan.query.filter(
         or_(
-            Scan.parent_bag_id.in_([bag.id for bag in parent_bags]),
-            Scan.child_bag_id.in_([bag.id for bag in child_bags])
+            Scan.parent_bag_id.in_([bag.id for bag in parent_bags_raw]),
+            Scan.child_bag_id.in_([bag.id for bag in all_child_bags])
         )
     ).order_by(desc(Scan.timestamp)).all()
     
     # Count of parent bags linked to this bill
-    bag_links_count = len(parent_bags)
+    bag_links_count = len(parent_bags_raw)
     
     return render_template('view_bill.html', 
                          bill=bill, 
                          parent_bags=parent_bags, 
-                         child_bags=child_bags,
+                         child_bags=all_child_bags,
                          scans=scans,
                          bag_links_count=bag_links_count)
 
@@ -984,8 +995,10 @@ def edit_bill(bill_id):
             description = request.form.get('description', '').strip()
             parent_bag_count = request.form.get('parent_bag_count', type=int)
             
-            if description:
-                bill.description = description
+            # Always update description (can be empty)
+            bill.description = description
+            
+            # Update parent bag count if valid
             if parent_bag_count and parent_bag_count > 0:
                 bill.parent_bag_count = parent_bag_count
                 
@@ -996,6 +1009,7 @@ def edit_bill(bill_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating bill: {str(e)}', 'error')
+            app.logger.error(f'Edit bill error: {str(e)}')
     
     return render_template('edit_bill.html', bill=bill)
 
