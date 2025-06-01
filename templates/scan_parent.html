@@ -332,6 +332,7 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log('Server response:', data);
                 if (data.success) {
                     // Show success message and auto-proceed
                     resultContainer.className = 'alert alert-success';
@@ -341,14 +342,19 @@
                     // Stop the camera since we've got a successful scan
                     stopCamera();
                     
+                    console.log('Redirecting to child scan page in 2 seconds...');
                     // Automatically proceed to child scanning after 2 seconds
                     setTimeout(() => {
-                        window.location.href = '{{ url_for("scan_child", s=request.args.get("s")) }}';
+                        const redirectUrl = '{{ url_for("scan_child", s=request.args.get("s")) }}';
+                        console.log('Redirecting to:', redirectUrl);
+                        window.location.href = redirectUrl;
                     }, 2000);
                 } else {
+                    console.log('Error response:', data.message);
                     // Show error message
                     resultContainer.className = 'alert alert-danger';
                     resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                    resultContainer.style.display = 'block';
                 }
             })
             .catch(error => {

@@ -626,12 +626,14 @@ def process_parent_scan():
                 'timestamp': scan.timestamp.isoformat()
             }
             
-            return jsonify({
+            response_data = {
                 'success': True,
                 'parent_qr': qr_id,
                 'expected_child_count': 5,  # Default for any QR code
                 'message': f'Parent bag {qr_id} scanned successfully!'
-            })
+            }
+            app.logger.info(f"Sending JSON response: {response_data}")
+            return jsonify(response_data)
             
         except Exception as e:
             db.session.rollback()
