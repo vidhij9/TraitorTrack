@@ -450,9 +450,9 @@ def index():
     logging.info(f"Index route - Session data: {dict(session)}")
     logging.info(f"Logged in status: {session.get('logged_in')}")
     
-    # Stateless authentication check
-    from stateless_auth import is_authenticated
-    if not is_authenticated():
+    # Ultimate authentication check
+    from ultimate_auth import is_user_authenticated
+    if not is_user_authenticated():
         logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     
