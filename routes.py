@@ -2,8 +2,43 @@
 Routes for TraceTrack application - Location functionality completely removed
 """
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response
-from flask_login import login_user, logout_user, login_required, current_user
+# Session-based authentication - no longer using Flask-Login
 from werkzeug.security import check_password_hash, generate_password_hash
+
+def is_admin():
+    """Check if current user is admin"""
+    return session.get('user_role') == 'admin'
+
+def get_current_user_id():
+    """Get current user ID from session"""
+    return session.get('user_id')
+
+def is_authenticated():
+    """Check if user is logged in"""
+    return session.get('logged_in', False)
+
+def login_required(f):
+    """Decorator to require login for routes"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+class current_user:
+    """Mock current_user object for compatibility"""
+    @property
+    def id(self):
+        return session.get('user_id')
+    
+    @property
+    def is_authenticated(self):
+        return session.get('logged_in', False)
+    
+    def is_admin(self):
+        return session.get('user_role') == 'admin'
 from sqlalchemy import desc, func, and_, or_
 from datetime import datetime, timedelta
 
@@ -418,12 +453,12 @@ def index():
     
     # User's scan activity today
     user_scans_today = Scan.query.filter(
-        Scan.user_id == current_user.id,
+        Scan.user_id == session.get('user_id'),
         func.date(Scan.timestamp) == today
     ).count()
     
     # Recent scans by current user
-    recent_scans = Scan.query.filter(Scan.user_id == current_user.id)\
+    recent_scans = Scan.query.filter(Scan.user_id == session.get('user_id'))\
                              .order_by(desc(Scan.timestamp))\
                              .limit(5).all()
     
