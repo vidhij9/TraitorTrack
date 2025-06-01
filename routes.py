@@ -23,8 +23,8 @@ def login_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        from final_auth import is_authenticated_final
-        if not is_authenticated_final():
+        from working_auth import is_authenticated_working
+        if not is_authenticated_working():
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
