@@ -130,6 +130,120 @@ def user_management():
     
     return render_template('user_management.html', user_data=user_data, user_stats=user_stats)
 
+@app.route('/admin/users/<int:user_id>')
+@login_required
+def get_user_details(user_id):
+    """Get user details for editing"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    return jsonify({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'role': user.role
+    })
+
+@app.route('/admin/users/<int:user_id>/edit', methods=['POST'])
+@login_required
+def edit_user(user_id):
+    """Edit user details"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    
+    try:
+        username = request.form.get('username')
+        email = request.form.get('email')
+        role = request.form.get('role')
+        
+        if username:
+            user.username = username
+        if email:
+            user.email = email
+        if role and role in [UserRole.ADMIN.value, UserRole.EMPLOYEE.value]:
+            user.role = role
+            
+        db.session.commit()
+        flash('User updated successfully!', 'success')
+        return redirect(url_for('user_management'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating user: {str(e)}', 'error')
+        return redirect(url_for('user_management'))
+
+@app.route('/admin/users/<int:user_id>/promote', methods=['POST'])
+@login_required
+def promote_user(user_id):
+    """Promote user to admin"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    
+    try:
+        if user.role == UserRole.ADMIN.value:
+            return jsonify({'success': False, 'message': 'User is already an admin'})
+            
+        user.role = UserRole.ADMIN.value
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': f'{user.username} promoted to admin'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error promoting user: {str(e)}'})
+
+@app.route('/admin/users/<int:user_id>/demote', methods=['POST'])
+@login_required
+def demote_user(user_id):
+    """Demote admin to employee"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    
+    try:
+        if user.role == UserRole.EMPLOYEE.value:
+            return jsonify({'success': False, 'message': 'User is already an employee'})
+            
+        if user.id == current_user.id:
+            return jsonify({'success': False, 'message': 'Cannot demote yourself'})
+            
+        user.role = UserRole.EMPLOYEE.value
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': f'{user.username} demoted to employee'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error demoting user: {str(e)}'})
+
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    """Delete user"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    
+    try:
+        if user.id == current_user.id:
+            return jsonify({'success': False, 'message': 'Cannot delete yourself'})
+            
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': f'User {user.username} deleted'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting user: {str(e)}'})
+
 @app.route('/create_user', methods=['POST'])
 @login_required
 def create_user():
