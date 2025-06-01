@@ -443,7 +443,7 @@ def export_data(format):
 
 # Core application routes
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
     """Main dashboard page"""
     # Check session-based authentication
