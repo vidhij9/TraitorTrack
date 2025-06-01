@@ -65,7 +65,6 @@ class CurrentUser:
         from working_auth import get_auth_session
         user_data = get_auth_session()
         return user_data.get('role') == 'admin' if user_data else False
-        return user_data.get('role') == 'admin' if user_data else session.get('user_role') == 'admin'
 
 current_user = CurrentUser()
 from sqlalchemy import desc, func, and_, or_
