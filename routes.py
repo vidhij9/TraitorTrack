@@ -438,56 +438,35 @@ def index():
                          total_bags=total_bags)
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")
 def login():
-    """User login page with rate limiting and account lockout to prevent brute force attacks"""
+    """User login page"""
     if session.get('logged_in'):
         return redirect(url_for('index'))
     
-    form = LoginForm()
-    
-    if form.validate_on_submit():
-        username = sanitize_input(form.username.data)
-        password = form.password.data
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
         
-        # Check if account is locked
-        is_locked, remaining_time = is_account_locked(username)
-        if is_locked:
-            flash(f'Account locked due to too many failed attempts. Try again in {remaining_time // 60} minutes.', 'error')
-            return render_template('login.html', form=form)
+        if not username or not password:
+            flash('Please enter both username and password.', 'error')
+            return render_template('login.html')
         
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
-            # Successful login - skip email verification for now
-            reset_failed_attempts(username)
-            
-            # Set session data with debugging
+            # Set session data
             session.permanent = True
+            session['logged_in'] = True
             session['user_id'] = user.id
             session['username'] = user.username
             session['user_role'] = user.role
-            session['logged_in'] = True
-            
-            # Debug print
-            print(f"LOGIN SUCCESS: User {user.username} logged in, session: {dict(session)}")
-            
-            track_login_activity(user.id, success=True)
             
             flash(f'Welcome back, {user.username}!', 'success')
             return redirect(url_for('index'))
         else:
-            # Failed login
-            is_locked, attempts_remaining, lockout_time = record_failed_attempt(username)
-            if user:
-                track_login_activity(user.id, success=False)
-            
-            if is_locked:
-                flash('Account locked due to too many failed attempts. Please try again later.', 'error')
-            else:
-                flash(f'Invalid credentials. {attempts_remaining} attempts remaining.', 'error')
+            flash('Invalid username or password.', 'error')
     
-    return render_template('login.html', form=form)
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
