@@ -29,16 +29,10 @@ def login():
         
         if user and user.check_password(password):
             logging.info("Password correct, setting session")
-            # Use simplified authentication
-            session.clear()
-            session.permanent = True
-            session['authenticated'] = True
-            session['logged_in'] = True  # Keep for backward compatibility
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['user_role'] = user.role
+            from basic_auth import login_user_basic
+            token = login_user_basic(user)
             
-            logging.info(f"Session set: {dict(session)}")
+            logging.info(f"Session set with token: {token[:8]}...")
             return redirect(url_for('index'))
         else:
             logging.info("Invalid credentials")
@@ -84,7 +78,9 @@ def debug_deployment():
         'app_running': True,
         'current_session': dict(session),
         'logged_in': session.get('logged_in', False),
-        'authenticated': session.get('authenticated', False)
+        'authenticated': session.get('authenticated', False),
+        'auth_token_present': bool(session.get('auth_token')),
+        'basic_auth_status': 'unknown'
     }
     
     return f"""

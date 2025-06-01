@@ -450,9 +450,10 @@ def index():
     logging.info(f"Index route - Session data: {dict(session)}")
     logging.info(f"Logged in status: {session.get('logged_in')}")
     
-    # Check session-based authentication
-    if not session.get('logged_in') and not session.get('authenticated'):
-        logging.info("User not logged in, showing landing page")
+    # Check authentication using new system
+    from basic_auth import is_user_authenticated
+    if not is_user_authenticated():
+        logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     
     # Dashboard data for logged-in users
