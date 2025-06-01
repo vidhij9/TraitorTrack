@@ -308,9 +308,15 @@
         }
         
         function processQrCode(qrCode) {
-            // Accept any QR code format - no validation required
-            // Just clean up the input
+            // Accept absolutely any QR code format - no restrictions
             qrCode = qrCode.trim();
+            
+            if (!qrCode) {
+                resultContainer.className = 'alert alert-warning';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Empty QR code detected.';
+                resultContainer.style.display = 'block';
+                return;
+            }
             
             // Display the scanned QR code in the manual entry box for visibility
             const manualQrInput = document.getElementById('manual-qr-code');
@@ -327,48 +333,18 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update UI for success
-                    resultContainer.style.display = 'none';
-                    scanSuccess.style.display = 'block';
-                    parentQrValue.textContent = data.parent_qr;
-                    expectedChildCount.textContent = data.expected_child_count;
-                    scanChildLink.href = '{{ url_for("scan_child") }}';
-                    
-                    // Add edit option
-                    const editBtn = document.createElement('button');
-                    editBtn.className = 'btn btn-outline-warning mt-2 me-2';
-                    editBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
-                    editBtn.onclick = function() {
-                        // Reset UI for re-scanning
-                        resultContainer.style.display = 'block';
-                        scanSuccess.style.display = 'none';
-                        startCamera();
-                        // Return false to prevent default behavior
-                        return false;
-                    };
-                    
-                    // Add continue button
-                    const continueBtn = document.createElement('button');
-                    continueBtn.className = 'btn btn-primary mt-2';
-                    continueBtn.innerHTML = '<i class="fas fa-arrow-right me-1"></i>Continue';
-                    continueBtn.onclick = function() {
-                        window.location.href = '{{ url_for("scan_child") }}';
-                        return false;
-                    };
-                    
-                    // Add buttons to scan success div
-                    const buttonContainer = document.createElement('div');
-                    buttonContainer.appendChild(editBtn);
-                    buttonContainer.appendChild(continueBtn);
-                    scanSuccess.appendChild(buttonContainer);
+                    // Show success message and auto-proceed
+                    resultContainer.className = 'alert alert-success';
+                    resultContainer.innerHTML = `<i class="fas fa-check-circle me-2"></i>QR Code "${data.parent_qr}" saved successfully! Moving to next step...`;
+                    resultContainer.style.display = 'block';
                     
                     // Stop the camera since we've got a successful scan
                     stopCamera();
                     
-                    // Automatically redirect to scan_child page after 3 seconds if not edited
-                    const redirectTimer = setTimeout(function() {
-                        window.location.href = '{{ url_for("scan_child") }}';
-                    }, 3000);
+                    // Automatically proceed to child scanning after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("scan_child", s=request.args.get("s")) }}';
+                    }, 2000);
                 } else {
                     // Show error message
                     resultContainer.className = 'alert alert-danger';
