@@ -582,8 +582,10 @@ def scan_parent():
 @login_required
 def process_parent_scan():
     """Process the parent bag QR code scan"""
-    # Check if it's an AJAX request
-    is_ajax = request.headers.get('Content-Type') == 'application/x-www-form-urlencoded' and 'qr_id' in request.form
+    # Check if it's an AJAX request (simpler detection)
+    is_ajax = 'qr_id' in request.form and request.method == 'POST'
+    
+    app.logger.info(f"Parent scan request - AJAX: {is_ajax}, QR_ID: {request.form.get('qr_id')}")
     
     if is_ajax:
         # Handle AJAX QR scan request
