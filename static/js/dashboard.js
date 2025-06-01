@@ -185,17 +185,13 @@ document.addEventListener('DOMContentLoaded', function() {
         scans.forEach(scan => {
             const row = document.createElement('tr');
             
-            const statusClass = 
-                scan.status === 'delivered' ? 'bg-success' :
-                scan.status === 'in-transit' ? 'bg-info' :
-                scan.status === 'received' ? 'bg-primary' :
-                scan.status === 'returned' ? 'bg-warning' :
-                'bg-secondary';
+            const typeClass = scan.type === 'parent' ? 'bg-primary' : 'bg-info';
+            const typeText = scan.type === 'parent' ? 'Parent' : 'Child';
             
             row.innerHTML = `
                 <td>${scan.product_name || 'Unknown'}</td>
                 <td>${scan.product_qr}</td>
-                <td><span class="badge ${statusClass}">${scan.status}</span></td>
+                <td><span class="badge ${typeClass}">${typeText}</span></td>
                 <td>${scan.username}</td>
                 <td>${formatDateTime(scan.timestamp)}</td>
                 <td>

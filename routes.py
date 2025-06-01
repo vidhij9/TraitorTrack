@@ -985,7 +985,7 @@ def api_recent_scans():
                 'timestamp': scan.timestamp.isoformat() if scan.timestamp else None,
                 'product_qr': bag.qr_id if bag else 'Unknown',
                 'product_name': bag.name if bag else 'Unknown Product',
-                'status': 'scanned',
+                'type': 'parent' if scan.parent_bag_id else 'child',
                 'username': scan.scanned_by.username if scan.scanned_by else 'Unknown'
             })
         
