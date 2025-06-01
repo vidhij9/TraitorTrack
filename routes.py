@@ -464,7 +464,7 @@ def login():
             
             # Successful login
             reset_failed_attempts(username)
-            login_user(user, remember=getattr(form, 'remember_me', None) and form.remember_me.data)
+            login_user(user, remember=form.remember.data)
             track_login_activity(user.id, success=True)
             
             next_page = request.args.get('next')

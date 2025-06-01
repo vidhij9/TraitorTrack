@@ -36,12 +36,14 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 
 # Security settings
 app.config.update(
-    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SECURE=False if os.environ.get('FLASK_ENV') == 'development' else True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=1800,
     SESSION_REFRESH_EACH_REQUEST=True,
     PREFERRED_URL_SCHEME='https',
+    WTF_CSRF_TIME_LIMIT=None,  # Remove CSRF time limit for better compatibility
+    WTF_CSRF_SSL_STRICT=False,  # Allow CSRF over HTTP for development
 )
 
 # Initialize extensions

@@ -34,9 +34,17 @@ def configure_for_deployment(app):
         app.config.update(
             SESSION_COOKIE_SECURE=True,
             SESSION_COOKIE_DOMAIN=os.environ.get('REPLIT_DEV_DOMAIN'),
-            PREFERRED_URL_SCHEME='https'
+            PREFERRED_URL_SCHEME='https',
+            WTF_CSRF_SSL_STRICT=True,  # Enable strict CSRF for production
+            WTF_CSRF_TIME_LIMIT=7200,  # 2 hours CSRF token validity
         )
         app.logger.info('Configured for Replit deployment')
+    else:
+        # Development settings
+        app.config.update(
+            WTF_CSRF_SSL_STRICT=False,
+            WTF_CSRF_TIME_LIMIT=None,
+        )
     
     # Database optimization for production
     app.config['SQLALCHEMY_ENGINE_OPTIONS'].update({
