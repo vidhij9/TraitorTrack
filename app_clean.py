@@ -26,6 +26,17 @@ limiter = Limiter(key_func=get_remote_address)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
+# Production session configuration
+is_production = os.environ.get('ENVIRONMENT') == 'production'
+app.config.update(
+    SESSION_COOKIE_SECURE=is_production,  # HTTPS only in production
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_DOMAIN=None,  # Let Flask auto-detect
+    PERMANENT_SESSION_LIFETIME=1800,  # 30 minutes
+    SESSION_REFRESH_EACH_REQUEST=True
+)
+
 # Configure database
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
