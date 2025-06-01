@@ -131,6 +131,10 @@
         let canvasContext = canvas.getContext('2d');
         let lastDetectedCode = null;
         
+        // Clear any previous scan results when page loads
+        resultContainer.style.display = 'none';
+        resultContainer.innerHTML = '';
+        
         // Start camera automatically when page loads
         startCamera();
         
