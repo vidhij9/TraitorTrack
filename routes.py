@@ -699,7 +699,17 @@ def process_parent_scan():
 def scan_child():
     """Scan child bag QR code"""
     form = ScanChildForm()
-    return render_template('scan_child.html', form=form)
+    
+    # Get parent bag info from session
+    last_scan = session.get('last_scan')
+    parent_bag = None
+    
+    if last_scan and last_scan.get('type') == 'parent':
+        parent_qr_id = last_scan.get('qr_id')
+        if parent_qr_id:
+            parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
+    
+    return render_template('scan_child.html', form=form, parent_bag=parent_bag)
 
 @app.route('/scan/child', methods=['POST'])
 @login_required
