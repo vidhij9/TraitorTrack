@@ -27,7 +27,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-class current_user:
+class CurrentUser:
     """Mock current_user object for compatibility"""
     @property
     def id(self):
@@ -39,6 +39,8 @@ class current_user:
     
     def is_admin(self):
         return session.get('user_role') == 'admin'
+
+current_user = CurrentUser()
 from sqlalchemy import desc, func, and_, or_
 from datetime import datetime, timedelta
 
