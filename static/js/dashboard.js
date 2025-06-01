@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = recentScansTable.querySelector('tbody');
         
         if (scans.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No recent scans found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No recent scans found</td></tr>';
             return;
         }
         
@@ -189,7 +189,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const typeText = scan.type === 'parent' ? 'Parent' : 'Child';
             
             row.innerHTML = `
-                <td>${scan.product_name || 'Unknown'}</td>
                 <td>${scan.product_qr}</td>
                 <td><span class="badge ${typeClass}">${typeText}</span></td>
                 <td>${scan.username}</td>

@@ -173,7 +173,6 @@
                         <tr>
                             <th width="15%">QR Code</th>
                             <th width="10%">Type</th>
-                            <th width="15%">Location</th>
                             <th width="12%">Registration Date</th>
                             <th width="15%">Link Status</th>
                             <th width="15%">Bill Status</th>
@@ -195,14 +194,6 @@
                                     <span class="badge bg-info">Parent</span>
                                 {% else %}
                                     <span class="badge bg-success">Child</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% set last_scan = bag.last_scan %}
-                                {% if last_scan and last_scan.location %}
-                                    <span class="badge bg-secondary">{{ last_scan.location.name }}</span>
-                                {% else %}
-                                    <span class="text-muted">No location</span>
                                 {% endif %}
                             </td>
                             <td>
