@@ -463,9 +463,9 @@ def index():
     logging.info(f"Index route - Session data: {dict(session)}")
     logging.info(f"Logged in status: {session.get('logged_in')}")
     
-    # Final authentication check
-    from final_auth import is_authenticated_final
-    if not is_authenticated_final():
+    # Working authentication check
+    from working_auth import is_authenticated_working
+    if not is_authenticated_working():
         logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     

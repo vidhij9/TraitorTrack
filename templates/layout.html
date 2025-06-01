@@ -265,11 +265,11 @@
                                     <h6 class="dropdown-header">
                                         <div class="d-flex align-items-center">
                                             <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
-                                                {{ session.username[0].upper() }}
+                                                {{ current_user.username[0].upper() if current_user.username else 'U' }}
                                             </div>
                                             <div>
-                                                <div class="fw-bold">{{ session.username }}</div>
-                                                <small class="text-muted">admin@traitortrack.com</small>
+                                                <div class="fw-bold">{{ current_user.username or 'User' }}</div>
+                                                <small class="text-muted">{{ current_user.username or 'user' }}@traitortrack.com</small>
                                             </div>
                                         </div>
                                     </h6>
