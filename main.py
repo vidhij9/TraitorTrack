@@ -132,21 +132,24 @@ def test_login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
-            session.clear()
-            session.permanent = True
-            session['authenticated'] = True
-            session['logged_in'] = True
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['user_role'] = user.role
+            from stateless_auth import create_auth_token
+            token = create_auth_token(user)
             
-            return f"""
+            # Set the auth token in cookies for testing
+            from flask import make_response
+            response = make_response(f"""
             <h2>Login Test Results</h2>
             <p>✓ Authentication successful</p>
-            <p>Session data: {dict(session)}</p>
+            <p>Token created: {token[:20]}...</p>
+            <p>User: {user.username}</p>
             <p><a href="/">Go to Dashboard</a></p>
             <p><a href="/debug-deployment">Check Debug Info</a></p>
-            """
+            """)
+            
+            response.set_cookie('auth_token', token, max_age=86400, httponly=False, secure=False, samesite=None, path='/')
+            response.set_cookie('user_session', token, max_age=86400, httponly=False, secure=False, samesite='Lax', path='/')
+            
+            return response
         else:
             return f"""
             <h2>Login Test Results</h2>
