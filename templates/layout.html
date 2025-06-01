@@ -253,11 +253,11 @@
                                     <h6 class="dropdown-header">
                                         <div class="d-flex align-items-center">
                                             <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
-                                                {{ current_user.username[0].upper() }}
+                                                {{ session.username[0].upper() }}
                                             </div>
                                             <div>
-                                                <div class="fw-bold">{{ current_user.username }}</div>
-                                                <small class="text-muted">{{ current_user.email }}</small>
+                                                <div class="fw-bold">{{ session.username }}</div>
+                                                <small class="text-muted">{{ session.email }}</small>
                                             </div>
                                         </div>
                                     </h6>
@@ -266,19 +266,19 @@
                                 <li>
                                     <span class="dropdown-item-text">
                                         <i class="fas fa-user-tag me-2"></i>
-                                        Role: <span class="badge {% if current_user.is_admin() %}bg-warning{% else %}bg-secondary{% endif %}">
-                                            {{ current_user.role.title() }}
+                                        Role: <span class="badge {% if session.is_admin() %}bg-warning{% else %}bg-secondary{% endif %}">
+                                            {{ session.role.title() }}
                                         </span>
                                     </span>
                                 </li>
                                 <li>
                                     <span class="dropdown-item-text">
                                         <i class="fas fa-calendar me-2"></i>
-                                        Member since: {{ current_user.created_at.strftime('%B %Y') }}
+                                        Member since: {{ session.created_at.strftime('%B %Y') }}
                                     </span>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
-                                {% if current_user.is_admin() %}
+                                {% if session.is_admin() %}
 
                                     <li>
                                         <a class="dropdown-item" href="{{ url_for('user_management') }}">
