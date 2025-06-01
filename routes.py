@@ -467,12 +467,15 @@ def login():
             login_user(user, remember=form.remember.data)
             track_login_activity(user.id, success=True)
             
-            next_page = request.args.get('next')
-            if not next_page or not next_page.startswith('/'):
-                next_page = url_for('index')
-            
+            # Force a redirect to dashboard to ensure proper page load
             flash(f'Welcome back, {user.username}!', 'success')
-            return redirect(next_page)
+            
+            # Clear any cached responses and force redirect to dashboard
+            response = make_response(redirect(url_for('index')))
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response
         else:
             # Failed login
             is_locked, attempts_remaining, lockout_time = record_failed_attempt(username)
