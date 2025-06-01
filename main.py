@@ -29,13 +29,14 @@ def login():
         
         if user and user.check_password(password):
             logging.info("Password correct, setting session")
+            # Use simplified authentication
+            session.clear()
             session.permanent = True
-            session.clear()  # Clear any existing session data
-            session['logged_in'] = True
+            session['authenticated'] = True
+            session['logged_in'] = True  # Keep for backward compatibility
             session['user_id'] = user.id
             session['username'] = user.username
             session['user_role'] = user.role
-            session.modified = True  # Ensure session is saved
             
             logging.info(f"Session set: {dict(session)}")
             return redirect(url_for('index'))
@@ -82,7 +83,8 @@ def debug_deployment():
         'environment': os.environ.get('ENVIRONMENT', 'development'),
         'app_running': True,
         'current_session': dict(session),
-        'logged_in': session.get('logged_in', False)
+        'logged_in': session.get('logged_in', False),
+        'authenticated': session.get('authenticated', False)
     }
     
     return f"""
@@ -95,6 +97,7 @@ def debug_deployment():
         <li>App Running: {info['app_running']}</li>
         <li>Current Session: {info['current_session']}</li>
         <li>Logged In: {info['logged_in']}</li>
+        <li>Authenticated: {info['authenticated']}</li>
     </ul>
     <p><a href="/setup">Run Setup</a> | <a href="/login">Login Page</a> | <a href="/test-login">Test Login</a></p>
     """
@@ -110,12 +113,13 @@ def test_login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
+            session.clear()
             session.permanent = True
+            session['authenticated'] = True
             session['logged_in'] = True
             session['user_id'] = user.id
             session['username'] = user.username
             session['user_role'] = user.role
-            session.modified = True
             
             return f"""
             <h2>Login Test Results</h2>
