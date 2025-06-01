@@ -1091,7 +1091,7 @@ def scan_bill_parent(bill_id=None):
     
     return render_template('scan_bill_parent.html', form=form, bill=bill, linked_bags=linked_bags)
 
-@app.route('/bill/<int:bill_id>/scan_parent', methods=['POST'])
+@app.route('/process_bill_parent_scan', methods=['POST'])
 @login_required
 def process_bill_parent_scan():
     """Process a parent bag scan for bill linking - admin only"""
