@@ -30,12 +30,12 @@ def login():
         if user and user.check_password(password):
             logging.info("Password correct, setting session")
             
-            from ultimate_auth import login_user_ultimate
+            from final_auth import login_user_final
             
-            # Use database-backed authentication
-            response = login_user_ultimate(user)
+            # Use file-based authentication system
+            response = login_user_final(user)
             
-            logging.info(f"Ultimate auth set for user: {user.username}")
+            logging.info(f"Final auth set for user: {user.username}")
             return response
         else:
             logging.info("Invalid credentials")

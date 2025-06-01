@@ -15,14 +15,16 @@ def get_current_user_id():
 
 def is_authenticated():
     """Check if user is logged in"""
-    return session.get('logged_in', False)
+    from final_auth import is_authenticated_final
+    return is_authenticated_final()
 
 def login_required(f):
     """Decorator to require login for routes"""
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('logged_in'):
+        from final_auth import is_authenticated_final
+        if not is_authenticated_final():
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -450,9 +452,9 @@ def index():
     logging.info(f"Index route - Session data: {dict(session)}")
     logging.info(f"Logged in status: {session.get('logged_in')}")
     
-    # Ultimate authentication check
-    from ultimate_auth import is_user_authenticated
-    if not is_user_authenticated():
+    # Final authentication check
+    from final_auth import is_authenticated_final
+    if not is_authenticated_final():
         logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     
