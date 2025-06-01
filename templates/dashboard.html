@@ -124,17 +124,17 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-4 mb-3">
-                <a href="{{ url_for('scan_parent') }}" class="btn btn-primary btn-lg w-100 action-button">
+                <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
                     <i class="fas fa-qrcode me-2"></i>Scan Parent Bags
                 </a>
             </div>
             <div class="col-md-4 mb-3">
-                <a href="{{ url_for('bill_management') }}" class="btn btn-primary btn-lg w-100 action-button">
+                <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
                     <i class="fas fa-file-invoice me-2"></i>Manage Bills
                 </a>
             </div>
             <div class="col-md-4 mb-3">
-                <a href="{{ url_for('child_lookup') }}" class="btn btn-primary btn-lg w-100 action-button">
+                <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
                     <i class="fas fa-search me-2"></i>Lookup Child Bag
                 </a>
             </div>
