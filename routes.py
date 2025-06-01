@@ -441,7 +441,7 @@ def index():
 @limiter.limit("5 per minute")
 def login():
     """User login page with rate limiting and account lockout to prevent brute force attacks"""
-    if current_user.is_authenticated:
+    if session.get('logged_in'):
         return redirect(url_for('index'))
     
     form = LoginForm()
@@ -459,19 +459,18 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
-            if not user.verified:
-                flash('Please verify your email address before logging in.', 'warning')
-                return render_template('login.html', form=form)
-            
-            # Successful login
+            # Successful login - skip email verification for now
             reset_failed_attempts(username)
             
-            # Set session data
+            # Set session data with debugging
             session.permanent = True
             session['user_id'] = user.id
             session['username'] = user.username
             session['user_role'] = user.role
             session['logged_in'] = True
+            
+            # Debug print
+            print(f"LOGIN SUCCESS: User {user.username} logged in, session: {dict(session)}")
             
             track_login_activity(user.id, success=True)
             
