@@ -458,29 +458,85 @@
         
         // Removed strict formatting function since we're accepting all QR formats now
         
-        function updateProgress() {
-            // Update text
-            progressText.textContent = `${scannedCount} of ${expectedCount}`;
-            
-            // Calculate percentage
-            const percentage = Math.round((scannedCount / expectedCount) * 100);
-            progressPercentage.textContent = `${percentage}%`;
-            
-            // Update circle visualization (simple CSS version)
-            const circle = document.getElementById('progress-circle');
-            circle.style.background = `conic-gradient(
-                var(--bs-success) ${percentage}%, 
-                var(--bs-dark) ${percentage}%
-            )`;
-            circle.style.borderRadius = "50%";
-            
-            // Enable/disable finish button
-            if (scannedCount >= expectedCount) {
-                finishButton.classList.remove('disabled');
-            } else {
-                finishButton.classList.add('disabled');
-            }
+        function loadScannedBags() {
+            // Load existing scanned child bags from the current session
+            fetch('/api/scanned-children?s={{ request.args.get("s") }}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.children) {
+                        data.children.forEach(child => {
+                            addScannedBagToList(child.qr_id);
+                        });
+                        scannedCount = data.children.length;
+                        document.getElementById('progress-text').textContent = scannedCount;
+                    }
+                })
+                .catch(error => {
+                    console.log('No existing scanned bags to load');
+                });
         }
+
+        function addScannedBagToList(qrCode) {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+            listItem.dataset.qrCode = qrCode;
+            listItem.innerHTML = `
+                <div>
+                    <span class="badge bg-success me-2">Child</span>
+                    <span>${qrCode}</span>
+                </div>
+                <div>
+                    <span class="badge bg-primary rounded-pill me-2">
+                        <i class="fas fa-link me-1"></i>Linked
+                    </span>
+                    <button class="btn btn-sm btn-outline-danger delete-bag" data-qr="${qrCode}" title="Delete this scan">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            scannedList.prepend(listItem);
+        }
+
+        // Handle delete button clicks using event delegation
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('delete-bag') || e.target.parentElement.classList.contains('delete-bag')) {
+                const button = e.target.classList.contains('delete-bag') ? e.target : e.target.parentElement;
+                const qrCode = button.dataset.qr;
+                
+                if (confirm(`Are you sure you want to delete the scan for ${qrCode}?`)) {
+                    // Send delete request to server
+                    fetch('/api/delete-child-scan', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token={{ csrf_token() }}&s={{ request.args.get("s") }}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Remove from UI
+                            const listItem = document.querySelector(`[data-qr-code="${qrCode}"]`);
+                            if (listItem) {
+                                listItem.remove();
+                                scannedCount--;
+                                document.getElementById('progress-text').textContent = scannedCount;
+                            }
+                            
+                            resultContainer.className = 'alert alert-info';
+                            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scan deleted successfully.';
+                        } else {
+                            resultContainer.className = 'alert alert-danger';
+                            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                        }
+                    })
+                    .catch(error => {
+                        resultContainer.className = 'alert alert-danger';
+                        resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Error deleting scan.';
+                    });
+                }
+            }
+        });
     });
 </script>
 {% endblock %}

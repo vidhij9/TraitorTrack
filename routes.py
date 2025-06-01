@@ -1539,3 +1539,116 @@ def view_scan_details(scan_id):
         bag = Bag.query.get(scan.child_bag_id)
     
     return render_template('scan_details.html', scan=scan, bag=bag)
+
+@app.route('/api/scanned-children')
+def api_scanned_children():
+    """Get scanned child bags for current session"""
+    try:
+        # Get parent bag from session
+        parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            return jsonify({
+                'success': False,
+                'message': 'No active parent bag session'
+            })
+        
+        # Find parent bag
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        if not parent_bag:
+            return jsonify({
+                'success': False,
+                'message': 'Parent bag not found'
+            })
+        
+        # Get all linked child bags
+        links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
+        children = []
+        for link in links:
+            child_bag = Bag.query.get(link.child_bag_id)
+            if child_bag:
+                children.append({
+                    'qr_id': child_bag.qr_id,
+                    'id': child_bag.id
+                })
+        
+        return jsonify({
+            'success': True,
+            'children': children,
+            'parent_qr': parent_qr
+        })
+        
+    except Exception as e:
+        app.logger.error(f'Error getting scanned children: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': 'Error retrieving scanned children'
+        }), 500
+
+@app.route('/api/delete-child-scan', methods=['POST'])
+@login_required
+def api_delete_child_scan():
+    """Delete a child bag scan"""
+    try:
+        qr_code = request.form.get('qr_code')
+        if not qr_code:
+            return jsonify({
+                'success': False,
+                'message': 'QR code is required'
+            })
+        
+        # Find the child bag
+        child_bag = Bag.query.filter_by(qr_id=qr_code, type='child').first()
+        if not child_bag:
+            return jsonify({
+                'success': False,
+                'message': 'Child bag not found'
+            })
+        
+        # Get parent bag from session
+        parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            return jsonify({
+                'success': False,
+                'message': 'No active parent bag session'
+            })
+        
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        if not parent_bag:
+            return jsonify({
+                'success': False,
+                'message': 'Parent bag not found'
+            })
+        
+        # Delete the link between parent and child
+        link = Link.query.filter_by(
+            parent_bag_id=parent_bag.id,
+            child_bag_id=child_bag.id
+        ).first()
+        
+        if link:
+            db.session.delete(link)
+        
+        # Delete scan records for this child bag
+        scans = Scan.query.filter_by(bag_id=child_bag.id).all()
+        for scan in scans:
+            db.session.delete(scan)
+        
+        # Delete the child bag itself
+        db.session.delete(child_bag)
+        
+        db.session.commit()
+        
+        app.logger.info(f"Deleted child bag {qr_code} and its scan records")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Child bag {qr_code} deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error deleting child scan: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': 'Error deleting scan'
+        }), 500
