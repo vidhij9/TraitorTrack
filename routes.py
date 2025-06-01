@@ -466,13 +466,13 @@ def login():
             # Successful login
             reset_failed_attempts(username)
             
-            # Set session as permanent first
+            # Set session data
             session.permanent = True
             session['user_id'] = user.id
             session['username'] = user.username
+            session['user_role'] = user.role
+            session['logged_in'] = True
             
-            # Then login with Flask-Login
-            login_user(user, remember=form.remember.data, force=True)
             track_login_activity(user.id, success=True)
             
             flash(f'Welcome back, {user.username}!', 'success')

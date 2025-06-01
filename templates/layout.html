@@ -191,14 +191,14 @@
                         </a>
                     </li>
                     
-                    {% if current_user.is_authenticated %}
+                    {% if session.logged_in %}
                         <li class="nav-item">
                             <a class="nav-link{% if '/scan_parent' in request.path %} active{% endif %}" href="{{ url_for('scan_parent') }}">
                                 <i class="fas fa-qrcode"></i> Scan
                             </a>
                         </li>
                         
-                        {% if current_user.is_admin %}
+                        {% if session.user_role == 'admin' %}
                             <li class="nav-item">
                                 <a class="nav-link{% if '/bags' in request.path %} active{% endif %}" href="{{ url_for('bag_management') }}">
                                     <i class="fas fa-boxes"></i> Bags
@@ -235,15 +235,15 @@
                 </ul>
                 
                 <ul class="navbar-nav ms-auto">
-                    {% if current_user.is_authenticated %}
+                    {% if session.logged_in %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <div class="d-flex align-items-center">
                                     <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                        <span style="font-size: 14px;">{{ current_user.username[0].upper() }}</span>
+                                        <span style="font-size: 14px;">{{ session.username[0].upper() }}</span>
                                     </div>
-                                    <span class="d-none d-md-inline">{{ current_user.username }}</span>
-                                    {% if current_user.is_admin() %}
+                                    <span class="d-none d-md-inline">{{ session.username }}</span>
+                                    {% if session.user_role == 'admin' %}
                                         <span class="badge bg-warning ms-2 d-none d-md-inline">Admin</span>
                                     {% endif %}
                                 </div>
