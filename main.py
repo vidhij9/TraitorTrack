@@ -29,10 +29,21 @@ def login():
         
         if user and user.check_password(password):
             logging.info("Password correct, setting session")
-            from basic_auth import login_user_basic
-            token = login_user_basic(user)
             
-            logging.info(f"Session set with token: {token[:8]}...")
+            # Direct session setting for maximum compatibility
+            session.clear()
+            session.permanent = True
+            session['logged_in'] = True
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['user_role'] = user.role
+            session['authenticated'] = True
+            
+            # Force Flask to save the session immediately
+            from flask import current_app
+            current_app.permanent_session_lifetime = 7200  # 2 hours
+            
+            logging.info(f"Session set directly: {dict(session)}")
             return redirect(url_for('index'))
         else:
             logging.info("Invalid credentials")

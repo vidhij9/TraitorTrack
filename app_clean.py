@@ -26,16 +26,16 @@ limiter = Limiter(key_func=get_remote_address)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
-# Simplified session configuration for maximum compatibility
+# Ultra-permissive session configuration for deployment
 app.config.update(
     SESSION_COOKIE_SECURE=False,
-    SESSION_COOKIE_HTTPONLY=False,  # More permissive for deployment
-    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_HTTPONLY=False,
+    SESSION_COOKIE_SAMESITE=None,
     SESSION_COOKIE_DOMAIN=None,
     SESSION_COOKIE_PATH='/',
-    SESSION_COOKIE_NAME='tracetrack_session',
-    PERMANENT_SESSION_LIFETIME=7200,  # 2 hours
-    SESSION_REFRESH_EACH_REQUEST=True
+    SESSION_COOKIE_NAME='session',
+    PERMANENT_SESSION_LIFETIME=86400,  # 24 hours
+    SESSION_REFRESH_EACH_REQUEST=False  # Prevent session conflicts
 )
 
 # Configure database
