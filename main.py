@@ -30,21 +30,13 @@ def login():
         if user and user.check_password(password):
             logging.info("Password correct, setting session")
             
-            # Direct session setting for maximum compatibility
-            session.clear()
-            session.permanent = True
-            session['logged_in'] = True
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['user_role'] = user.role
-            session['authenticated'] = True
+            from stateless_auth import login_user_stateless
             
-            # Force Flask to save the session immediately
-            from flask import current_app
-            current_app.permanent_session_lifetime = 7200  # 2 hours
+            # Use stateless JWT-based authentication
+            response = login_user_stateless(user)
             
-            logging.info(f"Session set directly: {dict(session)}")
-            return redirect(url_for('index'))
+            logging.info(f"Stateless auth set for user: {user.username}")
+            return response
         else:
             logging.info("Invalid credentials")
             return render_template('simple_login.html', error='Invalid username or password.')
@@ -91,7 +83,9 @@ def debug_deployment():
         'logged_in': session.get('logged_in', False),
         'authenticated': session.get('authenticated', False),
         'auth_token_present': bool(session.get('auth_token')),
-        'basic_auth_status': 'unknown'
+        'secure_session_count': 0,
+        'cookies_received': dict(request.cookies),
+        'headers': dict(request.headers)
     }
     
     return f"""
@@ -105,6 +99,8 @@ def debug_deployment():
         <li>Current Session: {info['current_session']}</li>
         <li>Logged In: {info['logged_in']}</li>
         <li>Authenticated: {info['authenticated']}</li>
+        <li>Cookies: {info['cookies_received']}</li>
+        <li>User Agent: {info['headers'].get('User-Agent', 'Not provided')}</li>
     </ul>
     <p><a href="/setup">Run Setup</a> | <a href="/login">Login Page</a> | <a href="/test-login">Test Login</a> | <a href="/session-test">Session Test</a></p>
     """
