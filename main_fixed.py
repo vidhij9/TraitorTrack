@@ -1,5 +1,5 @@
 """
-Traitor Track - Fixed authentication system
+Clean implementation of Traitor Track with working authentication
 """
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session
@@ -42,40 +42,13 @@ class User(db.Model):
 @app.route('/')
 def index():
     if not session.get('logged_in'):
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Traitor Track</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        </head>
-        <body>
-            <div class="container mt-5 text-center">
-                <h1>Welcome to Traitor Track</h1>
-                <p>Advanced supply chain traceability platform</p>
-                <a href="/login" class="btn btn-primary">Login</a>
-            </div>
-        </body>
-        </html>
-        """
+        return render_template('landing.html')
     
     return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Traitor Track Dashboard</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    </head>
-    <body>
-        <div class="container mt-5">
-            <h1>Welcome to Traitor Track Dashboard</h1>
-            <div class="alert alert-success">Login successful!</div>
-            <p>Hello, {session.get('username')}!</p>
-            <p>Role: {session.get('user_role')}</p>
-            <a href="/logout" class="btn btn-danger">Logout</a>
-        </div>
-    </body>
-    </html>
+    <h1>Welcome to Traitor Track Dashboard</h1>
+    <p>Hello, {session.get('username')}!</p>
+    <p>Role: {session.get('user_role')}</p>
+    <a href="/logout">Logout</a>
     """
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -88,7 +61,8 @@ def login():
         password = request.form.get('password', '')
         
         if not username or not password:
-            return render_template('simple_login.html', error='Please enter both username and password.')
+            flash('Please enter both username and password.', 'error')
+            return render_template('simple_login.html')
         
         user = User.query.filter_by(username=username).first()
         
@@ -99,44 +73,44 @@ def login():
             session['username'] = user.username
             session['user_role'] = user.role
             
+            flash(f'Welcome back, {user.username}!', 'success')
             return redirect(url_for('index'))
         else:
-            return render_template('simple_login.html', error='Invalid username or password.')
+            flash('Invalid username or password.', 'error')
     
     return render_template('simple_login.html')
 
 @app.route('/logout')
 def logout():
     session.clear()
+    flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
 @app.route('/setup')
 def setup():
     """Setup admin user"""
-    db.create_all()
-    
-    # Check if admin exists
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        admin = User(
-            username='admin',
-            email='admin@traitortrack.com',
-            password_hash=generate_password_hash('admin'),
-            role='admin'
-        )
-        db.session.add(admin)
-        db.session.commit()
-        return "Admin user created. Username: admin, Password: admin"
-    else:
-        # Update password
-        admin.password_hash = generate_password_hash('admin')
-        db.session.commit()
-        return "Admin password updated. Username: admin, Password: admin"
-
-# Expose app for gunicorn
-application = app
-
-if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+        
+        # Check if admin exists
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(
+                username='admin',
+                email='admin@traitortrack.com',
+                password_hash=generate_password_hash('admin'),
+                role='admin'
+            )
+            db.session.add(admin)
+            db.session.commit()
+            return "Admin user created. Username: admin, Password: admin"
+        else:
+            # Update password
+            admin.password_hash = generate_password_hash('admin')
+            db.session.commit()
+            return "Admin password updated. Username: admin, Password: admin"
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(host='0.0.0.0', port=5000, debug=True)
