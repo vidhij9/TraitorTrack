@@ -446,8 +446,13 @@ def export_data(format):
 @app.route('/', methods=['GET'])
 def index():
     """Main dashboard page"""
+    import logging
+    logging.info(f"Index route - Session data: {dict(session)}")
+    logging.info(f"Logged in status: {session.get('logged_in')}")
+    
     # Check session-based authentication
     if not session.get('logged_in'):
+        logging.info("User not logged in, showing landing page")
         return render_template('landing.html')
     
     # Dashboard data for logged-in users

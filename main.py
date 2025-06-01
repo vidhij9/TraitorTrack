@@ -80,7 +80,9 @@ def debug_deployment():
         'session_secret_set': bool(os.environ.get('SESSION_SECRET')),
         'admin_user_exists': User.query.filter_by(username='admin').first() is not None,
         'environment': os.environ.get('ENVIRONMENT', 'development'),
-        'app_running': True
+        'app_running': True,
+        'current_session': dict(session),
+        'logged_in': session.get('logged_in', False)
     }
     
     return f"""
@@ -91,9 +93,54 @@ def debug_deployment():
         <li>Admin User Exists: {info['admin_user_exists']}</li>
         <li>Environment: {info['environment']}</li>
         <li>App Running: {info['app_running']}</li>
+        <li>Current Session: {info['current_session']}</li>
+        <li>Logged In: {info['logged_in']}</li>
     </ul>
-    <p><a href="/setup">Run Setup</a> | <a href="/login">Login Page</a></p>
+    <p><a href="/setup">Run Setup</a> | <a href="/login">Login Page</a> | <a href="/test-login">Test Login</a></p>
     """
+
+@app.route('/test-login', methods=['GET', 'POST'])
+def test_login():
+    """Test login endpoint for debugging"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        from models import User
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            session.permanent = True
+            session['logged_in'] = True
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['user_role'] = user.role
+            session.modified = True
+            
+            return f"""
+            <h2>Login Test Results</h2>
+            <p>✓ Authentication successful</p>
+            <p>Session data: {dict(session)}</p>
+            <p><a href="/">Go to Dashboard</a></p>
+            <p><a href="/debug-deployment">Check Debug Info</a></p>
+            """
+        else:
+            return f"""
+            <h2>Login Test Results</h2>
+            <p>✗ Authentication failed</p>
+            <p>User found: {user is not None}</p>
+            <p><a href="/test-login">Try Again</a></p>
+            """
+    
+    return '''
+    <h2>Test Login</h2>
+    <form method="POST">
+        <p>Username: <input type="text" name="username" value="admin"></p>
+        <p>Password: <input type="password" name="password" value="admin"></p>
+        <p><input type="submit" value="Test Login"></p>
+    </form>
+    <p><a href="/debug-deployment">Back to Debug</a></p>
+    '''
 
 # Import all the routes to restore full functionality
 import routes
