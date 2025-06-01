@@ -178,7 +178,7 @@ def edit_user(user_id):
 @app.route('/admin/users/<int:user_id>/promote', methods=['POST'])
 @login_required
 def promote_user(user_id):
-    """Promote user to admin"""
+    """Promote user to admin - only admins can do this"""
     if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
@@ -187,6 +187,9 @@ def promote_user(user_id):
     try:
         if user.role == UserRole.ADMIN.value:
             return jsonify({'success': False, 'message': 'User is already an admin'})
+            
+        if user.id == current_user.id:
+            return jsonify({'success': False, 'message': 'Cannot promote yourself'})
             
         user.role = UserRole.ADMIN.value
         db.session.commit()
@@ -200,7 +203,7 @@ def promote_user(user_id):
 @app.route('/admin/users/<int:user_id>/demote', methods=['POST'])
 @login_required
 def demote_user(user_id):
-    """Demote admin to employee"""
+    """Demote admin to employee - only admins can do this, cannot demote yourself"""
     if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
@@ -530,22 +533,9 @@ def register():
 @app.route('/promote_admin', methods=['GET', 'POST'])
 @login_required
 def promote_admin():
-    """Allow users to promote themselves to admin with secret code"""
-    form = PromoteToAdminForm()
-    
-    if form.validate_on_submit():
-        secret_code = form.secret_code.data
-        
-        # Simple secret code check - in production, use environment variable
-        if secret_code == "ADMIN2024":
-            current_user.role = UserRole.ADMIN.value
-            db.session.commit()
-            flash('You have been promoted to admin!', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('Invalid admin code.', 'error')
-    
-    return render_template('promote_admin.html', form=form)
+    """Self-promotion route disabled - only admins can promote users"""
+    flash('Self-promotion is disabled. Contact an administrator for role changes.', 'info')
+    return redirect(url_for('index'))
 
 # Scanning workflow routes (simplified without location selection)
 
@@ -824,7 +814,10 @@ def bag_management():
 @app.route('/bills')
 @login_required
 def bill_management():
-    """Bill management dashboard with search functionality"""
+    """Bill management dashboard with search functionality - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for bill management.', 'error')
+        return redirect(url_for('index'))
     search_query = request.args.get('search', '').strip()
     
     if search_query:
@@ -852,7 +845,10 @@ def bill_management():
 @app.route('/bill/create', methods=['POST'])
 @login_required
 def create_bill():
-    """Create a new bill"""
+    """Create a new bill - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required to create bills.', 'error')
+        return redirect(url_for('index'))
     form = BillCreationForm()
     
     if form.validate_on_submit():
@@ -895,7 +891,10 @@ def create_bill():
 @app.route('/bill/<int:bill_id>/delete', methods=['POST'])
 @login_required
 def delete_bill(bill_id):
-    """Delete a bill and all its bag links"""
+    """Delete a bill and all its bag links - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required to delete bills.', 'error')
+        return redirect(url_for('bill_management'))
     try:
         bill = Bill.query.get_or_404(bill_id)
         
@@ -919,7 +918,10 @@ def delete_bill(bill_id):
 @app.route('/bill/<int:bill_id>/scan_parent')
 @login_required
 def scan_bill_parent(bill_id=None):
-    """Scan parent bags to add to bill"""
+    """Scan parent bags to add to bill - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for bill operations.', 'error')
+        return redirect(url_for('index'))
     if bill_id:
         bill = Bill.query.get_or_404(bill_id)
     else:
@@ -937,7 +939,10 @@ def scan_bill_parent(bill_id=None):
 @app.route('/bill/<int:bill_id>/scan_parent', methods=['POST'])
 @login_required
 def process_bill_parent_scan():
-    """Process a parent bag scan for bill linking"""
+    """Process a parent bag scan for bill linking - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for bill operations.', 'error')
+        return redirect(url_for('index'))
     bill_id = request.form.get('bill_id')
     if not bill_id:
         flash('Bill ID missing.', 'error')
