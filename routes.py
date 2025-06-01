@@ -914,6 +914,87 @@ def delete_bill(bill_id):
     
     return redirect(url_for('bill_management'))
 
+@app.route('/bill/<int:bill_id>/finish', methods=['GET', 'POST'])
+@login_required
+def finish_bill_scan(bill_id):
+    """Complete bill scanning and mark as finished - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required to finish bills.', 'error')
+        return redirect(url_for('bill_management'))
+    
+    bill = Bill.query.get_or_404(bill_id)
+    
+    try:
+        bill.status = 'completed'
+        db.session.commit()
+        flash(f'Bill {bill.bill_id} marked as completed!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error completing bill.', 'error')
+        app.logger.error(f'Bill completion error: {str(e)}')
+    
+    return redirect(url_for('view_bill', bill_id=bill_id))
+
+@app.route('/bill/<int:bill_id>')
+@login_required
+def view_bill(bill_id):
+    """View bill details with parent bags and child bags"""
+    bill = Bill.query.get_or_404(bill_id)
+    
+    # Get all parent bags linked to this bill
+    parent_bags = db.session.query(Bag).join(BillBag).filter(BillBag.bill_id == bill.id).all()
+    
+    # Get all child bags for these parent bags
+    child_bags = []
+    for parent_bag in parent_bags:
+        children = db.session.query(Bag).join(Link).filter(Link.parent_bag_id == parent_bag.id).all()
+        child_bags.extend(children)
+    
+    # Get scan history for all bags in this bill
+    all_bag_ids = [bag.id for bag in parent_bags + child_bags]
+    scans = Scan.query.filter(
+        or_(
+            Scan.parent_bag_id.in_([bag.id for bag in parent_bags]),
+            Scan.child_bag_id.in_([bag.id for bag in child_bags])
+        )
+    ).order_by(desc(Scan.timestamp)).all()
+    
+    return render_template('view_bill.html', 
+                         bill=bill, 
+                         parent_bags=parent_bags, 
+                         child_bags=child_bags,
+                         scans=scans)
+
+@app.route('/bill/<int:bill_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_bill(bill_id):
+    """Edit bill details - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required to edit bills.', 'error')
+        return redirect(url_for('bill_management'))
+    
+    bill = Bill.query.get_or_404(bill_id)
+    
+    if request.method == 'POST':
+        try:
+            description = request.form.get('description', '').strip()
+            parent_bag_count = request.form.get('parent_bag_count', type=int)
+            
+            if description:
+                bill.description = description
+            if parent_bag_count and parent_bag_count > 0:
+                bill.parent_bag_count = parent_bag_count
+                
+            db.session.commit()
+            flash('Bill updated successfully!', 'success')
+            return redirect(url_for('view_bill', bill_id=bill_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating bill: {str(e)}', 'error')
+    
+    return render_template('edit_bill.html', bill=bill)
+
 @app.route('/bill/scan_parent')
 @app.route('/bill/<int:bill_id>/scan_parent')
 @login_required
@@ -990,36 +1071,6 @@ def process_bill_parent_scan():
             app.logger.error(f'Bill parent scan error: {str(e)}')
     
     return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-
-@app.route('/bill/<int:bill_id>')
-@login_required
-def view_bill(bill_id):
-    """View bill details with parent bags and child bags"""
-    bill = Bill.query.get_or_404(bill_id)
-    
-    # Get all parent bags linked to this bill
-    parent_bags = db.session.query(Bag).join(BillBag).filter(BillBag.bill_id == bill.id).all()
-    
-    # Get all child bags for these parent bags
-    child_bags = []
-    for parent_bag in parent_bags:
-        children = db.session.query(Bag).join(Link).filter(Link.parent_bag_id == parent_bag.id).all()
-        child_bags.extend(children)
-    
-    # Get scan history for all bags in this bill
-    all_bag_ids = [bag.id for bag in parent_bags + child_bags]
-    scans = Scan.query.filter(
-        or_(
-            Scan.parent_bag_id.in_([bag.id for bag in parent_bags]),
-            Scan.child_bag_id.in_([bag.id for bag in child_bags])
-        )
-    ).order_by(desc(Scan.timestamp)).all()
-    
-    return render_template('view_bill.html', 
-                         bill=bill, 
-                         parent_bags=parent_bags, 
-                         child_bags=child_bags,
-                         scans=scans)
 
 @app.route('/bag/<qr_id>')
 @login_required
