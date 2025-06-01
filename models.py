@@ -21,8 +21,6 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), default=UserRole.EMPLOYEE.value)
     verification_token = db.Column(db.String(100), nullable=True)
     verified = db.Column(db.Boolean, default=False)
-    session_token = db.Column(db.String(256), nullable=True)
-    session_expires = db.Column(db.Float, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     scans = db.relationship('Scan', backref='scanned_by', lazy='dynamic')
     
