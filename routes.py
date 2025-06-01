@@ -595,6 +595,11 @@ def process_parent_scan():
             return jsonify({'success': False, 'message': 'Please provide a QR code.'})
         
         try:
+            # Check if this QR code already exists as a child bag
+            existing_child = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
+            if existing_child:
+                return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag. Cannot use as parent bag.'})
+            
             # Look up the parent bag first, if not found create it automatically
             parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
             
@@ -607,6 +612,9 @@ def process_parent_scan():
                 )
                 db.session.add(parent_bag)
                 db.session.commit()
+                app.logger.info(f'New parent bag created for QR code: {qr_id}')
+            else:
+                app.logger.info(f'Using existing parent bag: {qr_id}')
             
             # Record the scan
             scan = Scan(
@@ -742,9 +750,28 @@ def process_child_scan():
             return jsonify({'success': False, 'message': 'Please provide a QR code.'})
         
         try:
+            # Check if this QR code already exists as a parent bag
+            existing_parent = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+            if existing_parent:
+                return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag. Cannot use as child bag.'})
+            
+            # Get parent bag from session to check for duplicate linking
+            last_scan = session.get('last_scan')
+            parent_bag = None
+            
+            if last_scan and last_scan.get('type') == 'parent':
+                parent_qr_id = last_scan.get('qr_id')
+                if parent_qr_id:
+                    parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
             
             # Look up the child bag first, if not found create it automatically
             child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
+            
+            # Check if this child bag is already linked to the current parent
+            if child_bag and parent_bag:
+                existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
+                if existing_link:
+                    return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to parent bag {parent_bag.qr_id}.'})
             
             if not child_bag:
                 # Create new child bag automatically for any QR code
@@ -755,16 +782,9 @@ def process_child_scan():
                 )
                 db.session.add(child_bag)
                 db.session.commit()
-                flash(f'New child bag created for QR code: {qr_id}', 'info')
-            
-            # Get parent bag from session
-            last_scan = session.get('last_scan')
-            parent_bag = None
-            
-            if last_scan and last_scan.get('type') == 'parent':
-                parent_qr_id = last_scan.get('qr_id')
-                if parent_qr_id:
-                    parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
+                app.logger.info(f'New child bag created for QR code: {qr_id}')
+            else:
+                app.logger.info(f'Using existing child bag: {qr_id}')
             
             # Create link between parent and child if parent exists
             if parent_bag:
