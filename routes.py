@@ -1096,61 +1096,60 @@ def scan_bill_parent(bill_id=None):
 def process_bill_parent_scan():
     """Process a parent bag scan for bill linking - admin only"""
     if not current_user.is_admin():
-        flash('Admin access required for bill operations.', 'error')
-        return redirect(url_for('index'))
+        return jsonify({'success': False, 'message': 'Admin access required for bill operations.'})
+    
     bill_id = request.form.get('bill_id')
+    qr_code = request.form.get('qr_code')
+    
     if not bill_id:
-        flash('Bill ID missing.', 'error')
-        return redirect(url_for('bill_management'))
+        return jsonify({'success': False, 'message': 'Bill ID missing.'})
     
-    bill = Bill.query.get_or_404(bill_id)
-    form = ScanParentForm()
+    if not qr_code:
+        return jsonify({'success': False, 'message': 'QR code missing.'})
     
-    if form.validate_on_submit():
-        try:
-            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
-            
-            if not validate_parent_qr_id(qr_id):
-                flash('Invalid parent bag QR code format.', 'error')
-                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-            
-            # Look up the parent bag
-            parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
-            
-            if not parent_bag:
-                flash('Parent bag not found. Please check the QR code.', 'error')
-                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-            
-            # Check if already linked to this bill
-            existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
-            if existing_link:
-                flash('This parent bag is already linked to this bill.', 'warning')
-                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-            
-            # Check if bill already has the maximum number of bags
-            current_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
-            if current_bag_count >= bill.parent_bag_count:
-                flash(f'Bill already has the maximum number of parent bags ({bill.parent_bag_count}). Cannot add more bags.', 'error')
-                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-            
-            # Create bill-bag link
-            bill_bag = BillBag(
-                bill_id=bill.id,
-                bag_id=parent_bag.id
-            )
-            
-            db.session.add(bill_bag)
-            db.session.commit()
-            
-            flash(f'Parent bag {qr_id} linked to bill successfully!', 'success')
-            return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash('Error linking parent bag to bill.', 'error')
-            app.logger.error(f'Bill parent scan error: {str(e)}')
-    
-    return redirect(url_for('scan_bill_parent', bill_id=bill_id))
+    try:
+        bill = Bill.query.get_or_404(bill_id)
+        qr_id = sanitize_input(qr_code).upper()
+        
+        if not validate_parent_qr_id(qr_id):
+            return jsonify({'success': False, 'message': 'Invalid parent bag QR code format.'})
+        
+        # Look up the parent bag
+        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        
+        if not parent_bag:
+            return jsonify({'success': False, 'message': 'Parent bag not found. Please check the QR code.'})
+        
+        # Check if already linked to this bill
+        existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
+        if existing_link:
+            return jsonify({'success': False, 'message': 'This parent bag is already linked to this bill.'})
+        
+        # Check if bill already has the maximum number of bags
+        current_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        if current_bag_count >= bill.parent_bag_count:
+            return jsonify({'success': False, 'message': f'Bill already has the maximum number of parent bags ({bill.parent_bag_count}). Cannot add more bags.'})
+        
+        # Create bill-bag link
+        bill_bag = BillBag(
+            bill_id=bill.id,
+            bag_id=parent_bag.id
+        )
+        
+        db.session.add(bill_bag)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Parent bag {qr_id} linked to bill successfully!',
+            'parent_qr': qr_id,
+            'remaining_bags': bill.parent_bag_count - (current_bag_count + 1)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Bill parent scan error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error linking parent bag to bill.'})
 
 @app.route('/bag/<qr_id>')
 @login_required
