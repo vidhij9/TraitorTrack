@@ -688,8 +688,18 @@ def child_lookup():
     form = ChildLookupForm()
     bag_info = None
     
+    # Check for qr_id parameter in URL for pre-filling
+    url_qr_id = request.args.get('qr_id', '').strip()
+    
     if form.validate_on_submit():
         qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
+    elif url_qr_id:
+        # If there's a QR ID in the URL, use it for lookup
+        qr_id = sanitize_input(url_qr_id).upper()
+    else:
+        qr_id = None
+    
+    if qr_id:
         
         # Look up the bag (could be parent or child)
         bag = Bag.query.filter_by(qr_id=qr_id).first()
@@ -697,11 +707,15 @@ def child_lookup():
         if bag:
             # Get related information based on bag type
             if bag.type == BagType.PARENT.value:
-                # Get child bags
-                child_bags = db.session.query(Bag).join(Link).filter(Link.parent_bag_id == bag.id).all()
+                # Get child bags using explicit join conditions
+                child_bags = db.session.query(Bag).join(
+                    Link, Link.child_bag_id == Bag.id
+                ).filter(Link.parent_bag_id == bag.id).all()
                 
                 # Get bills this parent bag is linked to
-                bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == bag.id).all()
+                bills = db.session.query(Bill).join(
+                    BillBag, BillBag.bill_id == Bill.id
+                ).filter(BillBag.bag_id == bag.id).all()
                 
                 bag_info = {
                     'bag': bag,
@@ -715,15 +729,24 @@ def child_lookup():
                 link = Link.query.filter_by(child_bag_id=bag.id).first()
                 parent_bag = link.parent_bag if link else None
                 
+                # Get all child bags in the same parent (siblings)
+                child_bags = []
+                if parent_bag:
+                    child_bags = db.session.query(Bag).join(
+                        Link, Link.child_bag_id == Bag.id
+                    ).filter(Link.parent_bag_id == parent_bag.id).all()
+                
                 # Get bills through parent bag
                 bills = []
                 if parent_bag:
-                    bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == parent_bag.id).all()
+                    bills = db.session.query(Bill).join(
+                        BillBag, BillBag.bill_id == Bill.id
+                    ).filter(BillBag.bag_id == parent_bag.id).all()
                 
                 bag_info = {
                     'bag': bag,
                     'type': 'child',
-                    'child_bags': [],
+                    'child_bags': child_bags,
                     'bills': bills,
                     'parent_bag': parent_bag
                 }
