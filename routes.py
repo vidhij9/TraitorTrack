@@ -475,6 +475,17 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
+@app.route('/fix-admin-password')
+def fix_admin_password():
+    """Fix admin password - temporary endpoint"""
+    from werkzeug.security import generate_password_hash
+    user = User.query.filter_by(username='admin').first()
+    if user:
+        user.password_hash = generate_password_hash('admin')
+        db.session.commit()
+        return "Admin password fixed. Username: admin, Password: admin"
+    return "Admin user not found"
+
 @app.route('/register', methods=['GET', 'POST'])
 @limiter.limit("3 per minute")
 def register():
