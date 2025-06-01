@@ -582,17 +582,17 @@ def scan_parent():
 @login_required
 def process_parent_scan():
     """Process the parent bag QR code scan"""
-    form = ScanParentForm()
+    # Check if it's an AJAX request
+    is_ajax = request.headers.get('Content-Type') == 'application/x-www-form-urlencoded' and 'qr_id' in request.form
     
-    if form.validate_on_submit():
+    if is_ajax:
+        # Handle AJAX QR scan request
+        qr_id = request.form.get('qr_id', '').strip()
+        
+        if not qr_id:
+            return jsonify({'success': False, 'message': 'Please provide a QR code.'})
+        
         try:
-            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).strip()
-            
-            # Accept any QR code format - no validation restrictions
-            if not qr_id:
-                flash('Please enter a QR code.', 'error')
-                return render_template('scan_parent.html', form=form)
-            
             # Look up the parent bag first, if not found create it automatically
             parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
             
@@ -607,7 +607,6 @@ def process_parent_scan():
                 )
                 db.session.add(parent_bag)
                 db.session.commit()
-                flash(f'New parent bag created for QR code: {qr_id}', 'info')
             
             # Record the scan
             scan = Scan(
@@ -627,15 +626,73 @@ def process_parent_scan():
                 'timestamp': scan.timestamp.isoformat()
             }
             
-            flash('Parent bag scanned successfully!', 'success')
-            return redirect(url_for('scan_complete'))
+            return jsonify({
+                'success': True,
+                'parent_qr': qr_id,
+                'expected_child_count': 5,  # Default for any QR code
+                'message': f'Parent bag {qr_id} scanned successfully!'
+            })
             
         except Exception as e:
             db.session.rollback()
-            flash('Error processing scan. Please try again.', 'error')
-            app.logger.error(f'Parent scan error: {str(e)}')
+            return jsonify({'success': False, 'message': f'Error processing scan: {str(e)}'})
     
-    return render_template('scan_parent.html', form=form)
+    else:
+        # Handle regular form submission
+        form = ScanParentForm()
+        
+        if form.validate_on_submit():
+            try:
+                qr_id = sanitize_input(getattr(form, 'qr_id', form).data).strip()
+                
+                # Accept any QR code format - no validation restrictions
+                if not qr_id:
+                    flash('Please enter a QR code.', 'error')
+                    return render_template('scan_parent.html', form=form)
+                
+                # Look up the parent bag first, if not found create it automatically
+                parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+                
+                if not parent_bag:
+                    # Create new parent bag automatically for any QR code
+                    parent_bag = Bag(
+                        qr_id=qr_id,
+                        name=f"Bag {qr_id}",
+                        type=BagType.PARENT.value,
+                        description=f"Auto-created parent bag for QR: {qr_id}",
+                        created_at=datetime.utcnow()
+                    )
+                    db.session.add(parent_bag)
+                    db.session.commit()
+                    flash(f'New parent bag created for QR code: {qr_id}', 'info')
+                
+                # Record the scan
+                scan = Scan(
+                    parent_bag_id=parent_bag.id,
+                    user_id=current_user.id,
+                    timestamp=datetime.utcnow()
+                )
+                
+                db.session.add(scan)
+                db.session.commit()
+                
+                # Store in session for the completion page
+                session['last_scan'] = {
+                    'type': 'parent',
+                    'qr_id': qr_id,
+                    'bag_name': parent_bag.name,
+                    'timestamp': scan.timestamp.isoformat()
+                }
+                
+                flash('Parent bag scanned successfully!', 'success')
+                return redirect(url_for('scan_complete', s=request.args.get('s')))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash('Error processing scan. Please try again.', 'error')
+                app.logger.error(f'Parent scan error: {str(e)}')
+        
+        return render_template('scan_parent.html', form=form)
 
 @app.route('/scan/child')
 @login_required

@@ -317,12 +317,12 @@
             manualQrInput.value = qrCode;
             
             // Send to server for processing
-            fetch('/process_parent_scan', {
+            fetch('/scan/parent?s={{ request.args.get("s") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: 'qr_code=' + encodeURIComponent(qrCode) + '&csrf_token={{ csrf_token() }}'
+                body: 'qr_id=' + encodeURIComponent(qrCode) + '&csrf_token={{ csrf_token() }}'
             })
             .then(response => response.json())
             .then(data => {
@@ -395,6 +395,21 @@
             }
             return null;
         }
+        
+        // Handle manual form submission
+        manualEntryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const manualQrInput = document.getElementById('manual-qr-code');
+            const qrCode = manualQrInput.value.trim();
+            
+            if (qrCode) {
+                processQrCode(qrCode);
+            } else {
+                resultContainer.className = 'alert alert-warning';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter a QR code value.';
+                resultContainer.style.display = 'block';
+            }
+        });
     });
 </script>
 {% endblock %}
