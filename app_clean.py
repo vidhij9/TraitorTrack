@@ -50,6 +50,17 @@ login_manager.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
+# Setup error handlers and monitoring
+from error_handlers import setup_error_handlers, setup_request_logging, setup_health_monitoring
+setup_error_handlers(app)
+setup_request_logging(app)
+setup_health_monitoring(app)
+
+# Setup deployment configuration
+from deployment_config import configure_for_deployment, setup_monitoring_alerts
+configure_for_deployment(app)
+setup_monitoring_alerts(app)
+
 # Add CSRF token to template context
 @app.context_processor
 def inject_csrf_token():
