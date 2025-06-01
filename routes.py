@@ -817,6 +817,7 @@ def process_child_scan():
                 'message': f'Child bag {qr_id} scanned and linked successfully!'
             }
             app.logger.info(f"Sending child scan JSON response: {response_data}")
+            app.logger.info(f"Child bag {qr_id} saved successfully, linked to parent: {parent_bag.qr_id if parent_bag else 'None'}")
             return jsonify(response_data)
             
         except Exception as e:

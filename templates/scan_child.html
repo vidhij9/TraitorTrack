@@ -60,15 +60,8 @@
             <div class="card bg-success bg-opacity-25 text-light">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-0">Progress: <span id="progress-text">{{ scanned_child_count }} of {{ expected_child_count }}</span></h4>
-                        <p class="mb-0">Child bags scanned</p>
-                    </div>
-                    
-                    <div class="text-center">
-                        <div class="position-relative d-inline-block">
-                            <div id="progress-circle" class="position-relative" style="width: 100px; height: 100px;"></div>
-                            <div id="progress-percentage" class="position-absolute top-50 start-50 translate-middle fs-4 fw-bold"></div>
-                        </div>
+                        <h4 class="mb-0">Child Bags: <span id="progress-text">{{ scanned_child_count }}</span></h4>
+                        <p class="mb-0">Scanned and linked</p>
                     </div>
                     
                     <div>
@@ -210,10 +203,9 @@
         
         // Current progress
         let scannedCount = {{ scanned_child_count }};
-        let expectedCount = {{ expected_child_count }};
         
-        // Initialize progress circle
-        updateProgress();
+        // Load existing scanned bags
+        loadScannedBags();
         
         // Start camera automatically when page loads
         startCamera();
@@ -414,62 +406,29 @@
                     resultContainer.className = 'alert alert-success';
                     resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + data.message;
                     
-                    // Add to the scanned list
+                    // Add to the scanned list with delete option
                     const listItem = document.createElement('li');
                     listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    listItem.dataset.qrCode = data.child_qr;
                     listItem.innerHTML = `
                         <div>
                             <span class="badge bg-success me-2">Child</span>
                             <span>${data.child_qr}</span>
                         </div>
-                        <span class="badge bg-primary rounded-pill">
-                            <i class="fas fa-link me-1"></i>Linked
-                        </span>
+                        <div>
+                            <span class="badge bg-primary rounded-pill me-2">
+                                <i class="fas fa-link me-1"></i>Linked
+                            </span>
+                            <button class="btn btn-sm btn-outline-danger delete-bag" data-qr="${data.child_qr}" title="Delete this scan">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     `;
                     scannedList.prepend(listItem);
                     
-                    // Update progress
+                    // Update progress counter
                     scannedCount = data.scanned_count;
-                    updateProgress();
-                    
-                    // Add edit/remove option for last scanned item
-                    const editBtn = document.createElement('button');
-                    editBtn.className = 'btn btn-sm btn-outline-warning';
-                    editBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
-                    editBtn.onclick = function() {
-                        // Remove the last scanned item
-                        if (scannedList.firstChild) {
-                            scannedList.removeChild(scannedList.firstChild);
-                            
-                            // Update progress count
-                            scannedCount--;
-                            updateProgress();
-                            
-                            resultContainer.className = 'alert alert-info';
-                            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>' + 
-                                'Item removed. Scan another child bag.';
-                        }
-                        return false;
-                    };
-                    
-                    // Add edit button to the first list item
-                    if (scannedList.firstChild) {
-                        const actionSpan = scannedList.firstChild.querySelector('.badge.bg-primary');
-                        actionSpan.parentNode.insertBefore(editBtn, actionSpan);
-                    }
-                    
-                    // Check if we've reached the expected count
-                    if (scannedCount >= expectedCount) {
-                        // Show success message and redirect to complete page
-                        resultContainer.className = 'alert alert-success';
-                        resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + 
-                            'All child bags scanned successfully! Redirecting to completion page...';
-                            
-                        // Automatically navigate to completion page after 3 seconds
-                        setTimeout(() => {
-                            window.location.href = '{{ url_for("scan_complete") }}';
-                        }, 3000);
-                    }
+                    document.getElementById('progress-text').textContent = scannedCount;
                     
                     // Reset last detected code after a short delay to allow for new scans
                     setTimeout(() => {
