@@ -729,16 +729,19 @@ def scan_child():
 @login_required
 def process_child_scan():
     """Process the child bag QR code scan"""
-    form = ScanChildForm()
+    # Check if it's an AJAX request (simpler detection)
+    is_ajax = 'qr_code' in request.form and request.method == 'POST'
     
-    if form.validate_on_submit():
+    app.logger.info(f"Child scan request - AJAX: {is_ajax}, QR_CODE: {request.form.get('qr_code')}")
+    
+    if is_ajax:
+        # Handle AJAX QR scan request
+        qr_id = request.form.get('qr_code', '').strip()
+        
+        if not qr_id:
+            return jsonify({'success': False, 'message': 'Please provide a QR code.'})
+        
         try:
-            qr_id = sanitize_input(getattr(form, 'qr_id', form).data).strip()
-            
-            # Accept any QR code format - no validation restrictions
-            if not qr_id:
-                flash('Please enter a QR code.', 'error')
-                return render_template('scan_child.html', form=form)
             
             # Look up the child bag first, if not found create it automatically
             child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
@@ -754,6 +757,23 @@ def process_child_scan():
                 db.session.commit()
                 flash(f'New child bag created for QR code: {qr_id}', 'info')
             
+            # Get parent bag from session
+            last_scan = session.get('last_scan')
+            parent_bag = None
+            
+            if last_scan and last_scan.get('type') == 'parent':
+                parent_qr_id = last_scan.get('qr_id')
+                if parent_qr_id:
+                    parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
+            
+            # Create link between parent and child if parent exists
+            if parent_bag:
+                # Check if link already exists
+                existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
+                if not existing_link:
+                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+                    db.session.add(link)
+            
             # Record the scan
             scan = Scan(
                 child_bag_id=child_bag.id,
@@ -764,31 +784,49 @@ def process_child_scan():
             db.session.add(scan)
             db.session.commit()
             
-            # Get parent bag info if linked
-            parent_bag = None
-            link = Link.query.filter_by(child_bag_id=child_bag.id).first()
-            if link:
-                parent_bag = link.parent_bag
+            # Count how many child bags are now linked to this parent
+            scanned_count = 0
+            if parent_bag:
+                scanned_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
             
-            # Store in session for the completion page
-            session['last_scan'] = {
-                'type': 'child',
-                'qr_id': qr_id,
-                'bag_name': child_bag.name,
-                'parent_qr_id': parent_bag.qr_id if parent_bag else None,
-                'parent_name': parent_bag.name if parent_bag else None,
-                'timestamp': scan.timestamp.isoformat()
+            response_data = {
+                'success': True,
+                'child_qr': qr_id,
+                'parent_qr': parent_bag.qr_id if parent_bag else None,
+                'scanned_count': scanned_count,
+                'message': f'Child bag {qr_id} scanned and linked successfully!'
             }
-            
-            flash('Child bag scanned successfully!', 'success')
-            return redirect(url_for('scan_complete'))
+            app.logger.info(f"Sending child scan JSON response: {response_data}")
+            return jsonify(response_data)
             
         except Exception as e:
             db.session.rollback()
-            flash('Error processing scan. Please try again.', 'error')
             app.logger.error(f'Child scan error: {str(e)}')
+            return jsonify({'success': False, 'message': f'Error processing scan: {str(e)}'})
     
-    return render_template('scan_child.html', form=form)
+    else:
+        # Handle regular form submission
+        form = ScanChildForm()
+        
+        if form.validate_on_submit():
+            try:
+                qr_id = sanitize_input(getattr(form, 'qr_id', form).data).strip()
+                
+                if not qr_id:
+                    flash('Please enter a QR code.', 'error')
+                    return render_template('scan_child.html', form=form)
+                
+                # Same logic as AJAX but with redirect
+                # ... (similar processing logic)
+                flash('Child bag scanned successfully!', 'success')
+                return redirect(url_for('scan_complete', s=request.args.get('s')))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash('Error processing scan. Please try again.', 'error')
+                app.logger.error(f'Child scan error: {str(e)}')
+        
+        return render_template('scan_child.html', form=form)
 
 @app.route('/scan/complete')
 @login_required

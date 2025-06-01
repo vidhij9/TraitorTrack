@@ -41,7 +41,7 @@
                             <i class="fas fa-box fa-2x me-3"></i>
                             <div>
                                 <h5 class="mb-1">Parent Bag: <span class="fw-bold">{{ parent_bag.qr_id }}</span></h5>
-                                <p class="mb-0">Please scan {{ expected_child_count }} child bags to link to this parent bag.</p>
+                                <p class="mb-0">Scan child bags to link to this parent bag.</p>
                             </div>
                         </div>
                     </div>
@@ -72,7 +72,7 @@
                     </div>
                     
                     <div>
-                        <a id="finish-button" href="{{ url_for('finish_scanning') }}" class="btn btn-success {% if scanned_child_count < expected_child_count %}disabled{% endif %}">
+                        <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-success">
                             <i class="fas fa-check-circle me-2"></i>Complete Scanning
                         </a>
                     </div>
@@ -400,7 +400,7 @@
             manualQrInput.value = qrCode;
             
             // Send to server for processing
-            fetch('/process_child_scan', {
+            fetch('/scan/child?s={{ request.args.get("s") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
