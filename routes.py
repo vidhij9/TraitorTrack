@@ -601,9 +601,7 @@ def process_parent_scan():
                 parent_bag = Bag(
                     qr_id=qr_id,
                     name=f"Bag {qr_id}",
-                    type=BagType.PARENT.value,
-                    description=f"Auto-created parent bag for QR: {qr_id}",
-                    created_at=datetime.utcnow()
+                    type=BagType.PARENT.value
                 )
                 db.session.add(parent_bag)
                 db.session.commit()
@@ -658,9 +656,7 @@ def process_parent_scan():
                     parent_bag = Bag(
                         qr_id=qr_id,
                         name=f"Bag {qr_id}",
-                        type=BagType.PARENT.value,
-                        description=f"Auto-created parent bag for QR: {qr_id}",
-                        created_at=datetime.utcnow()
+                        type=BagType.PARENT.value
                     )
                     db.session.add(parent_bag)
                     db.session.commit()
@@ -724,9 +720,7 @@ def process_child_scan():
                 child_bag = Bag(
                     qr_id=qr_id,
                     name=f"Bag {qr_id}",
-                    type=BagType.CHILD.value,
-                    description=f"Auto-created child bag for QR: {qr_id}",
-                    created_at=datetime.utcnow()
+                    type=BagType.CHILD.value
                 )
                 db.session.add(child_bag)
                 db.session.commit()
