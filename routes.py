@@ -818,29 +818,48 @@ def bill_management():
     if not current_user.is_admin():
         flash('Admin access required for bill management.', 'error')
         return redirect(url_for('index'))
-    search_query = request.args.get('search', '').strip()
     
-    if search_query:
-        bills = Bill.query.filter(
-            or_(
-                Bill.bill_id.contains(search_query),
-                Bill.description.contains(search_query)
-            )
-        ).order_by(desc(Bill.created_at)).all()
-    else:
-        bills = Bill.query.order_by(desc(Bill.created_at)).limit(50).all()
+    # Get search parameters
+    search_bill_id = request.args.get('search_bill_id', '').strip()
+    status_filter = request.args.get('status_filter', 'all').strip()
     
-    # Get parent bags count for each bill
+    # Build query
+    query = Bill.query
+    
+    # Apply bill ID search if provided
+    if search_bill_id:
+        query = query.filter(Bill.bill_id.contains(search_bill_id))
+    
+    # Get all bills first, then filter by status after calculating bag counts
+    bills = query.order_by(desc(Bill.created_at)).all()
+    
+    # Get parent bags count for each bill and apply status filter
     bill_data = []
     for bill in bills:
         parent_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
-        bill_data.append({
-            'bill': bill,
-            'parent_bags': parent_bags,
-            'parent_count': len(parent_bags)
-        })
+        parent_count = len(parent_bags)
+        
+        # Determine status based on bag count
+        if parent_count == bill.parent_bag_count:
+            bill_status = 'completed'
+        elif parent_count > 0:
+            bill_status = 'in_progress'
+        else:
+            bill_status = 'empty'
+        
+        # Apply status filter
+        if status_filter == 'all' or status_filter == bill_status:
+            bill_data.append({
+                'bill': bill,
+                'parent_bags': parent_bags,
+                'parent_count': parent_count,
+                'status': bill_status
+            })
     
-    return render_template('bill_management.html', bill_data=bill_data, search_query=search_query)
+    return render_template('bill_management.html', 
+                         bill_data=bill_data, 
+                         search_bill_id=search_bill_id,
+                         status_filter=status_filter)
 
 @app.route('/bill/create', methods=['POST'])
 @login_required

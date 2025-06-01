@@ -45,6 +45,7 @@
                                 <label for="status_filter" class="form-label">Status Filter</label>
                                 <select class="form-select" id="status_filter" name="status_filter">
                                     <option value="all" {% if request.args.get('status_filter', 'all') == 'all' %}selected{% endif %}>All Status</option>
+                                    <option value="empty" {% if request.args.get('status_filter') == 'empty' %}selected{% endif %}>Empty</option>
                                     <option value="in_progress" {% if request.args.get('status_filter') == 'in_progress' %}selected{% endif %}>In Progress</option>
                                     <option value="completed" {% if request.args.get('status_filter') == 'completed' %}selected{% endif %}>Completed</option>
                                 </select>
