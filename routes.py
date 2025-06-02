@@ -1412,7 +1412,9 @@ def bag_details(qr_id):
                          child_bags=child_bags,
                          parent_bag=parent_bag,
                          bills=bills,
-                         scans=scans)
+                         scans=scans,
+                         is_parent=bag.type == BagType.PARENT.value,
+                         link=bills[0] if bills else None)
 
 # API endpoints for dashboard data
 @app.route('/api/stats')
