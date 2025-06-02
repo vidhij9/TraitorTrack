@@ -1397,7 +1397,7 @@ def bag_details(qr_id):
         child_bags = [child for child in child_bags if child]  # Filter out None values
         parent_bag = None
         bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == bag.id).all()
-        scans = Scan.query.filter_by(bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
+        scans = Scan.query.filter_by(parent_bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
     else:
         child_bags = []
         link = Link.query.filter_by(child_bag_id=bag.id).first()
@@ -1405,7 +1405,7 @@ def bag_details(qr_id):
         bills = []
         if parent_bag:
             bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == parent_bag.id).all()
-        scans = Scan.query.filter_by(bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
+        scans = Scan.query.filter_by(child_bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
     
     return render_template('bag_detail.html',
                          bag=bag,
@@ -1685,7 +1685,7 @@ def api_delete_bag():
                 child_bag = Bag.query.get(link.child_bag_id)
                 if child_bag:
                     # Delete child bag scans
-                    child_scans = Scan.query.filter_by(bag_id=child_bag.id).all()
+                    child_scans = Scan.query.filter_by(child_bag_id=child_bag.id).all()
                     for scan in child_scans:
                         db.session.delete(scan)
                     # Delete child bag
@@ -1694,7 +1694,7 @@ def api_delete_bag():
                 db.session.delete(link)
             
             # Delete parent bag scans
-            parent_scans = Scan.query.filter_by(bag_id=bag.id).all()
+            parent_scans = Scan.query.filter_by(parent_bag_id=bag.id).all()
             for scan in parent_scans:
                 db.session.delete(scan)
             
@@ -1717,7 +1717,7 @@ def api_delete_bag():
                 db.session.delete(link)
             
             # Delete child bag scans
-            child_scans = Scan.query.filter_by(bag_id=bag.id).all()
+            child_scans = Scan.query.filter_by(child_bag_id=bag.id).all()
             for scan in child_scans:
                 db.session.delete(scan)
             
