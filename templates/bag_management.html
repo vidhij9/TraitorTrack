@@ -254,9 +254,9 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     {% if bag.type == 'parent' %}
-                                    <button class="btn btn-outline-warning btn-sm edit-parent-btn" data-qr="{{ bag.qr_id }}" title="Edit Child List">
+                                    <a href="{{ url_for('edit_parent_children', parent_qr=bag.qr_id) }}" class="btn btn-outline-warning btn-sm" title="Edit Child List">
                                         <i class="fas fa-edit"></i>
-                                    </button>
+                                    </a>
                                     {% endif %}
                                     <button class="btn btn-outline-danger btn-sm delete-bag-btn" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete Bag">
                                         <i class="fas fa-trash"></i>

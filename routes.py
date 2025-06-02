@@ -1744,6 +1744,24 @@ def api_delete_bag():
             'message': 'Error deleting bag'
         }), 500
 
+@app.route('/edit-parent/<parent_qr>')
+@login_required
+def edit_parent_children(parent_qr):
+    """Edit parent bag children page"""
+    parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first_or_404()
+    
+    # Get current children
+    links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
+    current_children = []
+    for link in links:
+        child_bag = Bag.query.get(link.child_bag_id)
+        if child_bag:
+            current_children.append(child_bag.qr_id)
+    
+    return render_template('edit_parent_children.html',
+                         parent_qr=parent_qr,
+                         current_children=current_children)
+
 @app.route('/api/edit-parent-children', methods=['POST'])
 @login_required
 def api_edit_parent_children():
