@@ -95,7 +95,7 @@
                     {% if not is_parent and bag.parent_bag %}
                     <dt class="col-sm-5">Parent Bag:</dt>
                     <dd class="col-sm-7">
-                        <a href="{{ url_for('bag_detail', qr_id=bag.parent_bag.qr_id) }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{{ url_for('bag_details', qr_id=bag.parent_bag.qr_id) }}" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-box me-1"></i><code>{{ bag.parent_bag.qr_id }}</code>
                         </a>
                     </dd>
@@ -170,8 +170,16 @@
     <div class="col-md-8">
         {% if is_parent and child_bags %}
         <div class="card bg-dark mb-4">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0"><i class="fas fa-tags me-2"></i>Child Bags</h4>
+                <div>
+                    <button class="btn btn-outline-warning btn-sm me-2" onclick="editChildBags('{{ bag.qr_id }}')">
+                        <i class="fas fa-edit me-1"></i>Edit List
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="scanNewChild('{{ bag.qr_id }}')">
+                        <i class="fas fa-plus me-1"></i>Add Child
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -189,7 +197,7 @@
                             {% for child in child_bags %}
                             <tr>
                                 <td>
-                                    <a href="{{ url_for('bag_detail', qr_id=child.qr_id) }}" class="text-decoration-none">
+                                    <a href="{{ url_for('bag_details', qr_id=child.qr_id) }}" class="text-decoration-none">
                                         <code>{{ child.qr_id }}</code>
                                     </a>
                                 </td>
@@ -203,9 +211,14 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('bag_detail', qr_id=child.qr_id) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye me-1"></i>Details
-                                    </a>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('bag_details', qr_id=child.qr_id) }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button class="btn btn-outline-danger" onclick="removeChildBag('{{ bag.qr_id }}', '{{ child.qr_id }}')" title="Remove from parent">
+                                            <i class="fas fa-unlink"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -319,5 +332,136 @@
             });
         }
     });
+
+function editChildBags(parentQr) {
+    // Fetch current child bags and show edit modal
+    fetch(`/api/parent-children/${parentQr}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showEditModal(parentQr, data.children);
+            } else {
+                showAlert('danger', 'Error loading child bags');
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Error loading data');
+        });
+}
+
+function scanNewChild(parentQr) {
+    // Redirect to child scanning page with parent context
+    window.location.href = `/scan/child?parent=${encodeURIComponent(parentQr)}`;
+}
+
+function removeChildBag(parentQr, childQr) {
+    if (confirm(`Remove child bag ${childQr} from parent ${parentQr}?`)) {
+        // Get current children list and remove the specified child
+        fetch(`/api/parent-children/${parentQr}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const updatedChildren = data.children.filter(child => child !== childQr);
+                    updateParentChildren(parentQr, updatedChildren);
+                }
+            });
+    }
+}
+
+function updateParentChildren(parentQr, childQrs) {
+    const formData = new URLSearchParams();
+    formData.append('parent_qr', parentQr);
+    formData.append('csrf_token', '{{ csrf_token() }}');
+    childQrs.forEach(qr => {
+        formData.append('child_qrs[]', qr);
+    });
+    
+    fetch('/api/edit-parent-children', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showAlert('danger', data.message);
+        }
+    })
+    .catch(error => {
+        showAlert('danger', 'Error updating children');
+    });
+}
+
+function showEditModal(parentQr, children) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'editModal';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Child Bags for ${parentQr}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editChildrenForm">
+                        <input type="hidden" name="parent_qr" value="${parentQr}">
+                        <div class="mb-3">
+                            <label class="form-label">Child Bag QR Codes (one per line):</label>
+                            <textarea class="form-control" name="child_qrs" rows="10" placeholder="Enter child bag QR codes, one per line">${children.join('\n')}</textarea>
+                            <div class="form-text">Add or remove QR codes to modify the child bag list</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveChildrenChanges()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    modal.addEventListener('hidden.bs.modal', function() {
+        modal.remove();
+    });
+}
+
+function saveChildrenChanges() {
+    const form = document.getElementById('editChildrenForm');
+    const formData = new FormData(form);
+    const childQrs = formData.get('child_qrs').split('\n').filter(qr => qr.trim());
+    const parentQr = formData.get('parent_qr');
+    
+    updateParentChildren(parentQr, childQrs);
+    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
 </script>
 {% endblock %}
