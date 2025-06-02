@@ -236,7 +236,7 @@
                                         {% set parent_bill = parent_link.parent_bag.bill_links.first() %}
                                         <span class="badge bg-primary">Via {{ parent_bill.bill.bill_id }}</span>
                                     {% else %}
-                                        <span class="text-muted">N/A</span>
+                                        <span class="badge bg-secondary">No Bill</span>
                                     {% endif %}
                                 {% endif %}
                             </td>
@@ -253,7 +253,14 @@
                                     <a href="{{ url_for('bag_details', qr_id=bag.qr_id) }}" class="btn btn-outline-primary btn-sm" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
-
+                                    {% if bag.type == 'parent' %}
+                                    <button class="btn btn-outline-warning btn-sm edit-parent-btn" data-qr="{{ bag.qr_id }}" title="Edit Child List">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete Bag">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -309,7 +316,167 @@ document.addEventListener('DOMContentLoaded', function() {
         const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Applying...';
         submitBtn.disabled = true;
+    
+    // Handle delete bag button clicks
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-bag-btn') || e.target.parentElement.classList.contains('delete-bag-btn')) {
+            const button = e.target.classList.contains('delete-bag-btn') ? e.target : e.target.parentElement;
+            const qrCode = button.dataset.qr;
+            const bagType = button.dataset.type;
+            
+            let confirmMessage = `Are you sure you want to delete ${bagType} bag ${qrCode}?`;
+            if (bagType === 'parent') {
+                confirmMessage += '\n\nThis will also delete ALL linked child bags!';
+            }
+            
+            if (confirm(confirmMessage)) {
+                // Send delete request
+                fetch('/api/delete-bag', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token={{ csrf_token() }}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the row from table
+                        const row = button.closest('tr');
+                        row.remove();
+                        
+                        // Show success message
+                        showAlert('success', data.message);
+                    } else {
+                        showAlert('danger', data.message);
+                    }
+                })
+                .catch(error => {
+                    showAlert('danger', 'Error deleting bag');
+                });
+            }
+        }
+        
+        // Handle edit parent button clicks
+        if (e.target.classList.contains('edit-parent-btn') || e.target.parentElement.classList.contains('edit-parent-btn')) {
+            const button = e.target.classList.contains('edit-parent-btn') ? e.target : e.target.parentElement;
+            const qrCode = button.dataset.qr;
+            openEditModal(qrCode);
+        }
     });
 });
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+function openEditModal(parentQr) {
+    // Fetch current child bags for this parent
+    fetch(`/api/parent-children/${parentQr}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showEditModal(parentQr, data.children);
+            } else {
+                showAlert('danger', 'Error loading parent bag children');
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Error loading data');
+        });
+}
+
+function showEditModal(parentQr, children) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'editModal';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Child Bags for ${parentQr}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editChildrenForm">
+                        <input type="hidden" name="parent_qr" value="${parentQr}">
+                        <div class="mb-3">
+                            <label class="form-label">Child Bag QR Codes (one per line):</label>
+                            <textarea class="form-control" name="child_qrs" rows="10" placeholder="Enter child bag QR codes, one per line">${children.join('\n')}</textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveChildrenChanges()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    // Clean up when modal is hidden
+    modal.addEventListener('hidden.bs.modal', function() {
+        modal.remove();
+    });
+}
+
+function saveChildrenChanges() {
+    const form = document.getElementById('editChildrenForm');
+    const formData = new FormData(form);
+    
+    // Convert textarea content to array
+    const childQrs = formData.get('child_qrs').split('\n').filter(qr => qr.trim());
+    const parentQr = formData.get('parent_qr');
+    
+    // Prepare data for submission
+    const submitData = new URLSearchParams();
+    submitData.append('parent_qr', parentQr);
+    submitData.append('csrf_token', '{{ csrf_token() }}');
+    childQrs.forEach(qr => {
+        submitData.append('child_qrs[]', qr.trim());
+    });
+    
+    fetch('/api/edit-parent-children', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: submitData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+            // Refresh the page to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showAlert('danger', data.message);
+        }
+    })
+    .catch(error => {
+        showAlert('danger', 'Error updating children');
+    });
+}
 </script>
 {% endblock %}

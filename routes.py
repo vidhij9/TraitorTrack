@@ -1391,18 +1391,21 @@ def bag_details(qr_id):
     
     # Get related information
     if bag.type == BagType.PARENT.value:
-        child_bags = db.session.query(Bag).join(Link).filter(Link.parent_bag_id == bag.id).all()
+        # Get child bags through links
+        links = Link.query.filter_by(parent_bag_id=bag.id).all()
+        child_bags = [Bag.query.get(link.child_bag_id) for link in links if link.child_bag_id]
+        child_bags = [child for child in child_bags if child]  # Filter out None values
         parent_bag = None
         bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == bag.id).all()
-        scans = Scan.query.filter_by(parent_bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
+        scans = Scan.query.filter_by(bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
     else:
         child_bags = []
         link = Link.query.filter_by(child_bag_id=bag.id).first()
-        parent_bag = link.parent_bag if link else None
+        parent_bag = Bag.query.get(link.parent_bag_id) if link and link.parent_bag_id else None
         bills = []
         if parent_bag:
             bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == parent_bag.id).all()
-        scans = Scan.query.filter_by(child_bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
+        scans = Scan.query.filter_by(bag_id=bag.id).order_by(desc(Scan.timestamp)).all()
     
     return render_template('bag_detail.html',
                          bag=bag,
@@ -1651,4 +1654,188 @@ def api_delete_child_scan():
         return jsonify({
             'success': False,
             'message': 'Error deleting scan'
+        }), 500
+
+@app.route('/api/delete-bag', methods=['POST'])
+@login_required
+def api_delete_bag():
+    """Delete a bag and handle parent/child relationships"""
+    try:
+        qr_code = request.form.get('qr_code')
+        if not qr_code:
+            return jsonify({
+                'success': False,
+                'message': 'QR code is required'
+            })
+        
+        bag = Bag.query.filter_by(qr_id=qr_code).first()
+        if not bag:
+            return jsonify({
+                'success': False,
+                'message': 'Bag not found'
+            })
+        
+        if bag.type == 'parent':
+            # Delete parent bag and all its linked child bags
+            links = Link.query.filter_by(parent_bag_id=bag.id).all()
+            child_count = len(links)
+            
+            # Delete all child bags and their links
+            for link in links:
+                child_bag = Bag.query.get(link.child_bag_id)
+                if child_bag:
+                    # Delete child bag scans
+                    child_scans = Scan.query.filter_by(bag_id=child_bag.id).all()
+                    for scan in child_scans:
+                        db.session.delete(scan)
+                    # Delete child bag
+                    db.session.delete(child_bag)
+                # Delete link
+                db.session.delete(link)
+            
+            # Delete parent bag scans
+            parent_scans = Scan.query.filter_by(bag_id=bag.id).all()
+            for scan in parent_scans:
+                db.session.delete(scan)
+            
+            # Delete bill links if any
+            bill_links = BillBag.query.filter_by(bag_id=bag.id).all()
+            for bill_link in bill_links:
+                db.session.delete(bill_link)
+            
+            # Delete parent bag
+            db.session.delete(bag)
+            db.session.commit()
+            
+            message = f'Parent bag {qr_code} and {child_count} linked child bags deleted successfully'
+            
+        else:
+            # Delete child bag only
+            # Remove link to parent
+            link = Link.query.filter_by(child_bag_id=bag.id).first()
+            if link:
+                db.session.delete(link)
+            
+            # Delete child bag scans
+            child_scans = Scan.query.filter_by(bag_id=bag.id).all()
+            for scan in child_scans:
+                db.session.delete(scan)
+            
+            # Delete child bag
+            db.session.delete(bag)
+            db.session.commit()
+            
+            message = f'Child bag {qr_code} deleted successfully'
+        
+        app.logger.info(f"Deleted bag {qr_code} ({bag.type})")
+        
+        return jsonify({
+            'success': True,
+            'message': message
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error deleting bag: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': 'Error deleting bag'
+        }), 500
+
+@app.route('/api/edit-parent-children', methods=['POST'])
+@login_required
+def api_edit_parent_children():
+    """Edit the child bag list for a parent bag"""
+    try:
+        parent_qr = request.form.get('parent_qr')
+        child_qrs = request.form.getlist('child_qrs[]')  # List of child QR codes
+        
+        if not parent_qr:
+            return jsonify({
+                'success': False,
+                'message': 'Parent QR code is required'
+            })
+        
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        if not parent_bag:
+            return jsonify({
+                'success': False,
+                'message': 'Parent bag not found'
+            })
+        
+        # Remove all existing links for this parent
+        existing_links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
+        for link in existing_links:
+            db.session.delete(link)
+        
+        # Create new links for the specified child bags
+        for child_qr in child_qrs:
+            if child_qr.strip():  # Skip empty entries
+                child_bag = Bag.query.filter_by(qr_id=child_qr.strip(), type='child').first()
+                if child_bag:
+                    # Check if this child is already linked to another parent
+                    existing_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+                    if existing_link:
+                        return jsonify({
+                            'success': False,
+                            'message': f'Child bag {child_qr} is already linked to another parent'
+                        })
+                    
+                    new_link = Link(
+                        parent_bag_id=parent_bag.id,
+                        child_bag_id=child_bag.id
+                    )
+                    db.session.add(new_link)
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': f'Child bag {child_qr} not found'
+                    })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Parent bag {parent_qr} children updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error editing parent children: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': 'Error updating parent bag children'
+        }), 500
+
+@app.route('/api/parent-children/<parent_qr>')
+@login_required
+def api_get_parent_children(parent_qr):
+    """Get the list of child QR codes for a parent bag"""
+    try:
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        if not parent_bag:
+            return jsonify({
+                'success': False,
+                'message': 'Parent bag not found'
+            })
+        
+        # Get all linked child bags
+        links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
+        children = []
+        for link in links:
+            child_bag = Bag.query.get(link.child_bag_id)
+            if child_bag:
+                children.append(child_bag.qr_id)
+        
+        return jsonify({
+            'success': True,
+            'children': children,
+            'parent_qr': parent_qr
+        })
+        
+    except Exception as e:
+        app.logger.error(f'Error getting parent children: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': 'Error retrieving parent bag children'
         }), 500
