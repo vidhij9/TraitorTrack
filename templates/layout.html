@@ -26,6 +26,9 @@
     <!-- Text visibility fixes - highest priority -->
     <link href="{{ url_for('static', filename='css/text-visibility.css') }}" rel="stylesheet">
     
+    <!-- Mobile-optimized styles -->
+    <link href="{{ url_for('static', filename='css/mobile-optimized.css') }}" rel="stylesheet">
+    
     <!-- jsQR for QR code scanning -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     
@@ -48,6 +51,7 @@
         .navbar-brand {
             font-weight: 700;
             letter-spacing: 0.5px;
+            font-size: 18px;
         }
         
         .video-container {
