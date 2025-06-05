@@ -69,50 +69,50 @@
     </div>
 
     <!-- Advanced Filters -->
-    <div class="card bg-dark mb-4">
+    <div class="card bg-dark mb-3">
         <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Advanced Filters</h5>
+            <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Filters</h6>
         </div>
         <div class="card-body">
             <form method="GET" action="{{ url_for('bag_management') }}" id="filterForm">
-                <div class="row g-3">
+                <div class="row g-2">
                     <!-- Bag Type Filter -->
-                    <div class="col-md-2">
-                        <label for="type" class="form-label">Bag Type</label>
-                        <select class="form-select" id="type" name="type">
-                            <option value="all" {% if filters.type == 'all' %}selected{% endif %}>All Types</option>
-                            <option value="parent" {% if filters.type == 'parent' %}selected{% endif %}>Parent Bags</option>
-                            <option value="child" {% if filters.type == 'child' %}selected{% endif %}>Child Bags</option>
+                    <div class="col-6 col-md-2">
+                        <label for="type" class="form-label">Type</label>
+                        <select class="form-select form-select-sm" id="type" name="type">
+                            <option value="all" {% if filters.type == 'all' %}selected{% endif %}>All</option>
+                            <option value="parent" {% if filters.type == 'parent' %}selected{% endif %}>Parent</option>
+                            <option value="child" {% if filters.type == 'child' %}selected{% endif %}>Child</option>
                         </select>
                     </div>
 
                     <!-- Date Range Filters -->
-                    <div class="col-md-2">
-                        <label for="date_from" class="form-label">From Date</label>
-                        <input type="date" class="form-control" id="date_from" name="date_from" value="{{ filters.date_from }}">
+                    <div class="col-6 col-md-2">
+                        <label for="date_from" class="form-label">From</label>
+                        <input type="date" class="form-control form-control-sm" id="date_from" name="date_from" value="{{ filters.date_from }}">
                     </div>
                     
-                    <div class="col-md-2">
-                        <label for="date_to" class="form-label">To Date</label>
-                        <input type="date" class="form-control" id="date_to" name="date_to" value="{{ filters.date_to }}">
+                    <div class="col-6 col-md-2">
+                        <label for="date_to" class="form-label">To</label>
+                        <input type="date" class="form-control form-control-sm" id="date_to" name="date_to" value="{{ filters.date_to }}">
                     </div>
 
                     <!-- Linked Status Filter -->
-                    <div class="col-md-2">
-                        <label for="linked_status" class="form-label">Link Status</label>
-                        <select class="form-select" id="linked_status" name="linked_status">
-                            <option value="all" {% if filters.linked_status == 'all' %}selected{% endif %}>All Status</option>
+                    <div class="col-6 col-md-2">
+                        <label for="linked_status" class="form-label">Link</label>
+                        <select class="form-select form-select-sm" id="linked_status" name="linked_status">
+                            <option value="all" {% if filters.linked_status == 'all' %}selected{% endif %}>All</option>
                             <option value="linked" {% if filters.linked_status == 'linked' %}selected{% endif %}>Linked</option>
                             <option value="unlinked" {% if filters.linked_status == 'unlinked' %}selected{% endif %}>Unlinked</option>
-                            <option value="orphaned" {% if filters.linked_status == 'orphaned' %}selected{% endif %}>Orphaned (No Bill)</option>
+                            <option value="orphaned" {% if filters.linked_status == 'orphaned' %}selected{% endif %}>Orphaned</option>
                         </select>
                     </div>
 
                     <!-- Bill Status Filter -->
-                    <div class="col-md-2">
-                        <label for="bill_status" class="form-label">Bill Status</label>
-                        <select class="form-select" id="bill_status" name="bill_status">
-                            <option value="all" {% if filters.bill_status == 'all' %}selected{% endif %}>All Status</option>
+                    <div class="col-6 col-md-2 mobile-hide-sm">
+                        <label for="bill_status" class="form-label">Bill</label>
+                        <select class="form-select form-select-sm" id="bill_status" name="bill_status">
+                            <option value="all" {% if filters.bill_status == 'all' %}selected{% endif %}>All</option>
                             <option value="billed" {% if filters.bill_status == 'billed' %}selected{% endif %}>Has Bill</option>
                             <option value="unbilled" {% if filters.bill_status == 'unbilled' %}selected{% endif %}>No Bill</option>
                         </select>
@@ -171,12 +171,12 @@
                 <table class="table table-dark table-striped table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
-                            <th width="15%">QR Code</th>
-                            <th width="10%">Type</th>
-                            <th width="12%">Registration Date</th>
-                            <th width="15%">Link Status</th>
-                            <th width="15%">Bill Status</th>
-                            <th width="10%">Last Scan</th>
+                            <th width="20%">QR Code</th>
+                            <th width="12%" class="mobile-hide-sm">Type</th>
+                            <th width="15%" class="d-none d-md-table-cell">Date</th>
+                            <th width="18%">Status</th>
+                            <th width="15%" class="mobile-hide-sm">Bill</th>
+                            <th width="12%" class="d-none d-lg-table-cell">Last Scan</th>
                             <th width="8%">Actions</th>
                         </tr>
                     </thead>
@@ -184,27 +184,37 @@
                         {% for bag in bags %}
                         <tr>
                             <td>
-                                <strong>{{ bag.qr_id }}</strong>
-                                {% if bag.notes %}
-                                <br><small class="text-muted">{{ bag.notes[:30] }}{% if bag.notes|length > 30 %}...{% endif %}</small>
-                                {% endif %}
+                                <div class="d-flex flex-column">
+                                    <strong>{{ bag.qr_id }}</strong>
+                                    <small class="d-md-none">
+                                        {% if bag.type == 'parent' %}
+                                            <span class="badge bg-info">Parent</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Child</span>
+                                        {% endif %}
+                                        <span class="text-muted ms-1">{{ bag.created_at.strftime('%m/%d') }}</span>
+                                    </small>
+                                    {% if bag.notes %}
+                                    <small class="text-muted">{{ bag.notes[:20] }}{% if bag.notes|length > 20 %}...{% endif %}</small>
+                                    {% endif %}
+                                </div>
                             </td>
-                            <td>
+                            <td class="mobile-hide-sm">
                                 {% if bag.type == 'parent' %}
                                     <span class="badge bg-info">Parent</span>
                                 {% else %}
                                     <span class="badge bg-success">Child</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <small>{{ bag.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            <td class="d-none d-md-table-cell">
+                                <small>{{ bag.created_at.strftime('%Y-%m-%d') }}</small>
                             </td>
                             <td>
                                 {% if bag.type == 'parent' %}
                                     {% set children_count = bag.child_links.count() %}
                                     {% set has_bill = bag.bill_links.count() > 0 %}
                                     {% if children_count > 0 %}
-                                        <span class="badge bg-success">{{ children_count }} children</span>
+                                        <span class="badge bg-success">{{ children_count }} child{{ 's' if children_count > 1 else '' }}</span>
                                         {% if not has_bill %}
                                             <br><span class="badge bg-warning">Orphaned</span>
                                         {% endif %}
@@ -215,18 +225,17 @@
                                     {% set parent_link = bag.parent_links.first() %}
                                     {% if parent_link %}
                                         <span class="badge bg-success">Linked</span>
-                                        <br><small class="text-muted">to {{ parent_link.parent_bag.qr_id }}</small>
+                                        <br class="d-none d-sm-block"><small class="text-muted d-none d-sm-inline">to {{ parent_link.parent_bag.qr_id }}</small>
                                     {% else %}
                                         <span class="badge bg-danger">Unlinked</span>
                                     {% endif %}
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="mobile-hide-sm">
                                 {% if bag.type == 'parent' %}
                                     {% set bill_link = bag.bill_links.first() %}
                                     {% if bill_link %}
-                                        <span class="badge bg-primary">Bill {{ bill_link.bill.bill_id }}</span>
-                                        <br><small class="text-muted">{{ bill_link.created_at.strftime('%Y-%m-%d') }}</small>
+                                        <span class="badge bg-primary">{{ bill_link.bill.bill_id }}</span>
                                     {% else %}
                                         <span class="badge bg-secondary">No Bill</span>
                                     {% endif %}
@@ -234,32 +243,32 @@
                                     {% set parent_link = bag.parent_links.first() %}
                                     {% if parent_link and parent_link.parent_bag.bill_links.first() %}
                                         {% set parent_bill = parent_link.parent_bag.bill_links.first() %}
-                                        <span class="badge bg-primary">Via {{ parent_bill.bill.bill_id }}</span>
+                                        <span class="badge bg-primary">{{ parent_bill.bill.bill_id }}</span>
                                     {% else %}
                                         <span class="badge bg-secondary">No Bill</span>
                                     {% endif %}
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="d-none d-lg-table-cell">
                                 {% set last_scan = bag.last_scan %}
                                 {% if last_scan %}
-                                    <small>{{ last_scan.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    <small>{{ last_scan.timestamp.strftime('%m/%d %H:%M') }}</small>
                                 {% else %}
                                     <span class="text-muted">No scans</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ url_for('bag_details', qr_id=bag.qr_id) }}" class="btn btn-outline-primary btn-sm" title="View Details">
-                                        <i class="fas fa-eye"></i>
+                                <div class="btn-group btn-group-sm d-flex flex-column flex-sm-row">
+                                    <a href="{{ url_for('bag_details', qr_id=bag.qr_id) }}" class="btn btn-outline-primary btn-sm mb-1 mb-sm-0" title="View">
+                                        <i class="fas fa-eye"></i><span class="d-none d-lg-inline ms-1">View</span>
                                     </a>
                                     {% if bag.type == 'parent' %}
-                                    <a href="{{ url_for('edit_parent_children', parent_qr=bag.qr_id) }}" class="btn btn-outline-warning btn-sm" title="Edit Child List">
-                                        <i class="fas fa-edit"></i>
+                                    <a href="{{ url_for('edit_parent_children', parent_qr=bag.qr_id) }}" class="btn btn-outline-warning btn-sm mb-1 mb-sm-0" title="Edit">
+                                        <i class="fas fa-edit"></i><span class="d-none d-lg-inline ms-1">Edit</span>
                                     </a>
                                     {% endif %}
-                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete Bag">
-                                        <i class="fas fa-trash"></i>
+                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete">
+                                        <i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>
                                     </button>
                                 </div>
                             </td>
