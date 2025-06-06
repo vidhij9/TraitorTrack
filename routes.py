@@ -410,63 +410,6 @@ def seed_sample_data():
     
     return redirect(url_for('analytics'))
 
-@app.route('/export/analytics.csv')
-@login_required
-def export_analytics_csv():
-    """Export analytics data as CSV"""
-    if not current_user.is_admin():
-        flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
-    
-    output = io.StringIO()
-    writer = csv.writer(output)
-    
-    # Write headers
-    writer.writerow(['Date', 'Total Scans', 'Parent Scans', 'Child Scans', 'Active Users'])
-    
-    # Get data for the past 30 days
-    for i in range(30):
-        date = datetime.now().date() - timedelta(days=i)
-        
-        total_scans = Scan.query.filter(func.date(Scan.timestamp) == date).count()
-        parent_scans = Scan.query.filter(
-            func.date(Scan.timestamp) == date,
-            Scan.parent_bag_id.isnot(None)
-        ).count()
-        child_scans = Scan.query.filter(
-            func.date(Scan.timestamp) == date,
-            Scan.child_bag_id.isnot(None)
-        ).count()
-        
-        # Count unique users who scanned on this date
-        active_users = db.session.query(Scan.user_id).filter(
-            func.date(Scan.timestamp) == date
-        ).distinct().count()
-        
-        writer.writerow([date, total_scans, parent_scans, child_scans, active_users])
-    
-    output.seek(0)
-    
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'text/csv'
-    response.headers['Content-Disposition'] = f'attachment; filename=analytics_{datetime.now().strftime("%Y%m%d")}.csv'
-    
-    return response
-
-@app.route('/export/<format>')
-@login_required
-def export_data(format):
-    """Export data in various formats"""
-    if not current_user.is_admin():
-        flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
-    
-    if format == 'csv':
-        return export_analytics_csv()
-    else:
-        flash('Unsupported export format.', 'error')
-        return redirect(url_for('analytics'))
-
 # Core application routes
 
 @app.route('/', methods=['GET'])
