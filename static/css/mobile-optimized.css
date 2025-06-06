@@ -425,50 +425,79 @@ h6, .h6 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
 /* Mobile-specific compact classes */
 @media (max-width: 768px) {
     .container-fluid {
-        padding-left: 4px !important;
-        padding-right: 4px !important;
-    }
-    
-    .row {
-        margin-left: -2px !important;
-        margin-right: -2px !important;
-    }
-    
-    .col, [class*="col-"] {
         padding-left: 2px !important;
         padding-right: 2px !important;
     }
     
+    .row {
+        margin-left: -1px !important;
+        margin-right: -1px !important;
+    }
+    
+    .col, [class*="col-"] {
+        padding-left: 1px !important;
+        padding-right: 1px !important;
+    }
+    
     .mb-4, .my-4 {
-        margin-bottom: 0.5rem !important;
+        margin-bottom: 0.25rem !important;
     }
     
     .mb-3, .my-3 {
-        margin-bottom: 0.25rem !important;
+        margin-bottom: 0.125rem !important;
+    }
+    
+    .mb-2, .my-2 {
+        margin-bottom: 0.125rem !important;
     }
     
     .pb-2 {
-        padding-bottom: 0.25rem !important;
+        padding-bottom: 0.125rem !important;
     }
     
     .border-bottom {
-        margin-bottom: 0.25rem !important;
+        margin-bottom: 0.125rem !important;
     }
     
     .card {
-        margin-bottom: 0.25rem !important;
+        margin-bottom: 0.125rem !important;
     }
     
     .card-body {
-        padding: 0.5rem !important;
+        padding: 0.25rem !important;
     }
     
     .card-header {
-        padding: 0.4rem 0.5rem !important;
+        padding: 0.25rem 0.25rem !important;
+        font-size: 12px !important;
     }
     
     .btn-toolbar {
-        gap: 0.25rem !important;
+        gap: 0.125rem !important;
+    }
+    
+    /* Ultra compact welcome section */
+    .welcome-section {
+        margin-bottom: 0.25rem !important;
+    }
+    
+    .display-4 {
+        font-size: 1.25rem !important;
+        margin-bottom: 0.125rem !important;
+    }
+    
+    .lead {
+        font-size: 0.9rem !important;
+        margin-bottom: 0.125rem !important;
+    }
+    
+    /* Compact dashboard stats */
+    .dashboard-stat .stat-number {
+        font-size: 14px !important;
+    }
+    
+    .dashboard-stat .stat-label {
+        font-size: 9px !important;
     }
 }
 
@@ -494,6 +523,47 @@ h6, .h6 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
     .table th, .table td {
         padding: 0.25rem 0.1rem !important;
         font-size: 11px !important;
+    }
+    
+    /* Ultra compact camera controls */
+    .scanner-controls .btn {
+        min-height: 28px !important;
+        padding: 4px 8px !important;
+        font-size: 10px !important;
+        margin: 0 2px !important;
+        min-width: 60px !important;
+    }
+    
+    .qr-scanner {
+        max-width: 280px !important;
+    }
+    
+    .scan-result {
+        margin-top: 4px !important;
+        padding: 4px !important;
+        font-size: 11px !important;
+    }
+    
+    /* Ultra compact forms */
+    .form-control {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 12px !important;
+    }
+    
+    .form-label {
+        font-size: 11px !important;
+        margin-bottom: 0.25rem !important;
+    }
+    
+    /* Ultra compact navigation */
+    .navbar-brand {
+        font-size: 16px !important;
+        padding: 0.25rem 0 !important;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 12px !important;
     }
 }
 
