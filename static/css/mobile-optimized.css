@@ -55,9 +55,9 @@ h6, .h6 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
 
 /* Mobile Buttons */
 .btn {
-    min-height: var(--mobile-button-height);
-    padding: 8px 12px;
-    font-size: var(--mobile-font-base);
+    min-height: 28px;
+    padding: 6px 10px;
+    font-size: 12px;
     border-radius: var(--mobile-border-radius);
     border: 1px solid transparent;
     display: inline-flex;
@@ -65,18 +65,20 @@ h6, .h6 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
     justify-content: center;
     text-decoration: none;
     transition: all 0.2s ease;
+    line-height: 1.2;
+    font-weight: 500;
 }
 
 .btn-sm {
-    min-height: 32px;
-    padding: 6px 10px;
-    font-size: var(--mobile-font-small);
+    min-height: 24px;
+    padding: 4px 8px;
+    font-size: 11px;
 }
 
 .btn-lg {
-    min-height: 44px;
-    padding: 12px 20px;
-    font-size: var(--mobile-font-large);
+    min-height: 32px;
+    padding: 8px 14px;
+    font-size: 13px;
 }
 
 .btn i {
@@ -527,11 +529,11 @@ h6, .h6 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
     
     /* Ultra compact camera controls */
     .scanner-controls .btn {
-        min-height: 28px !important;
-        padding: 4px 8px !important;
+        min-height: 24px !important;
+        padding: 4px 6px !important;
         font-size: 10px !important;
-        margin: 0 2px !important;
-        min-width: 60px !important;
+        margin: 1px !important;
+        min-width: 50px !important;
     }
     
     .qr-scanner {
@@ -599,6 +601,98 @@ h6, .h6 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
     .mobile-timeline-item {
         background: #343a40;
         color: #fff;
+    }
+}
+
+/* Specific button optimizations for mobile */
+@media (max-width: 768px) {
+    /* Compact action buttons */
+    .btn-primary,
+    .btn-success,
+    .btn-info,
+    .btn-warning,
+    .btn-danger {
+        min-height: 28px !important;
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+        line-height: 1.2 !important;
+    }
+    
+    /* Specific overrides for common large buttons */
+    .btn:contains("CREATE NEW BILL"),
+    .btn:contains("ADD NEW USER"),
+    .btn:contains("SEARCH"),
+    .btn:contains("START CAMERA"),
+    .btn:contains("STOP CAMERA"),
+    .card-header .btn,
+    .d-grid .btn {
+        min-height: 26px !important;
+        padding: 5px 8px !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Camera control specific styling */
+    .scanner-controls {
+        gap: 4px !important;
+        margin: 4px 0 !important;
+    }
+    
+    /* Form controls compact */
+    .input-group .btn {
+        min-height: 26px !important;
+        padding: 5px 8px !important;
+        font-size: 11px !important;
+    }
+    
+    /* Dropdown compact */
+    .dropdown-toggle {
+        min-height: 26px !important;
+        padding: 5px 8px !important;
+        font-size: 11px !important;
+    }
+    
+    /* Grid button layout optimization */
+    .d-grid {
+        gap: 4px !important;
+    }
+    
+    .btn-group .btn {
+        padding: 4px 6px !important;
+        font-size: 10px !important;
+        min-height: 24px !important;
+    }
+}
+
+/* Additional compact spacing for very small screens */
+@media (max-width: 576px) {
+    /* Even more compact buttons */
+    .btn {
+        min-height: 24px !important;
+        padding: 4px 6px !important;
+        font-size: 10px !important;
+        margin: 1px !important;
+    }
+    
+    .btn-lg {
+        min-height: 26px !important;
+        padding: 5px 8px !important;
+        font-size: 11px !important;
+    }
+    
+    /* Search and action buttons */
+    .btn-block,
+    .w-100.btn {
+        margin-bottom: 2px !important;
+    }
+    
+    /* Camera buttons specific */
+    .video-container + .btn,
+    .scanner-controls .btn {
+        min-height: 22px !important;
+        padding: 3px 5px !important;
+        font-size: 9px !important;
+        border-radius: 3px !important;
     }
 }
 
