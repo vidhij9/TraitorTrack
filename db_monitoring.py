@@ -1,5 +1,5 @@
 """
-Database monitoring and health check module for TraceTrack.
+Database monitoring and health check module for traitor track.
 Provides routes and tools for monitoring database performance and health.
 """
 import logging

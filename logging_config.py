@@ -1,5 +1,5 @@
 """
-Logging configuration for the TraceTrack application.
+Logging configuration for the traitor track application.
 Optimized for high-traffic environments.
 """
 import os

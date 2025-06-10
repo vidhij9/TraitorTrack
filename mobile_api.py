@@ -1,5 +1,5 @@
 """
-Mobile API endpoints for TraceTrack.
+Mobile API endpoints for traitor track.
 Provides lightweight, efficient API for mobile application integration.
 """
 
