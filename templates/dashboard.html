@@ -38,20 +38,6 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-data">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
-
-        </div>
-        <div class="dropdown">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                <i class="fas fa-calendar"></i> Time Period
-            </button>
-            <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="#" data-period="day">Today</a></li>
-                <li><a class="dropdown-item" href="#" data-period="week">This Week</a></li>
-                <li><a class="dropdown-item" href="#" data-period="month">This Month</a></li>
-                <li><a class="dropdown-item" href="#" data-period="year">This Year</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="#" data-period="all">All Time</a></li>
-            </ul>
         </div>
     </div>
 </div>
@@ -121,69 +107,6 @@
                 <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
                     <i class="fas fa-search me-2"></i>Lookup Child Bag
                 </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Analytics Section -->
-<div class="card bg-dark mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Analytics</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span>Scanning Efficiency</span>
-                    <span class="badge bg-success">92%</span>
-                </div>
-                <div class="progress mt-2">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: 92%"></div>
-                </div>
-            </div>
-            <div class="col-md-6 mb-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span>Data Completeness</span>
-                    <span class="badge bg-info">87%</span>
-                </div>
-                <div class="progress mt-2">
-                    <div class="progress-bar bg-info" role="progressbar" style="width: 87%"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-4">
-    <!-- Scan Activity Chart -->
-    <div class="col-md-12 mb-4">
-        <!-- Scan activity chart removed -->
-    </div>
-</div>
-
-<div class="row mb-4">
-    <!-- Activity Overview -->
-    <div class="col-md-12 mb-4">
-        <div class="card bg-dark">
-            <div class="card-header">
-                <h5 class="mb-0">System Activity Overview</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4 text-center">
-                        <h3 class="text-primary">Active</h3>
-                        <p class="text-muted">System Status</p>
-                    </div>
-                    <div class="col-md-4 text-center">
-                        <h3 class="text-success">24/7</h3>
-                        <p class="text-muted">Monitoring</p>
-                    </div>
-                    <div class="col-md-4 text-center">
-                        <h3 class="text-info">Real-time</h3>
-                        <p class="text-muted">Data Processing</p>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
