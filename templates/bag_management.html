@@ -16,64 +16,48 @@
         </div>
     </div>
 
-    <!-- Statistics Overview -->
-    <div class="row mb-3">
-        <div class="col-6 col-md-2">
-            <div class="card bg-dark text-center dashboard-stat">
-                <div class="card-body p-2">
-                    <div class="stat-number">{{ stats.total_bags }}</div>
-                    <div class="stat-label">Total Bags</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2">
-            <div class="card bg-dark text-center dashboard-stat">
-                <div class="card-body p-2">
-                    <div class="stat-number text-info">{{ stats.parent_bags }}</div>
-                    <div class="stat-label">Parent</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2">
-            <div class="card bg-dark text-center dashboard-stat">
-                <div class="card-body p-2">
-                    <div class="stat-number text-success">{{ stats.child_bags }}</div>
-                    <div class="stat-label">Child</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2">
-            <div class="card bg-dark text-center dashboard-stat">
-                <div class="card-body p-2">
-                    <div class="stat-number text-primary">{{ stats.linked_bags }}</div>
-                    <div class="stat-label">Linked</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2">
-            <div class="card bg-dark text-center dashboard-stat">
-                <div class="card-body p-2">
-                    <div class="stat-number text-warning">{{ stats.unlinked_bags }}</div>
-                    <div class="stat-label">Unlinked</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2 mobile-hide-sm">
-            <div class="card bg-dark text-center dashboard-stat">
-                <div class="card-body p-2">
-                    <div class="stat-number text-danger">{{ stats.orphaned_bags }}</div>
-                    <div class="stat-label">Orphaned</div>
+    <!-- Compact Statistics Overview -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="card bg-dark">
+                <div class="card-body p-1">
+                    <div class="row g-0 text-center">
+                        <div class="col">
+                            <div class="stat-number-sm">{{ stats.total_bags }}</div>
+                            <div class="stat-label-sm">Total</div>
+                        </div>
+                        <div class="col">
+                            <div class="stat-number-sm text-info">{{ stats.parent_bags }}</div>
+                            <div class="stat-label-sm">Parent</div>
+                        </div>
+                        <div class="col">
+                            <div class="stat-number-sm text-success">{{ stats.child_bags }}</div>
+                            <div class="stat-label-sm">Child</div>
+                        </div>
+                        <div class="col d-none d-sm-block">
+                            <div class="stat-number-sm text-primary">{{ stats.linked_bags|default(0) }}</div>
+                            <div class="stat-label-sm">Linked</div>
+                        </div>
+                        <div class="col d-none d-sm-block">
+                            <div class="stat-number-sm text-warning">{{ stats.unlinked_bags|default(0) }}</div>
+                            <div class="stat-label-sm">Unlinked</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Advanced Filters -->
-    <div class="card bg-dark mb-3">
-        <div class="card-header">
-            <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Filters</h6>
+    <!-- Compact Collapsible Filters -->
+    <div class="card bg-dark mb-2">
+        <div class="card-header p-2" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" style="cursor: pointer;">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 small"><i class="fas fa-filter me-2"></i>Filters</h6>
+                <i class="fas fa-chevron-down"></i>
+            </div>
         </div>
-        <div class="card-body">
+        <div class="collapse" id="filtersCollapse">
+            <div class="card-body p-2">
             <form method="GET" action="{{ url_for('bag_management') }}" id="filterForm">
                 <div class="row g-2">
                     <!-- Bag Type Filter -->

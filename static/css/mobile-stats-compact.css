@@ -1,0 +1,77 @@
+/* Mobile Statistics Compact Layout */
+.stat-number-sm {
+    font-size: 1.2rem;
+    font-weight: bold;
+    line-height: 1.1;
+    margin-bottom: 0;
+}
+
+.stat-label-sm {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    opacity: 0.8;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+/* Mobile-specific overrides */
+@media (max-width: 576px) {
+    .stat-number-sm {
+        font-size: 1rem;
+    }
+    
+    .stat-label-sm {
+        font-size: 0.6rem;
+    }
+    
+    /* Make statistics even more compact on mobile */
+    .card-body.p-1 {
+        padding: 0.25rem !important;
+    }
+    
+    /* Hide some columns on very small screens */
+    .mobile-hide-xs {
+        display: none !important;
+    }
+}
+
+/* Ultra-compact filters for mobile */
+@media (max-width: 768px) {
+    .card-header h6 {
+        font-size: 0.8rem;
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        font-size: 0.7rem;
+        margin-bottom: 0.2rem;
+    }
+    
+    .form-select-sm, .form-control-sm {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        height: auto;
+    }
+    
+    /* Reduce card padding */
+    .card-body {
+        padding: 0.5rem;
+    }
+    
+    /* Compact button spacing */
+    .btn-sm {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.7rem;
+    }
+}
+
+/* Responsive statistics layout */
+@media (min-width: 577px) and (max-width: 767px) {
+    .stat-number-sm {
+        font-size: 1.1rem;
+    }
+    
+    .stat-label-sm {
+        font-size: 0.65rem;
+    }
+}
