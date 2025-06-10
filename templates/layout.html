@@ -32,6 +32,9 @@
     <!-- Mobile statistics compact layout -->
     <link href="{{ url_for('static', filename='css/mobile-stats-compact.css') }}" rel="stylesheet">
     
+    <!-- Text clarity fixes -->
+    <link href="{{ url_for('static', filename='css/text-clarity-fix.css') }}" rel="stylesheet">
+    
     <!-- Mobile button fixes - highest priority for mobile -->
     <link href="{{ url_for('static', filename='css/mobile-button-fixes.css') }}" rel="stylesheet">
     
@@ -278,7 +281,7 @@
                                             {% endif %}
                                         </span>
                                     </div>
-                                    <span class="d-none d-md-inline">
+                                    <span class="d-inline">
                                         {% if current_user.is_authenticated %}
                                             {{ current_user.username or 'User' }}
                                         {% else %}

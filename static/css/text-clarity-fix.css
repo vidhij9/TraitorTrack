@@ -1,0 +1,85 @@
+/* Text clarity fixes - remove shadows and blur */
+* {
+    text-shadow: none !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Clear text for navigation and UI elements */
+.nav-link, .navbar-nav .nav-link {
+    text-shadow: none !important;
+    font-weight: 500;
+    color: #333 !important;
+}
+
+/* Clear text for buttons */
+.btn {
+    text-shadow: none !important;
+    font-weight: 500;
+}
+
+/* Clear text for cards and content */
+.card-body, .card-header {
+    text-shadow: none !important;
+}
+
+/* Clear text for statistics */
+.stat-number, .stat-number-sm {
+    text-shadow: none !important;
+    font-weight: 600;
+}
+
+.stat-label, .stat-label-sm {
+    text-shadow: none !important;
+    font-weight: 400;
+}
+
+/* Clear text for tables */
+.table th, .table td {
+    text-shadow: none !important;
+}
+
+/* Clear text for forms */
+.form-label, .form-control, .form-select {
+    text-shadow: none !important;
+}
+
+/* Clear text for badges */
+.badge {
+    text-shadow: none !important;
+    font-weight: 500;
+}
+
+/* Remove any CSS filters that might cause blur */
+.blur-remove {
+    filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* Mobile specific text clarity */
+@media (max-width: 768px) {
+    body, .container-fluid {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* Ensure mobile text is crisp */
+    .mobile-text-clear {
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "liga", "kern";
+    }
+    
+    /* Profile name visibility on mobile */
+    .navbar-nav .nav-link span {
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-left: 0.25rem;
+    }
+    
+    /* Navigation text clarity */
+    .navbar-nav .nav-link {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #495057 !important;
+    }
+}
