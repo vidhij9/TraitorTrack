@@ -1,5 +1,5 @@
 """
-API endpoints for TraceTrack.
+API endpoints for traitor track.
 Provides a set of REST API endpoints for accessing data and system diagnostics.
 """
 

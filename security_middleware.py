@@ -1,5 +1,5 @@
 """
-Security middleware for the TraceTrack application.
+Security middleware for the traitor track application.
 Provides protection against common attacks and security monitoring.
 """
 import re

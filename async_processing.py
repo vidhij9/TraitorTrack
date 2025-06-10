@@ -1,5 +1,5 @@
 """
-Asynchronous processing module for TraceTrack application.
+Asynchronous processing module for traitor track application.
 Implements background processing for better responsiveness.
 """
 

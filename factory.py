@@ -1,5 +1,5 @@
 """
-Application factory module for TraceTrack.
+Application factory module for traitor track.
 Improves code organization, testability, and allows for multiple app instances.
 """
 import os

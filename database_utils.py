@@ -1,5 +1,5 @@
 """
-Database utility functions for TraceTrack.
+Database utility functions for traitor track.
 Providing connection pooling optimizations and database health checks.
 """
 import logging
