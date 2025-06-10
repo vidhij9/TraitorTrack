@@ -102,17 +102,6 @@
                         </select>
                     </div>
 
-                    <!-- Location Filter -->
-                    <div class="col-md-2">
-                        <label for="location" class="form-label">Location</label>
-                        <select class="form-select" id="location" name="location">
-                            <option value="all" {% if filters.location == 'all' %}selected{% endif %}>All Locations</option>
-                            {% for loc in locations %}
-                            <option value="{{ loc }}" {% if filters.location == loc %}selected{% endif %}>{{ loc }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
                     <!-- Search Filter -->
                     <div class="col-md-6">
                         <label for="search" class="form-label">Search QR Code</label>

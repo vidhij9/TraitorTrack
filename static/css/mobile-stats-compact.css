@@ -35,11 +35,18 @@
     }
 }
 
+/* Filter header visibility fix */
+.card-header h6 {
+    color: #ffffff !important;
+    font-weight: 500;
+}
+
 /* Ultra-compact filters for mobile */
 @media (max-width: 768px) {
     .card-header h6 {
         font-size: 0.8rem;
         margin-bottom: 0;
+        color: #ffffff !important;
     }
     
     .form-label {
