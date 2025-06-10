@@ -236,11 +236,96 @@
     h3, .h3 { font-size: 12px !important; }
     h4, .h4 { font-size: 11px !important; }
     h5, .h5 { font-size: 10px !important; }
+    h6, .h6 { font-size: 9px !important; }
     
     /* Table compact */
     .table th,
     .table td {
         padding: 2px 3px !important;
         font-size: 9px !important;
+    }
+}
+
+/* Mobile action button styles */
+@media (max-width: 768px) {
+    .mobile-action-btn {
+        min-height: 24px !important;
+        padding: 4px 2px !important;
+        font-size: 9px !important;
+        line-height: 1.1 !important;
+        border-radius: 3px !important;
+        flex-direction: column !important;
+        gap: 1px !important;
+    }
+    
+    .mobile-action-btn i {
+        font-size: 12px !important;
+        margin: 0 !important;
+    }
+    
+    .mobile-btn-text {
+        font-size: 8px !important;
+        font-weight: 600 !important;
+        line-height: 1 !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .mobile-action-btn {
+        min-height: 22px !important;
+        padding: 3px 1px !important;
+        font-size: 8px !important;
+    }
+    
+    .mobile-action-btn i {
+        font-size: 10px !important;
+    }
+    
+    .mobile-btn-text {
+        font-size: 7px !important;
+    }
+}
+
+/* Specific button class optimizations */
+@media (max-width: 768px) {
+    .mobile-create-btn {
+        min-height: 24px !important;
+        padding: 4px 6px !important;
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+        font-weight: 500 !important;
+    }
+    
+    .mobile-search-btn {
+        min-height: 24px !important;
+        padding: 4px 6px !important;
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .mobile-create-btn,
+    .mobile-search-btn,
+    .mobile-camera-btn {
+        min-height: 22px !important;
+        padding: 3px 5px !important;
+        font-size: 9px !important;
+    }
+}
+
+/* Camera button specific styling */
+@media (max-width: 768px) {
+    .mobile-camera-btn {
+        min-height: 24px !important;
+        padding: 4px 6px !important;
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+        font-weight: 500 !important;
+    }
+    
+    .mobile-camera-btn i {
+        font-size: 10px !important;
+        margin-right: 2px !important;
     }
 }

@@ -12,8 +12,8 @@
                         <h2 class="card-title mb-0">
                             <i class="fas fa-file-invoice me-2"></i>Bill Management
                         </h2>
-                        <a href="{{ url_for('create_bill') }}" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Create New Bill
+                        <a href="{{ url_for('create_bill') }}" class="btn btn-primary mobile-create-btn">
+                            <i class="fas fa-plus me-1"></i>Create Bill
                         </a>
                     </div>
                 </div>
@@ -52,8 +52,8 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="d-flex gap-2">
-                                    <button type="submit" class="btn btn-primary flex-fill">
-                                        <i class="fas fa-search me-2"></i>Search
+                                    <button type="submit" class="btn btn-primary flex-fill mobile-search-btn">
+                                        <i class="fas fa-search me-1"></i>Search
                                     </button>
                                     {% if request.args.get('search_bill_id') or request.args.get('status_filter', 'all') != 'all' %}
                                     <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary">
