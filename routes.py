@@ -1,5 +1,5 @@
 """
-Routes for TraceTrack application - Location functionality completely removed
+Routes for traitor track application - Location functionality completely removed
 """
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response
 # Session-based authentication - no longer using Flask-Login

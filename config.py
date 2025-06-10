@@ -1,5 +1,5 @@
 """
-Configuration module for TraceTrack application.
+Configuration module for traitor track application.
 Centralizes all configuration settings with environment variable support.
 """
 import os
