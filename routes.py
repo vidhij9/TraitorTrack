@@ -483,25 +483,31 @@ def register():
             username = sanitize_input(form.username.data)
             email = sanitize_input(form.email.data).lower()
             
+            app.logger.info(f'Attempting to register user: {username}, {email}')
+            
             # Create new user
-            user = User(
-                username=username,
-                email=email,
-                role=UserRole.EMPLOYEE.value,
-                verified=True
-            )
+            user = User()
+            user.username = username
+            user.email = email
+            user.role = UserRole.EMPLOYEE.value
+            user.verified = True
             user.set_password(form.password.data)
+            
+            app.logger.info(f'User object created, adding to session')
             
             db.session.add(user)
             db.session.commit()
             
+            app.logger.info(f'User registered successfully: {username}')
             flash('Registration successful! You can now log in.', 'success')
             return redirect(url_for('login'))
             
         except Exception as e:
             db.session.rollback()
-            flash('Registration failed. Please try again.', 'error')
-            app.logger.error(f'Registration error: {str(e)}')
+            error_msg = f'Registration error: {str(e)}'
+            app.logger.error(error_msg)
+            flash(f'Registration failed: {str(e)}', 'error')
+            print(f"Registration error: {e}")  # Additional debugging
     
     return render_template('register.html', form=form)
 
