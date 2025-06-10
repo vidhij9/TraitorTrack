@@ -1,0 +1,149 @@
+{% extends "layout.html" %}
+
+{% block title %}Admin Promotions - Traitor Track{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-user-shield me-2"></i>Admin Promotion Management</h2>
+                <a href="{{ url_for('admin_promote_user') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Promote User Directly
+                </a>
+            </div>
+
+            <!-- Pending Requests -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Pending Promotion Requests
+                        <span class="badge bg-light text-dark ms-2">{{ pending_requests|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_requests %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Requested</th>
+                                        <th>Reason</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for request in pending_requests %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ request.requested_by.username }}</strong>
+                                        </td>
+                                        <td>{{ request.requested_by.email }}</td>
+                                        <td>{{ request.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 300px;">
+                                                {{ request.reason }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('process_promotion_request', request_id=request.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye me-1"></i>Review
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h5>No pending promotion requests</h5>
+                            <p class="text-muted">All promotion requests have been processed.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- All Requests -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Promotion Requests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if all_requests %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Status</th>
+                                        <th>Requested</th>
+                                        <th>Processed</th>
+                                        <th>Processed By</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for request in all_requests %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ request.requested_by.username }}</strong>
+                                        </td>
+                                        <td>
+                                            {% if request.status == 'pending' %}
+                                                <span class="badge bg-warning">Pending</span>
+                                            {% elif request.status == 'approved' %}
+                                                <span class="badge bg-success">Approved</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ request.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>
+                                            {% if request.processed_at %}
+                                                {{ request.processed_at.strftime('%Y-%m-%d %H:%M') }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if request.processed_by %}
+                                                {{ request.processed_by.username }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if request.status == 'pending' %}
+                                                <a href="{{ url_for('process_promotion_request', request_id=request.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i>Review
+                                                </a>
+                                            {% else %}
+                                                <span class="text-muted">Processed</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5>No promotion requests</h5>
+                            <p class="text-muted">No promotion requests have been submitted yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

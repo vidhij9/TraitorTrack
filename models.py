@@ -12,6 +12,11 @@ class BagType(enum.Enum):
     PARENT = "parent"
     CHILD = "child"
 
+class PromotionRequestStatus(enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
 class User(UserMixin, db.Model):
     """User model for authentication and tracking"""
     id = db.Column(db.Integer, primary_key=True)
@@ -176,3 +181,19 @@ class Scan(db.Model):
     
     def __repr__(self):
         return f"<Scan ID:{self.id} at {self.timestamp}>"
+
+class PromotionRequest(db.Model):
+    """Model for handling admin promotion requests"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    requested_by = db.relationship('User', foreign_keys=[user_id], backref='promotion_requests')
+    reason = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default=PromotionRequestStatus.PENDING.value)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    processed_by = db.relationship('User', foreign_keys=[admin_id])
+    admin_notes = db.Column(db.Text, nullable=True)
+    requested_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    processed_at = db.Column(db.DateTime, nullable=True)
+    
+    def __repr__(self):
+        return f"<PromotionRequest {self.id}: {self.requested_by.username} - {self.status}>"

@@ -71,8 +71,8 @@ from sqlalchemy import desc, func, and_, or_
 from datetime import datetime, timedelta
 
 from app_clean import app, db, limiter
-from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag
-from forms import LoginForm, RegistrationForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromoteToAdminForm, BillCreationForm
+from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus
+from forms import LoginForm, RegistrationForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
@@ -530,42 +530,154 @@ def register():
     
     return render_template('register.html', form=form)
 
-@app.route('/promote_admin', methods=['GET', 'POST'])
+@app.route('/request_promotion', methods=['GET', 'POST'])
 @login_required
-def promote_admin():
-    """Promote current user to admin with secret code"""
-    form = PromoteToAdminForm()
+def request_promotion():
+    """Employee can request admin promotion"""
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Authentication error.', 'error')
+        return redirect(url_for('login'))
+    
+    user = User.query.get(user_id)
+    if user.is_admin():
+        flash('You are already an admin.', 'info')
+        return redirect(url_for('index'))
+    
+    # Check if user already has a pending request
+    existing_request = PromotionRequest.query.filter_by(
+        user_id=user_id, 
+        status=PromotionRequestStatus.PENDING.value
+    ).first()
+    
+    if existing_request:
+        flash('You already have a pending promotion request.', 'warning')
+        return render_template('promotion_status.html', request=existing_request)
+    
+    form = PromotionRequestForm()
     
     if form.validate_on_submit():
-        secret_code = form.secret_code.data
-        # Simple secret code for demo (in production, use environment variable)
-        if secret_code == "admin123":
-            try:
-                user_id = session.get('user_id')
-                if user_id:
-                    user = User.query.get(user_id)
-                    if user:
-                        user.role = UserRole.ADMIN.value
-                        db.session.commit()
-                        
-                        # Update session with new role
-                        session['user_role'] = UserRole.ADMIN.value
-                        
-                        app.logger.info(f'User {user.username} promoted to admin')
-                        flash('Successfully promoted to admin!', 'success')
-                        return redirect(url_for('index'))
-                    else:
-                        flash('User not found.', 'error')
-                else:
-                    flash('Authentication error.', 'error')
-            except Exception as e:
-                db.session.rollback()
-                app.logger.error(f'Admin promotion error: {str(e)}')
-                flash('Promotion failed. Please try again.', 'error')
-        else:
-            flash('Invalid secret code.', 'error')
+        try:
+            promotion_request = PromotionRequest(
+                user_id=user_id,
+                reason=form.reason.data
+            )
+            db.session.add(promotion_request)
+            db.session.commit()
+            
+            app.logger.info(f'Promotion request created by {user.username}')
+            flash('Your promotion request has been submitted for admin review.', 'success')
+            return redirect(url_for('index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Promotion request error: {str(e)}')
+            flash('Failed to submit promotion request. Please try again.', 'error')
     
-    return render_template('promote_admin.html', form=form)
+    return render_template('request_promotion.html', form=form)
+
+@app.route('/admin/promotions')
+@login_required
+def admin_promotions():
+    """Admin view of all promotion requests"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    pending_requests = PromotionRequest.query.filter_by(
+        status=PromotionRequestStatus.PENDING.value
+    ).order_by(PromotionRequest.requested_at.desc()).all()
+    
+    all_requests = PromotionRequest.query.order_by(
+        PromotionRequest.requested_at.desc()
+    ).limit(50).all()
+    
+    return render_template('admin_promotions.html', 
+                         pending_requests=pending_requests, 
+                         all_requests=all_requests)
+
+@app.route('/admin/promote_user', methods=['GET', 'POST'])
+@login_required
+def admin_promote_user():
+    """Admin can directly promote users"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    form = AdminPromotionForm()
+    
+    # Populate user choices (only employees)
+    employees = User.query.filter_by(role=UserRole.EMPLOYEE.value).all()
+    form.user_id.choices = [(u.id, f"{u.username} ({u.email})") for u in employees]
+    
+    if form.validate_on_submit():
+        try:
+            user_to_promote = User.query.get(form.user_id.data)
+            if user_to_promote:
+                user_to_promote.role = UserRole.ADMIN.value
+                db.session.commit()
+                
+                app.logger.info(f'User {user_to_promote.username} promoted to admin by {current_user.username}')
+                flash(f'Successfully promoted {user_to_promote.username} to admin!', 'success')
+                return redirect(url_for('user_management'))
+            else:
+                flash('User not found.', 'error')
+                
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Admin promotion error: {str(e)}')
+            flash('Promotion failed. Please try again.', 'error')
+    
+    return render_template('admin_promote_user.html', form=form)
+
+@app.route('/admin/promotion_request/<int:request_id>', methods=['GET', 'POST'])
+@login_required
+def process_promotion_request(request_id):
+    """Admin can approve or reject promotion requests"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    promotion_request = PromotionRequest.query.get_or_404(request_id)
+    
+    if promotion_request.status != PromotionRequestStatus.PENDING.value:
+        flash('This request has already been processed.', 'warning')
+        return redirect(url_for('admin_promotions'))
+    
+    form = PromotionRequestActionForm()
+    
+    if form.validate_on_submit():
+        try:
+            admin_id = session.get('user_id')
+            promotion_request.admin_id = admin_id
+            promotion_request.admin_notes = form.admin_notes.data
+            promotion_request.processed_at = datetime.utcnow()
+            
+            if form.action.data == 'approve':
+                promotion_request.status = PromotionRequestStatus.APPROVED.value
+                # Promote the user
+                user_to_promote = promotion_request.requested_by
+                user_to_promote.role = UserRole.ADMIN.value
+                
+                app.logger.info(f'Promotion request approved for {user_to_promote.username} by {current_user.username}')
+                flash(f'Promotion request approved! {user_to_promote.username} is now an admin.', 'success')
+            else:
+                promotion_request.status = PromotionRequestStatus.REJECTED.value
+                
+                app.logger.info(f'Promotion request rejected for {promotion_request.requested_by.username} by {current_user.username}')
+                flash('Promotion request rejected.', 'info')
+            
+            db.session.commit()
+            return redirect(url_for('admin_promotions'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Process promotion request error: {str(e)}')
+            flash('Failed to process request. Please try again.', 'error')
+    
+    return render_template('process_promotion_request.html', 
+                         form=form, 
+                         promotion_request=promotion_request)
 
 # Scanning workflow routes (simplified without location selection)
 

@@ -44,13 +44,29 @@ class RegistrationForm(FlaskForm):
         if user:
             raise ValidationError('Email is already registered. Please use a different one or login.')
 
-class PromoteToAdminForm(FlaskForm):
-    """Form for promoting user to admin with secret code."""
-    secret_code = PasswordField('Secret Code', validators=[
+class PromotionRequestForm(FlaskForm):
+    """Form for employees to request admin promotion."""
+    reason = TextAreaField('Reason for Promotion Request', validators=[
         DataRequired(),
-        Length(min=1, message="Secret code is required.")
+        Length(min=50, max=500, message="Reason must be between 50 and 500 characters.")
+    ])
+    submit = SubmitField('Submit Promotion Request')
+
+class AdminPromotionForm(FlaskForm):
+    """Form for admins to promote users directly."""
+    user_id = SelectField('User to Promote', coerce=int, validators=[DataRequired()])
+    notes = TextAreaField('Admin Notes', validators=[
+        Length(max=300, message="Notes must be 300 characters or less.")
     ])
     submit = SubmitField('Promote to Admin')
+
+class PromotionRequestActionForm(FlaskForm):
+    """Form for admins to approve/reject promotion requests."""
+    action = SelectField('Action', choices=[('approve', 'Approve'), ('reject', 'Reject')], validators=[DataRequired()])
+    admin_notes = TextAreaField('Admin Notes', validators=[
+        Length(max=300, message="Notes must be 300 characters or less.")
+    ])
+    submit = SubmitField('Process Request')
 
 class ScanParentForm(FlaskForm):
     """Form for parent bag scanning."""
