@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block title %}Promotion Request Status - Traitor Track{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Promotion Request Status
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-clock me-2"></i>
+                        <strong>Request Pending</strong><br>
+                        You already have a pending promotion request. Only one request per user is allowed at a time.
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Your Request Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Status:</strong> 
+                                    <span class="badge bg-warning">{{ request.status.title() }}</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Submitted:</strong> {{ request.requested_at.strftime('%Y-%m-%d %H:%M') }}
+                                </div>
+                            </div>
+                            <hr>
+                            <div>
+                                <strong>Your Reason:</strong>
+                                <div class="mt-2 p-3 border rounded bg-light">
+                                    {{ request.reason }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <p class="text-muted">
+                            Your request is being reviewed by administrators. You will be notified once a decision is made.
+                        </p>
+                        <a href="{{ url_for('index') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

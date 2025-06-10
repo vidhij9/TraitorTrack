@@ -48,7 +48,7 @@ class PromotionRequestForm(FlaskForm):
     """Form for employees to request admin promotion."""
     reason = TextAreaField('Reason for Promotion Request', validators=[
         DataRequired(),
-        Length(min=50, max=500, message="Reason must be between 50 and 500 characters.")
+        Length(min=10, max=500, message="Reason must be between 10 and 500 characters.")
     ])
     submit = SubmitField('Submit Promotion Request')
 

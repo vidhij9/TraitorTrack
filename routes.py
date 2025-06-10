@@ -540,6 +540,10 @@ def request_promotion():
         return redirect(url_for('login'))
     
     user = User.query.get(user_id)
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('login'))
+    
     if user.is_admin():
         flash('You are already an admin.', 'info')
         return redirect(url_for('index'))
@@ -558,10 +562,9 @@ def request_promotion():
     
     if form.validate_on_submit():
         try:
-            promotion_request = PromotionRequest(
-                user_id=user_id,
-                reason=form.reason.data
-            )
+            promotion_request = PromotionRequest()
+            promotion_request.user_id = user_id
+            promotion_request.reason = form.reason.data
             db.session.add(promotion_request)
             db.session.commit()
             
