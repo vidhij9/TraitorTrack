@@ -478,12 +478,29 @@ def register():
     
     form = RegistrationForm()
     
+    app.logger.info(f'Registration form validation: {form.validate_on_submit()}')
+    if form.errors:
+        app.logger.info(f'Form errors: {form.errors}')
+    
     if form.validate_on_submit():
         try:
             username = sanitize_input(form.username.data)
             email = sanitize_input(form.email.data).lower()
             
             app.logger.info(f'Attempting to register user: {username}, {email}')
+            
+            # Check if user already exists
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                app.logger.error(f'User {username} already exists')
+                flash('Username already exists. Please choose a different one.', 'error')
+                return render_template('register.html', form=form)
+                
+            existing_email = User.query.filter_by(email=email).first()
+            if existing_email:
+                app.logger.error(f'Email {email} already exists')
+                flash('Email already registered. Please use a different email.', 'error')
+                return render_template('register.html', form=form)
             
             # Create new user
             user = User()
@@ -508,6 +525,8 @@ def register():
             app.logger.error(error_msg)
             flash(f'Registration failed: {str(e)}', 'error')
             print(f"Registration error: {e}")  # Additional debugging
+    else:
+        app.logger.info('Form validation failed, rendering form again')
     
     return render_template('register.html', form=form)
 
