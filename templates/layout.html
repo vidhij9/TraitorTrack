@@ -234,6 +234,14 @@
                             </li>
                         {% endif %}
                         
+                        {% if session.user_role != 'admin' %}
+                            <li class="nav-item">
+                                <a class="nav-link text-warning" href="{{ url_for('promote_admin') }}">
+                                    <i class="fas fa-user-shield"></i> Become Admin
+                                </a>
+                            </li>
+                        {% endif %}
+                        
                         <li class="nav-item">
                             <a class="nav-link text-danger" href="{{ url_for('logout') }}">
                                 <i class="fas fa-sign-out-alt"></i> Logout
@@ -399,6 +407,18 @@
             dropdownElementList.map(function (dropdownToggleEl) {
                 return new bootstrap.Dropdown(dropdownToggleEl)
             });
+            
+            // Ensure profile dropdown works
+            const profileDropdown = document.getElementById('profileDropdown');
+            if (profileDropdown) {
+                profileDropdown.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const dropdownMenu = this.nextElementSibling;
+                    if (dropdownMenu) {
+                        dropdownMenu.classList.toggle('show');
+                    }
+                });
+            }
             
             // Auto-dismiss alerts after 5 seconds
             setTimeout(function() {

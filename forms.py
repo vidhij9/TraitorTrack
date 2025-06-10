@@ -85,8 +85,3 @@ class ChildLookupForm(FlaskForm):
     qr_id = StringField('Child Bag QR Code', validators=[DataRequired()])
     submit = SubmitField('Lookup')
 
-class PromoteToAdminForm(FlaskForm):
-    """Form for admin promotion."""
-    secret_code = PasswordField('Secret Code', validators=[DataRequired()])
-    submit = SubmitField('Promote to Admin')
-
