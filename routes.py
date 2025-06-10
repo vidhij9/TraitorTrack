@@ -375,10 +375,29 @@ def index():
 
 @app.route('/logout')
 def logout():
-    """User logout"""
+    """User logout with proper cache control"""
+    from working_auth import logout_user_working
+    
+    # Clear working auth session
+    logout_user_working()
+    
+    # Clear Flask session
     session.clear()
+    
+    # Create response with cache control headers
+    response = make_response(redirect(url_for('login')))
+    
+    # Prevent caching of this response
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    # Clear any auth cookies
+    response.set_cookie('auth_session', '', expires=0, path='/')
+    response.set_cookie('session', '', expires=0, path='/')
+    
     flash('You have been logged out successfully.', 'success')
-    return redirect(url_for('login'))
+    return response
 
 @app.route('/fix-admin-password')
 def fix_admin_password():

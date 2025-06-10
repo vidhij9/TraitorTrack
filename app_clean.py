@@ -74,6 +74,42 @@ setup_error_handlers(app)
 setup_request_logging(app)
 setup_health_monitoring(app)
 
+# Add session validation and cache control
+@app.before_request
+def before_request():
+    """Validate authentication and session before each request"""
+    from flask import session, request, redirect, url_for
+    from working_auth import is_authenticated_working
+    
+    # Skip validation for login, register, and static files
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/fix-admin-password']
+    if any(request.path.startswith(path) for path in excluded_paths):
+        return
+    
+    # For protected routes, validate authentication
+    if request.endpoint and request.endpoint not in ['login', 'register', 'logout']:
+        if not is_authenticated_working():
+            # Clear any stale session data
+            session.clear()
+            # Redirect to login for protected routes
+            if request.path != '/' and not request.path.startswith('/api'):
+                return redirect(url_for('login'))
+
+@app.after_request
+def after_request(response):
+    """Add cache control headers to authenticated pages"""
+    from flask import session, request
+    
+    # Check if user is authenticated
+    if session.get('logged_in') or session.get('auth_session_id'):
+        # Add no-cache headers to prevent browser caching of authenticated pages
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        response.headers['Last-Modified'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+    
+    return response
+
 # Setup deployment configuration
 from deployment_config import configure_for_deployment, setup_monitoring_alerts
 configure_for_deployment(app)
