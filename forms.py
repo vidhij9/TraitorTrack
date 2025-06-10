@@ -44,7 +44,13 @@ class RegistrationForm(FlaskForm):
         if user:
             raise ValidationError('Email is already registered. Please use a different one or login.')
 
-
+class PromoteToAdminForm(FlaskForm):
+    """Form for promoting user to admin with secret code."""
+    secret_code = PasswordField('Secret Code', validators=[
+        DataRequired(),
+        Length(min=1, message="Secret code is required.")
+    ])
+    submit = SubmitField('Promote to Admin')
 
 class ScanParentForm(FlaskForm):
     """Form for parent bag scanning."""

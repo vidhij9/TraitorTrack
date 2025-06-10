@@ -202,27 +202,31 @@
                             </a>
                         </li>
                         
+                        <li class="nav-item">
+                            <a class="nav-link{% if '/bags' in request.path %} active{% endif %}" href="{{ url_for('bag_management', s=request.args.get('s')) }}">
+                                <i class="fas fa-boxes"></i> Bags
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
+                            <a class="nav-link{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup', s=request.args.get('s')) }}">
+                                <i class="fas fa-search"></i> Search
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
+                            <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
+                                <i class="fas fa-file-invoice"></i> Bills
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
+                            <a class="nav-link{% if '/scan_history' in request.path %} active{% endif %}" href="{{ url_for('scan_history', s=request.args.get('s')) }}">
+                                <i class="fas fa-history"></i> History
+                            </a>
+                        </li>
+                        
                         {% if current_user.is_admin() %}
-                            <li class="nav-item">
-                                <a class="nav-link{% if '/bags' in request.path %} active{% endif %}" href="{{ url_for('bag_management', s=request.args.get('s')) }}">
-                                    <i class="fas fa-boxes"></i> Bags
-                                </a>
-                            </li>
-                            
-                            <li class="nav-item">
-                                <a class="nav-link{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup', s=request.args.get('s')) }}">
-                                    <i class="fas fa-search"></i> Search
-                                </a>
-                            </li>
-                            
-                            <li class="nav-item">
-                                <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
-                                    <i class="fas fa-file-invoice"></i> Bills
-                                </a>
-                            </li>
-                            
-
-                            
                             <li class="nav-item">
                                 <a class="nav-link{% if '/admin/users' in request.path %} active{% endif %}" href="{{ url_for('user_management', s=request.args.get('s')) }}">
                                     <i class="fas fa-users-cog"></i> Users
@@ -295,14 +299,19 @@
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 {% if session.user_role == 'admin' %}
-
                                     <li>
                                         <a class="dropdown-item" href="{{ url_for('user_management', s=request.args.get('s')) }}">
                                             <i class="fas fa-users-cog me-2"></i>User Management
                                         </a>
                                     </li>
-                                    <li><hr class="dropdown-divider"></li>
+                                {% else %}
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('promote_admin') }}">
+                                            <i class="fas fa-user-shield me-2"></i>Become Admin
+                                        </a>
+                                    </li>
                                 {% endif %}
+                                <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
                                         <i class="fas fa-sign-out-alt me-2"></i>Logout

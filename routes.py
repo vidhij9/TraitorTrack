@@ -533,9 +533,39 @@ def register():
 @app.route('/promote_admin', methods=['GET', 'POST'])
 @login_required
 def promote_admin():
-    """Self-promotion route disabled - only admins can promote users"""
-    flash('Self-promotion is disabled. Contact an administrator for role changes.', 'info')
-    return redirect(url_for('index'))
+    """Promote current user to admin with secret code"""
+    form = PromoteToAdminForm()
+    
+    if form.validate_on_submit():
+        secret_code = form.secret_code.data
+        # Simple secret code for demo (in production, use environment variable)
+        if secret_code == "admin123":
+            try:
+                user_id = session.get('user_id')
+                if user_id:
+                    user = User.query.get(user_id)
+                    if user:
+                        user.role = UserRole.ADMIN.value
+                        db.session.commit()
+                        
+                        # Update session with new role
+                        session['user_role'] = UserRole.ADMIN.value
+                        
+                        app.logger.info(f'User {user.username} promoted to admin')
+                        flash('Successfully promoted to admin!', 'success')
+                        return redirect(url_for('index'))
+                    else:
+                        flash('User not found.', 'error')
+                else:
+                    flash('Authentication error.', 'error')
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f'Admin promotion error: {str(e)}')
+                flash('Promotion failed. Please try again.', 'error')
+        else:
+            flash('Invalid secret code.', 'error')
+    
+    return render_template('promote_admin.html', form=form)
 
 # Scanning workflow routes (simplified without location selection)
 
