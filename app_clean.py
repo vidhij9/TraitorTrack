@@ -81,8 +81,8 @@ def before_request():
     from flask import session, request, redirect, url_for
     from working_auth import is_authenticated_working
     
-    # Skip validation for login, register, and static files
-    excluded_paths = ['/login', '/register', '/static', '/logout', '/fix-admin-password']
+    # Skip validation for login, register, static files, and public API endpoints
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/fix-admin-password', '/api/stats', '/api/scans', '/api/activity']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     
@@ -91,7 +91,7 @@ def before_request():
         if not is_authenticated_working():
             # Clear any stale session data
             session.clear()
-            # Redirect to login for protected routes
+            # Redirect to login for protected routes (but not API endpoints)
             if request.path != '/' and not request.path.startswith('/api'):
                 return redirect(url_for('login'))
 

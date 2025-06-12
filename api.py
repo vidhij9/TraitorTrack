@@ -137,66 +137,122 @@ def api_locations():
     })
 
 @app.route('/api/scans')
-@login_required
 def api_scans():
     """Get recent scans, with optional filtering"""
-    # Get query parameters
-    limit = request.args.get('limit', 50, type=int)
-    scan_type = request.args.get('scan_type')  # 'parent' or 'child'
-    location_id = request.args.get('location_id', type=int)
-    
-    # Base query
-    query = Scan.query
-    
-    # Apply filters if provided
-    if scan_type:
-        query = query.filter_by(scan_type=scan_type)
-    if location_id:
-        query = query.filter_by(location_id=location_id)
-    
-    # Get results ordered by timestamp (newest first)
-    scans = query.order_by(Scan.timestamp.desc()).limit(limit).all()
-    
-    return jsonify({
-        'success': True,
-        'scans': [scan.to_dict() for scan in scans]
-    })
+    try:
+        # Get query parameters
+        limit = request.args.get('limit', 50, type=int)
+        scan_type = request.args.get('scan_type')  # 'parent' or 'child'
+        
+        # Base query
+        query = Scan.query
+        
+        # Apply filters if provided
+        if scan_type:
+            query = query.filter_by(scan_type=scan_type)
+        
+        # Get results ordered by timestamp (newest first)
+        scans = query.order_by(Scan.timestamp.desc()).limit(limit).all()
+        
+        # Convert scans to dictionary format
+        scan_list = []
+        for scan in scans:
+            try:
+                scan_dict = {
+                    'id': scan.id,
+                    'product_qr': scan.qr_id if hasattr(scan, 'qr_id') else scan.product_qr,
+                    'type': scan.scan_type if hasattr(scan, 'scan_type') else 'unknown',
+                    'timestamp': scan.timestamp.isoformat() if scan.timestamp else None,
+                    'username': scan.username if hasattr(scan, 'username') else 'Unknown'
+                }
+                scan_list.append(scan_dict)
+            except Exception as e:
+                app.logger.error(f'Error processing scan {scan.id}: {str(e)}')
+                continue
+        
+        return jsonify({
+            'success': True,
+            'scans': scan_list
+        })
+    except Exception as e:
+        app.logger.error(f'Error getting scans: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/activity/<int:days>')
+def api_activity(days):
+    """Get scan activity for the past X days"""
+    try:
+        from datetime import datetime, timedelta
+        
+        # Get the date range
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days-1)
+        
+        # Query scans grouped by date
+        activity_data = []
+        current_date = start_date
+        
+        while current_date <= end_date:
+            # Count scans for this date
+            day_start = datetime.combine(current_date, datetime.min.time())
+            day_end = datetime.combine(current_date, datetime.max.time())
+            
+            scan_count = Scan.query.filter(
+                Scan.timestamp >= day_start,
+                Scan.timestamp <= day_end
+            ).count()
+            
+            activity_data.append({
+                'date': current_date.isoformat(),
+                'scan_count': scan_count
+            })
+            
+            current_date += timedelta(days=1)
+        
+        return jsonify({
+            'success': True,
+            'activity': activity_data
+        })
+    except Exception as e:
+        app.logger.error(f'Error getting activity data: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/stats')
-@login_required
 def api_stats():
     """Get system statistics"""
-    total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
-    total_child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
-    total_scans = Scan.query.count()
-    total_locations = Location.query.count()
-    
-    # Recent scans by type
-    scan_type_counts = {}
-    scan_types = db.session.query(Scan.scan_type, db.func.count(Scan.id)).group_by(Scan.scan_type).all()
-    for scan_type, count in scan_types:
-        scan_type_counts[scan_type] = count
-    
-    # Scans per location
-    location_stats = {}
-    location_scans = db.session.query(
-        Location.name, db.func.count(Scan.id)
-    ).join(Scan).group_by(Location.name).all()
-    
-    for location_name, count in location_scans:
-        location_stats[location_name] = count
-    
-    return jsonify({
-        'success': True,
-        'statistics': {
-            'total_parent_bags': total_parent_bags,
-            'total_child_bags': total_child_bags,
-            'total_scans': total_scans,
-            'total_locations': total_locations,
-            'scan_type_counts': scan_type_counts,
-            'location_stats': location_stats
-        }
-    })
+    try:
+        # Use string types instead of BagType enum for compatibility
+        total_parent_bags = Bag.query.filter_by(type='parent').count()
+        total_child_bags = Bag.query.filter_by(type='child').count()
+        total_scans = Scan.query.count()
+        
+        # Get bill count if Bill model exists
+        try:
+            total_bills = Bill.query.count()
+        except:
+            total_bills = 0
+        
+        return jsonify({
+            'success': True,
+            'statistics': {
+                'total_parent_bags': total_parent_bags,
+                'total_child_bags': total_child_bags,
+                'total_scans': total_scans,
+                'total_bills': total_bills
+            }
+        })
+    except Exception as e:
+        app.logger.error(f'Error getting stats: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/cache_stats')
 @login_required
