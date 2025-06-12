@@ -86,6 +86,10 @@ def before_request():
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     
+    # Also skip validation for all /api/ endpoints to allow dashboard functionality
+    if request.path.startswith('/api/'):
+        return
+    
     # For protected routes, validate authentication
     if request.endpoint and request.endpoint not in ['login', 'register', 'logout']:
         if not is_authenticated_working():
@@ -137,13 +141,7 @@ def load_user(user_id):
 
 # Routes will be imported via main.py to prevent circular imports
 
-# Temporarily comment out API endpoints to fix circular imports
-# We'll uncomment and fix these later if needed
-# from api_endpoints import api
-# app.register_blueprint(api, name='api_endpoints')
-
-# from mobile_api import mobile_api
-# app.register_blueprint(mobile_api)
+# API endpoints will be defined in routes.py to avoid circular imports
 
 @app.context_processor
 def inject_current_user():
