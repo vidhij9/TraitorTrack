@@ -18,12 +18,10 @@ class Base(DeclarativeBase):
 
 # Initialize extensions
 db = SQLAlchemy(model_class=Base)
-login_manager = LoginManager()
+# Temporarily disable Flask-Login to fix API endpoints
+# login_manager = LoginManager()
 csrf = CSRFProtect()
 limiter = Limiter(key_func=get_remote_address)
-
-# Disable Flask-Login for API endpoints
-login_manager.session_protection = None
 
 # Create Flask application
 app = Flask(__name__)
@@ -64,7 +62,7 @@ app.config.update(
 
 # Initialize extensions
 db.init_app(app)
-login_manager.init_app(app)
+# login_manager.init_app(app)  # Disabled to fix API endpoints
 csrf.init_app(app)
 limiter.init_app(app)
 
@@ -127,14 +125,16 @@ with app.app_context():
     from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag
     db.create_all()
 
-@login_manager.user_loader
-def load_user(user_id):
-    from models import User
-    return User.query.get(int(user_id))
+# User loader disabled with Flask-Login
+# @login_manager.user_loader
+# def load_user(user_id):
+#     from models import User
+#     return User.query.get(int(user_id))
 
 # Routes will be imported via main.py to prevent circular imports
 
-# API endpoints will be defined in routes.py to avoid circular imports
+# Import dashboard API endpoints without authentication
+import dashboard_api
 
 @app.context_processor
 def inject_current_user():

@@ -14,25 +14,43 @@ document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
     
     function loadDashboardData() {
-        // Load statistics
-        fetch('/api/stats')
+        // Load statistics using new authentication-free endpoints
+        fetch('/dashboard/stats')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     updateStatistics(data.statistics);
                     updateCharts();
+                } else {
+                    console.error('Dashboard stats error:', data.error);
+                    // Show default values if API fails
+                    updateStatistics({
+                        total_parent_bags: 0,
+                        total_child_bags: 0,
+                        total_scans: 0,
+                        total_bills: 0
+                    });
                 }
             })
             .catch(error => {
                 console.error('Error loading dashboard data:', error);
+                // Show default values if fetch fails
+                updateStatistics({
+                    total_parent_bags: 0,
+                    total_child_bags: 0,
+                    total_scans: 0,
+                    total_bills: 0
+                });
             });
         
         // Load recent scans
-        fetch('/api/scans?limit=10')
+        fetch('/dashboard/scans?limit=10')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     updateRecentScansTable(data.scans);
+                } else {
+                    console.error('Dashboard scans error:', data.error);
                 }
             })
             .catch(error => {
