@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!ctx) return;
         
         // Fetch real scan activity data
-        fetch('/api/activity/14')
+        fetch('/dashboard/activity/14')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
