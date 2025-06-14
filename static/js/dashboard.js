@@ -14,43 +14,25 @@ document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
     
     function loadDashboardData() {
-        // Load statistics using new authentication-free endpoints
-        fetch('/dashboard/stats')
+        // Load statistics
+        fetch('/api/stats')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     updateStatistics(data.statistics);
                     updateCharts();
-                } else {
-                    console.error('Dashboard stats error:', data.error);
-                    // Show default values if API fails
-                    updateStatistics({
-                        total_parent_bags: 0,
-                        total_child_bags: 0,
-                        total_scans: 0,
-                        total_bills: 0
-                    });
                 }
             })
             .catch(error => {
                 console.error('Error loading dashboard data:', error);
-                // Show default values if fetch fails
-                updateStatistics({
-                    total_parent_bags: 0,
-                    total_child_bags: 0,
-                    total_scans: 0,
-                    total_bills: 0
-                });
             });
         
         // Load recent scans
-        fetch('/dashboard/scans?limit=10')
+        fetch('/api/scans?limit=10')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     updateRecentScansTable(data.scans);
-                } else {
-                    console.error('Dashboard scans error:', data.error);
                 }
             })
             .catch(error => {
@@ -74,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!ctx) return;
         
         // Fetch real scan activity data
-        fetch('/dashboard/activity/14')
+        fetch('/api/activity/14')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {

@@ -18,8 +18,7 @@ class Base(DeclarativeBase):
 
 # Initialize extensions
 db = SQLAlchemy(model_class=Base)
-# Temporarily disable Flask-Login to fix API endpoints
-# login_manager = LoginManager()
+login_manager = LoginManager()
 csrf = CSRFProtect()
 limiter = Limiter(key_func=get_remote_address)
 
@@ -62,7 +61,7 @@ app.config.update(
 
 # Initialize extensions
 db.init_app(app)
-# login_manager.init_app(app)  # Disabled to fix API endpoints
+login_manager.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
@@ -75,20 +74,26 @@ setup_error_handlers(app)
 setup_request_logging(app)
 setup_health_monitoring(app)
 
-# Add session validation and cache control (disabled for API endpoints)
+# Add session validation and cache control
 @app.before_request
 def before_request():
     """Validate authentication and session before each request"""
     from flask import session, request, redirect, url_for
+    from working_auth import is_authenticated_working
     
-    # Allow all API endpoints to work without authentication for dashboard functionality
-    if request.path.startswith('/api/'):
-        return
-    
-    # Skip validation for public endpoints
+    # Skip validation for login, register, and static files
     excluded_paths = ['/login', '/register', '/static', '/logout', '/fix-admin-password']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
+    
+    # For protected routes, validate authentication
+    if request.endpoint and request.endpoint not in ['login', 'register', 'logout']:
+        if not is_authenticated_working():
+            # Clear any stale session data
+            session.clear()
+            # Redirect to login for protected routes
+            if request.path != '/' and not request.path.startswith('/api'):
+                return redirect(url_for('login'))
 
 @app.after_request
 def after_request(response):
@@ -116,25 +121,29 @@ def inject_csrf_token():
     from flask_wtf.csrf import generate_csrf
     return dict(csrf_token=generate_csrf)
 
-# Temporarily disable Flask-Login entirely to fix API issues
-# login_manager.login_view = 'login'
-# login_manager.login_message_category = 'info'
+# Configure login
+login_manager.login_view = 'login'
+login_manager.login_message_category = 'info'
 
 # Import models for database tables
 with app.app_context():
     from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag
     db.create_all()
 
-# User loader disabled with Flask-Login
-# @login_manager.user_loader
-# def load_user(user_id):
-#     from models import User
-#     return User.query.get(int(user_id))
+@login_manager.user_loader
+def load_user(user_id):
+    from models import User
+    return User.query.get(int(user_id))
 
 # Routes will be imported via main.py to prevent circular imports
 
-# Import dashboard API endpoints without authentication
-import dashboard_api
+# Temporarily comment out API endpoints to fix circular imports
+# We'll uncomment and fix these later if needed
+# from api_endpoints import api
+# app.register_blueprint(api, name='api_endpoints')
+
+# from mobile_api import mobile_api
+# app.register_blueprint(mobile_api)
 
 @app.context_processor
 def inject_current_user():
