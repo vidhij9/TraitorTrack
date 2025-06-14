@@ -1418,7 +1418,7 @@ def process_bill_parent_scan():
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
         
         bill = Bill.query.get_or_404(bill_id)
-        qr_id = sanitize_input(qr_code).upper()
+        qr_id = sanitize_input(qr_code).strip()  # Don't force uppercase to preserve original format
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
@@ -1427,17 +1427,33 @@ def process_bill_parent_scan():
             app.logger.warning(f'Invalid parent QR format: {qr_id} - {error_message}')
             return jsonify({'success': False, 'message': f'Invalid parent bag QR code format: {error_message}'})
         
-        # Look up the parent bag
+        # Look up the parent bag - try exact match first, then case-insensitive
         parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
         
         if not parent_bag:
+            # Try case-insensitive search
+            parent_bag = Bag.query.filter(
+                func.upper(Bag.qr_id) == qr_id.upper(),
+                Bag.type == BagType.PARENT.value
+            ).first()
+        
+        if not parent_bag:
             app.logger.warning(f'Parent bag not found: {qr_id}')
-            # Check if bag exists with different type
-            any_bag = Bag.query.filter_by(qr_id=qr_id).first()
+            # Check if bag exists with different type (case-insensitive)
+            any_bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_id.upper()).first()
             if any_bag:
-                app.logger.info(f'Found bag with type: {any_bag.type}')
-                return jsonify({'success': False, 'message': f'Bag {qr_id} exists but is not a parent bag (type: {any_bag.type}).'})
-            return jsonify({'success': False, 'message': 'Parent bag not found. Please check the QR code.'})
+                app.logger.info(f'Found bag with type: {any_bag.type} and QR: {any_bag.qr_id}')
+                return jsonify({'success': False, 'message': f'Bag {any_bag.qr_id} exists but is not a parent bag (type: {any_bag.type}).'})
+            
+            # List similar QR codes for debugging
+            similar_bags = Bag.query.filter(
+                Bag.qr_id.ilike(f'%{qr_id[:3]}%'),
+                Bag.type == BagType.PARENT.value
+            ).limit(5).all()
+            similar_qrs = [bag.qr_id for bag in similar_bags]
+            app.logger.info(f'Similar parent QR codes found: {similar_qrs}')
+            
+            return jsonify({'success': False, 'message': f'Parent bag not found. Please check the QR code. Available similar codes: {", ".join(similar_qrs[:3]) if similar_qrs else "None"}'})
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id}')
         
