@@ -1073,17 +1073,23 @@ def scan_history():
 @app.route('/bags')
 @login_required
 def bag_management():
-    """Optimized bag management with efficient filtering"""
+    """Complete bag management with all filtering options"""
     page = request.args.get('page', 1, type=int)
     bag_type = request.args.get('type', 'all')
     search_query = request.args.get('search', '').strip()
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+    linked_status = request.args.get('linked_status', 'all')
+    bill_status = request.args.get('bill_status', 'all')
     
     # Build query
     query = Bag.query
     
+    # Type filter
     if bag_type != 'all':
         query = query.filter(Bag.type == bag_type)
     
+    # Search filter
     if search_query:
         query = query.filter(
             or_(
@@ -1092,20 +1098,93 @@ def bag_management():
             )
         )
     
+    # Date filters
+    if date_from:
+        try:
+            from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+            query = query.filter(func.date(Bag.created_at) >= from_date)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+            query = query.filter(func.date(Bag.created_at) <= to_date)
+        except ValueError:
+            pass
+    
+    # Linked status filter
+    if linked_status == 'linked':
+        # Only bags that have links (parent bags with children or child bags with parents)
+        query = query.filter(
+            or_(
+                and_(Bag.type == BagType.PARENT.value, 
+                     Bag.id.in_(db.session.query(Link.parent_bag_id).distinct())),
+                and_(Bag.type == BagType.CHILD.value, 
+                     Bag.id.in_(db.session.query(Link.child_bag_id).distinct()))
+            )
+        )
+    elif linked_status == 'unlinked':
+        # Parent bags without children or child bags without parents
+        query = query.filter(
+            or_(
+                and_(Bag.type == BagType.PARENT.value, 
+                     ~Bag.id.in_(db.session.query(Link.parent_bag_id).distinct())),
+                and_(Bag.type == BagType.CHILD.value, 
+                     ~Bag.id.in_(db.session.query(Link.child_bag_id).distinct()))
+            )
+        )
+    elif linked_status == 'orphaned':
+        # Child bags without parents
+        query = query.filter(
+            and_(Bag.type == BagType.CHILD.value, 
+                 ~Bag.id.in_(db.session.query(Link.child_bag_id).distinct()))
+        )
+    
+    # Bill status filter
+    if bill_status == 'billed':
+        # Bags that are in bills (only parent bags can be in bills)
+        query = query.filter(Bag.id.in_(db.session.query(BillBag.bag_id).distinct()))
+    elif bill_status == 'unbilled':
+        # Bags not in any bills
+        query = query.filter(~Bag.id.in_(db.session.query(BillBag.bag_id).distinct()))
+    
     # Paginate results
     bags = query.order_by(desc(Bag.created_at)).paginate(
         page=page, per_page=20, error_out=False
     )
     
-    # Add stats for the template
+    # Calculate comprehensive stats
+    total_bags = Bag.query.count()
+    parent_bags = Bag.query.filter(Bag.type == BagType.PARENT.value).count()
+    child_bags = Bag.query.filter(Bag.type == BagType.CHILD.value).count()
+    
+    # Linked/unlinked stats
+    linked_parent_bags = db.session.query(func.count(func.distinct(Link.parent_bag_id))).scalar()
+    linked_child_bags = db.session.query(func.count(func.distinct(Link.child_bag_id))).scalar()
+    unlinked_bags = total_bags - linked_parent_bags - linked_child_bags
+    
     stats = {
-        'total_bags': Bag.query.count(),
-        'parent_bags': Bag.query.filter(Bag.type == BagType.PARENT.value).count(),
-        'child_bags': Bag.query.filter(Bag.type == BagType.CHILD.value).count()
+        'total_bags': total_bags,
+        'parent_bags': parent_bags,
+        'child_bags': child_bags,
+        'linked_bags': linked_parent_bags + linked_child_bags,
+        'unlinked_bags': unlinked_bags
     }
     
-    filters = {'type': bag_type}
-    return render_template('bag_management.html', bags=bags, bag_type=bag_type, search_query=search_query, stats=stats, filters=filters)
+    filters = {
+        'type': bag_type,
+        'date_from': date_from,
+        'date_to': date_to,
+        'linked_status': linked_status,
+        'bill_status': bill_status
+    }
+    
+    return render_template('bag_management.html', 
+                         bags=bags, 
+                         search_query=search_query, 
+                         stats=stats, 
+                         filters=filters)
 
 # Bill management routes
 @app.route('/bills')
