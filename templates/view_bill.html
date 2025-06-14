@@ -16,7 +16,7 @@
                             <a href="{{ url_for('bill_management') }}" class="btn btn-outline-light">
                                 <i class="fas fa-arrow-left me-2"></i>Back to Bills
                             </a>
-                            {% if current_user.role == 'admin' %}
+                            {% if current_user.is_admin() or current_user.role == 'employee' %}
                                 <a href="{{ url_for('edit_bill', bill_id=bill.id) }}" class="btn btn-warning ms-2">
                                     <i class="fas fa-edit me-2"></i>Edit Bill
                                 </a>

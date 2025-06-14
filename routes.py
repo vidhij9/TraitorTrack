@@ -1095,9 +1095,9 @@ def bag_management():
 @app.route('/bills')
 @login_required
 def bill_management():
-    """Bill management dashboard with search functionality - admin only"""
-    if not current_user.is_admin():
-        flash('Admin access required for bill management.', 'error')
+    """Bill management dashboard with search functionality - admin and employee access"""
+    if not (current_user.is_admin() or current_user.role == 'employee'):
+        flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
     
     # Get search parameters
@@ -1145,9 +1145,9 @@ def bill_management():
 @app.route('/bill/create', methods=['POST'])
 @login_required
 def create_bill():
-    """Create a new bill - admin only"""
-    if not current_user.is_admin():
-        flash('Admin access required to create bills.', 'error')
+    """Create a new bill - admin and employee access"""
+    if not (current_user.is_admin() or current_user.role == 'employee'):
+        flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
     form = BillCreationForm()
     
@@ -1217,9 +1217,9 @@ def delete_bill(bill_id):
 @app.route('/bill/<int:bill_id>/finish', methods=['GET', 'POST'])
 @login_required
 def finish_bill_scan(bill_id):
-    """Complete bill scanning and mark as finished - admin only"""
-    if not current_user.is_admin():
-        flash('Admin access required to finish bills.', 'error')
+    """Complete bill scanning and mark as finished - admin and employee access"""
+    if not (current_user.is_admin() or current_user.role == 'employee'):
+        flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('bill_management'))
     
     bill = Bill.query.get_or_404(bill_id)
@@ -1283,9 +1283,9 @@ def view_bill(bill_id):
 @app.route('/bill/<int:bill_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_bill(bill_id):
-    """Edit bill details - admin only"""
-    if not current_user.is_admin():
-        flash('Admin access required to edit bills.', 'error')
+    """Edit bill details - admin and employee access"""
+    if not (current_user.is_admin() or current_user.role == 'employee'):
+        flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('bill_management'))
     
     bill = Bill.query.get_or_404(bill_id)
@@ -1373,9 +1373,9 @@ def remove_bag_from_bill():
 @app.route('/bill/<int:bill_id>/scan_parent')
 @login_required
 def scan_bill_parent(bill_id=None):
-    """Scan parent bags to add to bill - admin only"""
-    if not current_user.is_admin():
-        flash('Admin access required for bill operations.', 'error')
+    """Scan parent bags to add to bill - admin and employee access"""
+    if not (current_user.is_admin() or current_user.role == 'employee'):
+        flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
     if bill_id:
         bill = Bill.query.get_or_404(bill_id)

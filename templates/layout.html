@@ -226,7 +226,7 @@
                             </a>
                         </li>
                         
-                        {% if current_user.is_admin() %}
+                        {% if current_user.is_admin() or current_user.role == 'employee' %}
                             <li class="nav-item">
                                 <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
                                     <i class="fas fa-file-invoice"></i> Bills
