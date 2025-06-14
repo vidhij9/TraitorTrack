@@ -244,24 +244,20 @@
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between">
                                         <h5 class="mb-1">
-                                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
-                                            {{ scan.location.name }}
+                                            <i class="fas fa-scan me-2 text-primary"></i>
+                                            Scan Record
                                         </h5>
                                         <small class="text-muted">{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
                                     </div>
                                     <p class="mb-0">
-                                        <span class="badge bg-{{ 'primary' if scan.scan_type == 'parent' else 'info' }}">
-                                            {{ scan.scan_type }}
+                                        <span class="badge bg-{{ 'primary' if scan.parent_bag_id else 'info' }}">
+                                            {{ 'Parent Bag' if scan.parent_bag_id else 'Child Bag' }} Scan
                                         </span>
                                         <span class="text-muted ms-2">
-                                            <i class="fas fa-user me-1"></i>{{ scan.scanned_by.username }}
+                                            <i class="fas fa-user me-1"></i>{{ scan.user.username }}
                                         </span>
                                     </p>
-                                    {% if scan.notes %}
-                                    <div class="mt-2">
-                                        <small class="text-muted">{{ scan.notes }}</small>
-                                    </div>
-                                    {% endif %}
+
                                 </div>
                             </div>
                         </div>

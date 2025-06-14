@@ -2,7 +2,7 @@ import logging
 from flask import jsonify, request, Blueprint, make_response
 from flask_login import login_required, current_user
 from app import app, db
-from models import User, Bag, BagType, Link, Location, Scan
+from models import User, Bag, BagType, Link, Scan
 from cache_utils import cached_response, invalidate_cache
 import time
 
@@ -225,23 +225,6 @@ def api_clear_cache():
 def seed_test_data():
     """Seed the database with some test data - for development only"""
     try:
-        # Create locations
-        locations = []
-        location_names = [
-            {"name": "Warehouse A", "address": "123 Main St"},
-            {"name": "Distribution Center", "address": "456 State St"},
-            {"name": "Retail Store", "address": "789 Market St"}
-        ]
-        
-        for loc_data in location_names:
-            location = Location()
-            location.name = loc_data["name"]
-            location.address = loc_data["address"]
-            existing = Location.query.filter_by(name=location.name).first()
-            if not existing:
-                locations.append(location)
-                db.session.add(location)
-        
         # Create a test admin user if none exists
         admin_user = User.query.filter_by(username="admin").first()
         if not admin_user:
@@ -252,17 +235,6 @@ def seed_test_data():
             admin_user.role = "admin"  # Using string directly for LSP compatibility
             admin_user.verified = True
             db.session.add(admin_user)
-        
-        # Make sure we have the first location
-        warehouse_location = Location.query.filter_by(name="Warehouse A").first()
-        if not warehouse_location and locations:
-            warehouse_location = locations[0]
-        elif not warehouse_location:
-            warehouse_location = Location()
-            warehouse_location.name = "Warehouse A"
-            warehouse_location.address = "123 Main St"
-            db.session.add(warehouse_location)
-            db.session.commit()
         
         # Create parent and child bags for testing parent-child relationship lookups
         parent_bags = []
@@ -307,14 +279,11 @@ def seed_test_data():
                     db.session.add(child_bag)
                     
                     # Create a scan record for this child bag
-                    if admin_user and warehouse_location:
+                    if admin_user:
                         scan = Scan()
                         scan.child_bag_id = child_bag.id
                         scan.parent_bag_id = parent_bag.id
                         scan.user_id = admin_user.id
-                        scan.location_id = warehouse_location.id
-                        scan.scan_type = "child"
-                        scan.notes = f"Test scan of child bag {child_qr}"
                         
                         db.session.add(scan)
             
