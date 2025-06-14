@@ -226,11 +226,13 @@
                             </a>
                         </li>
                         
-                        <li class="nav-item">
-                            <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
-                                <i class="fas fa-file-invoice"></i> Bills
-                            </a>
-                        </li>
+                        {% if current_user.is_admin() %}
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
+                                    <i class="fas fa-file-invoice"></i> Bills
+                                </a>
+                            </li>
+                        {% endif %}
                         
                         <li class="nav-item">
                             <a class="nav-link{% if '/scan_history' in request.path %} active{% endif %}" href="{{ url_for('scan_history', s=request.args.get('s')) }}">
