@@ -1142,35 +1142,41 @@ def bill_management():
                          search_bill_id=search_bill_id,
                          status_filter=status_filter)
 
-@app.route('/bill/create', methods=['POST'])
+@app.route('/bill/create', methods=['GET', 'POST'])
 @login_required
 def create_bill():
     """Create a new bill - admin and employee access"""
     if not (current_user.is_admin() or current_user.role == 'employee'):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
-    form = BillCreationForm()
+    if request.method == 'GET':
+        # Display the create bill form
+        return render_template('create_bill.html')
     
-    if form.validate_on_submit():
+    # Handle POST request
+    if request.method == 'POST':
         try:
-            bill_id = sanitize_input(form.bill_id.data).upper()
-            description = sanitize_input(getattr(form, 'description', form).data) if hasattr(form, 'description') and form.description.data else ''
-            parent_bag_count = getattr(form, 'parent_bag_count', form).data or 1
+            bill_id = sanitize_input(request.form.get('bill_id', '')).upper()
+            parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
+            
+            if not bill_id:
+                flash('Bill ID is required.', 'error')
+                return render_template('create_bill.html')
             
             if not validate_bill_id(bill_id):
                 flash('Invalid bill ID format.', 'error')
-                return redirect(url_for('bill_management'))
+                return render_template('create_bill.html')
             
             # Check if bill already exists
             existing_bill = Bill.query.filter_by(bill_id=bill_id).first()
             if existing_bill:
                 flash('Bill ID already exists.', 'error')
-                return redirect(url_for('bill_management'))
+                return render_template('create_bill.html')
             
             # Create new bill
             bill = Bill(
                 bill_id=bill_id,
-                description=description,
+                description='',
                 parent_bag_count=parent_bag_count,
                 status='new'
             )
@@ -1185,8 +1191,9 @@ def create_bill():
             db.session.rollback()
             flash('Error creating bill. Please try again.', 'error')
             app.logger.error(f'Bill creation error: {str(e)}')
+            return render_template('create_bill.html')
     
-    return redirect(url_for('bill_management'))
+    return render_template('create_bill.html')
 
 @app.route('/bill/<int:bill_id>/delete', methods=['POST'])
 @login_required
@@ -1333,9 +1340,9 @@ def edit_bill(bill_id):
 @app.route('/remove_bag_from_bill', methods=['POST'])
 @login_required
 def remove_bag_from_bill():
-    """Remove a parent bag from a bill - admin only"""
-    if not current_user.is_admin():
-        flash('Admin access required to remove bags from bills.', 'error')
+    """Remove a parent bag from a bill - admin and employee access"""
+    if not (current_user.is_admin() or current_user.role == 'employee'):
+        flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('bill_management'))
     
     try:
