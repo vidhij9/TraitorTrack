@@ -237,35 +237,49 @@ def delete_user(user_id):
 def create_user():
     """Create a new user"""
     if not current_user.is_admin():
-        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        flash('Admin access required.', 'error')
+        return redirect(url_for('user_management'))
     
     try:
-        data = request.get_json()
+        # Get form data instead of JSON
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        role = request.form.get('role', UserRole.EMPLOYEE.value)
+        
+        # Validate required fields
+        if not username or not email or not password:
+            flash('All fields are required.', 'error')
+            return redirect(url_for('user_management'))
         
         # Check if user already exists
-        if User.query.filter_by(username=data['username']).first():
-            return jsonify({'success': False, 'error': 'Username already exists'})
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists.', 'error')
+            return redirect(url_for('user_management'))
         
-        if User.query.filter_by(email=data['email']).first():
-            return jsonify({'success': False, 'error': 'Email already exists'})
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists.', 'error')
+            return redirect(url_for('user_management'))
         
         # Create new user
         user = User(
-            username=data['username'],
-            email=data['email'],
-            role=data.get('role', UserRole.EMPLOYEE.value),
+            username=username,
+            email=email,
+            role=role,
             verified=True
         )
-        user.set_password(data['password'])
+        user.set_password(password)
         
         db.session.add(user)
         db.session.commit()
         
-        return jsonify({'success': True, 'message': 'User created successfully'})
+        flash(f'User {username} created successfully!', 'success')
+        return redirect(url_for('user_management'))
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        flash(f'Error creating user: {str(e)}', 'error')
+        return redirect(url_for('user_management'))
 
 @app.route('/seed_sample_data')
 @login_required
