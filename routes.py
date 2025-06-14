@@ -1394,9 +1394,9 @@ def scan_bill_parent(bill_id=None):
 @app.route('/process_bill_parent_scan', methods=['POST'])
 @login_required
 def process_bill_parent_scan():
-    """Process a parent bag scan for bill linking - admin only"""
-    if not current_user.is_admin():
-        return jsonify({'success': False, 'message': 'Admin access required for bill operations.'})
+    """Process a parent bag scan for bill linking - admin and employee access"""
+    if not (current_user.is_admin() or current_user.role == 'employee'):
+        return jsonify({'success': False, 'message': 'Access restricted to admin and employee users.'})
     
     bill_id = request.form.get('bill_id')
     qr_code = request.form.get('qr_code')
