@@ -841,6 +841,22 @@ def process_child_scan():
                 if existing_link:
                     return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to parent bag {parent_bag.qr_id}.'})
             
+            # Check if child bag is already linked to any other parent bag
+            if child_bag:
+                existing_parent_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+                if existing_parent_link and parent_bag and existing_parent_link.parent_bag_id != parent_bag.id:
+                    linked_parent = Bag.query.get(existing_parent_link.parent_bag_id)
+                    if linked_parent:
+                        return jsonify({
+                            'success': False, 
+                            'message': f'Child bag {qr_id} is already linked to parent bag {linked_parent.qr_id}. Each child bag can only be attached to one parent bag.'
+                        })
+                    else:
+                        # Clean up invalid link
+                        app.logger.warning(f'Child bag {qr_id} has invalid parent link, cleaning up')
+                        db.session.delete(existing_parent_link)
+                        db.session.commit()
+            
             if not child_bag:
                 # Create new child bag automatically for any QR code
                 child_bag = Bag(
@@ -1462,6 +1478,22 @@ def process_bill_parent_scan():
         if existing_link:
             app.logger.warning(f'Bag already linked to bill: {qr_id}')
             return jsonify({'success': False, 'message': 'This parent bag is already linked to this bill.'})
+        
+        # Check if parent bag is already linked to any other bill
+        existing_bill_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
+        if existing_bill_link:
+            linked_bill = Bill.query.get(existing_bill_link.bill_id)
+            if linked_bill:
+                app.logger.warning(f'Parent bag {qr_id} already linked to bill {linked_bill.bill_id}')
+                return jsonify({
+                    'success': False, 
+                    'message': f'This parent bag is already linked to bill {linked_bill.bill_id}. Each parent bag can only be attached to one bill.'
+                })
+            else:
+                app.logger.warning(f'Parent bag {qr_id} has invalid bill link, cleaning up')
+                # Clean up invalid link
+                db.session.delete(existing_bill_link)
+                db.session.commit()
         
         # Check if bill already has the maximum number of bags
         current_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
