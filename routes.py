@@ -1437,17 +1437,7 @@ def process_bill_parent_scan():
             if any_bag:
                 app.logger.info(f'Found bag with type: {any_bag.type}')
                 return jsonify({'success': False, 'message': f'Bag {qr_id} exists but is not a parent bag (type: {any_bag.type}).'})
-            
-            # Auto-create parent bag if it doesn't exist
-            app.logger.info(f'Creating new parent bag for QR code: {qr_id}')
-            parent_bag = Bag(
-                qr_id=qr_id,
-                name=f"Parent Bag {qr_id}",
-                type=BagType.PARENT.value
-            )
-            db.session.add(parent_bag)
-            db.session.commit()
-            app.logger.info(f'Successfully created parent bag: {qr_id}')
+            return jsonify({'success': False, 'message': 'Parent bag not found. Please check the QR code.'})
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id}')
         
