@@ -1415,25 +1415,42 @@ def process_bill_parent_scan():
         return jsonify({'success': False, 'message': 'QR code missing.'})
     
     try:
+        app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
+        
         bill = Bill.query.get_or_404(bill_id)
         qr_id = sanitize_input(qr_code).upper()
         
-        if not validate_parent_qr_id(qr_id):
-            return jsonify({'success': False, 'message': 'Invalid parent bag QR code format.'})
+        app.logger.info(f'Sanitized QR code: {qr_id}')
+        
+        is_valid, error_message, child_count = validate_parent_qr_id(qr_id)
+        if not is_valid:
+            app.logger.warning(f'Invalid parent QR format: {qr_id} - {error_message}')
+            return jsonify({'success': False, 'message': f'Invalid parent bag QR code format: {error_message}'})
         
         # Look up the parent bag
         parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
         
         if not parent_bag:
+            app.logger.warning(f'Parent bag not found: {qr_id}')
+            # Check if bag exists with different type
+            any_bag = Bag.query.filter_by(qr_id=qr_id).first()
+            if any_bag:
+                app.logger.info(f'Found bag with type: {any_bag.type}')
+                return jsonify({'success': False, 'message': f'Bag {qr_id} exists but is not a parent bag (type: {any_bag.type}).'})
             return jsonify({'success': False, 'message': 'Parent bag not found. Please check the QR code.'})
+        
+        app.logger.info(f'Found parent bag: {parent_bag.qr_id}')
         
         # Check if already linked to this bill
         existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
         if existing_link:
+            app.logger.warning(f'Bag already linked to bill: {qr_id}')
             return jsonify({'success': False, 'message': 'This parent bag is already linked to this bill.'})
         
         # Check if bill already has the maximum number of bags
         current_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        app.logger.info(f'Current bag count: {current_bag_count}, max: {bill.parent_bag_count}')
+        
         if current_bag_count >= bill.parent_bag_count:
             return jsonify({'success': False, 'message': f'Bill already has the maximum number of parent bags ({bill.parent_bag_count}). Cannot add more bags.'})
         
@@ -1445,6 +1462,8 @@ def process_bill_parent_scan():
         
         db.session.add(bill_bag)
         db.session.commit()
+        
+        app.logger.info(f'Successfully linked parent bag {qr_id} to bill {bill.bill_id}')
         
         return jsonify({
             'success': True, 
