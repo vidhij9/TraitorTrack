@@ -126,15 +126,7 @@ def api_child_bag_scans(qr_id):
         'scans': [scan.to_dict() for scan in scans]
     })
 
-@app.route('/api/locations')
-@login_required
-def api_locations():
-    """Get all locations"""
-    locations = Location.query.all()
-    return jsonify({
-        'success': True,
-        'locations': [location.to_dict() for location in locations]
-    })
+# Locations API removed - location tracking no longer supported
 
 @app.route('/api/scans')
 @login_required
@@ -143,16 +135,15 @@ def api_scans():
     # Get query parameters
     limit = request.args.get('limit', 50, type=int)
     scan_type = request.args.get('scan_type')  # 'parent' or 'child'
-    location_id = request.args.get('location_id', type=int)
     
     # Base query
     query = Scan.query
     
     # Apply filters if provided
-    if scan_type:
-        query = query.filter_by(scan_type=scan_type)
-    if location_id:
-        query = query.filter_by(location_id=location_id)
+    if scan_type == 'parent':
+        query = query.filter(Scan.parent_bag_id.isnot(None))
+    elif scan_type == 'child':
+        query = query.filter(Scan.child_bag_id.isnot(None))
     
     # Get results ordered by timestamp (newest first)
     scans = query.order_by(Scan.timestamp.desc()).limit(limit).all()
@@ -169,22 +160,14 @@ def api_stats():
     total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
     total_child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
     total_scans = Scan.query.count()
-    total_locations = Location.query.count()
     
-    # Recent scans by type
-    scan_type_counts = {}
-    scan_types = db.session.query(Scan.scan_type, db.func.count(Scan.id)).group_by(Scan.scan_type).all()
-    for scan_type, count in scan_types:
-        scan_type_counts[scan_type] = count
-    
-    # Scans per location
-    location_stats = {}
-    location_scans = db.session.query(
-        Location.name, db.func.count(Scan.id)
-    ).join(Scan).group_by(Location.name).all()
-    
-    for location_name, count in location_scans:
-        location_stats[location_name] = count
+    # Recent scans by bag type
+    parent_scans = Scan.query.filter(Scan.parent_bag_id.isnot(None)).count()
+    child_scans = Scan.query.filter(Scan.child_bag_id.isnot(None)).count()
+    scan_type_counts = {
+        'parent': parent_scans,
+        'child': child_scans
+    }
     
     return jsonify({
         'success': True,
@@ -192,9 +175,7 @@ def api_stats():
             'total_parent_bags': total_parent_bags,
             'total_child_bags': total_child_bags,
             'total_scans': total_scans,
-            'total_locations': total_locations,
-            'scan_type_counts': scan_type_counts,
-            'location_stats': location_stats
+            'scan_type_counts': scan_type_counts
         }
     })
 
@@ -249,7 +230,7 @@ def seed_test_data():
                 parent_bag.name = f"Parent Batch {i}"
                 parent_bag.type = "parent"  # Using string directly for LSP compatibility
                 parent_bag.child_count = 10
-                parent_bag.notes = f"Test parent bag {i} with 10 expected children"
+
                 
                 db.session.add(parent_bag)
                 db.session.flush()  # Get the ID without committing
@@ -274,7 +255,7 @@ def seed_test_data():
                     child_bag.name = f"Child Package {parent_num}{j}"
                     child_bag.type = "child"  # Using string directly for LSP compatibility
                     child_bag.parent_id = parent_bag.id
-                    child_bag.notes = f"Test child bag {j} for parent {parent_bag.qr_id}"
+
                     
                     db.session.add(child_bag)
                     
