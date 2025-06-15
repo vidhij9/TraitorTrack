@@ -159,7 +159,7 @@
                                         {% else %}
                                             <span class="badge bg-success">Child</span>
                                         {% endif %}
-                                        <span class="text-muted ms-1">{{ bag.created_at.strftime('%m/%d') }}</span>
+                                        <span class="text-muted ms-1">{{ bag.created_at.strftime('%m/%d') if bag.created_at else 'N/A' }}</span>
                                     </small>
                                     {% if bag.notes %}
                                     <small class="text-muted">{{ bag.notes[:20] }}{% if bag.notes|length > 20 %}...{% endif %}</small>
@@ -174,7 +174,7 @@
                                 {% endif %}
                             </td>
                             <td class="d-none d-md-table-cell">
-                                <small>{{ bag.created_at.strftime('%Y-%m-%d') }}</small>
+                                <small>{{ bag.created_at.strftime('%Y-%m-%d') if bag.created_at else 'N/A' }}</small>
                             </td>
                             <td>
                                 {% if bag.type == 'parent' %}
@@ -219,7 +219,7 @@
                             <td class="d-none d-lg-table-cell">
                                 {% set last_scan = bag.last_scan %}
                                 {% if last_scan %}
-                                    <small>{{ last_scan.timestamp.strftime('%m/%d %H:%M') }}</small>
+                                    <small>{{ last_scan.timestamp.strftime('%m/%d %H:%M') if last_scan and last_scan.timestamp else 'Never' }}</small>
                                 {% else %}
                                     <span class="text-muted">No scans</span>
                                 {% endif %}
