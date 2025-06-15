@@ -1,148 +1,155 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
-{% block title %} - Dashboard{% endblock %}
-
-{% block head %}
-<style>
-    .status-card {
-        transition: all 0.3s ease;
-    }
-    .status-card:hover {
-        transform: translateY(-5px);
-    }
-    .map-container {
-        height: 400px;
-        width: 100%;
-    }
-</style>
-{% endblock %}
+{% block title %}Dashboard - TraceTrack{% endblock %}
 
 {% block content %}
-<!-- Welcome Section -->
-<div class="welcome-section mb-4">
-    <h1 class="display-4 mb-3">
-        <i class="fas fa-chart-line me-3"></i>
-        TraceTrack Dashboard
-    </h1>
-    <p class="lead mb-0">Advanced Supply Chain Management System</p>
-    <small class="text-light">Real-time tracking and analytics platform</small>
-</div>
-
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-chart-line me-2"></i>
-        Farm Analytics Dashboard
-    </h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-data">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+            <span class="text-muted">Welcome, {{ current_user.username }}!</span>
         </div>
     </div>
 </div>
 
-<!-- Status Cards -->
-<div class="row mb-4" id="status-cards">
-    <div class="col-md-3 mb-4">
-        <div class="stats-card">
-            <div class="text-primary mb-2">
-                <i class="fas fa-boxes fa-2x"></i>
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-boxes fa-2x mb-2"></i>
+                <h3>{{ total_parent_bags }}</h3>
+                <p class="mb-0">Parent Bags</p>
             </div>
-            <h3 class="text-primary" id="total-parent-bags">Loading...</h3>
-            <p class="text-muted mb-0">Parent Bags</p>
-            <small class="text-primary">Primary Items</small>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="stats-card">
-            <div class="text-success mb-2">
-                <i class="fas fa-cube fa-2x"></i>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-white" style="background: linear-gradient(135deg, #27ae60, #58d68d);">
+            <div class="card-body text-center">
+                <i class="fas fa-cube fa-2x mb-2"></i>
+                <h3>{{ total_child_bags }}</h3>
+                <p class="mb-0">Child Bags</p>
             </div>
-            <h3 class="text-success" id="total-child-bags">Loading...</h3>
-            <p class="text-muted mb-0">Child Bags</p>
-            <small class="text-success">Sub Items</small>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="stats-card">
-            <div class="text-warning mb-2">
-                <i class="fas fa-file-invoice fa-2x"></i>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-white" style="background: linear-gradient(135deg, #f39c12, #f8c471);">
+            <div class="card-body text-center">
+                <i class="fas fa-qrcode fa-2x mb-2"></i>
+                <h3>{{ total_scans }}</h3>
+                <p class="mb-0">Total Scans</p>
             </div>
-            <h3 class="text-warning" id="total-bills">Loading...</h3>
-            <p class="text-muted mb-0">Active Bills</p>
-            <small class="text-warning">Open Orders</small>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="stats-card">
-            <div class="text-info mb-2">
-                <i class="fas fa-qrcode fa-2x"></i>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-white" style="background: linear-gradient(135deg, #e74c3c, #ec7063);">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-day fa-2x mb-2"></i>
+                <h3>{{ today_scans }}</h3>
+                <p class="mb-0">Today's Scans</p>
             </div>
-            <h3 class="text-info" id="total-scans">Loading...</h3>
-            <p class="text-muted mb-0">Total Scans</p>
-            <small class="text-info">Scan Events</small>
         </div>
     </div>
 </div>
 
 <!-- Quick Actions -->
-<div class="card bg-dark mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4 mb-3">
-                <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
-                    <i class="fas fa-qrcode me-2"></i>Scan Parent Bags
-                </a>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
             </div>
-            <div class="col-md-4 mb-3">
-                <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
-                    <i class="fas fa-file-invoice me-2"></i>Manage Bills
-                </a>
-            </div>
-            <div class="col-md-4 mb-3">
-                <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
-                    <i class="fas fa-search me-2"></i>Lookup Child Bag
-                </a>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('main.scan_parent') }}" class="btn btn-primary w-100">
+                            <i class="fas fa-qrcode"></i> Scan Parent Bag
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('main.scan_child') }}" class="btn btn-success w-100">
+                            <i class="fas fa-link"></i> Scan Child Bag
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('main.bags') }}" class="btn btn-info w-100">
+                            <i class="fas fa-archive"></i> View All Bags
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('main.scans') }}" class="btn btn-warning w-100">
+                            <i class="fas fa-history"></i> Scan History
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Recent Scans Table -->
-<div class="card bg-dark mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">Recent Scans</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover" id="recent-scans-table">
-                <thead>
-                    <tr>
-                        <th>QR ID</th>
-                        <th>Type</th>
-                        <th>User</th>
-                        <th>Timestamp</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td colspan="5" class="text-center">Loading recent scans...</td>
-                    </tr>
-                </tbody>
-            </table>
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock"></i> Recent Activity</h5>
+                <a href="{{ url_for('main.scans') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_scans %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Parent Bag</th>
+                                <th>Child Bag</th>
+                                <th>User</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scan in recent_scans %}
+                            <tr>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ scan.timestamp.strftime('%Y-%m-%d %H:%M') if scan.timestamp }}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if scan.parent_bag %}
+                                        <span class="badge bg-primary">{{ scan.parent_bag.qr_id }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if scan.child_bag %}
+                                        <span class="badge bg-success">{{ scan.child_bag.qr_id }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ scan.user.username if scan.user }}</td>
+                                <td>
+                                    <small>{{ scan.notes[:50] + '...' if scan.notes and scan.notes|length > 50 else (scan.notes or '') }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">No recent activity found. Start by scanning some bags!</p>
+                    <a href="{{ url_for('main.scan_parent') }}" class="btn btn-primary">
+                        <i class="fas fa-qrcode"></i> Scan Your First Bag
+                    </a>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css" />
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-<script src="{{ url_for('static', filename='js/map.js') }}"></script>
 {% endblock %}
