@@ -208,21 +208,28 @@
                     </li>
                     
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link{% if '/scan_parent' in request.path %} active{% endif %}" href="{{ url_for('scan_parent', s=request.args.get('s')) }}">
-                                <i class="fas fa-qrcode"></i> Scan
+                        <!-- QR Code Operations -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle{% if '/scan_parent' in request.path or '/child_lookup' in request.path %} active{% endif %}" href="#" id="qrDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-qrcode"></i> QR Operations
                             </a>
+                            <ul class="dropdown-menu" aria-labelledby="qrDropdown">
+                                <li>
+                                    <a class="dropdown-item{% if '/scan_parent' in request.path %} active{% endif %}" href="{{ url_for('scan_parent', s=request.args.get('s')) }}">
+                                        <i class="fas fa-camera me-2"></i> Scan QR Code
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup', s=request.args.get('s')) }}">
+                                        <i class="fas fa-search me-2"></i> Search Bags
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                         
                         <li class="nav-item">
                             <a class="nav-link{% if '/bags' in request.path %} active{% endif %}" href="{{ url_for('bag_management', s=request.args.get('s')) }}">
                                 <i class="fas fa-boxes"></i> Bags
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item">
-                            <a class="nav-link{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup', s=request.args.get('s')) }}">
-                                <i class="fas fa-search"></i> Search
                             </a>
                         </li>
                         
