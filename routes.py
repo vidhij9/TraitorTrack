@@ -776,7 +776,7 @@ def scan_child():
     """Scan child bag QR code"""
     form = ScanChildForm()
     
-    # Get parent bag info from session
+    # Get parent bag info from session or find most recent
     last_scan = session.get('last_scan')
     parent_bag = None
     
@@ -784,6 +784,16 @@ def scan_child():
         parent_qr_id = last_scan.get('qr_id')
         if parent_qr_id:
             parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
+    
+    # If no parent bag in session, find the most recent parent bag for this user
+    if not parent_bag:
+        recent_parent_scan = Scan.query.filter_by(user_id=current_user.id).filter(
+            Scan.parent_bag_id.isnot(None)
+        ).order_by(desc(Scan.timestamp)).first()
+        
+        if recent_parent_scan and recent_parent_scan.parent_bag_id:
+            parent_bag = Bag.query.get(recent_parent_scan.parent_bag_id)
+            app.logger.info(f'Using most recent parent bag for child scanning: {parent_bag.qr_id if parent_bag else "None"}')
     
     # Calculate child bag counts for the parent
     scanned_child_count = 0
@@ -823,7 +833,7 @@ def process_child_scan():
             if existing_parent:
                 return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag. Cannot use as child bag.'})
             
-            # Get parent bag from session to check for duplicate linking
+            # Get parent bag from session or find the most recent parent bag
             last_scan = session.get('last_scan')
             parent_bag = None
             
@@ -831,6 +841,16 @@ def process_child_scan():
                 parent_qr_id = last_scan.get('qr_id')
                 if parent_qr_id:
                     parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
+            
+            # If no parent bag in session, find the most recent parent bag for this user
+            if not parent_bag:
+                recent_parent_scan = Scan.query.filter_by(user_id=current_user.id).filter(
+                    Scan.parent_bag_id.isnot(None)
+                ).order_by(desc(Scan.timestamp)).first()
+                
+                if recent_parent_scan and recent_parent_scan.parent_bag_id:
+                    parent_bag = Bag.query.get(recent_parent_scan.parent_bag_id)
+                    app.logger.info(f'Using most recent parent bag: {parent_bag.qr_id if parent_bag else "None"}')
             
             # Look up the child bag first, if not found create it automatically
             child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
