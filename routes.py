@@ -5,6 +5,9 @@ from flask import render_template, request, redirect, url_for, flash, session, j
 # Session-based authentication - no longer using Flask-Login
 from werkzeug.security import check_password_hash, generate_password_hash
 
+# Import simple authentication functions
+from simple_auth import is_authenticated, get_current_user, require_auth
+
 def is_admin():
     """Check if current user is admin"""
     return session.get('user_role') == 'admin'
@@ -13,22 +16,11 @@ def get_current_user_id():
     """Get current user ID from session"""
     return session.get('user_id')
 
-def is_authenticated():
-    """Check if user is logged in"""
-    return session.get('logged_in', False)
-
-def login_required(f):
-    """Decorator to require login for routes"""
-    from functools import wraps
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('logged_in', False):
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+# Use the simple auth decorator
+login_required = require_auth
 
 class CurrentUser:
-    """Current user object for working authentication"""
+    """Current user object for simple authentication"""
     @property
     def id(self):
         return session.get('user_id')
@@ -39,11 +31,8 @@ class CurrentUser:
     
     @property
     def email(self):
-        user_id = session.get('user_id')
-        if user_id:
-            user = User.query.get(user_id)
-            return user.email if user else None
-        return None
+        user = get_current_user()
+        return user.email if user else None
     
     @property
     def role(self):
@@ -378,31 +367,7 @@ def index():
 
 # Login route is now defined in main.py
 
-@app.route('/logout')
-def logout():
-    """User logout with proper cache control"""
-    from working_auth import logout_user_working
-    
-    # Clear working auth session
-    logout_user_working()
-    
-    # Clear Flask session
-    session.clear()
-    
-    # Create response with cache control headers
-    response = make_response(redirect(url_for('login')))
-    
-    # Prevent caching of this response
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    
-    # Clear any auth cookies
-    response.set_cookie('auth_session', '', expires=0, path='/')
-    response.set_cookie('session', '', expires=0, path='/')
-    
-    flash('You have been logged out successfully.', 'success')
-    return response
+# Logout route now handled in main.py
 
 @app.route('/fix-admin-password')
 def fix_admin_password():

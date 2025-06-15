@@ -1,16 +1,17 @@
 # Import the working application
 from app_clean import app, db
-from flask import request, redirect, url_for, session, render_template
+from flask import request, redirect, url_for, session, render_template, flash
 from models import User
-from datetime import datetime
+from simple_auth import login_user_simple, is_authenticated, clear_auth_session
+import logging
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    import logging
-    logging.info(f"Login request: method={request.method}, logged_in={session.get('logged_in')}")
+    logging.info(f"Login request: method={request.method}")
     
-    if session.get('logged_in') and request.method == 'GET':
-        logging.info("User already logged in, redirecting to index")
+    # Check if already authenticated
+    if is_authenticated() and request.method == 'GET':
+        logging.info("User already authenticated, redirecting to index")
         return redirect(url_for('index'))
     
     if request.method == 'POST':
@@ -20,47 +21,26 @@ def login():
         logging.info(f"Login attempt for username: {username}")
         
         if not username or not password:
-            logging.info("Missing username or password")
             return render_template('simple_login.html', error='Please enter both username and password.')
         
-        user = User.query.filter_by(username=username).first()
-        logging.info(f"User found: {user is not None}")
+        # Use simple authentication
+        success, message = login_user_simple(username, password)
         
-        if user and user.check_password(password):
-            logging.info("Password correct, setting session")
-            
-            # Clear any existing session data first
-            session.clear()
-            
-            # Use current authentication system
-            session.permanent = True
-            session['logged_in'] = True
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['user_role'] = user.role.value if hasattr(user.role, 'value') else user.role
-            
-            # Add additional authentication markers
-            session['authenticated'] = True
-            session['auth_timestamp'] = datetime.now().timestamp()
-            
-            logging.info(f"Session set for user: {user.username}, role: {session['user_role']}")
-            
-            # Force session save
-            session.modified = True
-            
-            # Create response with explicit redirect
-            from flask import make_response
-            response = make_response(redirect(url_for('index')))
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-            
-            return response
+        if success:
+            logging.info(f"Login successful for user: {username}")
+            return redirect(url_for('index'))
         else:
-            logging.info("Invalid credentials")
-            return render_template('simple_login.html', error='Invalid username or password.')
+            logging.info(f"Login failed for user: {username} - {message}")
+            return render_template('simple_login.html', error=message)
     
     return render_template('simple_login.html')
+
+@app.route('/logout')
+def logout():
+    """Logout user"""
+    logging.info("User logout")
+    clear_auth_session()
+    return redirect(url_for('login'))
 
 @app.route('/setup')
 def setup():

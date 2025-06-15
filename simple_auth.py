@@ -1,54 +1,114 @@
 """
-Simple authentication system to replace Flask-Login
+Simple, reliable authentication system for production deployment
 """
+import os
+import hashlib
+import logging
+from datetime import datetime, timedelta
 from flask import session, request, redirect, url_for, flash
-from functools import wraps
-from models import User
 
-def login_required(f):
-    """Decorator to require login for protected routes"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('logged_in'):
-            flash('Please log in to access this page.', 'error')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+logger = logging.getLogger(__name__)
 
-def admin_required(f):
-    """Decorator to require admin role"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('logged_in'):
-            flash('Please log in to access this page.', 'error')
-            return redirect(url_for('login'))
-        if session.get('user_role') != 'admin':
-            flash('Admin access required.', 'error')
-            return redirect(url_for('index'))
-        return f(*args, **kwargs)
-    return decorated_function
+def create_auth_session(user):
+    """Create authenticated session for user"""
+    try:
+        # Clear any existing session data
+        session.clear()
+        
+        # Set session data
+        session.permanent = True
+        session['authenticated'] = True
+        session['user_id'] = user.id
+        session['username'] = user.username
+        session['user_role'] = getattr(user.role, 'value', user.role) if hasattr(user, 'role') else 'user'
+        session['auth_time'] = datetime.now().timestamp()
+        
+        # Force session to save
+        session.modified = True
+        
+        logger.info(f"Session created for user: {user.username}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to create session: {e}")
+        return False
+
+def is_authenticated():
+    """Check if user is authenticated"""
+    try:
+        authenticated = session.get('authenticated', False)
+        user_id = session.get('user_id')
+        auth_time = session.get('auth_time')
+        
+        if not all([authenticated, user_id, auth_time]):
+            return False
+            
+        # Check if session is too old (24 hours)
+        if datetime.now().timestamp() - auth_time > 86400:
+            clear_auth_session()
+            return False
+            
+        return True
+        
+    except Exception as e:
+        logger.error(f"Authentication check failed: {e}")
+        return False
 
 def get_current_user():
-    """Get current user from session"""
-    if session.get('logged_in'):
-        return {
-            'id': session.get('user_id'),
-            'username': session.get('username'),
-            'role': session.get('user_role'),
-            'is_admin': session.get('user_role') == 'admin'
-        }
-    return None
+    """Get current authenticated user"""
+    if not is_authenticated():
+        return None
+        
+    try:
+        from models import User
+        user_id = session.get('user_id')
+        return User.query.get(user_id) if user_id else None
+        
+    except Exception as e:
+        logger.error(f"Failed to get current user: {e}")
+        return None
 
-def login_user(user):
-    """Log in a user"""
-    session.permanent = True
-    session['user_id'] = user.id
-    session['username'] = user.username
-    session['user_role'] = user.role
-    session['logged_in'] = True
-    return True
+def clear_auth_session():
+    """Clear authentication session"""
+    try:
+        session.clear()
+        logger.info("Authentication session cleared")
+        
+    except Exception as e:
+        logger.error(f"Failed to clear session: {e}")
 
-def logout_user():
-    """Log out current user"""
-    session.clear()
-    return True
+def require_auth(f):
+    """Decorator to require authentication"""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_authenticated():
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def login_user_simple(username, password):
+    """Simple login function"""
+    try:
+        from models import User
+        
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            logger.info(f"User not found: {username}")
+            return False, "Invalid username or password"
+            
+        if not user.check_password(password):
+            logger.info(f"Invalid password for user: {username}")
+            return False, "Invalid username or password"
+            
+        if create_auth_session(user):
+            logger.info(f"Login successful for user: {username}")
+            return True, "Login successful"
+        else:
+            logger.error(f"Failed to create session for user: {username}")
+            return False, "Login failed - session error"
+            
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return False, "Login failed - system error"
