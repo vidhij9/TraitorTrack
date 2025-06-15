@@ -49,6 +49,16 @@ class User(UserMixin, db.Model):
         """Check if user is an admin"""
         return self.role == UserRole.ADMIN.value
     
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'role': self.role,
+            'verified': self.verified,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+    
     def __repr__(self):
         return f"<User {self.username}>"
 
@@ -101,6 +111,18 @@ class Bag(db.Model):
             return None
         bill_link = self.bill_links.first()
         return bill_link.bill if bill_link else None
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'qr_id': self.qr_id,
+            'type': self.type,
+            'name': self.name,
+            'child_count': self.child_count,
+            'parent_id': self.parent_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
     
     def __repr__(self):
         return f"<Bag {self.qr_id} ({self.type})>"
@@ -178,6 +200,41 @@ class Scan(db.Model):
         db.Index('idx_scan_child_bag', 'child_bag_id'),
         db.Index('idx_scan_user', 'user_id'),
     )
+    
+    def to_dict(self):
+        result = {
+            'id': self.id,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'parent_bag_id': self.parent_bag_id,
+            'child_bag_id': self.child_bag_id,
+            'user_id': self.user_id
+        }
+        
+        # Add bag information safely
+        if self.parent_bag:
+            result['parent_bag'] = {
+                'id': self.parent_bag.id,
+                'qr_id': self.parent_bag.qr_id,
+                'type': self.parent_bag.type,
+                'name': self.parent_bag.name
+            }
+        
+        if self.child_bag:
+            result['child_bag'] = {
+                'id': self.child_bag.id,
+                'qr_id': self.child_bag.qr_id,
+                'type': self.child_bag.type,
+                'name': self.child_bag.name
+            }
+        
+        # Add user information safely
+        if self.user:
+            result['user'] = {
+                'id': self.user.id,
+                'username': self.user.username
+            }
+        
+        return result
     
     def __repr__(self):
         return f"<Scan ID:{self.id} at {self.timestamp}>"
