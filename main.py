@@ -11,7 +11,7 @@ def login():
     
     # Check if already authenticated
     if is_authenticated() and request.method == 'GET':
-        logging.info("User already authenticated, redirecting to index")
+        logging.info("User already authenticated, redirecting to dashboard")
         return redirect(url_for('index'))
     
     if request.method == 'POST':
