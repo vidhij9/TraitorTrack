@@ -21,10 +21,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     updateStatistics(data.statistics);
                     updateCharts();
+                } else {
+                    // Show zeros if API returns unsuccessful response
+                    updateStatistics({
+                        total_parent_bags: 0,
+                        total_child_bags: 0,
+                        total_scans: 0,
+                        total_bills: 0
+                    });
                 }
             })
             .catch(error => {
                 console.error('Error loading dashboard data:', error);
+                // Show zeros on error instead of leaving "Loading..."
+                updateStatistics({
+                    total_parent_bags: 0,
+                    total_child_bags: 0,
+                    total_scans: 0,
+                    total_bills: 0
+                });
             });
         
         // Load recent scans
@@ -32,19 +47,22 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    updateRecentScansTable(data.scans);
+                    updateRecentScansTable(data.scans || []);
+                } else {
+                    updateRecentScansTable([]);
                 }
             })
             .catch(error => {
                 console.error('Error loading recent scans:', error);
+                updateRecentScansTable([]);
             });
     }
     
     function updateStatistics(stats) {
-        if (totalParentBagsEl) totalParentBagsEl.textContent = stats.total_parent_bags.toLocaleString();
-        if (totalChildBagsEl) totalChildBagsEl.textContent = stats.total_child_bags.toLocaleString();
-        if (totalScansEl) totalScansEl.textContent = stats.total_scans.toLocaleString();
-        if (totalBillsEl) totalBillsEl.textContent = stats.total_bills.toLocaleString();
+        if (totalParentBagsEl) totalParentBagsEl.textContent = (stats.total_parent_bags || 0).toLocaleString();
+        if (totalChildBagsEl) totalChildBagsEl.textContent = (stats.total_child_bags || 0).toLocaleString();
+        if (totalScansEl) totalScansEl.textContent = (stats.total_scans || 0).toLocaleString();
+        if (totalBillsEl) totalBillsEl.textContent = (stats.total_bills || 0).toLocaleString();
     }
     
     function updateCharts() {
