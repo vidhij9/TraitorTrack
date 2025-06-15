@@ -224,16 +224,16 @@
                                     <span class="text-muted">No scans</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <div class="btn-group btn-group-sm d-flex flex-column flex-sm-row">
-                                    <a href="{{ url_for('bag_details', qr_id=bag.qr_id) }}" class="btn btn-outline-primary btn-sm mb-1 mb-sm-0" title="View">
+                            <td class="align-middle">
+                                <div class="btn-group btn-group-sm d-flex flex-wrap justify-content-center" role="group">
+                                    <a href="{{ url_for('bag_details', qr_id=bag.qr_id) }}" class="btn btn-outline-primary btn-sm me-1 mb-1" title="View">
                                         <i class="fas fa-eye"></i><span class="d-none d-lg-inline ms-1">View</span>
                                     </a>
-                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn mb-1 mb-sm-0" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete">
+                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn me-1 mb-1" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete">
                                         <i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>
                                     </button>
                                     {% if bag.type == 'parent' %}
-                                    <a href="{{ url_for('edit_parent_children', parent_qr=bag.qr_id) }}" class="btn btn-outline-warning btn-sm mb-1 mb-sm-0" title="Edit">
+                                    <a href="{{ url_for('edit_parent_children', parent_qr=bag.qr_id) }}" class="btn btn-outline-warning btn-sm me-1 mb-1" title="Edit">
                                         <i class="fas fa-edit"></i><span class="d-none d-lg-inline ms-1">Edit</span>
                                     </a>
                                     {% endif %}

@@ -329,3 +329,49 @@
         margin-right: 2px !important;
     }
 }
+
+/* Action button alignment fixes */
+.table td.align-middle .btn-group {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+}
+
+.table td.align-middle .btn-group .btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle !important;
+    min-height: 28px !important;
+    padding: 4px 8px !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+}
+
+/* Responsive action button sizing */
+@media (max-width: 768px) {
+    .table td.align-middle .btn-group .btn {
+        min-height: 24px !important;
+        padding: 3px 6px !important;
+        font-size: 11px !important;
+    }
+    
+    .table td.align-middle .btn-group .btn i {
+        font-size: 10px !important;
+        margin-right: 3px !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .table td.align-middle .btn-group .btn {
+        min-height: 22px !important;
+        padding: 2px 5px !important;
+        font-size: 10px !important;
+    }
+    
+    .table td.align-middle .btn-group .btn i {
+        font-size: 9px !important;
+        margin-right: 2px !important;
+    }
+}
