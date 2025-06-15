@@ -1,89 +1,131 @@
 {% extends "layout.html" %}
 
-{% block title %}Child Bag Lookup - traitor track{% endblock %}
+{% block title %} - Search Bags{% endblock %}
+
+{% block head %}
+<style>
+    #video {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    #search-result {
+        display: none;
+    }
+    .search-icon {
+        font-size: 50px;
+        margin-bottom: 20px;
+    }
+    .video-container {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card bg-dark text-light">
-                <div class="card-body">
-                    <h2 class="card-title">
-                        <i class="fas fa-search me-2"></i>Universal Bag Lookup
-                    </h2>
-                    <p class="card-text">Scan or enter any bag QR code (parent or child) to view its details, relationships, and bill information.</p>
-                </div>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card bg-dark mb-4">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-search me-2"></i>Search Bags</h3>
             </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-lg-6 mb-4 mb-lg-0">
-            <div class="card">
-                <div class="card-header bg-primary bg-opacity-25 text-light">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
-                </div>
-                <div class="card-body p-0">
-                    <div class="video-container">
-                        <video id="video" playsinline></video>
-                        <canvas id="canvas" class="d-none"></canvas>
-                    </div>
-                </div>
-                <div class="card-footer d-flex gap-2 p-2">
-                    <button id="start-camera" class="btn btn-primary mobile-camera-btn flex-fill">
-                        <i class="fas fa-play me-1"></i>Start Camera
-                    </button>
-                    <button id="stop-camera" class="btn btn-secondary mobile-camera-btn flex-fill" disabled>
-                        <i class="fas fa-stop me-1"></i>Stop Camera
-                    </button>
-                </div>
-            </div>
-            
-            <div class="card mt-4">
-                <div class="card-header bg-info bg-opacity-25 text-light">
-                    <h4 class="mb-0"><i class="fas fa-keyboard me-2"></i>Manual Lookup</h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('child_lookup') }}" id="lookupForm">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <div class="mb-3">
-                            <label for="qr_code" class="form-label">Bag QR Code</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-search"></i>
-                                </span>
-                                <input type="text" class="form-control" id="qr_code" name="qr_id" placeholder="e.g., P3-1 or C123" required>
-                                <button type="submit" class="btn btn-primary mobile-search-btn" id="lookupBtn">
-                                    <i class="fas fa-search me-1"></i>Lookup
-                                </button>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="text-center mb-4">
+                            <div class="search-icon text-primary">
+                                <i class="fas fa-search"></i>
                             </div>
-                            <div class="form-text">Enter any bag QR code (parent or child).</div>
+                            <h4>Find Any Bag</h4>
+                            <p class="text-muted">Scan or enter any bag QR code to view details and relationships</p>
                         </div>
-                    </form>
+                        
+                        <div class="video-container mb-4">
+                            <video id="video" playsinline></video>
+                            <canvas id="canvas" class="d-none"></canvas>
+                        </div>
+                        
+                        <div class="d-flex justify-content-center mb-3">
+                            <button class="btn btn-primary me-2" id="start-camera">
+                                <i class="fas fa-play me-2"></i>Start Scanner
+                            </button>
+                            <button class="btn btn-secondary" id="stop-camera" disabled>
+                                <i class="fas fa-stop me-2"></i>Stop Scanner
+                            </button>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-info-circle fa-lg"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading">Search Tips</h5>
+                                    <ul class="mb-0">
+                                        <li>Works with both parent and child bags</li>
+                                        <li>Shows bag relationships and bills</li>
+                                        <li>Displays complete scan history</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="search-form">
+                            <h4 class="mb-3">Manual Search</h4>
+                            <p class="text-muted">Enter a bag QR code to find information</p>
+                            
+                            <form method="POST" action="{{ url_for('child_lookup') }}" id="lookupForm">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <div class="mb-3">
+                                    <label for="qr_code" class="form-label">Bag QR Code</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="qr_code" name="qr_id" placeholder="e.g., P3-1 or C123" required>
+                                    </div>
+                                    <div class="form-text">Enter any bag QR code (parent or child)</div>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary" id="lookupBtn">
+                                        <i class="fas fa-search me-2"></i>Search Bag
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div id="search-result">
+                            <div class="alert alert-success mb-4">
+                                <h4 class="alert-heading"><i class="fas fa-check-circle me-2"></i>QR Code Detected!</h4>
+                                <p>QR Code ID: <strong id="result-qrid"></strong></p>
+                                <p class="mb-0">Click Search to find bag information.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header bg-success bg-opacity-25 text-light">
-                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Lookup Result</h4>
-                </div>
-                <div class="card-body">
-                    {% if bag_info %}
-                        <div class="alert alert-success mb-4">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-check-circle fa-2x me-3"></i>
-                                <div>
-                                    <h5 class="mb-1">{{ bag_info.type|title }} Bag Found</h5>
-                                    <p class="mb-0">QR Code: <span class="fw-bold">{{ bag_info.bag.qr_id }}</span></p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Bag Details -->
-                        <div class="card mb-4">
-                            <div class="card-header bg-primary bg-opacity-25 text-light">
+        <!-- Search Results Section -->
+        {% if bag_info %}
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>Search Results</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header bg-success bg-opacity-25 text-light">
                                 <h5 class="mb-0">
                                     <i class="fas fa-{% if bag_info.type == 'parent' %}box{% else %}tag{% endif %} me-2"></i>
                                     {{ bag_info.type|title }} Bag Details
@@ -110,154 +152,89 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Parent/Child Relationship -->
+                    </div>
+                    
                         {% if bag_info.type == 'child' and bag_info.parent_bag %}
-                        <div class="card mb-4">
+                        <div class="card">
                             <div class="card-header bg-info bg-opacity-25 text-light">
-                                <h5 class="mb-0"><i class="fas fa-box me-2"></i>Parent Bag Information</h5>
+                                <h5 class="mb-0"><i class="fas fa-box me-2"></i>Parent Bag</h5>
                             </div>
                             <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <p class="text-muted mb-1">Parent QR Code</p>
-                                        <p class="fw-bold fs-5">{{ bag_info.parent_bag.qr_id }}</p>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <p class="text-muted mb-1">Total Child Bags</p>
-                                        <p class="fw-bold fs-5">{{ bag_info.child_bags|length }}</p>
-                                    </div>
-                                    <div class="col-12">
-                                        <a href="{{ url_for('child_lookup') }}?qr_id={{ bag_info.parent_bag.qr_id }}" class="btn btn-outline-info">
-                                            <i class="fas fa-eye me-2"></i>View Parent Bag
-                                        </a>
-                                    </div>
-                                </div>
+                                <p class="text-muted mb-1">Parent QR Code</p>
+                                <p class="fw-bold fs-5">{{ bag_info.parent_bag.qr_id }}</p>
+                                <a href="{{ url_for('child_lookup') }}?qr_id={{ bag_info.parent_bag.qr_id }}" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye me-2"></i>View Parent
+                                </a>
                             </div>
                         </div>
-                        {% endif %}
-                        
-                        {% if bag_info.type == 'parent' and bag_info.child_bags %}
-                        <div class="card mb-4">
+                        {% elif bag_info.type == 'parent' and bag_info.child_bags %}
+                        <div class="card">
                             <div class="card-header bg-info bg-opacity-25 text-light">
                                 <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Child Bags ({{ bag_info.child_bags|length }})</h5>
                             </div>
                             <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>QR Code</th>
-                                                <th>Created</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for child in bag_info.child_bags %}
-                                            <tr>
-                                                <td><code>{{ child.qr_id }}</code></td>
-                                                <td>{{ child.created_at.strftime('%Y-%m-%d') }}</td>
-                                                <td>
-                                                    <a href="{{ url_for('child_lookup') }}?qr_id={{ child.qr_id }}" class="btn btn-sm btn-outline-primary">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        <!-- Bill Information -->
-                        {% if bag_info.bills %}
-                        <div class="card mb-4">
-                            <div class="card-header bg-warning bg-opacity-25 text-light">
-                                <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Bill Information</h5>
-                            </div>
-                            <div class="card-body">
-                                {% for bill in bag_info.bills %}
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <p class="text-muted mb-1">Bill ID</p>
-                                        <p class="fw-bold fs-5">{{ bill.bill_id }}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p class="text-muted mb-1">Created Date</p>
-                                        <p class="fw-bold">{{ bill.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                                    </div>
-                                    {% if bill.description %}
-                                    <div class="col-12">
-                                        <p class="text-muted mb-1">Description</p>
-                                        <p>{{ bill.description }}</p>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                {% if not loop.last %}<hr>{% endif %}
+                                {% for child in bag_info.child_bags[:3] %}
+                                <p><code>{{ child.qr_id }}</code> - {{ child.created_at.strftime('%Y-%m-%d') }}</p>
                                 {% endfor %}
-                                
-                                {% if current_user.is_admin() %}
-                                <div class="d-grid gap-2 mt-3">
-                                    <a href="{{ url_for('bill_management') }}" class="btn btn-warning">
-                                        <i class="fas fa-eye me-2"></i>View Bill Management
-                                    </a>
-                                </div>
+                                {% if bag_info.child_bags|length > 3 %}
+                                <p class="text-muted">... and {{ bag_info.child_bags|length - 3 }} more</p>
                                 {% endif %}
                             </div>
                         </div>
                         {% else %}
-                        <div class="card mb-4">
+                        <div class="card">
                             <div class="card-header bg-secondary bg-opacity-25 text-light">
-                                <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Bill Information</h5>
+                                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Additional Info</h5>
                             </div>
                             <div class="card-body">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    No bills associated with this bag.
-                                </div>
+                                <p class="text-muted">No additional relationships found.</p>
                             </div>
                         </div>
                         {% endif %}
-                        
-                        <!-- Scan History -->
-                        {% if bag_info.scans %}
+                    </div>
+                </div>
+                
+                <!-- Bills and Scans Summary -->
+                <div class="row mt-4">
+                    {% if bag_info.bills %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header bg-warning bg-opacity-25 text-light">
+                                <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Bills ({{ bag_info.bills|length }})</h5>
+                            </div>
+                            <div class="card-body">
+                                {% for bill in bag_info.bills[:2] %}
+                                <p><strong>{{ bill.bill_id }}</strong> - {{ bill.created_at.strftime('%Y-%m-%d') }}</p>
+                                {% endfor %}
+                                {% if bag_info.bills|length > 2 %}
+                                <p class="text-muted">... and {{ bag_info.bills|length - 2 }} more</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if bag_info.scans %}
+                    <div class="col-md-6 mb-4">
                         <div class="card">
                             <div class="card-header bg-secondary bg-opacity-25 text-light">
                                 <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Scans ({{ bag_info.scans|length }})</h5>
                             </div>
                             <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>Date & Time</th>
-                                                <th>User</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for scan in bag_info.scans %}
-                                            <tr>
-                                                <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                                                <td>{{ scan.user.username if scan.user else 'Unknown' }}</td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                {% for scan in bag_info.scans[:3] %}
+                                <p>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') }} - {{ scan.user.username if scan.user else 'Unknown' }}</p>
+                                {% endfor %}
+                                {% if bag_info.scans|length > 3 %}
+                                <p class="text-muted">... and {{ bag_info.scans|length - 3 }} more</p>
+                                {% endif %}
                             </div>
                         </div>
-                        {% endif %}
-                    {% else %}
-                        <div id="result-container" class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Scan a bag QR code or use the manual lookup form to find information.
-                        </div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -269,7 +246,10 @@
         const canvas = document.getElementById('canvas');
         const startCameraBtn = document.getElementById('start-camera');
         const stopCameraBtn = document.getElementById('stop-camera');
-        const resultContainer = document.getElementById('result-container');
+        const searchResult = document.getElementById('search-result');
+        const resultQRId = document.getElementById('result-qrid');
+        const qrCodeInput = document.getElementById('qr_code');
+        const lookupForm = document.getElementById('lookupForm');
         
         let stream = null;
         let scanning = false;
