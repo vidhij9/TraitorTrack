@@ -2,6 +2,7 @@
 from app_clean import app, db
 from flask import request, redirect, url_for, session, render_template
 from models import User
+from datetime import datetime
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -28,15 +29,33 @@ def login():
         if user and user.check_password(password):
             logging.info("Password correct, setting session")
             
+            # Clear any existing session data first
+            session.clear()
+            
             # Use current authentication system
             session.permanent = True
             session['logged_in'] = True
             session['user_id'] = user.id
             session['username'] = user.username
-            session['user_role'] = user.role
+            session['user_role'] = user.role.value if hasattr(user.role, 'value') else user.role
             
-            logging.info(f"Session set for user: {user.username}")
-            return redirect(url_for('index'))
+            # Add additional authentication markers
+            session['authenticated'] = True
+            session['auth_timestamp'] = datetime.now().timestamp()
+            
+            logging.info(f"Session set for user: {user.username}, role: {session['user_role']}")
+            
+            # Force session save
+            session.modified = True
+            
+            # Create response with explicit redirect
+            from flask import make_response
+            response = make_response(redirect(url_for('index')))
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            
+            return response
         else:
             logging.info("Invalid credentials")
             return render_template('simple_login.html', error='Invalid username or password.')
