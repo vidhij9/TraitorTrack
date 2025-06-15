@@ -1,7 +1,7 @@
 import logging
 from flask import jsonify, request, Blueprint, make_response
 from flask_login import login_required, current_user
-from app import app, db
+from app_clean import app, db
 from models import User, Bag, BagType, Link, Scan
 from cache_utils import cached_response, invalidate_cache
 import time
