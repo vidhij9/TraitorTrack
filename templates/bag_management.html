@@ -229,14 +229,14 @@
                                     <a href="{{ url_for('bag_details', qr_id=bag.qr_id) }}" class="btn btn-outline-primary btn-sm mb-1 mb-sm-0" title="View">
                                         <i class="fas fa-eye"></i><span class="d-none d-lg-inline ms-1">View</span>
                                     </a>
+                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn mb-1 mb-sm-0" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete">
+                                        <i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>
+                                    </button>
                                     {% if bag.type == 'parent' %}
                                     <a href="{{ url_for('edit_parent_children', parent_qr=bag.qr_id) }}" class="btn btn-outline-warning btn-sm mb-1 mb-sm-0" title="Edit">
                                         <i class="fas fa-edit"></i><span class="d-none d-lg-inline ms-1">Edit</span>
                                     </a>
                                     {% endif %}
-                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete">
-                                        <i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>
-                                    </button>
                                 </div>
                             </td>
                         </tr>

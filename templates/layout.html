@@ -234,11 +234,7 @@
                             </li>
                         {% endif %}
                         
-                        <li class="nav-item">
-                            <a class="nav-link{% if '/scans' in request.path %} active{% endif %}" href="{{ url_for('scan_history', s=request.args.get('s')) }}">
-                                <i class="fas fa-clock"></i> Recent Scans
-                            </a>
-                        </li>
+
                         
                         {% if current_user.is_admin() %}
                             <li class="nav-item">

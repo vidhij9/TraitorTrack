@@ -1141,13 +1141,23 @@ def bag_management():
                  ~Bag.id.in_(db.session.query(Link.child_bag_id).distinct()))
         )
     
-    # Bill status filter
+    # Bill status filter - only applies to parent bags since only they can be in bills
     if bill_status == 'billed':
-        # Bags that are in bills (only parent bags can be in bills)
-        query = query.filter(Bag.id.in_(db.session.query(BillBag.bag_id).distinct()))
+        # Only parent bags that are in bills
+        query = query.filter(
+            and_(
+                Bag.type == BagType.PARENT.value,
+                Bag.id.in_(db.session.query(BillBag.bag_id).distinct())
+            )
+        )
     elif bill_status == 'unbilled':
-        # Bags not in any bills
-        query = query.filter(~Bag.id.in_(db.session.query(BillBag.bag_id).distinct()))
+        # Only parent bags not in any bills
+        query = query.filter(
+            and_(
+                Bag.type == BagType.PARENT.value,
+                ~Bag.id.in_(db.session.query(BillBag.bag_id).distinct())
+            )
+        )
     
     # Paginate results
     bags = query.order_by(desc(Bag.created_at)).paginate(
