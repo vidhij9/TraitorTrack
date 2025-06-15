@@ -5,6 +5,9 @@ from models import User
 from simple_auth import login_user_simple, is_authenticated, clear_auth_session
 import logging
 
+# Import all the main routes to ensure they're registered
+import routes
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     logging.info(f"Login request: method={request.method}")
