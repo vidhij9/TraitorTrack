@@ -333,11 +333,10 @@ def index():
     """Main dashboard page"""
     import logging
     logging.info(f"Index route - Session data: {dict(session)}")
-    logging.info(f"Logged in status: {session.get('logged_in')}")
+    logging.info(f"Authenticated: {is_authenticated()}")
     
-    # Working authentication check
-    from working_auth import is_authenticated_working
-    if not is_authenticated_working():
+    # Simple authentication check
+    if not is_authenticated():
         logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     
