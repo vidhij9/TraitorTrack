@@ -197,7 +197,8 @@ def mobile_scan_child():
 @json_response
 def get_locations():
     """Get all locations for mobile app"""
-    locations = Location.query.all()
+    # locations = Location.query.all()  # Location model not available
+    locations = []
     
     location_list = [{
         'id': loc.id,

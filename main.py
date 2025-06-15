@@ -1,5 +1,5 @@
-# Import the current application
-from app import app, db
+# Import the working application
+from app_clean import app, db
 from flask import request, redirect, url_for, session, render_template
 from models import User
 

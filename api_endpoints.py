@@ -108,8 +108,7 @@ def entity_counts():
         'users': db.session.query(func.count(User.id)).scalar(),
         'parent_bags': db.session.query(func.count(Bag.id)).filter(Bag.type == BagType.PARENT.value).scalar(),
         'child_bags': db.session.query(func.count(Bag.id)).filter(Bag.type == BagType.CHILD.value).scalar(),
-        'scans': db.session.query(func.count(Scan.id)).scalar(),
-        'scans': db.session.query(func.count(Scan.id)).scalar(),
+        'total_scans': db.session.query(func.count(Scan.id)).scalar(),
         'timestamp': datetime.utcnow().isoformat()
     }
     
