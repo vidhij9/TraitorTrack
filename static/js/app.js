@@ -1,4 +1,4 @@
-// TraceTrack Application JavaScript
+// Traitor Track Application JavaScript
 
 document.addEventListener('DOMContentLoaded', function() {
     // Auto dismiss alerts after 5 seconds

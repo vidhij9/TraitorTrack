@@ -1,5 +1,5 @@
 """
-Configuration module for traitor track application.
+Configuration module for Traitor Track application.
 Centralizes all configuration settings with environment variable support.
 """
 import os

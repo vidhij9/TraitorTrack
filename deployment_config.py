@@ -26,7 +26,7 @@ def configure_for_deployment(app):
         app.logger.addHandler(file_handler)
         
         app.logger.setLevel(logging.INFO)
-        app.logger.info('traitor track application startup')
+        app.logger.info('Traitor Track application startup')
     
     # Environment-specific configurations
     if os.environ.get('REPLIT_DEPLOYMENT') == '1':
