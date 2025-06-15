@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Bills - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-file-invoice"></i> Bills Management</h1>
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Create New Bill -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-plus"></i> Create New Bill</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="bill_id" class="form-label">Bill ID</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                                    <input type="text" class="form-control" id="bill_id" name="bill_id" required placeholder="Enter unique bill ID">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="bag_qr_ids" class="form-label">Bag QR IDs (Optional)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
+                                    <input type="text" class="form-control" id="bag_qr_ids" name="bag_qr_ids" placeholder="QR1, QR2, QR3...">
+                                </div>
+                                <div class="form-text">Comma-separated list of bag QR IDs</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">Notes (Optional)</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="1" placeholder="Add notes about this bill..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create Bill
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bills List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-list"></i> All Bills</h5>
+            </div>
+            <div class="card-body">
+                {% if bills.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Bill ID</th>
+                                <th>Created By</th>
+                                <th>Created Date</th>
+                                <th>Bag Count</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bill in bills.items %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary fs-6">{{ bill.bill_id }}</span>
+                                </td>
+                                <td>
+                                    <i class="fas fa-user"></i>
+                                    {{ bill.user.username if bill.user }}
+                                </td>
+                                <td>
+                                    <small>{{ bill.created_at.strftime('%Y-%m-%d %H:%M') if bill.created_at }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ bill.bags.count() }}</span>
+                                </td>
+                                <td>
+                                    {% if bill.notes %}
+                                        <small title="{{ bill.notes }}">
+                                            {{ bill.notes[:50] + '...' if bill.notes|length > 50 else bill.notes }}
+                                        </small>
+                                    {% else %}
+                                        <span class="text-muted">No notes</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if bills.pages > 1 %}
+                <nav aria-label="Bills pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if bills.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.bills', page=bills.prev_num) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in bills.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != bills.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.bills', page=page_num) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if bills.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.bills', page=bills.next_num) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No bills found</h5>
+                    <p class="text-muted">Create your first bill using the form above.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

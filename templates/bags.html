@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Bags - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-archive"></i> All Bags</h1>
+            <div>
+                <a href="{{ url_for('main.scan_parent') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Parent Bag
+                </a>
+                <a href="{{ url_for('main.scan_child') }}" class="btn btn-success">
+                    <i class="fas fa-link"></i> Link Child Bag
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Options -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="mb-0">Filter by Type:</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('main.bags', type='all') }}" 
+                               class="btn {{ 'btn-primary' if bag_type == 'all' else 'btn-outline-primary' }}">
+                                All Bags
+                            </a>
+                            <a href="{{ url_for('main.bags', type='parent') }}" 
+                               class="btn {{ 'btn-primary' if bag_type == 'parent' else 'btn-outline-primary' }}">
+                                Parent Bags
+                            </a>
+                            <a href="{{ url_for('main.bags', type='child') }}" 
+                               class="btn {{ 'btn-primary' if bag_type == 'child' else 'btn-outline-primary' }}">
+                                Child Bags
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bags List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> 
+                    {% if bag_type == 'parent' %}Parent Bags{% elif bag_type == 'child' %}Child Bags{% else %}All Bags{% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if bags.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>QR ID</th>
+                                <th>Type</th>
+                                <th>Name</th>
+                                <th>Child Count</th>
+                                <th>Created</th>
+                                <th>Last Scan</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bag in bags.items %}
+                            <tr>
+                                <td>
+                                    <span class="badge {{ 'bg-primary' if bag.type == 'parent' else 'bg-success' }}">
+                                        {{ bag.qr_id }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <i class="fas {{ 'fa-boxes' if bag.type == 'parent' else 'fa-cube' }}"></i>
+                                    {{ bag.type.title() }}
+                                </td>
+                                <td>{{ bag.name or '-' }}</td>
+                                <td>
+                                    {% if bag.type == 'parent' %}
+                                        {{ bag.child_count or 0 }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ bag.created_at.strftime('%Y-%m-%d %H:%M') if bag.created_at }}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if bag.last_scan %}
+                                        <small class="text-success">
+                                            {{ bag.last_scan.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted">Never scanned</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('main.bag_detail', bag_id=bag.id) }}" 
+                                       class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if bags.pages > 1 %}
+                <nav aria-label="Bags pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if bags.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.bags', page=bags.prev_num, type=bag_type) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in bags.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != bags.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.bags', page=page_num, type=bag_type) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if bags.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.bags', page=bags.next_num, type=bag_type) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-archive fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No bags found</h5>
+                    <p class="text-muted">Start by scanning some bags to see them here.</p>
+                    <a href="{{ url_for('main.scan_parent') }}" class="btn btn-primary">
+                        <i class="fas fa-qrcode"></i> Scan Your First Bag
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
