@@ -986,17 +986,30 @@ def child_lookup():
     url_qr_id = request.args.get('qr_id', '').strip()
     
     if form.validate_on_submit():
-        qr_id = sanitize_input(getattr(form, 'qr_id', form).data).upper()
+        qr_id = sanitize_input(form.qr_id.data).upper()
     elif url_qr_id:
         # If there's a QR ID in the URL, use it for lookup
         qr_id = sanitize_input(url_qr_id).upper()
+    elif request.method == 'POST':
+        # Handle direct form submission without WTForms validation
+        qr_id = sanitize_input(request.form.get('qr_id', '')).upper()
     else:
         qr_id = None
     
     if qr_id:
+        app.logger.info(f'Lookup request for QR ID: {qr_id}')
         
-        # Look up the bag (could be parent or child)
-        bag = Bag.query.filter_by(qr_id=qr_id).first()
+        # Try case-insensitive lookup first, then exact match
+        bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_id.upper()).first()
+        if not bag:
+            # Try exact match
+            bag = Bag.query.filter_by(qr_id=qr_id).first()
+        if not bag:
+            # Try original case
+            bag = Bag.query.filter_by(qr_id=request.form.get('qr_id', '')).first()
+        
+        app.logger.info(f'Bag found: {bag.qr_id if bag else "None"}')
+        app.logger.info(f'Total bags in database: {Bag.query.count()}')
         
         if bag:
             # Get related information based on bag type
