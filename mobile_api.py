@@ -12,7 +12,7 @@ from flask_login import current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
 
 from app import db
-from models import User, Bag, BagType, Scan, Location
+from models import User, Bag, BagType, Scan
 from cache_utils import cached_response
 from async_processing import process_scan_async
 

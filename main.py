@@ -1,7 +1,5 @@
-# Import the working application but with fixed authentication
-from app_clean import app, db
-
-# Override the problematic login route with working authentication
+# Import the current application
+from app import app, db
 from flask import request, redirect, url_for, session, render_template
 from models import User
 
@@ -30,13 +28,15 @@ def login():
         if user and user.check_password(password):
             logging.info("Password correct, setting session")
             
-            from working_auth import login_user_working
+            # Use current authentication system
+            session.permanent = True
+            session['logged_in'] = True
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['user_role'] = user.role
             
-            # Use working authentication system
-            response = login_user_working(user)
-            
-            logging.info(f"Working auth set for user: {user.username}")
-            return response
+            logging.info(f"Session set for user: {user.username}")
+            return redirect(url_for('index'))
         else:
             logging.info("Invalid credentials")
             return render_template('simple_login.html', error='Invalid username or password.')

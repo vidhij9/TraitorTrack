@@ -14,7 +14,7 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_login import current_user, login_required
 
 from app import db
-from models import User, Bag, BagType, Scan, Location
+from models import User, Bag, BagType, Scan
 from cache_utils import get_cache_stats
 from task_queue import get_queue_stats
 
@@ -108,7 +108,7 @@ def entity_counts():
         'users': db.session.query(func.count(User.id)).scalar(),
         'parent_bags': db.session.query(func.count(Bag.id)).filter(Bag.type == BagType.PARENT.value).scalar(),
         'child_bags': db.session.query(func.count(Bag.id)).filter(Bag.type == BagType.CHILD.value).scalar(),
-        'locations': db.session.query(func.count(Location.id)).scalar(),
+        'scans': db.session.query(func.count(Scan.id)).scalar(),
         'scans': db.session.query(func.count(Scan.id)).scalar(),
         'timestamp': datetime.utcnow().isoformat()
     }
