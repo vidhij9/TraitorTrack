@@ -13,6 +13,28 @@ import html
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
 
+def sanitize_input(text, max_length=500):
+    """Sanitize user input to prevent XSS and limit length"""
+    if not text:
+        return ""
+    # HTML escape the input
+    sanitized = html.escape(str(text).strip())
+    # Limit length
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length]
+    return sanitized
+
+def validate_qr_format(qr_id):
+    """Validate QR ID format"""
+    if not qr_id:
+        return False, "QR ID is required"
+    # Allow alphanumeric characters and hyphens
+    if not re.match(r'^[A-Za-z0-9-]+$', qr_id):
+        return False, "QR ID contains invalid characters"
+    if len(qr_id) > 50:
+        return False, "QR ID is too long"
+    return True, ""
+
 @main_bp.route('/')
 @login_required
 def index():
@@ -45,9 +67,14 @@ def scan_parent():
         child_count = request.form.get('child_count', type=int)
         notes = request.form.get('notes', '').strip()
         
-        if not qr_id:
-            flash('QR ID is required.', 'error')
+        # Validate and sanitize inputs
+        is_valid, error_msg = validate_qr_format(qr_id)
+        if not is_valid:
+            flash(error_msg, 'error')
             return render_template('scan_parent.html')
+        
+        # Sanitize notes to prevent XSS
+        notes = sanitize_input(notes, max_length=1000)
         
         # Check if parent bag already exists
         parent_bag = Bag.query.filter_by(qr_id=qr_id).first()
@@ -91,9 +118,19 @@ def scan_child():
         child_qr_id = request.form.get('child_qr_id', '').strip()
         notes = request.form.get('notes', '').strip()
         
-        if not parent_qr_id or not child_qr_id:
-            flash('Both parent and child QR IDs are required.', 'error')
+        # Validate and sanitize inputs
+        is_valid_parent, error_msg = validate_qr_format(parent_qr_id)
+        if not is_valid_parent:
+            flash(f"Parent QR ID error: {error_msg}", 'error')
             return render_template('scan_child.html')
+        
+        is_valid_child, error_msg = validate_qr_format(child_qr_id)
+        if not is_valid_child:
+            flash(f"Child QR ID error: {error_msg}", 'error')
+            return render_template('scan_child.html')
+        
+        # Sanitize notes to prevent XSS
+        notes = sanitize_input(notes, max_length=1000)
         
         # Find parent bag
         parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
