@@ -15,16 +15,14 @@ def get_current_user_id():
 
 def is_authenticated():
     """Check if user is logged in"""
-    from final_auth import is_authenticated_final
-    return is_authenticated_final()
+    return session.get('logged_in', False)
 
 def login_required(f):
     """Decorator to require login for routes"""
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        from working_auth import is_authenticated_working
-        if not is_authenticated_working():
+        if not session.get('logged_in', False):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -33,38 +31,31 @@ class CurrentUser:
     """Current user object for working authentication"""
     @property
     def id(self):
-        from working_auth import get_auth_session
-        user_data = get_auth_session()
-        return user_data.get('user_id') if user_data else None
+        return session.get('user_id')
     
     @property
     def username(self):
-        from working_auth import get_auth_session
-        user_data = get_auth_session()
-        return user_data.get('username') if user_data else None
+        return session.get('username')
     
     @property
     def email(self):
-        from working_auth import get_auth_session
-        user_data = get_auth_session()
-        return user_data.get('email') if user_data else None
+        user_id = session.get('user_id')
+        if user_id:
+            user = User.query.get(user_id)
+            return user.email if user else None
+        return None
     
     @property
     def role(self):
-        from working_auth import get_auth_session
-        user_data = get_auth_session()
-        return user_data.get('role') if user_data else None
+        return session.get('user_role')
     
     @property
     def is_authenticated(self):
-        from working_auth import is_authenticated_working
-        return is_authenticated_working()
+        return session.get('logged_in', False)
     
     def is_admin(self):
         """Check if user is admin"""
-        from working_auth import get_auth_session
-        user_data = get_auth_session()
-        return user_data.get('role') == 'admin' if user_data else False
+        return session.get('user_role') == 'admin'
 
 current_user = CurrentUser()
 from sqlalchemy import desc, func, and_, or_
