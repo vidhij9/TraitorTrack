@@ -121,7 +121,7 @@ class Scan(db.Model):
     
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id])
     child_bag = db.relationship('Bag', foreign_keys=[child_bag_id])
-    user = db.relationship('User')
+    user = db.relationship('User', overlaps="scanned_by,scans")
     
     __table_args__ = (
         db.Index('idx_scan_timestamp', 'timestamp'),

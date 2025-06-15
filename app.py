@@ -63,7 +63,7 @@ def create_app():
     limiter.init_app(app)
     
     # Configure login manager
-    login_manager.login_view = 'auth.login'
+    login_manager.login_view = 'auth.login'  # type: ignore
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
     

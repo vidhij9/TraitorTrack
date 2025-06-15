@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import csv
 import io
 import logging
+import re
+import html
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
