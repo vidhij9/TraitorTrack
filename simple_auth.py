@@ -77,6 +77,21 @@ def clear_auth_session():
     except Exception as e:
         logger.error(f"Failed to clear session: {e}")
 
+def get_current_user_data():
+    """Get current user data from session"""
+    try:
+        if is_authenticated():
+            return {
+                'user_id': session.get('user_id'),
+                'username': session.get('username'),
+                'user_role': session.get('user_role'),
+                'auth_time': session.get('auth_time')
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Error getting user data: {e}")
+        return None
+
 def require_auth(f):
     """Decorator to require authentication"""
     from functools import wraps

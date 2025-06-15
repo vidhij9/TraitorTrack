@@ -146,5 +146,42 @@ def load_user(user_id):
 @app.context_processor
 def inject_current_user():
     """Make current_user available in all templates"""
-    from routes import current_user
+    from simple_auth import is_authenticated, get_current_user_data
+    from models import User
+    
+    # Create a mock user object that matches template expectations
+    class MockUser:
+        def __init__(self):
+            if is_authenticated():
+                user_data = get_current_user_data()
+                if user_data:
+                    actual_user = User.query.get(user_data.get('user_id'))
+                    if actual_user:
+                        self.id = actual_user.id
+                        self.username = actual_user.username
+                        self.email = actual_user.email
+                        self.role = actual_user.role
+                        self._is_authenticated = True
+                    else:
+                        self._setup_anonymous()
+                else:
+                    self._setup_anonymous()
+            else:
+                self._setup_anonymous()
+        
+        def _setup_anonymous(self):
+            self.id = None
+            self.username = None
+            self.email = None
+            self.role = None
+            self._is_authenticated = False
+        
+        def is_admin(self):
+            return self._is_authenticated and self.role == 'admin'
+        
+        @property
+        def is_authenticated(self):
+            return self._is_authenticated
+    
+    current_user = MockUser()
     return dict(current_user=current_user)
