@@ -45,6 +45,11 @@ def login():
     
     return render_template('simple_login.html')
 
+@app.route('/dashboard')
+def dashboard():
+    """Dashboard route - redirects to main index"""
+    return redirect(url_for('index'))
+
 @app.route('/logout')
 def logout():
     """Production logout handler"""
