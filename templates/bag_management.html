@@ -83,12 +83,11 @@
 
                     <!-- Linked Status Filter -->
                     <div class="col-6 col-md-2">
-                        <label for="linked_status" class="form-label">Link</label>
+                        <label for="linked_status" class="form-label">Status</label>
                         <select class="form-select form-select-sm" id="linked_status" name="linked_status">
                             <option value="all" {% if filters.linked_status == 'all' %}selected{% endif %}>All</option>
                             <option value="linked" {% if filters.linked_status == 'linked' %}selected{% endif %}>Linked</option>
                             <option value="unlinked" {% if filters.linked_status == 'unlinked' %}selected{% endif %}>Unlinked</option>
-                            <option value="orphaned" {% if filters.linked_status == 'orphaned' %}selected{% endif %}>Orphaned</option>
                         </select>
                     </div>
 
@@ -191,14 +190,12 @@
                             <td>
                                 {% if bag.type == 'parent' %}
                                     {% set children_count = bag.child_links.count() %}
-                                    {% set has_bill = bag.bill_links.count() > 0 %}
                                     {% if children_count > 0 %}
-                                        <span class="badge bg-success">{{ children_count }} child{{ 's' if children_count > 1 else '' }}</span>
-                                        {% if not has_bill %}
-                                            <br><span class="badge bg-warning">Orphaned</span>
-                                        {% endif %}
+                                        <span class="badge bg-success">Linked</span>
+                                        <br><small class="text-muted">{{ children_count }} child{{ 's' if children_count > 1 else '' }}</small>
                                     {% else %}
                                         <span class="badge bg-danger">Unlinked</span>
+                                        <br><small class="text-muted">0 children</small>
                                     {% endif %}
                                 {% else %}
                                     {% set parent_link = bag.parent_links.first() %}
