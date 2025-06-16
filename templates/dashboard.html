@@ -49,7 +49,7 @@
             <div class="text-primary mb-2">
                 <i class="fas fa-boxes fa-2x"></i>
             </div>
-            <h3 class="text-primary" id="total-parent-bags">0</h3>
+            <h3 class="text-primary" id="total-parent-bags">{{ total_parent_bags or 0 }}</h3>
             <p class="text-muted mb-0">Parent Bags</p>
             <small class="text-primary">Primary Items</small>
         </div>
@@ -59,7 +59,7 @@
             <div class="text-success mb-2">
                 <i class="fas fa-cube fa-2x"></i>
             </div>
-            <h3 class="text-success" id="total-child-bags">0</h3>
+            <h3 class="text-success" id="total-child-bags">{{ total_child_bags or 0 }}</h3>
             <p class="text-muted mb-0">Child Bags</p>
             <small class="text-success">Sub Items</small>
         </div>
@@ -69,7 +69,7 @@
             <div class="text-warning mb-2">
                 <i class="fas fa-file-invoice fa-2x"></i>
             </div>
-            <h3 class="text-warning" id="total-bills">0</h3>
+            <h3 class="text-warning" id="total-bills">{{ total_bills or 0 }}</h3>
             <p class="text-muted mb-0">Active Bills</p>
             <small class="text-warning">Open Orders</small>
         </div>
@@ -79,7 +79,7 @@
             <div class="text-info mb-2">
                 <i class="fas fa-qrcode fa-2x"></i>
             </div>
-            <h3 class="text-info" id="total-scans">0</h3>
+            <h3 class="text-info" id="total-scans">{{ total_scans or 0 }}</h3>
             <p class="text-muted mb-0">Total Scans</p>
             <small class="text-info">Scan Events</small>
         </div>
@@ -94,18 +94,18 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-4 mb-3">
-                <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
-                    <i class="fas fa-qrcode me-2"></i>Scan Parent Bags
+                <a href="{{ url_for('scan') }}" class="btn btn-primary btn-lg w-100 action-button">
+                    <i class="fas fa-qrcode me-2"></i>QR Code Scanner
                 </a>
             </div>
             <div class="col-md-4 mb-3">
-                <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
+                <a href="{{ url_for('bill_management') }}" class="btn btn-primary btn-lg w-100 action-button">
                     <i class="fas fa-file-invoice me-2"></i>Manage Bills
                 </a>
             </div>
             <div class="col-md-4 mb-3">
-                <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
-                    <i class="fas fa-search me-2"></i>Lookup Child Bag
+                <a href="{{ url_for('bag_management') }}" class="btn btn-primary btn-lg w-100 action-button">
+                    <i class="fas fa-search me-2"></i>Manage Bags
                 </a>
             </div>
         </div>
@@ -130,9 +130,41 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td colspan="5" class="text-center">Loading recent scans...</td>
-                    </tr>
+                    {% if recent_scans %}
+                        {% for scan in recent_scans %}
+                        <tr>
+                            <td>
+                                {% if scan.parent_bag_id %}
+                                    {% set bag = scan.parent_bag %}
+                                    {{ bag.qr_id if bag else 'Unknown' }}
+                                {% elif scan.child_bag_id %}
+                                    {% set bag = scan.child_bag %}
+                                    {{ bag.qr_id if bag else 'Unknown' }}
+                                {% else %}
+                                    Unknown
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if scan.parent_bag_id %}
+                                    <span class="badge bg-primary">Parent</span>
+                                {% elif scan.child_bag_id %}
+                                    <span class="badge bg-success">Child</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ scan.user.username if scan.user else 'Unknown' }}</td>
+                            <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') if scan.timestamp else 'Unknown' }}</td>
+                            <td>
+                                <a href="#" class="btn btn-sm btn-outline-primary">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No recent scans found</td>
+                        </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
