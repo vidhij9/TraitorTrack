@@ -41,22 +41,44 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         
+        logger.info(f"Login attempt for username: {username}")
+        
         if not username or not password:
             flash('Please enter both username and password', 'error')
-            return render_template('simple_login.html')
+            return render_template('simple_login.html', error='Please enter both username and password')
         
-        user = User.query.filter_by(username=username).first()
-        
-        if user and check_password_hash(user.password_hash, password):
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['user_role'] = user.role
-            session.permanent = True
+        try:
+            user = User.query.filter_by(username=username).first()
+            logger.info(f"User found: {user is not None}")
             
-            flash(f'Welcome, {user.username}!', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('Invalid username or password', 'error')
+            if user and user.password_hash:
+                logger.info(f"Checking password for user: {username}")
+                password_valid = check_password_hash(user.password_hash, password)
+                logger.info(f"Password valid: {password_valid}")
+                
+                if password_valid:
+                    # Clear any existing session data
+                    session.clear()
+                    
+                    # Set new session data
+                    session['user_id'] = user.id
+                    session['username'] = user.username
+                    session['user_role'] = user.role
+                    session.permanent = True
+                    
+                    logger.info(f"Login successful for user: {username}")
+                    flash(f'Welcome, {user.username}!', 'success')
+                    return redirect(url_for('dashboard'))
+                else:
+                    logger.warning(f"Invalid password for user: {username}")
+                    flash('Invalid username or password', 'error')
+            else:
+                logger.warning(f"User not found or no password hash: {username}")
+                flash('Invalid username or password', 'error')
+                
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            flash('Login failed. Please try again.', 'error')
     
     return render_template('simple_login.html')
 
