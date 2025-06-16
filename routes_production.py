@@ -169,14 +169,51 @@ def index():
 def dashboard():
     """Main dashboard"""
     try:
-        # For now, return a simple dashboard without complex queries
-        # This prevents database errors while we fix the authentication
-        username = session.get('username', 'Guest')
-        user_role = session.get('user_role', 'user')
+        from models import User, Bag, Bill, Scan
+        from datetime import datetime, timedelta
         
-        return render_template('simple_dashboard.html', 
-                             username=username,
-                             user_role=user_role)
+        # Get current user
+        current_user = User.query.get(session.get('user_id'))
+        if not current_user:
+            flash('Session expired, please login again', 'error')
+            return redirect(url_for('login'))
+        
+        # Get dashboard statistics
+        total_parent_bags = Bag.query.filter_by(type='parent').count()
+        total_child_bags = Bag.query.filter_by(type='child').count()
+        total_bills = Bill.query.count()
+        total_scans = Scan.query.count()
+        
+        # Get today's activity
+        today = datetime.now().date()
+        today_scans = Scan.query.filter(
+            Scan.timestamp >= today,
+            Scan.timestamp < today + timedelta(days=1)
+        ).count()
+        
+        # Get recent scans (last 10)
+        recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(10).all()
+        
+        # Get recent parent bags (last 10)
+        recent_parent_bags = Bag.query.filter_by(type='parent').order_by(Bag.created_at.desc()).limit(10).all()
+        
+        # Get recent child bags (last 10)
+        recent_child_bags = Bag.query.filter_by(type='child').order_by(Bag.created_at.desc()).limit(10).all()
+        
+        # Get recent bills (last 10)
+        recent_bills = Bill.query.order_by(Bill.created_at.desc()).limit(10).all()
+        
+        return render_template('dashboard.html',
+                             current_user=current_user,
+                             total_parent_bags=total_parent_bags,
+                             total_child_bags=total_child_bags,
+                             total_bills=total_bills,
+                             total_scans=total_scans,
+                             today_scans=today_scans,
+                             recent_scans=recent_scans,
+                             recent_parent_bags=recent_parent_bags,
+                             recent_child_bags=recent_child_bags,
+                             recent_bills=recent_bills)
     except Exception as e:
         logger.error(f"Dashboard error: {e}")
         flash('Error loading dashboard', 'error')
@@ -251,5 +288,160 @@ def production_health_check():
         'timestamp': datetime.utcnow().isoformat(),
         'environment': 'production'
     })
+
+# API Endpoints
+@app.route('/api/scan', methods=['POST'])
+@require_auth
+def api_scan():
+    """Process QR code scan"""
+    try:
+        from models import Bag, Scan
+        
+        data = request.get_json()
+        qr_id = data.get('qr_id', '').strip()
+        location = data.get('location', '')
+        notes = data.get('notes', '')
+        
+        if not qr_id:
+            return jsonify({'success': False, 'message': 'QR ID is required'})
+        
+        # Find the bag
+        bag = Bag.query.filter_by(qr_id=qr_id).first()
+        if not bag:
+            return jsonify({'success': False, 'message': 'Bag not found'})
+        
+        # Create scan record
+        scan = Scan()
+        if bag.type == 'parent':
+            scan.parent_bag_id = bag.id
+        else:
+            scan.child_bag_id = bag.id
+        scan.user_id = session.get('user_id')
+        scan.timestamp = datetime.utcnow()
+        
+        db.session.add(scan)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully scanned {bag.type} bag: {qr_id}',
+            'bag': {
+                'id': bag.id,
+                'qr_id': bag.qr_id,
+                'type': bag.type,
+                'status': bag.status
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Scan API error: {e}")
+        return jsonify({'success': False, 'message': 'Scan failed'})
+
+@app.route('/api/dashboard-stats')
+def api_dashboard_stats():
+    """Get dashboard statistics"""
+    try:
+        from models import Bag, Bill, Scan
+        from datetime import datetime, timedelta
+        
+        # Basic counts
+        stats = {
+            'total_parent_bags': Bag.query.filter_by(type='parent').count(),
+            'total_child_bags': Bag.query.filter_by(type='child').count(),
+            'total_bills': Bill.query.count(),
+            'total_scans': Scan.query.count()
+        }
+        
+        # Today's activity
+        today = datetime.now().date()
+        stats['today_scans'] = Scan.query.filter(
+            Scan.timestamp >= today,
+            Scan.timestamp < today + timedelta(days=1)
+        ).count()
+        
+        # This week's activity
+        week_ago = datetime.now() - timedelta(days=7)
+        stats['week_scans'] = Scan.query.filter(Scan.timestamp >= week_ago).count()
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        logger.error(f"Dashboard stats API error: {e}")
+        return jsonify({'error': 'Failed to load statistics'})
+
+@app.route('/api/recent-scans')
+def api_recent_scans():
+    """Get recent scans"""
+    try:
+        from models import Scan, User, Bag
+        
+        limit = request.args.get('limit', 10, type=int)
+        scans = Scan.query.order_by(Scan.scanned_at.desc()).limit(limit).all()
+        
+        scan_data = []
+        for scan in scans:
+            bag = Bag.query.get(scan.bag_id) if scan.bag_id else None
+            user = User.query.get(scan.scanned_by) if scan.scanned_by else None
+            
+            scan_data.append({
+                'id': scan.id,
+                'qr_id': scan.qr_id,
+                'scanned_at': scan.scanned_at.isoformat() if scan.scanned_at else None,
+                'location': scan.location,
+                'notes': scan.notes,
+                'bag_type': bag.type if bag else 'unknown',
+                'scanned_by': user.username if user else 'unknown'
+            })
+        
+        return jsonify(scan_data)
+        
+    except Exception as e:
+        logger.error(f"Recent scans API error: {e}")
+        return jsonify([])
+
+# Analytics route
+@app.route('/analytics')
+@require_auth
+def analytics():
+    """Analytics dashboard"""
+    try:
+        from models import Bag, Bill, Scan, User
+        from datetime import datetime, timedelta
+        
+        # Get comprehensive analytics data
+        analytics_data = {
+            'total_scans': Scan.query.count(),
+            'total_parent_bags': Bag.query.filter_by(type='parent').count(),
+            'total_child_bags': Bag.query.filter_by(type='child').count(),
+            'total_bills': Bill.query.count(),
+            'total_users': User.query.count(),
+        }
+        
+        # Get recent activity
+        week_ago = datetime.now() - timedelta(days=7)
+        analytics_data['week_scans'] = Scan.query.filter(Scan.scanned_at >= week_ago).count()
+        
+        # Get daily scan counts for the past week
+        daily_scans = []
+        for i in range(7):
+            day = datetime.now().date() - timedelta(days=i)
+            day_scans = Scan.query.filter(
+                Scan.scanned_at >= day,
+                Scan.scanned_at < day + timedelta(days=1)
+            ).count()
+            daily_scans.append({
+                'date': day.isoformat(),
+                'scans': day_scans
+            })
+        
+        analytics_data['daily_scans'] = list(reversed(daily_scans))
+        
+        return render_template('analytics.html', analytics=analytics_data)
+        
+    except Exception as e:
+        logger.error(f"Analytics error: {e}")
+        flash('Error loading analytics', 'error')
+        return redirect(url_for('dashboard'))
 
 logger.info("Production routes loaded successfully")
