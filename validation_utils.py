@@ -27,8 +27,8 @@ def validate_parent_qr_id(qr_id):
     qr_id = qr_id.strip()
     
     # All formats are now accepted
-    # Default to 5 child bags if format doesn't specify
-    child_count = 5
+    # No default limit on child bags - unlimited linking allowed
+    child_count = None
     
     # Extract useful data depending on QR code format
     
@@ -51,9 +51,9 @@ def validate_parent_qr_id(qr_id):
         numbers = re.findall(r'\d+', qr_id)
         if numbers and len(numbers) > 0:
             try:
-                # Use the first number as child count if it's reasonable
+                # Use the first number as child count if it's positive
                 num = int(numbers[0])
-                if 0 < num <= 100:  # Reasonable range for child bags
+                if num > 0:  # Accept any positive number of child bags
                     child_count = num
             except ValueError:
                 pass
@@ -64,9 +64,9 @@ def validate_parent_qr_id(qr_id):
         numbers = re.findall(r'\d+', qr_id)
         if numbers and len(numbers) > 0:
             try:
-                # Use the first number as child count if it's reasonable
+                # Use the first number as child count if it's positive
                 num = int(numbers[0])
-                if 0 < num <= 100:  # Reasonable range for child bags
+                if num > 0:  # Accept any positive number of child bags
                     child_count = num
             except ValueError:
                 pass
