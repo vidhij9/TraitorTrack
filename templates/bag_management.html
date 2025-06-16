@@ -118,6 +118,18 @@
                         </button>
                     </div>
                 </div>
+                
+                <!-- Date validation error display -->
+                {% if date_error %}
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <div class="alert alert-danger alert-sm py-2" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>{{ date_error }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                </div>
             </form>
             </div>
         </div>
@@ -128,7 +140,7 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="fas fa-list me-2"></i>Bags 
-                <span class="badge bg-secondary ms-2">{{ stats.total_bags }} found</span>
+                <span class="badge bg-secondary ms-2">{{ stats.filtered_count }} found</span>
             </h5>
 
         </div>
@@ -280,6 +292,47 @@ function exportData(format) {
 
 // Manual filter submission for better performance
 document.addEventListener('DOMContentLoaded', function() {
+    const dateFromInput = document.getElementById('date_from');
+    const dateToInput = document.getElementById('date_to');
+    
+    // Date validation function
+    function validateDateRange() {
+        const fromDate = dateFromInput.value;
+        const toDate = dateToInput.value;
+        
+        if (fromDate && toDate) {
+            if (new Date(toDate) < new Date(fromDate)) {
+                dateToInput.setCustomValidity('To date must be after From date');
+                return false;
+            } else {
+                dateToInput.setCustomValidity('');
+                return true;
+            }
+        }
+        dateToInput.setCustomValidity('');
+        return true;
+    }
+    
+    // Set minimum date for "To" field when "From" date changes
+    dateFromInput.addEventListener('change', function() {
+        if (this.value) {
+            dateToInput.min = this.value;
+        } else {
+            dateToInput.removeAttribute('min');
+        }
+        validateDateRange();
+    });
+    
+    // Validate when "To" date changes
+    dateToInput.addEventListener('change', function() {
+        validateDateRange();
+    });
+    
+    // Initialize min attribute if from date is already set
+    if (dateFromInput.value) {
+        dateToInput.min = dateFromInput.value;
+    }
+    
     // Add Enter key support for search input
     document.getElementById('search').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
@@ -288,7 +341,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Show loading indicator when filters are applied
-    document.getElementById('filterForm').addEventListener('submit', function() {
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+        if (!validateDateRange()) {
+            e.preventDefault();
+            return false;
+        }
+        
         const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Applying...';
         submitBtn.disabled = true;

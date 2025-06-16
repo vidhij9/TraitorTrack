@@ -1095,18 +1095,29 @@ def bag_management():
             )
         )
     
-    # Date filters
+    # Date filters with validation
+    date_error = None
     if date_from:
         try:
             from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
             query = query.filter(func.date(Bag.created_at) >= from_date)
         except ValueError:
-            pass
+            date_error = "Invalid from date format"
     
     if date_to:
         try:
             to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
             query = query.filter(func.date(Bag.created_at) <= to_date)
+        except ValueError:
+            date_error = "Invalid to date format"
+    
+    # Validate date range
+    if date_from and date_to and not date_error:
+        try:
+            from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+            to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+            if to_date < from_date:
+                date_error = "To date must be after From date"
         except ValueError:
             pass
     
@@ -1156,6 +1167,9 @@ def bag_management():
             )
         )
     
+    # Get total count of filtered results before pagination
+    filtered_count = query.count()
+    
     # Paginate results
     bags = query.order_by(desc(Bag.created_at)).paginate(
         page=page, per_page=20, error_out=False
@@ -1176,7 +1190,8 @@ def bag_management():
         'parent_bags': parent_bags,
         'child_bags': child_bags,
         'linked_bags': linked_parent_bags + linked_child_bags,
-        'unlinked_bags': unlinked_bags
+        'unlinked_bags': unlinked_bags,
+        'filtered_count': filtered_count
     }
     
     filters = {
@@ -1191,7 +1206,8 @@ def bag_management():
                          bags=bags, 
                          search_query=search_query, 
                          stats=stats, 
-                         filters=filters)
+                         filters=filters,
+                         date_error=date_error)
 
 # Bill management routes
 @app.route('/bills')
