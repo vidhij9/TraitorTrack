@@ -38,20 +38,34 @@ def create_production_session(user):
         return False
 
 def production_login_handler(username, password):
-    """Handle production login with proper error handling"""
+    """Handle production login with enhanced security and error handling"""
     try:
         from models import User
+        from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts
         
-        # Find user
+        # Check for account lockout first
+        is_locked, remaining_time = is_account_locked(username)
+        if is_locked:
+            logger.warning(f"Login attempt on locked account: {username}")
+            return False, f"Account temporarily locked. Try again in {remaining_time//60} minutes."
+        
+        # Find user with enhanced validation
         user = User.query.filter_by(username=username).first()
         if not user:
+            record_failed_attempt(username)
             logger.warning(f"Login attempt for non-existent user: {username}")
             return False, "Invalid username or password"
             
-        # Check password
-        if not check_password_hash(user.password_hash, password):
+        # Check password with enhanced validation
+        if not user.check_password(password):
+            record_failed_attempt(username)
             logger.warning(f"Invalid password for user: {username}")
             return False, "Invalid username or password"
+        
+        # Reset failed attempts on successful login
+        reset_failed_attempts(username)
+        logger.info(f"Successful login for user: {username}")
+        return True, "Login successful"
             
         # Create production session
         if create_production_session(user):

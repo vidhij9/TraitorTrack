@@ -1,18 +1,23 @@
-# Import the working application with environment isolation
+# Import the working application with latest bug fixes
 from app_clean import app, db
 import logging
 
-# Setup logging for production
-logging.basicConfig(level=logging.INFO)
+# Setup enhanced logging for production
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-# Import optimized components for production
+# Import all optimized components for production
 import optimized_api
 import database_optimizer
 import high_performance_api
+import cache_utils
 
-# Import all the main routes to ensure they're registered
+# Import all routes and APIs to ensure they're registered
 import routes
+import api
 
 # Add production deployment setup endpoint
 @app.route('/production-setup')

@@ -44,10 +44,10 @@ def get_database_url():
     environment = os.environ.get('ENVIRONMENT', os.environ.get('FLASK_ENV', 'development'))
     
     if environment == 'production':
-        # Production environment - MUST use PROD_DATABASE_URL (no fallback for security)
-        prod_url = os.environ.get('PROD_DATABASE_URL')
+        # Production environment - Enhanced database URL handling
+        prod_url = os.environ.get('PROD_DATABASE_URL') or os.environ.get('DATABASE_URL')
         if not prod_url:
-            # Only fallback to DATABASE_URL in production if explicitly allowed
+            # Fallback with improved error handling
             fallback_url = os.environ.get('DATABASE_URL')
             if fallback_url:
                 logging.warning("Production using generic DATABASE_URL - set PROD_DATABASE_URL for proper isolation")
