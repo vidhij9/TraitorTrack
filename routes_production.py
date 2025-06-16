@@ -36,7 +36,7 @@ def is_admin():
 def login():
     """User login"""
     if is_authenticated():
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
