@@ -890,7 +890,7 @@ def scan_child():
 
 @app.route('/scan/child', methods=['POST'])
 @login_required
-def process_child_scan():
+def scan_child_bag():
     """Process the child bag QR code scan"""
     # Check if it's an AJAX request (simpler detection)
     is_ajax = 'qr_code' in request.form and request.method == 'POST'
