@@ -2025,8 +2025,32 @@ def api_edit_parent_children():
                 'message': 'Parent bag not found'
             })
         
-        # Remove all existing links for this parent
+        # Get existing child bags to determine which ones will be removed
         existing_links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
+        existing_child_qrs = set()
+        for link in existing_links:
+            child_bag = Bag.query.get(link.child_bag_id)
+            if child_bag:
+                existing_child_qrs.add(child_bag.qr_id)
+        
+        # Determine which child bags will be removed (not in new list)
+        new_child_qrs = set(child_qr.strip() for child_qr in child_qrs if child_qr.strip())
+        removed_child_qrs = existing_child_qrs - new_child_qrs
+        
+        # Delete child bags that are being removed from parent
+        for removed_qr in removed_child_qrs:
+            child_bag = Bag.query.filter_by(qr_id=removed_qr, type='child').first()
+            if child_bag:
+                # Delete all scans for this child bag
+                child_scans = Scan.query.filter_by(child_bag_id=child_bag.id).all()
+                for scan in child_scans:
+                    db.session.delete(scan)
+                
+                # Delete the child bag itself
+                db.session.delete(child_bag)
+                app.logger.info(f'Deleted child bag {removed_qr} from database')
+        
+        # Remove all existing links for this parent
         for link in existing_links:
             db.session.delete(link)
         

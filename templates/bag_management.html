@@ -192,7 +192,7 @@
                                     {% set children_count = bag.child_links.count() %}
                                     {% if children_count > 0 %}
                                         <span class="badge bg-success">Linked</span>
-                                        <br><small class="text-muted">{{ children_count }} child{{ 's' if children_count > 1 else '' }}</small>
+                                        <br><small class="text-muted">{{ children_count }} child{{ 'ren' if children_count > 1 else '' }}</small>
                                     {% else %}
                                         <span class="badge bg-danger">Unlinked</span>
                                         <br><small class="text-muted">0 children</small>
