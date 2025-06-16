@@ -1773,7 +1773,6 @@ def bag_details(qr_id):
 
 # API endpoints for dashboard data
 @app.route('/api/stats')
-@require_auth
 def api_dashboard_stats():
     """Get dashboard statistics"""
     try:
@@ -1807,7 +1806,6 @@ def api_dashboard_stats():
 
 
 @app.route('/api/scans')
-@require_auth
 def api_recent_scans():
     """Get recent scans for dashboard"""
     try:
