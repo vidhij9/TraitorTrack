@@ -34,20 +34,33 @@ def create_auth_session(user):
         return False
 
 def is_authenticated():
-    """Check if user is authenticated"""
+    """Check if user is authenticated - supports multiple session formats"""
     try:
-        authenticated = session.get('authenticated', False)
+        # Check for both session formats for compatibility
+        authenticated = (
+            session.get('authenticated', False) or 
+            session.get('logged_in', False)
+        )
         user_id = session.get('user_id')
-        auth_time = session.get('auth_time')
         
-        if not all([authenticated, user_id, auth_time]):
+        # Log current session state for debugging
+        logger.info(f"Authentication check - Session data: {dict(session)}")
+        logger.info(f"Authenticated: {authenticated}")
+        
+        if not all([authenticated, user_id]):
+            logger.info("User not authenticated - missing authenticated flag or user_id")
             return False
             
-        # Check if session is too old (24 hours)
-        if datetime.now().timestamp() - auth_time > 86400:
-            clear_auth_session()
-            return False
-            
+        # Check if session has auth_time and validate it
+        auth_time = session.get('auth_time')
+        if auth_time:
+            # Check if session is too old (24 hours)
+            if datetime.now().timestamp() - auth_time > 86400:
+                logger.info("Session expired - clearing")
+                clear_auth_session()
+                return False
+        
+        logger.info("User is authenticated")
         return True
         
     except Exception as e:
