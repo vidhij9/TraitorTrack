@@ -95,6 +95,98 @@ def setup():
     return result
 
 # Add diagnostic endpoint for deployment debugging
+@app.route('/environment-status')
+def environment_status():
+    """Environment and database isolation status page"""
+    env_manager = get_environment_manager()
+    env_info = env_manager.get_environment_info()
+    
+    from database_environment_switcher import DatabaseEnvironmentSwitcher
+    switcher = DatabaseEnvironmentSwitcher()
+    status = switcher.get_current_environment_status()
+    environments = switcher.list_available_environments()
+    validation = switcher.validate_environment_isolation()
+    
+    html = f"""
+    <h1>Database Environment Status</h1>
+    
+    <div style="background: {'#d4edda' if status['isolation_valid'] else '#f8d7da'}; padding: 15px; margin: 10px 0; border-radius: 5px;">
+        <h2>Current Environment: {env_info['environment'].upper()}</h2>
+        <p><strong>Database Isolation:</strong> {'✓ Valid' if status['isolation_valid'] else '✗ Issues Detected'}</p>
+    </div>
+    
+    <h3>Database Configuration</h3>
+    <ul>
+        <li><strong>Database URL:</strong> {env_info['database_url_preview']}</li>
+        <li><strong>Connection Pool Size:</strong> {env_info['pool_size']}</li>
+        <li><strong>Debug Mode:</strong> {env_info['debug_mode']}</li>
+        <li><strong>SQL Logging:</strong> {env_info['sql_logging']}</li>
+    </ul>
+    
+    <h3>Available Environments</h3>
+    <table border="1" style="border-collapse: collapse; width: 100%;">
+        <tr>
+            <th>Environment</th>
+            <th>Status</th>
+            <th>Database URL</th>
+            <th>Description</th>
+        </tr>
+    """
+    
+    for name, config in environments.items():
+        status_color = "green" if config['status'] == 'configured' else "red"
+        html += f"""
+        <tr>
+            <td><strong>{name.upper()}</strong></td>
+            <td style="color: {status_color};">{'✓' if config['status'] == 'configured' else '✗'} {config['status']}</td>
+            <td>{config['database_url']}</td>
+            <td>{config['description']}</td>
+        </tr>
+        """
+    
+    html += "</table>"
+    
+    if validation['errors'] or validation['warnings']:
+        html += "<h3>Issues & Recommendations</h3>"
+        
+        if validation['errors']:
+            html += "<h4 style='color: red;'>Errors</h4><ul>"
+            for error in validation['errors']:
+                html += f"<li style='color: red;'>{error}</li>"
+            html += "</ul>"
+        
+        if validation['warnings']:
+            html += "<h4 style='color: orange;'>Warnings</h4><ul>"
+            for warning in validation['warnings']:
+                html += f"<li style='color: orange;'>{warning}</li>"
+            html += "</ul>"
+        
+        if validation['recommendations']:
+            html += "<h4>Recommendations</h4><ul>"
+            for rec in validation['recommendations']:
+                html += f"<li>{rec}</li>"
+            html += "</ul>"
+    
+    html += """
+    <h3>Setup Instructions</h3>
+    <p>To set up proper database isolation:</p>
+    <ol>
+        <li>Check the environment configuration files: <code>.env.development</code>, <code>.env.production</code></li>
+        <li>Set environment-specific database URLs:
+            <ul>
+                <li><code>DEV_DATABASE_URL</code> for development</li>
+                <li><code>PROD_DATABASE_URL</code> for production</li>
+            </ul>
+        </li>
+        <li>Use different databases for each environment</li>
+        <li>Set <code>ENVIRONMENT=development</code> or <code>ENVIRONMENT=production</code></li>
+    </ol>
+    
+    <p><a href="/debug-deployment">Debug Info</a> | <a href="/">Dashboard</a></p>
+    """
+    
+    return html
+
 @app.route('/debug-deployment')
 def debug_deployment():
     """Debug endpoint for deployment issues"""

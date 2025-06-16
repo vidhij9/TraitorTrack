@@ -2,7 +2,7 @@ import datetime
 import enum
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from app_environment_isolated import db
+from app_clean import db
 
 class UserRole(enum.Enum):
     ADMIN = "admin"
