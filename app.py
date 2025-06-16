@@ -150,7 +150,7 @@ def create_app():
         db.create_all()
         
         # Import and register routes
-        # import routes  # Import routes here to avoid circular imports - DISABLED to prevent conflicts with routes_production.py
+        import routes  # Import routes here to avoid circular imports
         
         # Register API blueprint for advanced API endpoints
         from api_endpoints import api

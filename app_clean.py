@@ -41,20 +41,19 @@ app.config.update(
 # Configure database with environment-specific URLs
 def get_database_url():
     """Get appropriate database URL based on environment"""
-    # Check if DATABASE_URL is available (production deployment)
-    database_url = os.environ.get('DATABASE_URL')
-    if database_url:
-        logging.info("Using production DATABASE_URL from environment")
-        return database_url
-    
-    # Fallback to development database
     environment = os.environ.get('ENVIRONMENT', os.environ.get('FLASK_ENV', 'development'))
     
     if environment == 'production':
-        # Production environment - Enhanced database URL handling
+        # Production environment - MUST use PROD_DATABASE_URL (no fallback for security)
         prod_url = os.environ.get('PROD_DATABASE_URL')
         if not prod_url:
-            raise ValueError("Production environment requires DATABASE_URL or PROD_DATABASE_URL to be set")
+            # Only fallback to DATABASE_URL in production if explicitly allowed
+            fallback_url = os.environ.get('DATABASE_URL')
+            if fallback_url:
+                logging.warning("Production using generic DATABASE_URL - set PROD_DATABASE_URL for proper isolation")
+                return fallback_url
+            else:
+                raise ValueError("Production environment requires PROD_DATABASE_URL to be set")
         return prod_url
     elif environment == 'testing':
         # Testing environment - use in-memory SQLite by default
@@ -141,18 +140,15 @@ setup_health_monitoring(app)
 def before_request():
     """Validate authentication and session before each request"""
     from flask import session, request, redirect, url_for
-    
-    # Simple authentication check using session variables
-    def is_authenticated():
-        return session.get('user_id') is not None and session.get('username') is not None
+    from simple_auth import is_authenticated
     
     # Skip validation for login, register, static files, and debug endpoints
-    excluded_paths = ['/login', '/register', '/static', '/logout', '/setup', '/debug-deployment', '/test-login', '/session-test', '/']
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/setup', '/debug-deployment', '/test-login', '/session-test']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     
     # For protected routes, validate authentication
-    if request.endpoint and request.endpoint not in ['login', 'register', 'logout', 'setup', 'index']:
+    if request.endpoint and request.endpoint not in ['login', 'register', 'logout', 'setup']:
         if not is_authenticated():
             # Redirect to login for protected routes
             if request.path != '/' and not request.path.startswith('/api'):

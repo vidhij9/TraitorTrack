@@ -1,98 +1,173 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TraceTrack - Supply Chain Traceability</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .hero-section {
-            padding: 100px 0;
-            color: white;
-            text-align: center;
-        }
-        .feature-card {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 25px;
-            padding: 12px 30px;
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-transparent">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="#">
-                <i class="fas fa-qrcode me-2"></i>TraceTrack
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{{ url_for('login') }}">Login</a>
-                <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+{% extends "layout.html" %}
+
+{% block title %}Welcome to traitor track{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Hero Section -->
+    <div class="row min-vh-100 align-items-center">
+        <div class="col-lg-6 order-lg-1 order-2">
+            <div class="px-4 py-5">
+                <h1 class="display-4 fw-bold text-white mb-4">
+                    traitor track
+                    <span class="text-primary">2.0</span>
+                </h1>
+                <p class="lead text-light mb-4">
+                    Advanced supply chain traceability platform that empowers agricultural stakeholders with comprehensive tracking and management capabilities.
+                </p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-qrcode text-primary fa-2x"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="text-white mb-1">QR Code Scanning</h5>
+                                <p class="text-muted mb-0">Fast and accurate product tracking</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-chart-line text-primary fa-2x"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="text-white mb-1">Real-time Analytics</h5>
+                                <p class="text-muted mb-0">Comprehensive reporting and insights</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-link text-primary fa-2x"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="text-white mb-1">Supply Chain Linking</h5>
+                                <p class="text-muted mb-0">Connect products throughout the supply chain</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-shield-alt text-primary fa-2x"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="text-white mb-1">Secure & Reliable</h5>
+                                <p class="text-muted mb-0">Enterprise-grade security and reliability</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex flex-wrap gap-3">
+                    <a href="/login" class="btn btn-primary btn-lg px-4">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </a>
+                    <a href="/register" class="btn btn-outline-light btn-lg px-4">
+                        <i class="fas fa-user-plus me-2"></i>Register
+                    </a>
+                </div>
             </div>
         </div>
-    </nav>
-
-    <div class="hero-section">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto">
-                    <h1 class="display-4 fw-bold mb-4">
-                        <i class="fas fa-qrcode me-3"></i>TraceTrack
-                    </h1>
-                    <p class="lead mb-5">
-                        Advanced supply chain traceability platform for agricultural bag tracking and management
-                    </p>
-                    <div class="d-flex gap-3 justify-content-center">
-                        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
-                            <i class="fas fa-sign-in-alt me-2"></i>Get Started
-                        </a>
-                        <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-lg">
-                            <i class="fas fa-user-plus me-2"></i>Create Account
-                        </a>
+        
+        <div class="col-lg-6 order-lg-2 order-1">
+            <div class="text-center p-4">
+                <div class="position-relative">
+                    <!-- Feature showcase illustration -->
+                    <div class="bg-gradient-primary rounded-4 p-5 shadow-lg">
+                        <div class="row g-4">
+                            <div class="col-12 text-center">
+                                <i class="fas fa-boxes text-white fa-5x mb-3"></i>
+                                <h3 class="text-white mb-3">Supply Chain Management</h3>
+                                <p class="text-light mb-4">Track products from origin to destination with complete visibility</p>
+                            </div>
+                            
+                            <div class="col-6 text-center">
+                                <div class="bg-white bg-opacity-10 rounded-3 p-3">
+                                    <i class="fas fa-search text-white fa-2x mb-2"></i>
+                                    <h6 class="text-white mb-0">Quick Search</h6>
+                                </div>
+                            </div>
+                            
+                            <div class="col-6 text-center">
+                                <div class="bg-white bg-opacity-10 rounded-3 p-3">
+                                    <i class="fas fa-mobile-alt text-white fa-2x mb-2"></i>
+                                    <h6 class="text-white mb-0">Mobile Ready</h6>
+                                </div>
+                            </div>
+                            
+                            <div class="col-6 text-center">
+                                <div class="bg-white bg-opacity-10 rounded-3 p-3">
+                                    <i class="fas fa-users text-white fa-2x mb-2"></i>
+                                    <h6 class="text-white mb-0">Team Management</h6>
+                                </div>
+                            </div>
+                            
+                            <div class="col-6 text-center">
+                                <div class="bg-white bg-opacity-10 rounded-3 p-3">
+                                    <i class="fas fa-download text-white fa-2x mb-2"></i>
+                                    <h6 class="text-white mb-0">Export Data</h6>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <div class="container py-5">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="feature-card text-center">
-                    <i class="fas fa-qrcode fa-3x text-primary mb-3"></i>
-                    <h5>QR Code Scanning</h5>
-                    <p class="text-muted">Efficient QR code scanning for parent and child bags with real-time tracking</p>
+    
+    <!-- Features Section -->
+    <div class="row py-5">
+        <div class="col-12">
+            <h2 class="text-center text-white mb-5">Platform Features</h2>
+            
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card bg-dark border-secondary h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-qrcode text-primary fa-3x mb-3"></i>
+                            <h5 class="card-title text-white">QR Code Management</h5>
+                            <p class="card-text text-muted">Generate, scan, and manage QR codes for complete product traceability throughout the supply chain.</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card text-center">
-                    <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
-                    <h5>Analytics Dashboard</h5>
-                    <p class="text-muted">Comprehensive analytics and reporting for supply chain visibility</p>
+                
+                <div class="col-md-4">
+                    <div class="card bg-dark border-secondary h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-chart-bar text-primary fa-3x mb-3"></i>
+                            <h5 class="card-title text-white">Advanced Analytics</h5>
+                            <p class="card-text text-muted">Gain insights with comprehensive analytics, reporting, and data visualization tools.</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card text-center">
-                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                    <h5>User Management</h5>
-                    <p class="text-muted">Role-based access control with admin and user permissions</p>
+                
+                <div class="col-md-4">
+                    <div class="card bg-dark border-secondary h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-users-cog text-primary fa-3x mb-3"></i>
+                            <h5 class="card-title text-white">User Management</h5>
+                            <p class="card-text text-muted">Manage team members, roles, and permissions with enterprise-grade security controls.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    
+    <!-- Call to Action -->
+    <div class="row py-5">
+        <div class="col-12 text-center">
+            <h3 class="text-white mb-4">Ready to get started?</h3>
+            <p class="text-muted mb-4">Join thousands of organizations using TraceTrack for supply chain management.</p>
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-5">
+                <i class="fas fa-rocket me-2"></i>Get Started Today
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
