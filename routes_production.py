@@ -377,20 +377,27 @@ def api_recent_scans():
         from models import Scan, User, Bag
         
         limit = request.args.get('limit', 10, type=int)
-        scans = Scan.query.order_by(Scan.scanned_at.desc()).limit(limit).all()
+        scans = Scan.query.order_by(Scan.timestamp.desc()).limit(limit).all()
         
         scan_data = []
         for scan in scans:
-            bag = Bag.query.get(scan.bag_id) if scan.bag_id else None
-            user = User.query.get(scan.scanned_by) if scan.scanned_by else None
+            # Get the bag (either parent or child)
+            bag = None
+            bag_type = 'unknown'
+            if scan.parent_bag_id:
+                bag = Bag.query.get(scan.parent_bag_id)
+                bag_type = 'parent'
+            elif scan.child_bag_id:
+                bag = Bag.query.get(scan.child_bag_id)
+                bag_type = 'child'
+            
+            user = User.query.get(scan.user_id) if scan.user_id else None
             
             scan_data.append({
                 'id': scan.id,
-                'qr_id': scan.qr_id,
-                'scanned_at': scan.scanned_at.isoformat() if scan.scanned_at else None,
-                'location': scan.location,
-                'notes': scan.notes,
-                'bag_type': bag.type if bag else 'unknown',
+                'qr_id': bag.qr_id if bag else 'unknown',
+                'timestamp': scan.timestamp.isoformat() if scan.timestamp else None,
+                'bag_type': bag_type,
                 'scanned_by': user.username if user else 'unknown'
             })
         
@@ -420,15 +427,15 @@ def analytics():
         
         # Get recent activity
         week_ago = datetime.now() - timedelta(days=7)
-        analytics_data['week_scans'] = Scan.query.filter(Scan.scanned_at >= week_ago).count()
+        analytics_data['week_scans'] = Scan.query.filter(Scan.timestamp >= week_ago).count()
         
         # Get daily scan counts for the past week
         daily_scans = []
         for i in range(7):
             day = datetime.now().date() - timedelta(days=i)
             day_scans = Scan.query.filter(
-                Scan.scanned_at >= day,
-                Scan.scanned_at < day + timedelta(days=1)
+                Scan.timestamp >= day,
+                Scan.timestamp < day + timedelta(days=1)
             ).count()
             daily_scans.append({
                 'date': day.isoformat(),
