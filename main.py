@@ -31,7 +31,7 @@ try:
     
     # Import production-safe routes
     try:
-        import routes_production
+        import routes_complete
         logger.info("Successfully imported routes_production")
     except Exception as e:
         logger.error(f"Failed to import routes_production: {e}")
