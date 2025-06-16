@@ -6,7 +6,7 @@ from cache_utils import cached_response, invalidate_cache
 from production_auth_fix import require_production_auth
 import time
 from datetime import datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, or_, case
 
 logger = logging.getLogger(__name__)
 
@@ -19,34 +19,121 @@ logger = logging.getLogger(__name__)
 @require_production_auth
 @cached_response(timeout=30)
 def get_all_parent_bags():
-    """Get complete list of all parent bags in the system"""
-    parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).all()
-    response = make_response(jsonify({
-        'success': True,
-        'data': [bag.to_dict() for bag in parent_bags],
-        'count': len(parent_bags),
-        'timestamp': time.time(),
-        'cached': False
-    }))
-    # Set appropriate cache headers
-    response.headers['Cache-Control'] = 'public, max-age=30'
-    return response
+    """Get paginated list of parent bags optimized for large datasets"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        search = request.args.get('search', '').strip()
+        
+        # Build efficient query with proper indexing
+        query = db.session.query(Bag).filter(Bag.type == BagType.PARENT.value)
+        
+        if search:
+            query = query.filter(
+                or_(
+                    Bag.qr_id.ilike(f'%{search}%'),
+                    Bag.name.ilike(f'%{search}%')
+                )
+            )
+        
+        # Get total count efficiently
+        total_count = query.count()
+        
+        # Apply pagination with proper ordering
+        bags = query.order_by(Bag.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Convert to dict efficiently
+        bag_data = []
+        for bag in bags:
+            bag_data.append({
+                'id': bag.id,
+                'qr_id': bag.qr_id,
+                'name': bag.name,
+                'type': bag.type,
+                'created_at': bag.created_at.isoformat() if bag.created_at else None,
+                'updated_at': bag.updated_at.isoformat() if bag.updated_at else None
+            })
+        
+        response = make_response(jsonify({
+            'success': True,
+            'data': bag_data,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_count,
+                'pages': (total_count + per_page - 1) // per_page,
+                'has_next': page * per_page < total_count,
+                'has_prev': page > 1
+            },
+            'timestamp': time.time(),
+            'cached': False
+        }))
+        response.headers['Cache-Control'] = 'public, max-age=30'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in get_all_parent_bags: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 @app.route('/api/bags/child/list')
 @require_production_auth
 @cached_response(timeout=30)
 def get_all_child_bags():
-    """Get complete list of all child bags in the system"""
-    child_bags = Bag.query.filter_by(type=BagType.CHILD.value).all()
-    response = make_response(jsonify({
-        'success': True,
-        'data': [bag.to_dict() for bag in child_bags],
-        'count': len(child_bags),
-        'timestamp': time.time(),
-        'cached': False
-    }))
-    response.headers['Cache-Control'] = 'public, max-age=30'
-    return response
+    """Get paginated list of child bags optimized for large datasets"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        search = request.args.get('search', '').strip()
+        
+        # Build efficient query with proper indexing
+        query = db.session.query(Bag).filter(Bag.type == BagType.CHILD.value)
+        
+        if search:
+            query = query.filter(
+                or_(
+                    Bag.qr_id.ilike(f'%{search}%'),
+                    Bag.name.ilike(f'%{search}%')
+                )
+            )
+        
+        # Get total count efficiently
+        total_count = query.count()
+        
+        # Apply pagination with proper ordering
+        bags = query.order_by(Bag.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Convert to dict efficiently
+        bag_data = []
+        for bag in bags:
+            bag_data.append({
+                'id': bag.id,
+                'qr_id': bag.qr_id,
+                'name': bag.name,
+                'type': bag.type,
+                'created_at': bag.created_at.isoformat() if bag.created_at else None,
+                'updated_at': bag.updated_at.isoformat() if bag.updated_at else None
+            })
+        
+        response = make_response(jsonify({
+            'success': True,
+            'data': bag_data,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_count,
+                'pages': (total_count + per_page - 1) // per_page,
+                'has_next': page * per_page < total_count,
+                'has_prev': page > 1
+            },
+            'timestamp': time.time(),
+            'cached': False
+        }))
+        response.headers['Cache-Control'] = 'public, max-age=30'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in get_all_child_bags: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 @app.route('/api/bags/parent/<qr_id>/details')
 @require_production_auth
@@ -202,64 +289,85 @@ def get_recent_scan_activity():
 # ANALYTICS & STATISTICS ENDPOINTS
 @app.route('/api/analytics/system-overview')
 @require_production_auth
+@cached_response(timeout=120)
 def get_system_analytics_overview():
-    """Get comprehensive system statistics and analytics overview"""
-    # Basic counts
-    total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
-    total_child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
-    total_scans = Scan.query.count()
-    total_users = User.query.count()
+    """Get comprehensive system statistics and analytics overview optimized for large datasets"""
+    try:
+        # Single efficient query for bag counts
+        bag_stats = db.session.query(
+            func.count(case((Bag.type == BagType.PARENT.value, 1))).label('parent_count'),
+            func.count(case((Bag.type == BagType.CHILD.value, 1))).label('child_count'),
+            func.count().label('total_bags')
+        ).first()
+        
+        # Single efficient query for scan counts
+        scan_stats = db.session.query(
+            func.count(case((Scan.parent_bag_id.isnot(None), 1))).label('parent_scans'),
+            func.count(case((Scan.child_bag_id.isnot(None), 1))).label('child_scans'),
+            func.count().label('total_scans')
+        ).first()
+        
+        # Total users count
+        total_users = db.session.query(func.count(User.id)).scalar() or 0
+        
+        # Recent activity (last 7 days) - optimized
+        week_ago = datetime.utcnow() - timedelta(days=7)
+        recent_activity = db.session.query(
+            func.count(Scan.id).label('recent_scans'),
+            func.count(func.distinct(Scan.user_id)).label('active_users')
+        ).filter(Scan.timestamp >= week_ago).first()
     
-    # Scan activity breakdown
-    parent_scans = Scan.query.filter(Scan.parent_bag_id.isnot(None)).count()
-    child_scans = Scan.query.filter(Scan.child_bag_id.isnot(None)).count()
-    
-    # Recent activity (last 7 days)
-    week_ago = datetime.utcnow() - timedelta(days=7)
-    recent_scans = Scan.query.filter(Scan.timestamp >= week_ago).count()
-    
-    # Active users (users who scanned in last 7 days)
-    active_users = db.session.query(Scan.user_id).filter(
-        Scan.timestamp >= week_ago
-    ).distinct().count()
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'totals': {
-                'parent_bags': total_parent_bags,
-                'child_bags': total_child_bags,
-                'total_bags': total_parent_bags + total_child_bags,
-                'total_scans': total_scans,
-                'total_users': total_users
+        response_data = {
+            'success': True,
+            'data': {
+                'totals': {
+                    'parent_bags': bag_stats.parent_count or 0,
+                    'child_bags': bag_stats.child_count or 0,
+                    'total_bags': bag_stats.total_bags or 0,
+                    'total_scans': scan_stats.total_scans or 0,
+                    'total_users': total_users
+                },
+                'scan_breakdown': {
+                    'parent_scans': scan_stats.parent_scans or 0,
+                    'child_scans': scan_stats.child_scans or 0
+                },
+                'recent_activity': {
+                    'scans_last_7_days': recent_activity.recent_scans or 0,
+                    'active_users_last_7_days': recent_activity.active_users or 0
+                },
+                'generated_at': datetime.utcnow().isoformat()
             },
-            'scan_breakdown': {
-                'parent_scans': parent_scans,
-                'child_scans': child_scans
-            },
-            'recent_activity': {
-                'scans_last_7_days': recent_scans,
-                'active_users_last_7_days': active_users
-            },
-            'generated_at': datetime.utcnow().isoformat()
+            'timestamp': time.time(),
+            'cached': False
         }
-    })
+        
+        response = make_response(jsonify(response_data))
+        response.headers['Cache-Control'] = 'public, max-age=120'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in get_system_analytics_overview: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 # SYSTEM MANAGEMENT ENDPOINTS
 @app.route('/api/system/cache/status')
 @require_production_auth
 def get_cache_system_status():
     """Get detailed cache system performance statistics"""
-    from cache_utils import get_cache_stats
-    stats = get_cache_stats()
-    hit_rate = stats.get('hit_rate', 0) if isinstance(stats, dict) else 0
-    return jsonify({
-        'success': True,
-        'data': {
-            'cache_performance': stats,
-            'cache_health': 'healthy' if hit_rate > 0.5 else 'needs_attention'
-        }
-    })
+    try:
+        from cache_utils import get_cache_stats
+        stats = get_cache_stats()
+        hit_rate = stats.get('hit_rate', 0) if isinstance(stats, dict) and stats else 0
+        return jsonify({
+            'success': True,
+            'data': {
+                'cache_performance': stats or {},
+                'cache_health': 'healthy' if hit_rate > 0.5 else 'needs_attention'
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error in get_cache_system_status: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 @app.route('/api/system/cache/clear', methods=['POST'])
 @require_production_auth

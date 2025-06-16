@@ -64,10 +64,14 @@ class Bag(db.Model):
     parent_id = db.Column(db.Integer, nullable=True)  # For child bags
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-    # Indexes for faster bag lookups, especially during high-volume scanning
+    # Comprehensive indexes for high-performance queries on large datasets
     __table_args__ = (
         db.Index('idx_bag_qr_id', 'qr_id'),
         db.Index('idx_bag_type', 'type'),
+        db.Index('idx_bag_created_at', 'created_at'),
+        db.Index('idx_bag_type_created', 'type', 'created_at'),
+        db.Index('idx_bag_name_search', 'name'),
+        db.Index('idx_bag_parent_id', 'parent_id'),
     )
     
     @property
