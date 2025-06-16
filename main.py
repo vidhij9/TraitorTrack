@@ -2,19 +2,15 @@
 from app_clean import app, db
 from flask import request, redirect, url_for, session, render_template, flash
 from models import User
-from simple_auth import login_user_simple, is_authenticated, clear_auth_session
+from production_auth_fix import production_login_handler, is_production_authenticated, production_logout, require_production_auth
 import logging
 
 # Import all the main routes to ensure they're registered
 import routes
-import api  # Import improved API endpoints
 
 @app.route('/login', methods=['GET', 'POST'])  
 def login():
     logging.info(f"Production login request: method={request.method}")
-    
-    # Import production authentication fix
-    from production_auth_fix import production_login_handler, is_production_authenticated
     
     # Check if already authenticated
     if is_production_authenticated() and request.method == 'GET':
@@ -48,8 +44,6 @@ def login():
 @app.route('/logout')
 def logout():
     """Production logout handler"""
-    from production_auth_fix import production_logout
-    
     logging.info("Production user logout")
     production_logout()
     return redirect(url_for('login'))

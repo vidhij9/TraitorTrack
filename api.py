@@ -353,7 +353,7 @@ def create_sample_data():
                         scan = Scan()
                         scan.child_bag_id = child_bag.id
                         scan.parent_bag_id = parent_bag.id
-                        scan.user_id = current_user.id if hasattr(current_user, 'id') else 1
+                        scan.user_id = session.get('user_id', 1)
                         
                         db.session.add(scan)
                         scans_created.append(f"Scan for {child_qr}")
