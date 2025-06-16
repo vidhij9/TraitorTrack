@@ -38,8 +38,8 @@ class CurrentUser:
     
     @property
     def email(self):
-        user = get_current_user()
-        return user.email if user else None
+        user_data = get_production_user_data()
+        return user_data.get('email') if user_data else None
     
     @property
     def role(self):
@@ -1662,7 +1662,7 @@ def bag_details(qr_id):
 
 # API endpoints for dashboard data
 @app.route('/api/stats')
-@login_required
+@require_auth
 def api_dashboard_stats():
     """Get dashboard statistics"""
     try:
@@ -1696,7 +1696,7 @@ def api_dashboard_stats():
 
 
 @app.route('/api/scans')
-@login_required
+@require_auth
 def api_recent_scans():
     """Get recent scans for dashboard"""
     try:

@@ -1,9 +1,9 @@
 import logging
-from flask import jsonify, request, Blueprint, make_response
-from flask_login import login_required, current_user
+from flask import jsonify, request, Blueprint, make_response, session
 from app_clean import app, db
 from models import User, Bag, BagType, Link, Scan
 from cache_utils import cached_response, invalidate_cache
+from production_auth_fix import require_production_auth
 import time
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # BAG MANAGEMENT ENDPOINTS
 @app.route('/api/bags/parent/list')
-@login_required
+@require_production_auth
 @cached_response(timeout=30)
 def get_all_parent_bags():
     """Get complete list of all parent bags in the system"""
@@ -33,7 +33,7 @@ def get_all_parent_bags():
     return response
 
 @app.route('/api/bags/child/list')
-@login_required
+@require_production_auth
 @cached_response(timeout=30)
 def get_all_child_bags():
     """Get complete list of all child bags in the system"""
@@ -49,7 +49,7 @@ def get_all_child_bags():
     return response
 
 @app.route('/api/bags/parent/<qr_id>/details')
-@login_required
+@require_production_auth
 def get_parent_bag_details(qr_id):
     """Get detailed information about a specific parent bag including its children"""
     parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
@@ -75,7 +75,7 @@ def get_parent_bag_details(qr_id):
     })
 
 @app.route('/api/bags/child/<qr_id>/details')
-@login_required
+@require_production_auth
 def get_child_bag_details(qr_id):
     """Get detailed information about a specific child bag including its parent"""
     child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
@@ -105,7 +105,7 @@ def get_child_bag_details(qr_id):
 
 # SCAN TRACKING ENDPOINTS
 @app.route('/api/tracking/parent/<qr_id>/scan-history')
-@login_required
+@require_production_auth
 def get_parent_bag_scan_history(qr_id):
     """Get complete scan history for a parent bag"""
     parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
@@ -130,7 +130,7 @@ def get_parent_bag_scan_history(qr_id):
     })
 
 @app.route('/api/tracking/child/<qr_id>/scan-history')
-@login_required
+@require_production_auth
 def get_child_bag_scan_history(qr_id):
     """Get complete scan history for a child bag"""
     child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
@@ -157,7 +157,7 @@ def get_child_bag_scan_history(qr_id):
 # Locations API removed - location tracking no longer supported
 
 @app.route('/api/tracking/scans/recent')
-@login_required
+@require_production_auth
 def get_recent_scan_activity():
     """Get recent scan activity across the entire system with filtering options"""
     # Get query parameters for filtering
@@ -201,7 +201,7 @@ def get_recent_scan_activity():
 
 # ANALYTICS & STATISTICS ENDPOINTS
 @app.route('/api/analytics/system-overview')
-@login_required
+@require_production_auth
 def get_system_analytics_overview():
     """Get comprehensive system statistics and analytics overview"""
     # Basic counts
@@ -247,7 +247,7 @@ def get_system_analytics_overview():
 
 # SYSTEM MANAGEMENT ENDPOINTS
 @app.route('/api/system/cache/status')
-@login_required
+@require_production_auth
 def get_cache_system_status():
     """Get detailed cache system performance statistics"""
     from cache_utils import get_cache_stats
@@ -262,7 +262,7 @@ def get_cache_system_status():
     })
 
 @app.route('/api/system/cache/clear', methods=['POST'])
-@login_required
+@require_production_auth
 def clear_system_cache():
     """Clear application cache with optional prefix targeting"""
     cache_prefix = request.json.get('prefix') if request.is_json else request.args.get('prefix')
@@ -309,7 +309,7 @@ def get_system_health_status():
 
 # DEVELOPMENT & TESTING ENDPOINTS
 @app.route('/api/development/seed-sample-data', methods=['POST'])
-@login_required
+@require_production_auth
 def create_sample_data():
     """Create sample data for development and testing"""
     try:
@@ -386,77 +386,77 @@ def create_sample_data():
 
 # Maintain backward compatibility while encouraging migration to new endpoints
 @app.route('/api/parent_bags')
-@login_required
+@require_production_auth
 def api_parent_bags():
     """[DEPRECATED] Use /api/bags/parent/list instead"""
     logger.warning("Deprecated endpoint /api/parent_bags used. Please migrate to /api/bags/parent/list")
     return get_all_parent_bags()
 
 @app.route('/api/child_bags')
-@login_required
+@require_production_auth
 def api_child_bags():
     """[DEPRECATED] Use /api/bags/child/list instead"""
     logger.warning("Deprecated endpoint /api/child_bags used. Please migrate to /api/bags/child/list")
     return get_all_child_bags()
 
 @app.route('/api/parent_bag/<qr_id>')
-@login_required
+@require_production_auth
 def api_parent_bag(qr_id):
     """[DEPRECATED] Use /api/bags/parent/<qr_id>/details instead"""
     logger.warning("Deprecated endpoint /api/parent_bag used. Please migrate to /api/bags/parent/<qr_id>/details")
     return get_parent_bag_details(qr_id)
 
 @app.route('/api/child_bag/<qr_id>')
-@login_required
+@require_production_auth
 def api_child_bag(qr_id):
     """[DEPRECATED] Use /api/bags/child/<qr_id>/details instead"""
     logger.warning("Deprecated endpoint /api/child_bag used. Please migrate to /api/bags/child/<qr_id>/details")
     return get_child_bag_details(qr_id)
 
 @app.route('/api/parent_bag/<qr_id>/scans')
-@login_required
+@require_production_auth
 def api_parent_bag_scans(qr_id):
     """[DEPRECATED] Use /api/tracking/parent/<qr_id>/scan-history instead"""
     logger.warning("Deprecated endpoint /api/parent_bag/<qr_id>/scans used. Please migrate to /api/tracking/parent/<qr_id>/scan-history")
     return get_parent_bag_scan_history(qr_id)
 
 @app.route('/api/child_bag/<qr_id>/scans')
-@login_required
+@require_production_auth
 def api_child_bag_scans(qr_id):
     """[DEPRECATED] Use /api/tracking/child/<qr_id>/scan-history instead"""
     logger.warning("Deprecated endpoint /api/child_bag/<qr_id>/scans used. Please migrate to /api/tracking/child/<qr_id>/scan-history")
     return get_child_bag_scan_history(qr_id)
 
 @app.route('/api/stats')
-@login_required
+@require_production_auth
 def api_stats():
     """[DEPRECATED] Use /api/analytics/system-overview instead"""
     logger.warning("Deprecated endpoint /api/stats used. Please migrate to /api/analytics/system-overview")
     return get_system_analytics_overview()
 
 @app.route('/api/scans')
-@login_required
+@require_production_auth
 def api_scans():
     """[DEPRECATED] Use /api/tracking/scans/recent instead"""
     logger.warning("Deprecated endpoint /api/scans used. Please migrate to /api/tracking/scans/recent")
     return get_recent_scan_activity()
 
 @app.route('/api/cache_stats')
-@login_required
+@require_production_auth
 def api_cache_stats():
     """[DEPRECATED] Use /api/system/cache/status instead"""
     logger.warning("Deprecated endpoint /api/cache_stats used. Please migrate to /api/system/cache/status")
     return get_cache_system_status()
 
 @app.route('/api/clear_cache', methods=['POST'])
-@login_required
+@require_production_auth
 def api_clear_cache():
     """[DEPRECATED] Use /api/system/cache/clear instead"""
     logger.warning("Deprecated endpoint /api/clear_cache used. Please migrate to /api/system/cache/clear")
     return clear_system_cache()
 
 @app.route('/api/seed_test_data', methods=['POST'])
-@login_required
+@require_production_auth
 def seed_test_data():
     """[DEPRECATED] Use /api/development/seed-sample-data instead"""
     logger.warning("Deprecated endpoint /api/seed_test_data used. Please migrate to /api/development/seed-sample-data")
