@@ -5,6 +5,10 @@ from models import User
 from production_auth_fix import production_login_handler, is_production_authenticated, production_logout, require_production_auth
 import logging
 
+# Import optimized components
+import optimized_api
+import database_optimizer
+
 # Import all the main routes to ensure they're registered
 import routes
 

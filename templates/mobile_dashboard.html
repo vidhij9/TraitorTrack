@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#007bff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="TraceTrack">
+    
+    <title>TraceTrack Dashboard</title>
+    
+    <!-- Optimized CSS loading -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-optimized.css') }}">
+    <link rel="preload" href="{{ url_for('static', filename='js/mobile-optimized.js') }}" as="script">
+    
+    <!-- PWA manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- Favicon and app icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32x32.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+    
+    <!-- Preconnect to optimize external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+</head>
+<body>
+    <!-- Mobile Navigation -->
+    <nav class="mobile-nav">
+        <div class="logo">TraceTrack</div>
+        <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+    </nav>
+
+    <!-- Alert Container -->
+    <div id="alert-container"></div>
+
+    <!-- Main Content -->
+    <div class="mobile-container">
+        <!-- Welcome Section -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <h1 class="mobile-card-title">Welcome back!</h1>
+                <p class="mobile-card-subtitle">Track and manage your supply chain</p>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-mobile">
+            <input type="text" id="mobile-search" class="form-control-mobile" 
+                   placeholder="Search bags by QR code or name..." autocomplete="off">
+        </div>
+
+        <!-- Search Results -->
+        <div id="search-results" style="display: none;"></div>
+
+        <!-- Dashboard Stats -->
+        <div class="stats-grid-mobile" id="dashboard-stats">
+            <div class="stat-card-mobile" id="total-parent-bags">
+                <div class="stat-value-mobile">0</div>
+                <div class="stat-label-mobile">Parent Bags</div>
+            </div>
+            <div class="stat-card-mobile" id="total-child-bags">
+                <div class="stat-value-mobile">0</div>
+                <div class="stat-label-mobile">Child Bags</div>
+            </div>
+            <div class="stat-card-mobile" id="total-scans">
+                <div class="stat-value-mobile">0</div>
+                <div class="stat-label-mobile">Total Scans</div>
+            </div>
+            <div class="stat-card-mobile" id="today-scans">
+                <div class="stat-value-mobile">0</div>
+                <div class="stat-label-mobile">Today</div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <h2 class="mobile-card-title">Quick Actions</h2>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <a href="/scan" class="btn-mobile btn-primary">
+                    📱 Scan QR
+                </a>
+                <a href="/bags" class="btn-mobile btn-outline">
+                    📦 View Bags
+                </a>
+                <a href="/bills" class="btn-mobile btn-outline">
+                    📋 Bills
+                </a>
+                <a href="#" onclick="window.mobileApp.triggerRefresh()" class="btn-mobile btn-outline">
+                    🔄 Refresh
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <h2 class="mobile-card-title">Recent Scans</h2>
+                <a href="/scan_history" class="mobile-card-subtitle">View all</a>
+            </div>
+            <div id="recent-scans">
+                <div class="loading-mobile">
+                    <div class="spinner-mobile"></div>
+                    Loading recent scans...
+                </div>
+            </div>
+            <div id="recent-scans-list"></div>
+        </div>
+
+        <!-- Activity Chart -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <h2 class="mobile-card-title">7-Day Activity</h2>
+            </div>
+            <div id="activity-chart">
+                <div class="loading-mobile">
+                    <div class="spinner-mobile"></div>
+                    Loading activity data...
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <h2 class="mobile-card-title">System Status</h2>
+            </div>
+            <div class="mobile-table">
+                <div class="mobile-table-row">
+                    <div class="mobile-table-cell-main">Database</div>
+                    <div class="mobile-table-cell-secondary" id="db-status">✅ Connected</div>
+                </div>
+                <div class="mobile-table-row">
+                    <div class="mobile-table-cell-main">Cache</div>
+                    <div class="mobile-table-cell-secondary" id="cache-status">✅ Active</div>
+                </div>
+                <div class="mobile-table-row">
+                    <div class="mobile-table-cell-main">Network</div>
+                    <div class="mobile-table-cell-secondary" id="network-status">✅ Online</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer spacing for bottom nav -->
+        <div style="height: 80px;"></div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav-mobile">
+        <a href="/" class="bottom-nav-item active">
+            <span class="bottom-nav-icon">🏠</span>
+            Home
+        </a>
+        <a href="/scan" class="bottom-nav-item">
+            <span class="bottom-nav-icon">📱</span>
+            Scan
+        </a>
+        <a href="/bags" class="bottom-nav-item">
+            <span class="bottom-nav-icon">📦</span>
+            Bags
+        </a>
+        <a href="/bills" class="bottom-nav-item">
+            <span class="bottom-nav-icon">📋</span>
+            Bills
+        </a>
+        <a href="/user_management" class="bottom-nav-item">
+            <span class="bottom-nav-icon">⚙️</span>
+            Admin
+        </a>
+    </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu" class="mobile-menu-overlay" style="display: none;">
+        <div class="mobile-menu-content">
+            <div class="mobile-menu-header">
+                <h3>Menu</h3>
+                <button onclick="window.mobileApp.toggleMobileMenu()">✕</button>
+            </div>
+            <nav class="mobile-menu-nav">
+                <a href="/" class="mobile-menu-item">🏠 Dashboard</a>
+                <a href="/scan" class="mobile-menu-item">📱 QR Scanner</a>
+                <a href="/bags" class="mobile-menu-item">📦 Bag Management</a>
+                <a href="/bills" class="mobile-menu-item">📋 Bill Management</a>
+                <a href="/scan_history" class="mobile-menu-item">📊 Scan History</a>
+                {% if current_user and current_user.is_admin() %}
+                <a href="/user_management" class="mobile-menu-item">👥 User Management</a>
+                {% endif %}
+                <hr>
+                <a href="/logout" class="mobile-menu-item">🚪 Logout</a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/mobile-optimized.js') }}" defer></script>
+    
+    <!-- Additional CSS for mobile menu -->
+    <style>
+        .mobile-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-menu-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .mobile-menu-content {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            width: 280px;
+            background: white;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        .mobile-menu-overlay.show .mobile-menu-content {
+            transform: translateX(0);
+        }
+        
+        .mobile-menu-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .mobile-menu-header h3 {
+            margin: 0;
+            color: var(--dark-color);
+        }
+        
+        .mobile-menu-header button {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+        }
+        
+        .mobile-menu-nav {
+            padding: 20px 0;
+        }
+        
+        .mobile-menu-item {
+            display: block;
+            padding: 16px 20px;
+            color: var(--dark-color);
+            text-decoration: none;
+            transition: background-color 0.2s ease;
+        }
+        
+        .mobile-menu-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .simple-chart {
+            display: flex;
+            align-items: end;
+            height: 120px;
+            gap: 8px;
+            padding: 20px 0;
+        }
+        
+        .chart-bar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }
+        
+        .chart-bar-fill {
+            width: 100%;
+            background: var(--primary-color);
+            border-radius: 4px 4px 0 0;
+            margin-top: auto;
+            min-height: 4px;
+            transition: height 0.5s ease;
+        }
+        
+        .chart-bar-label {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 8px;
+        }
+        
+        .chart-bar-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-top: 4px;
+        }
+        
+        .no-data-mobile {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .touch-active {
+            transform: scale(0.98) !important;
+            opacity: 0.8;
+        }
+        
+        /* Network status indicators */
+        .offline-indicator {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: var(--warning-color);
+            color: var(--dark-color);
+            text-align: center;
+            padding: 8px;
+            font-size: 14px;
+            z-index: 999;
+        }
+    </style>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/service-worker.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+        
+        // Update network status indicator
+        function updateNetworkStatus() {
+            const indicator = document.getElementById('network-status');
+            if (indicator) {
+                indicator.textContent = navigator.onLine ? '✅ Online' : '❌ Offline';
+            }
+        }
+        
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        
+        // Update mobile menu toggle function
+        document.addEventListener('DOMContentLoaded', () => {
+            const menuToggle = document.querySelector('.menu-toggle');
+            const menuOverlay = document.getElementById('mobile-menu');
+            
+            if (menuToggle && menuOverlay) {
+                menuToggle.addEventListener('click', () => {
+                    menuOverlay.classList.toggle('show');
+                });
+                
+                // Close menu when clicking overlay
+                menuOverlay.addEventListener('click', (e) => {
+                    if (e.target === menuOverlay) {
+                        menuOverlay.classList.remove('show');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
