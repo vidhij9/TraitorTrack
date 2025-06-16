@@ -8,7 +8,7 @@ import optimized_api
 import cache_utils
 import database_optimizer
 
-# Export for gunicorn
+# Export both app and application for gunicorn compatibility
 application = app
 
 if __name__ == "__main__":

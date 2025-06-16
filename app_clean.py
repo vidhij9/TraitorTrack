@@ -41,19 +41,20 @@ app.config.update(
 # Configure database with environment-specific URLs
 def get_database_url():
     """Get appropriate database URL based on environment"""
+    # Check if DATABASE_URL is available (production deployment)
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        logging.info("Using production DATABASE_URL from environment")
+        return database_url
+    
+    # Fallback to development database
     environment = os.environ.get('ENVIRONMENT', os.environ.get('FLASK_ENV', 'development'))
     
     if environment == 'production':
         # Production environment - Enhanced database URL handling
-        prod_url = os.environ.get('PROD_DATABASE_URL') or os.environ.get('DATABASE_URL')
+        prod_url = os.environ.get('PROD_DATABASE_URL')
         if not prod_url:
-            # Fallback with improved error handling
-            fallback_url = os.environ.get('DATABASE_URL')
-            if fallback_url:
-                logging.warning("Production using generic DATABASE_URL - set PROD_DATABASE_URL for proper isolation")
-                return fallback_url
-            else:
-                raise ValueError("Production environment requires PROD_DATABASE_URL to be set")
+            raise ValueError("Production environment requires DATABASE_URL or PROD_DATABASE_URL to be set")
         return prod_url
     elif environment == 'testing':
         # Testing environment - use in-memory SQLite by default
