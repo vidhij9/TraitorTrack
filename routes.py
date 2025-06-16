@@ -71,6 +71,7 @@ import json
 import secrets
 import random
 import time
+import logging
 
 # Analytics route removed as requested
 
@@ -436,6 +437,64 @@ def logout():
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
 
+
+
+@app.route('/link_to_bill/<qr_id>', methods=['GET', 'POST'])
+@login_required
+def link_to_bill(qr_id):
+    """Link parent bag to bill"""
+    try:
+        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        if not parent_bag:
+            flash('Parent bag not found', 'error')
+            return redirect(url_for('index'))
+        
+        if request.method == 'POST':
+            bill_id = request.form.get('bill_id', '').strip()
+            if not bill_id:
+                flash('Bill ID is required', 'error')
+                return render_template('link_to_bill.html', parent_bag=parent_bag)
+            
+            # Find or create bill
+            bill = Bill.query.filter_by(bill_id=bill_id).first()
+            if not bill:
+                bill = Bill(
+                    bill_id=bill_id,
+                    description=f"Bill for {bill_id}",
+                    parent_bag_count=0,
+                    status='draft'
+                )
+                db.session.add(bill)
+                db.session.flush()
+            
+            # Link parent bag to bill
+            existing_link = BillBag.query.filter_by(
+                bill_id=bill.id, 
+                parent_bag_id=parent_bag.id
+            ).first()
+            
+            if not existing_link:
+                bill_bag = BillBag(
+                    bill_id=bill.id,
+                    parent_bag_id=parent_bag.id
+                )
+                db.session.add(bill_bag)
+                
+                # Update bill count
+                bill.parent_bag_count = BillBag.query.filter_by(bill_id=bill.id).count() + 1
+                
+            db.session.commit()
+            flash(f'Parent bag {qr_id} linked to bill {bill_id}', 'success')
+            return redirect(url_for('index'))
+        
+        return render_template('link_to_bill.html', parent_bag=parent_bag)
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Link to bill error: {e}")
+        flash('Failed to link to bill', 'error')
+        return redirect(url_for('index'))
+
 @app.route('/fix-admin-password')
 def fix_admin_password():
     """Fix admin password - temporary endpoint"""
@@ -671,7 +730,7 @@ def scan_parent():
 
 @app.route('/scan/parent', methods=['POST'])
 @login_required
-def process_parent_scan():
+def scan_parent_bag():
     """Process the parent bag QR code scan"""
     # Check if it's an AJAX request (simpler detection)
     is_ajax = 'qr_id' in request.form and request.method == 'POST'

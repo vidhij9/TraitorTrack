@@ -126,8 +126,10 @@ login_manager.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
-# Configure CSRF exemptions for deployment compatibility
-app.config['WTF_CSRF_ENABLED'] = False  # Temporarily disable CSRF for deployment troubleshooting
+# Re-enable CSRF protection with proper configuration
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
+app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow HTTP in development
 
 # Setup error handlers and monitoring
 from error_handlers import setup_error_handlers, setup_request_logging, setup_health_monitoring
@@ -156,8 +158,25 @@ def before_request():
 
 @app.after_request
 def after_request(response):
-    """Add cache control headers to authenticated pages"""
+    """Add security headers and cache control"""
     from flask import session, request
+    
+    # Add comprehensive security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    
+    # Add Content Security Policy
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://cdnjs.cloudflare.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self';"
+    )
+    response.headers['Content-Security-Policy'] = csp
     
     # Check if user is authenticated
     if session.get('logged_in') or session.get('auth_session_id'):
