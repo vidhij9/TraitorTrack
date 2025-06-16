@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Simple session-based authentication for production
 def is_authenticated():
     """Check if user is authenticated"""
-    return 'user_id' in session and 'username' in session
+    return session.get('user_id') is not None and session.get('username') is not None
 
 def require_auth(f):
     """Decorator to require authentication"""
@@ -22,6 +22,7 @@ def require_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not is_authenticated():
+            session['next_url'] = request.url
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -67,6 +68,13 @@ def login():
                     session.permanent = True
                     
                     logger.info(f"Login successful for user: {username}")
+                    logger.info(f"Session data set: user_id={session.get('user_id')}, username={session.get('username')}")
+                    
+                    # Check for next URL
+                    next_url = session.pop('next_url', None)
+                    if next_url and next_url != url_for('login'):
+                        return redirect(next_url)
+                    
                     flash(f'Welcome, {user.username}!', 'success')
                     return redirect(url_for('dashboard'))
                 else:
