@@ -3,6 +3,7 @@ Production-safe routes for TraceTrack application
 """
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
+from sqlalchemy import text
 from app_clean import app, db
 from models import User
 from datetime import datetime
@@ -450,5 +451,390 @@ def analytics():
         logger.error(f"Analytics error: {e}")
         flash('Error loading analytics', 'error')
         return redirect(url_for('dashboard'))
+
+# ============================================================================
+# SCANNING ROUTES
+# ============================================================================
+
+@app.route('/scan')
+@require_auth
+def scan():
+    """QR code scanning page"""
+    return render_template('scan.html')
+
+@app.route('/scan-parent')
+@require_auth
+def scan_parent():
+    """Scan parent bags"""
+    return render_template('scan_parent.html')
+
+@app.route('/scan-child')
+@require_auth
+def scan_child():
+    """Scan child bags"""
+    return render_template('scan_child.html')
+
+@app.route('/child-lookup')
+@require_auth
+def child_lookup():
+    """Child bag lookup and search"""
+    search_term = request.args.get('search', '').strip()
+    results = []
+    
+    if search_term:
+        try:
+            # Search in child bags
+            child_bags = db.session.execute(text("""
+                SELECT b.qr_id, b.name, b.type, b.created_at, pb.qr_id as parent_qr_id, pb.name as parent_name
+                FROM bag b
+                LEFT JOIN bag pb ON b.parent_id = pb.id
+                WHERE b.type = 'child' AND (b.qr_id ILIKE :search OR b.name ILIKE :search)
+                ORDER BY b.created_at DESC
+                LIMIT 50
+            """), {'search': f'%{search_term}%'}).fetchall()
+            
+            results = [dict(row._mapping) for row in child_bags]
+            
+        except Exception as e:
+            app.logger.error(f"Child lookup error: {str(e)}")
+            flash('Search failed. Please try again.', 'error')
+    
+    return render_template('child_lookup.html', results=results, search_term=search_term)
+
+# ============================================================================
+# BILL MANAGEMENT ROUTES
+# ============================================================================
+
+@app.route('/create-bill', methods=['GET', 'POST'])
+@require_auth
+def create_bill():
+    """Create a new bill"""
+    if request.method == 'POST':
+        bill_id = request.form.get('bill_id', '').strip()
+        description = request.form.get('description', '').strip()
+        parent_bag_count = request.form.get('parent_bag_count', type=int)
+        
+        if not bill_id or not parent_bag_count:
+            flash('Bill ID and parent bag count are required.', 'error')
+            return render_template('create_bill.html')
+        
+        try:
+            # Check if bill ID already exists
+            existing_bill = db.session.execute(text("""
+                SELECT id FROM bill WHERE bill_id = :bill_id
+            """), {'bill_id': bill_id}).fetchone()
+            
+            if existing_bill:
+                flash('Bill ID already exists. Please use a different ID.', 'error')
+                return render_template('create_bill.html')
+            
+            # Create new bill
+            db.session.execute(text("""
+                INSERT INTO bill (bill_id, description, parent_bag_count, status, created_at, updated_at)
+                VALUES (:bill_id, :description, :parent_bag_count, 'draft', :created_at, :updated_at)
+            """), {
+                'bill_id': bill_id,
+                'description': description,
+                'parent_bag_count': parent_bag_count,
+                'created_at': datetime.utcnow(),
+                'updated_at': datetime.utcnow()
+            })
+            
+            db.session.commit()
+            
+            # Get the created bill ID
+            new_bill = db.session.execute(text("""
+                SELECT id FROM bill WHERE bill_id = :bill_id
+            """), {'bill_id': bill_id}).fetchone()
+            
+            flash('Bill created successfully!', 'success')
+            return redirect(url_for('scan_bill_parent', bill_id=new_bill.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Create bill error: {str(e)}")
+            flash('Failed to create bill. Please try again.', 'error')
+    
+    return render_template('create_bill.html')
+
+@app.route('/scan-bill-parent/<int:bill_id>')
+@require_auth
+def scan_bill_parent(bill_id):
+    """Scan parent bags for a bill"""
+    try:
+        # Get bill details
+        bill = db.session.execute(text("""
+            SELECT * FROM bill WHERE id = :bill_id
+        """), {'bill_id': bill_id}).fetchone()
+        
+        if not bill:
+            flash('Bill not found.', 'error')
+            return redirect(url_for('bill_management'))
+        
+        # Get already scanned parent bags for this bill
+        scanned_bags = db.session.execute(text("""
+            SELECT bb.*, b.qr_id, b.name 
+            FROM bill_bag bb
+            JOIN bag b ON bb.parent_bag_id = b.id
+            WHERE bb.bill_id = :bill_id
+            ORDER BY bb.created_at DESC
+        """), {'bill_id': bill_id}).fetchall()
+        
+        return render_template('scan_bill_parent.html', bill=bill, scanned_bags=scanned_bags)
+        
+    except Exception as e:
+        app.logger.error(f"Scan bill parent error: {str(e)}")
+        flash('Error loading bill details.', 'error')
+        return redirect(url_for('bill_management'))
+
+@app.route('/view-bill/<int:bill_id>')
+@require_auth
+def view_bill(bill_id):
+    """View bill details"""
+    try:
+        # Get bill details
+        bill = db.session.execute(text("""
+            SELECT * FROM bill WHERE id = :bill_id
+        """), {'bill_id': bill_id}).fetchone()
+        
+        if not bill:
+            flash('Bill not found.', 'error')
+            return redirect(url_for('bill_management'))
+        
+        # Get associated parent bags
+        parent_bags = db.session.execute(text("""
+            SELECT bb.*, b.qr_id, b.name, b.child_count
+            FROM bill_bag bb
+            JOIN bag b ON bb.parent_bag_id = b.id
+            WHERE bb.bill_id = :bill_id
+            ORDER BY bb.created_at DESC
+        """), {'bill_id': bill_id}).fetchall()
+        
+        return render_template('view_bill.html', bill=bill, parent_bags=parent_bags)
+        
+    except Exception as e:
+        app.logger.error(f"View bill error: {str(e)}")
+        flash('Error loading bill details.', 'error')
+        return redirect(url_for('bill_management'))
+
+# ============================================================================
+# USER MANAGEMENT ROUTES
+# ============================================================================
+
+@app.route('/user-management')
+@require_auth
+def user_management():
+    """User management page - Admin only"""
+    if session.get('user_role') != 'admin':
+        flash('Admin access required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        users = User.query.order_by(User.created_at.desc()).all()
+        return render_template('user_management.html', users=users)
+    except Exception as e:
+        app.logger.error(f"User management error: {str(e)}")
+        return render_template('user_management.html', users=[])
+
+@app.route('/admin/promotions')
+@require_auth
+def admin_promotions():
+    """Admin promotion requests management"""
+    if session.get('user_role') != 'admin':
+        flash('Admin access required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        # Get promotion requests from database
+        pending_requests = db.session.execute(text("""
+            SELECT pr.*, u.username, u.email 
+            FROM promotion_request pr
+            JOIN "user" u ON pr.user_id = u.id
+            WHERE pr.status = 'pending'
+            ORDER BY pr.requested_at DESC
+        """)).fetchall()
+        
+        all_requests = db.session.execute(text("""
+            SELECT pr.*, u.username, u.email 
+            FROM promotion_request pr
+            JOIN "user" u ON pr.user_id = u.id
+            ORDER BY pr.requested_at DESC
+            LIMIT 50
+        """)).fetchall()
+        
+        return render_template('admin_promotions.html', 
+                             pending_requests=pending_requests,
+                             all_requests=all_requests)
+    except Exception as e:
+        app.logger.error(f"Admin promotions error: {str(e)}")
+        return render_template('admin_promotions.html', pending_requests=[], all_requests=[])
+
+@app.route('/request-promotion', methods=['GET', 'POST'])
+@require_auth
+def request_promotion():
+    """Request promotion to admin"""
+    if session.get('user_role') == 'admin':
+        flash('You are already an admin.', 'info')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        reason = request.form.get('reason', '').strip()
+        
+        if not reason:
+            flash('Please provide a reason for your promotion request.', 'error')
+            return render_template('request_promotion.html')
+        
+        try:
+            # Check if user already has a pending request
+            existing_request = db.session.execute(text("""
+                SELECT id FROM promotion_request 
+                WHERE user_id = :user_id AND status = 'pending'
+            """), {'user_id': session.get('user_id')}).fetchone()
+            
+            if existing_request:
+                flash('You already have a pending promotion request.', 'warning')
+                return redirect(url_for('dashboard'))
+            
+            # Create new promotion request
+            db.session.execute(text("""
+                INSERT INTO promotion_request (user_id, requested_role, reason, status, requested_at)
+                VALUES (:user_id, 'admin', :reason, 'pending', :requested_at)
+            """), {
+                'user_id': session.get('user_id'),
+                'reason': reason,
+                'requested_at': datetime.utcnow()
+            })
+            
+            db.session.commit()
+            flash('Promotion request submitted successfully!', 'success')
+            return redirect(url_for('dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Promotion request error: {str(e)}")
+            flash('Failed to submit promotion request. Please try again.', 'error')
+    
+    return render_template('request_promotion.html')
+
+# ============================================================================
+# API ROUTES FOR SCANNING AND DATA PROCESSING
+# ============================================================================
+
+@app.route('/api/scan', methods=['POST'])
+@require_auth
+def api_scan():
+    """Process QR code scan"""
+    try:
+        data = request.get_json()
+        qr_code = data.get('qr_code', '').strip()
+        
+        if not qr_code:
+            return jsonify({'error': 'QR code is required'}), 400
+        
+        # Check if it's a parent bag
+        parent_bag = db.session.execute(text("""
+            SELECT * FROM bag WHERE qr_id = :qr_id AND type = 'parent'
+        """), {'qr_id': qr_code}).fetchone()
+        
+        if parent_bag:
+            # Record scan
+            db.session.execute(text("""
+                INSERT INTO scan (parent_bag_id, user_id, timestamp)
+                VALUES (:bag_id, :user_id, :timestamp)
+            """), {
+                'bag_id': parent_bag.id,
+                'user_id': session.get('user_id'),
+                'timestamp': datetime.utcnow()
+            })
+            db.session.commit()
+            
+            return jsonify({
+                'type': 'parent',
+                'bag': dict(parent_bag._mapping),
+                'message': 'Parent bag scanned successfully'
+            })
+        
+        # Check if it's a child bag
+        child_bag = db.session.execute(text("""
+            SELECT c.*, p.qr_id as parent_qr_id, p.name as parent_name
+            FROM bag c
+            LEFT JOIN bag p ON c.parent_id = p.id
+            WHERE c.qr_id = :qr_id AND c.type = 'child'
+        """), {'qr_id': qr_code}).fetchone()
+        
+        if child_bag:
+            # Record scan
+            db.session.execute(text("""
+                INSERT INTO scan (child_bag_id, user_id, timestamp)
+                VALUES (:bag_id, :user_id, :timestamp)
+            """), {
+                'bag_id': child_bag.id,
+                'user_id': session.get('user_id'),
+                'timestamp': datetime.utcnow()
+            })
+            db.session.commit()
+            
+            return jsonify({
+                'type': 'child',
+                'bag': dict(child_bag._mapping),
+                'message': 'Child bag scanned successfully'
+            })
+        
+        return jsonify({'error': 'QR code not found in system'}), 404
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Scan API error: {str(e)}")
+        return jsonify({'error': 'Scan failed'}), 500
+
+@app.route('/api/scan-bill-parent', methods=['POST'])
+@require_auth
+def api_scan_bill_parent():
+    """Scan parent bag for a bill"""
+    try:
+        data = request.get_json()
+        qr_code = data.get('qr_code', '').strip()
+        bill_id = data.get('bill_id')
+        
+        if not qr_code or not bill_id:
+            return jsonify({'error': 'QR code and bill ID are required'}), 400
+        
+        # Check if parent bag exists
+        parent_bag = db.session.execute(text("""
+            SELECT * FROM bag WHERE qr_id = :qr_id AND type = 'parent'
+        """), {'qr_id': qr_code}).fetchone()
+        
+        if not parent_bag:
+            return jsonify({'error': 'Parent bag not found'}), 404
+        
+        # Check if already added to this bill
+        existing_link = db.session.execute(text("""
+            SELECT id FROM bill_bag WHERE bill_id = :bill_id AND parent_bag_id = :bag_id
+        """), {'bill_id': bill_id, 'bag_id': parent_bag.id}).fetchone()
+        
+        if existing_link:
+            return jsonify({'error': 'Parent bag already added to this bill'}), 400
+        
+        # Add parent bag to bill
+        db.session.execute(text("""
+            INSERT INTO bill_bag (bill_id, parent_bag_id, created_at)
+            VALUES (:bill_id, :bag_id, :created_at)
+        """), {
+            'bill_id': bill_id,
+            'bag_id': parent_bag.id,
+            'created_at': datetime.utcnow()
+        })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Parent bag added to bill successfully',
+            'bag': dict(parent_bag._mapping)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Scan bill parent API error: {str(e)}")
+        return jsonify({'error': 'Failed to add parent bag to bill'}), 500
 
 logger.info("Production routes loaded successfully")
