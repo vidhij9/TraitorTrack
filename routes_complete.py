@@ -6,7 +6,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from sqlalchemy import text
 from app_clean import app, db
 from models import User
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -189,6 +189,12 @@ def dashboard():
 # ============================================================================
 # SCANNING ROUTES
 # ============================================================================
+
+@app.route('/scan')
+@require_auth
+def scan():
+    """General scanning page"""
+    return render_template('scan.html')
 
 @app.route('/scan-parent')
 @require_auth
