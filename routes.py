@@ -337,7 +337,7 @@ def seed_sample_data():
 
 # Core application routes
 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['GET', 'POST'])
 def index():
     """Main dashboard page"""
     import logging
