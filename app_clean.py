@@ -38,13 +38,57 @@ app.config.update(
     SESSION_REFRESH_EACH_REQUEST=True  # Update session on each request
 )
 
-# Configure database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+# Configure database with environment-specific URLs
+def get_database_url():
+    """Get appropriate database URL based on environment"""
+    flask_env = os.environ.get('FLASK_ENV', 'development')
+    
+    if flask_env == 'production':
+        # Production environment - use PROD_DATABASE_URL first, fallback to DATABASE_URL
+        return os.environ.get('PROD_DATABASE_URL') or os.environ.get('DATABASE_URL')
+    else:
+        # Development environment - use DEV_DATABASE_URL first, fallback to DATABASE_URL
+        return os.environ.get('DEV_DATABASE_URL') or os.environ.get('DATABASE_URL')
+
+# Configure database with environment-specific settings
+flask_env = os.environ.get('FLASK_ENV', 'development')
+app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
+
+# Environment-specific database connection pool settings
+if flask_env == 'production':
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_size": 50,
+        "max_overflow": 60,
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+        "pool_timeout": 20,
+        "pool_use_lifo": True,
+        "connect_args": {
+            "keepalives": 1,
+            "keepalives_idle": 60,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+            "options": "-c statement_timeout=90000"
+        }
+    }
+else:
+    # Development settings - smaller pool, enable SQL logging for debugging
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+        "pool_timeout": 10,
+        "pool_use_lifo": True,
+        "connect_args": {
+            "keepalives": 1,
+            "keepalives_idle": 60,
+            "keepalives_interval": 10,
+            "keepalives_count": 3
+        }
+    }
+    app.config["SQLALCHEMY_ECHO"] = True  # Enable SQL logging in development
 
 # Security settings - Fix session management for deployment
 app.config.update(

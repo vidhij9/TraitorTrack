@@ -14,6 +14,7 @@ class Config:
     TESTING = False
     
     # SQLAlchemy settings - Optimized for high-performance
+    # Default database URI (will be overridden by specific environments)
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_size": 50,                # Larger connection pool for better concurrent performance
@@ -74,9 +75,29 @@ class DevelopmentConfig(Config):
     SESSION_COOKIE_SECURE = False  # Allow non-HTTPS for development
     SECURITY_STRICT_MODE = False   # More lenient security in development
     
+    # Development-specific database
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DEV_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    
+    # Smaller connection pool for development
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+        "pool_timeout": 10,
+        "pool_use_lifo": True,
+        "connect_args": {
+            "keepalives": 1,
+            "keepalives_idle": 60,
+            "keepalives_interval": 10,
+            "keepalives_count": 3
+        }
+    }
+    
     # Faster development with more instant feedback
     SEND_FILE_MAX_AGE_DEFAULT = 0  # Don't cache static files
     TEMPLATES_AUTO_RELOAD = True   # Auto-reload templates on change
+    SQLALCHEMY_ECHO = True         # Enable SQL echoing for development debugging
 
 
 class TestingConfig(Config):
@@ -96,12 +117,33 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
     SECURITY_STRICT_MODE = True
     
+    # Production-specific database
+    SQLALCHEMY_DATABASE_URI = os.environ.get("PROD_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    
+    # Optimized production database settings
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_size": 50,
+        "max_overflow": 60,
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+        "pool_timeout": 20,
+        "pool_use_lifo": True,
+        "connect_args": {
+            "keepalives": 1,
+            "keepalives_idle": 60,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+            "options": "-c statement_timeout=90000"
+        }
+    }
+    
     # Ensure these are set in production
     def __init__(self):
         if not os.environ.get("SESSION_SECRET"):
             raise ValueError("SESSION_SECRET must be set in production")
-        if not os.environ.get("DATABASE_URL"):
-            raise ValueError("DATABASE_URL must be set in production")
+        # Check for production database URL first, then fallback to generic
+        if not (os.environ.get("PROD_DATABASE_URL") or os.environ.get("DATABASE_URL")):
+            raise ValueError("PROD_DATABASE_URL or DATABASE_URL must be set in production")
 
 
 # Create a mapping of environment names to configuration classes
