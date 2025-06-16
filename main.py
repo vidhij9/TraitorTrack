@@ -8,6 +8,7 @@ import logging
 # Import optimized components
 import optimized_api
 import database_optimizer
+import high_performance_api
 
 # Import all the main routes to ensure they're registered
 import routes
