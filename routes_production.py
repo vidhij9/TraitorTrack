@@ -4,7 +4,7 @@ Production-safe routes for TraceTrack application
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 from app_clean import app, db
-from models import User, Bag, BagType, Link, Scan, Bill, PromotionRequest
+from models import User
 from datetime import datetime
 import logging
 import json
@@ -165,7 +165,7 @@ def index():
     # Always show landing page for now to break redirect loop
     return render_template('landing.html')
 
-@app.route('/dashboard')
+@app.route('/dashboard', methods=['GET'])
 def dashboard():
     """Main dashboard"""
     try:
