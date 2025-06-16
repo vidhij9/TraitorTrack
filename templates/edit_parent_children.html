@@ -17,6 +17,8 @@
     .child-item.removing {
         background: #ffebee;
         border-color: #ef5350;
+        opacity: 0.7;
+        text-decoration: line-through;
     }
     .child-item.adding {
         background: #e8f5e8;
@@ -252,8 +254,34 @@ function removeChild(qrCode) {
         const childItem = document.querySelector(`[data-qr="${qrCode}"]`);
         if (childItem) {
             childItem.classList.add('removing');
+            // Update button to allow canceling removal
+            const button = childItem.querySelector('button');
+            button.innerHTML = '<i class="fas fa-undo"></i>';
+            button.onclick = () => cancelRemoveChild(qrCode);
+            button.classList.remove('btn-outline-danger');
+            button.classList.add('btn-outline-warning');
+            button.title = 'Cancel removal';
         }
         showAlert('info', `Child bag ${qrCode} will be removed`);
+    }
+}
+
+function cancelRemoveChild(qrCode) {
+    const index = childrenToRemove.indexOf(qrCode);
+    if (index > -1) {
+        childrenToRemove.splice(index, 1);
+        const childItem = document.querySelector(`[data-qr="${qrCode}"]`);
+        if (childItem) {
+            childItem.classList.remove('removing');
+            // Restore original remove button
+            const button = childItem.querySelector('button');
+            button.innerHTML = '<i class="fas fa-trash"></i>';
+            button.onclick = () => removeChild(qrCode);
+            button.classList.remove('btn-outline-warning');
+            button.classList.add('btn-outline-danger');
+            button.title = 'Remove child';
+        }
+        showAlert('info', `Cancelled removal of ${qrCode}`);
     }
 }
 
