@@ -31,18 +31,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Progress circles update for child bag scanning
-    const updateProgressCircles = function(scannedCount, expectedCount) {
+    // Progress circles update for child bag scanning (no limit)
+    const updateProgressCircles = function(scannedCount) {
         const progressCirclesContainer = document.getElementById('progress_circles');
         if (!progressCirclesContainer) return;
         
         // Clear existing circles
         progressCirclesContainer.innerHTML = '';
         
-        // Create new circles
-        for (let i = 1; i <= expectedCount; i++) {
+        // Create circles for scanned bags only
+        for (let i = 1; i <= scannedCount; i++) {
             const circle = document.createElement('div');
-            circle.className = 'progress-circle' + (i <= scannedCount ? ' completed' : '');
+            circle.className = 'progress-circle completed';
             circle.textContent = i;
             progressCirclesContainer.appendChild(circle);
         }
@@ -50,12 +50,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update progress text
         const progressText = document.getElementById('progress_text');
         if (progressText) {
-            progressText.textContent = `${scannedCount} of ${expectedCount} bags scanned`;
+            progressText.textContent = `${scannedCount}`;
         }
         
-        // Enable finish button if all scanned
+        // Always enable finish button since there's no expected count
         const finishButton = document.getElementById('finish_scanning_btn');
-        if (finishButton && scannedCount >= expectedCount) {
+        if (finishButton) {
             finishButton.classList.remove('disabled');
             finishButton.setAttribute('href', finishButton.dataset.href);
         }

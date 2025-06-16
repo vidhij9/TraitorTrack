@@ -669,7 +669,6 @@ def process_parent_scan():
             response_data = {
                 'success': True,
                 'parent_qr': qr_id,
-                'expected_child_count': 5,  # Default for any QR code
                 'message': f'Parent bag {qr_id} scanned successfully!'
             }
             app.logger.info(f"Sending JSON response: {response_data}")
@@ -761,19 +760,15 @@ def scan_child():
     
     # Calculate child bag counts for the parent
     scanned_child_count = 0
-    expected_child_count = 5  # Default
     
     if parent_bag:
         # Count how many child bags are already linked to this parent
         scanned_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-        # Get expected count from parent bag's child_count field or default to 5
-        expected_child_count = parent_bag.child_count or 5
     
     return render_template('scan_child.html', 
                          form=form, 
                          parent_bag=parent_bag,
-                         scanned_child_count=scanned_child_count,
-                         expected_child_count=expected_child_count)
+                         scanned_child_count=scanned_child_count)
 
 @app.route('/scan/child', methods=['POST'])
 @login_required
