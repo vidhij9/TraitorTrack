@@ -779,6 +779,136 @@ def api_scans():
         logger.error(f"Recent scans error: {e}")
         return jsonify({'error': 'Failed to get recent scans'})
 
+@app.route('/create-sample-data')
+@require_auth
+def create_sample_data():
+    """Create sample data for testing - Admin only"""
+    if session.get('user_role') != 'admin':
+        flash('Admin access required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from werkzeug.security import generate_password_hash
+        import random
+        import string
+        
+        def generate_qr_id():
+            return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+        
+        # Create sample users if they don't exist
+        users_data = [
+            {'username': 'admin', 'email': 'admin@tracetrack.com', 'role': 'admin'},
+            {'username': 'manager', 'email': 'manager@tracetrack.com', 'role': 'user'},
+            {'username': 'operator1', 'email': 'operator1@tracetrack.com', 'role': 'user'},
+        ]
+        
+        for user_data in users_data:
+            existing_user = User.query.filter_by(username=user_data['username']).first()
+            if not existing_user:
+                user = User()
+                user.username = user_data['username']
+                user.email = user_data['email']
+                user.password_hash = generate_password_hash('password123')
+                user.role = user_data['role']
+                user.verified = True
+                user.created_at = datetime.utcnow() - timedelta(days=random.randint(1, 30))
+                user.is_active = True
+                db.session.add(user)
+        
+        db.session.commit()
+        
+        # Create parent bags
+        for i in range(10):
+            qr_id = f"PB{generate_qr_id()}"
+            db.session.execute(text("""
+                INSERT INTO bag (qr_id, type, name, child_count, created_at, updated_at)
+                VALUES (:qr_id, 'parent', :name, :child_count, :created_at, :updated_at)
+            """), {
+                'qr_id': qr_id,
+                'name': f"Parent Bag {i+1}",
+                'child_count': random.randint(3, 6),
+                'created_at': datetime.utcnow() - timedelta(days=random.randint(1, 15)),
+                'updated_at': datetime.utcnow()
+            })
+        
+        db.session.commit()
+        
+        # Get parent bags and create children
+        parent_bags = db.session.execute(text("SELECT id, child_count FROM bag WHERE type = 'parent'")).fetchall()
+        child_count = 0
+        
+        for parent in parent_bags:
+            for j in range(parent.child_count):
+                child_qr_id = f"CB{generate_qr_id()}"
+                db.session.execute(text("""
+                    INSERT INTO bag (qr_id, type, name, parent_id, created_at, updated_at)
+                    VALUES (:qr_id, 'child', :name, :parent_id, :created_at, :updated_at)
+                """), {
+                    'qr_id': child_qr_id,
+                    'name': f"Child Bag {child_count+1}",
+                    'parent_id': parent.id,
+                    'created_at': datetime.utcnow() - timedelta(days=random.randint(1, 15)),
+                    'updated_at': datetime.utcnow()
+                })
+                child_count += 1
+        
+        db.session.commit()
+        
+        # Create sample bills
+        for i in range(5):
+            bill_id = f"BILL-{datetime.now().year}-{str(i+1).zfill(4)}"
+            db.session.execute(text("""
+                INSERT INTO bill (bill_id, description, parent_bag_count, status, created_at, updated_at)
+                VALUES (:bill_id, :description, :parent_bag_count, :status, :created_at, :updated_at)
+            """), {
+                'bill_id': bill_id,
+                'description': f"Shipment bill for batch {i+1}",
+                'parent_bag_count': random.randint(2, 4),
+                'status': random.choice(['draft', 'completed']),
+                'created_at': datetime.utcnow() - timedelta(days=random.randint(1, 20)),
+                'updated_at': datetime.utcnow()
+            })
+        
+        db.session.commit()
+        
+        # Create some scans
+        all_bags = db.session.execute(text("SELECT id, type FROM bag LIMIT 20")).fetchall()
+        all_users = User.query.all()
+        user_ids = [user.id for user in all_users]
+        
+        for i in range(30):
+            if all_bags and user_ids:
+                bag = random.choice(all_bags)
+                user_id = random.choice(user_ids)
+                
+                scan_data = {
+                    'user_id': user_id,
+                    'timestamp': datetime.utcnow() - timedelta(days=random.randint(0, 10))
+                }
+                
+                if bag.type == 'parent':
+                    scan_data['parent_bag_id'] = bag.id
+                    scan_data['child_bag_id'] = None
+                else:
+                    scan_data['parent_bag_id'] = None
+                    scan_data['child_bag_id'] = bag.id
+                
+                db.session.execute(text("""
+                    INSERT INTO scan (parent_bag_id, child_bag_id, user_id, timestamp)
+                    VALUES (:parent_bag_id, :child_bag_id, :user_id, :timestamp)
+                """), scan_data)
+        
+        db.session.commit()
+        
+        flash('Sample data created successfully! Login with: admin/password123', 'success')
+        return redirect(url_for('dashboard'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Sample data creation error: {str(e)}")
+        flash('Failed to create sample data. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
+
 # ============================================================================
 # ERROR HANDLERS
 # ============================================================================
