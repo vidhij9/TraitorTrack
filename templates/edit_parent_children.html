@@ -73,7 +73,7 @@
                                 <div>
                                     <code>{{ child }}</code>
                                 </div>
-                                <button class="btn btn-sm btn-outline-danger" onclick="removeChild('{{ child }}')">
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-child-btn" data-qr="{{ child }}">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -149,6 +149,29 @@ let currentChildren = {{ current_children | tojson }};
 let childrenToRemove = [];
 let childrenToAdd = [];
 let lastScannedQR = null;
+
+// Add event listeners when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers for remove buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-child-btn')) {
+            const button = e.target.closest('.remove-child-btn');
+            const qrCode = button.getAttribute('data-qr');
+            removeChild(qrCode);
+        } else if (e.target.closest('.cancel-remove-btn')) {
+            const button = e.target.closest('.cancel-remove-btn');
+            const qrCode = button.getAttribute('data-qr');
+            cancelRemoveChild(qrCode);
+        }
+    });
+    
+    // Add enter key handler for manual input
+    document.getElementById('manual-qr-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            addManualChild();
+        }
+    });
+});
 
 function startScanning() {
     document.getElementById('start-scan-btn').style.display = 'none';
@@ -249,6 +272,7 @@ function addChildToList(qrCode) {
 }
 
 function removeChild(qrCode) {
+    console.log('removeChild called with:', qrCode);
     if (!childrenToRemove.includes(qrCode)) {
         childrenToRemove.push(qrCode);
         const childItem = document.querySelector(`[data-qr="${qrCode}"]`);
@@ -257,9 +281,9 @@ function removeChild(qrCode) {
             // Update button to allow canceling removal
             const button = childItem.querySelector('button');
             button.innerHTML = '<i class="fas fa-undo"></i>';
-            button.onclick = () => cancelRemoveChild(qrCode);
-            button.classList.remove('btn-outline-danger');
-            button.classList.add('btn-outline-warning');
+            button.classList.remove('btn-outline-danger', 'remove-child-btn');
+            button.classList.add('btn-outline-warning', 'cancel-remove-btn');
+            button.setAttribute('data-qr', qrCode);
             button.title = 'Cancel removal';
         }
         showAlert('info', `Child bag ${qrCode} will be removed`);
@@ -267,6 +291,7 @@ function removeChild(qrCode) {
 }
 
 function cancelRemoveChild(qrCode) {
+    console.log('cancelRemoveChild called with:', qrCode);
     const index = childrenToRemove.indexOf(qrCode);
     if (index > -1) {
         childrenToRemove.splice(index, 1);
@@ -276,9 +301,9 @@ function cancelRemoveChild(qrCode) {
             // Restore original remove button
             const button = childItem.querySelector('button');
             button.innerHTML = '<i class="fas fa-trash"></i>';
-            button.onclick = () => removeChild(qrCode);
-            button.classList.remove('btn-outline-warning');
-            button.classList.add('btn-outline-danger');
+            button.classList.remove('btn-outline-warning', 'cancel-remove-btn');
+            button.classList.add('btn-outline-danger', 'remove-child-btn');
+            button.setAttribute('data-qr', qrCode);
             button.title = 'Remove child';
         }
         showAlert('info', `Cancelled removal of ${qrCode}`);
