@@ -851,6 +851,9 @@ def process_child_scan():
             
             # Create link between parent and child if parent exists
             if parent_bag:
+                # Set the current parent in session for delete functionality
+                session['current_parent_qr'] = parent_bag.qr_id
+                
                 # Check if link already exists
                 existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
                 if not existing_link:
@@ -1870,24 +1873,28 @@ def api_delete_child_scan():
             child_bag_id=child_bag.id
         ).first()
         
-        if link:
-            db.session.delete(link)
+        if not link:
+            return jsonify({
+                'success': False,
+                'message': 'Child bag is not linked to this parent'
+            })
         
-        # Delete scan records for this child bag
-        scans = Scan.query.filter_by(bag_id=child_bag.id).all()
+        db.session.delete(link)
+        
+        # Delete scan records for this child bag linked to this parent
+        scans = Scan.query.filter_by(child_bag_id=child_bag.id).all()
         for scan in scans:
             db.session.delete(scan)
         
-        # Delete the child bag itself
-        db.session.delete(child_bag)
+        # Note: We don't delete the child bag itself, just the link and scan records
         
         db.session.commit()
         
-        app.logger.info(f"Deleted child bag {qr_code} and its scan records")
+        app.logger.info(f"Removed link for child bag {qr_code} from parent {parent_qr}")
         
         return jsonify({
             'success': True,
-            'message': f'Child bag {qr_code} deleted successfully'
+            'message': f'Child bag {qr_code} removed from parent {parent_qr} successfully'
         })
         
     except Exception as e:
