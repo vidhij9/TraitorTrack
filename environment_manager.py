@@ -102,15 +102,15 @@ class EnvironmentManager:
         if environment == self.DEVELOPMENT:
             url = os.environ.get('DEV_DATABASE_URL')
             if not url:
-                # Fallback to generic DATABASE_URL only in development
-                url = os.environ.get('DATABASE_URL')
-                if url:
-                    logging.warning("Using generic DATABASE_URL for development. Consider setting DEV_DATABASE_URL for better isolation.")
+                # Force development to use isolated database
+                url = "postgresql://neondb_owner:npg_mznV9XNHSeP6@ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech:5432/neondb_dev"
+                logging.info("Using hardcoded development database URL for isolation")
         elif environment == self.PRODUCTION:
             url = os.environ.get('PROD_DATABASE_URL')
             if not url:
-                # In production, we can fallback to DATABASE_URL
-                url = os.environ.get('DATABASE_URL')
+                # Force production to use isolated database
+                url = "postgresql://neondb_owner:npg_mznV9XNHSeP6@ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech:5432/neondb_prod"
+                logging.info("Using hardcoded production database URL for isolation")
         else:  # TESTING
             url = os.environ.get('TEST_DATABASE_URL')
             if not url:
