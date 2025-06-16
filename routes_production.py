@@ -162,9 +162,8 @@ def register():
 @app.route('/')
 def index():
     """Landing page"""
-    if not is_authenticated():
-        return render_template('landing.html')
-    return redirect(url_for('dashboard'))
+    # Always show landing page for now to break redirect loop
+    return render_template('landing.html')
 
 @app.route('/dashboard')
 @require_auth
@@ -178,7 +177,7 @@ def dashboard():
         total_bills = Bill.query.count()
         
         # Get recent scans
-        recent_scans = Scan.query.order_by(Scan.scanned_at.desc()).limit(10).all()
+        recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(10).all()
         
         return render_template('dashboard.html', 
                              parent_bags=parent_bags,
