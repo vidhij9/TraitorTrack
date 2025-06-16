@@ -146,16 +146,16 @@ def load_user(user_id):
 @app.context_processor
 def inject_current_user():
     """Make current_user available in all templates"""
-    from simple_auth import is_authenticated, get_current_user_data
-    from models import User
+    from production_auth_fix import is_production_authenticated, get_production_user_data
     
-    # Create a mock user object that matches template expectations
-    class MockUser:
+    # Create a production user object that matches template expectations
+    class ProductionUser:
         def __init__(self):
-            if is_authenticated():
-                user_data = get_current_user_data()
-                if user_data:
-                    actual_user = User.query.get(user_data.get('user_id'))
+            if is_production_authenticated():
+                user_data = get_production_user_data()
+                if user_data and user_data.get('authenticated'):
+                    from models import User
+                    actual_user = User.query.get(user_data.get('id'))
                     if actual_user:
                         self.id = actual_user.id
                         self.username = actual_user.username
@@ -183,5 +183,5 @@ def inject_current_user():
         def is_authenticated(self):
             return self._is_authenticated
     
-    current_user = MockUser()
+    current_user = ProductionUser()
     return dict(current_user=current_user)

@@ -5,8 +5,15 @@ from flask import render_template, request, redirect, url_for, flash, session, j
 # Session-based authentication - no longer using Flask-Login
 from werkzeug.security import check_password_hash, generate_password_hash
 
-# Import simple authentication functions
-from simple_auth import is_authenticated, get_current_user, require_auth
+# Import production authentication functions
+from production_auth_fix import is_production_authenticated, get_production_user_data, require_production_auth
+
+# Compatibility layer for existing code
+def is_authenticated():
+    return is_production_authenticated()
+
+def require_auth(f):
+    return require_production_auth(f)
 
 def is_admin():
     """Check if current user is admin"""
@@ -51,6 +58,8 @@ from sqlalchemy import desc, func, and_, or_
 from datetime import datetime, timedelta
 
 from app_clean import app, db, limiter
+
+
 from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus
 from forms import LoginForm, RegistrationForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity

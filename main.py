@@ -46,9 +46,11 @@ def login():
 
 @app.route('/logout')
 def logout():
-    """Logout user"""
-    logging.info("User logout")
-    clear_auth_session()
+    """Production logout handler"""
+    from production_auth_fix import production_logout
+    
+    logging.info("Production user logout")
+    production_logout()
     return redirect(url_for('login'))
 
 @app.route('/setup')
