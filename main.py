@@ -7,6 +7,7 @@ import logging
 
 # Import all the main routes to ensure they're registered
 import routes
+import api  # Import improved API endpoints
 
 @app.route('/login', methods=['GET', 'POST'])  
 def login():
