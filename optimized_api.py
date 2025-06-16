@@ -69,7 +69,7 @@ def get_optimized_child_bags():
     """Get child bags with optimized query and parent info for mobile"""
     # Optimized query with join to get parent info
     child_bags = db.session.query(Bag)\
-        .filter_by(type=BagType.CHILD.value, status='active')\
+        .filter_by(type=BagType.CHILD.value)\
         .options(load_only(Bag.id, Bag.qr_id, Bag.name, Bag.parent_id, Bag.created_at))\
         .order_by(desc(Bag.created_at))\
         .all()
@@ -244,11 +244,11 @@ def get_optimized_dashboard_stats():
     """Get dashboard statistics with single optimized queries"""
     # Get all stats in parallel queries
     stats_queries = {
-        'total_parent_bags': db.session.query(func.count(Bag.id)).filter_by(type=BagType.PARENT.value, status='active'),
-        'total_child_bags': db.session.query(func.count(Bag.id)).filter_by(type=BagType.CHILD.value, status='active'),
+        'total_parent_bags': db.session.query(func.count(Bag.id)).filter_by(type=BagType.PARENT.value),
+        'total_child_bags': db.session.query(func.count(Bag.id)).filter_by(type=BagType.CHILD.value),
         'total_scans': db.session.query(func.count(Scan.id)),
         'total_bills': db.session.query(func.count(Bill.id)),
-        'active_users': db.session.query(func.count(User.id)).filter_by(verified=True)
+        'active_users': db.session.query(func.count(User.id))
     }
     
     # Execute all queries
