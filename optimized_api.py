@@ -25,7 +25,7 @@ def get_optimized_parent_bags():
     """Get parent bags with optimized query and minimal data for mobile"""
     # Use optimized query with selective loading
     parent_bags = db.session.query(Bag)\
-        .filter_by(type=BagType.PARENT.value, status='active')\
+        .filter_by(type=BagType.PARENT.value)\
         .options(load_only(Bag.id, Bag.qr_id, Bag.name, Bag.child_count, Bag.created_at))\
         .order_by(desc(Bag.created_at))\
         .all()

@@ -52,9 +52,15 @@ def logout():
     production_logout()
     return redirect(url_for('login'))
 
+@app.route('/mobile')
+@require_production_auth
+def mobile_dashboard():
+    """Mobile-optimized dashboard"""
+    return render_template('mobile_dashboard.html')
+
 @app.route('/setup')
 def setup():
-    """Setup admin user"""
+    """Setup admin user and optimize database"""
     from werkzeug.security import generate_password_hash
     
     # Check if admin exists
@@ -68,12 +74,22 @@ def setup():
         )
         db.session.add(admin)
         db.session.commit()
-        return "Admin user created. Username: admin, Password: admin"
+        result = "Admin user created. Username: admin, Password: admin"
     else:
         # Update password
         admin.password_hash = generate_password_hash('admin')
         db.session.commit()
-        return "Admin password updated. Username: admin, Password: admin"
+        result = "Admin password updated. Username: admin, Password: admin"
+    
+    # Run database optimizations
+    try:
+        optimization_results = database_optimizer.run_full_optimization()
+        optimizations_text = ", ".join([k for k, v in optimization_results.items() if v])
+        result += f"<br>Database optimizations applied: {optimizations_text}"
+    except Exception as e:
+        result += f"<br>Database optimization warning: {str(e)}"
+    
+    return result
 
 # Add diagnostic endpoint for deployment debugging
 @app.route('/debug-deployment')
