@@ -97,9 +97,27 @@ def debug_deployment():
     """Debug endpoint for deployment issues"""
     import os
     from models import User
+    from urllib.parse import urlparse
+    
+    # Get current database info
+    db_url = app.config.get('SQLALCHEMY_DATABASE_URI', 'Not set')
+    parsed_url = urlparse(db_url) if db_url != 'Not set' else None
+    current_db = 'Unknown'
+    
+    if parsed_url:
+        try:
+            result = db.session.execute(db.text("SELECT current_database()")).fetchone()
+            current_db = result[0] if result else 'Query failed'
+        except:
+            current_db = 'Connection failed'
     
     info = {
         'database_url_set': bool(os.environ.get('DATABASE_URL')),
+        'dev_database_url_set': bool(os.environ.get('DEV_DATABASE_URL')),
+        'prod_database_url_set': bool(os.environ.get('PROD_DATABASE_URL')),
+        'flask_env': os.environ.get('FLASK_ENV', 'not set'),
+        'current_database': current_db,
+        'database_host': parsed_url.hostname if parsed_url else 'Unknown',
         'session_secret_set': bool(os.environ.get('SESSION_SECRET')),
         'admin_user_exists': User.query.filter_by(username='admin').first() is not None,
         'environment': os.environ.get('ENVIRONMENT', 'development'),
@@ -114,18 +132,24 @@ def debug_deployment():
     }
     
     return f"""
-    <h2>Deployment Debug Info</h2>
+    <h2>Database Separation Debug Info</h2>
+    <h3>Database Configuration</h3>
     <ul>
-        <li>Database URL Set: {info['database_url_set']}</li>
+        <li>FLASK_ENV: {info['flask_env']}</li>
+        <li>Current Database: <strong>{info['current_database']}</strong></li>
+        <li>Database Host: {info['database_host']}</li>
+        <li>DATABASE_URL Set: {info['database_url_set']}</li>
+        <li>DEV_DATABASE_URL Set: {info['dev_database_url_set']}</li>
+        <li>PROD_DATABASE_URL Set: {info['prod_database_url_set']}</li>
+    </ul>
+    <h3>Application Status</h3>
+    <ul>
         <li>Session Secret Set: {info['session_secret_set']}</li>
         <li>Admin User Exists: {info['admin_user_exists']}</li>
         <li>Environment: {info['environment']}</li>
         <li>App Running: {info['app_running']}</li>
-        <li>Current Session: {info['current_session']}</li>
         <li>Logged In: {info['logged_in']}</li>
         <li>Authenticated: {info['authenticated']}</li>
-        <li>Cookies: {info['cookies_received']}</li>
-        <li>User Agent: {info['headers'].get('User-Agent', 'Not provided')}</li>
     </ul>
     <p><a href="/setup">Run Setup</a> | <a href="/login">Login Page</a> | <a href="/test-login">Test Login</a> | <a href="/session-test">Session Test</a></p>
     """
