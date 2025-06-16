@@ -293,7 +293,7 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link{% if request.path == url_for('login') %} active{% endif %}" href="{{ url_for('login') }}">
+                            <a class="nav-link{% if request.path == '/login' %} active{% endif %}" href="/login">
                                 <i class="fas fa-sign-in-alt me-1"></i> Login
                             </a>
                         </li>

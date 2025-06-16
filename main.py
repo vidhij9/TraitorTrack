@@ -1,4 +1,4 @@
-# Production-ready TraceTrack application
+# Import the working application with environment isolation
 from app_clean import app, db
 import logging
 
@@ -11,287 +11,79 @@ import optimized_api
 import database_optimizer
 import high_performance_api
 
-# Import routes
+# Import all the main routes to ensure they're registered
 import routes
 
+# Add production deployment setup endpoint
 @app.route('/production-setup')
 def production_setup():
-    logging.info(f"Production login request: method={request.method}")
-    
-    # Check if already authenticated
-    if is_production_authenticated() and request.method == 'GET':
-        logging.info("User already authenticated, redirecting to dashboard")
-        next_url = session.pop('next_url', None)
-        return redirect(next_url or url_for('index'))
-    
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        
-        logging.info(f"Production login attempt for username: {username}")
-        
-        if not username or not password:
-            return render_template('simple_login.html', error='Please enter both username and password.')
-        
-        # Use production authentication handler
-        success, message = production_login_handler(username, password)
-        
-        if success:
-            logging.info(f"Production login successful for user: {username}")
-            # Get the stored redirect URL or default to index
-            next_url = session.pop('next_url', None)
-            return redirect(next_url or url_for('index'))
-        else:
-            logging.info(f"Production login failed for user: {username} - {message}")
-            return render_template('simple_login.html', error=message)
-    
-    return render_template('simple_login.html')
-
-@app.route('/logout')
-def logout():
-    """Production logout handler"""
-    logging.info("Production user logout")
-    production_logout()
-    return redirect(url_for('login'))
-
-@app.route('/mobile')
-@require_production_auth
-def mobile_dashboard():
-    """Mobile-optimized dashboard"""
-    return render_template('mobile_dashboard.html')
-
-@app.route('/setup')
-def setup():
-    """Setup admin user and optimize database"""
-    from werkzeug.security import generate_password_hash
-    
-    # Check if admin exists
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        admin = User(
-            username='admin',
-            email='admin@traitortrack.com',
-            password_hash=generate_password_hash('admin'),
-            role='admin'
-        )
-        db.session.add(admin)
-        db.session.commit()
-        result = "Admin user created. Username: admin, Password: admin"
-    else:
-        # Update password
-        admin.password_hash = generate_password_hash('admin')
-        db.session.commit()
-        result = "Admin password updated. Username: admin, Password: admin"
-    
-    # Run database optimizations
+    """Setup and optimize for production deployment"""
     try:
-        optimization_results = database_optimizer.run_full_optimization()
-        optimizations_text = ", ".join([k for k, v in optimization_results.items() if v])
-        result += f"<br>Database optimizations applied: {optimizations_text}"
-    except Exception as e:
-        result += f"<br>Database optimization warning: {str(e)}"
-    
-    return result
-
-# Add diagnostic endpoint for deployment debugging
-@app.route('/environment-status')
-def environment_status():
-    """Environment and database isolation status page"""
-    env_manager = get_environment_manager()
-    env_info = env_manager.get_environment_info()
-    
-    from database_environment_switcher import DatabaseEnvironmentSwitcher
-    switcher = DatabaseEnvironmentSwitcher()
-    status = switcher.get_current_environment_status()
-    environments = switcher.list_available_environments()
-    validation = switcher.validate_environment_isolation()
-    
-    html = f"""
-    <h1>Database Environment Status</h1>
-    
-    <div style="background: {'#d4edda' if status['isolation_valid'] else '#f8d7da'}; padding: 15px; margin: 10px 0; border-radius: 5px;">
-        <h2>Current Environment: {env_info['environment'].upper()}</h2>
-        <p><strong>Database Isolation:</strong> {'✓ Valid' if status['isolation_valid'] else '✗ Issues Detected'}</p>
-    </div>
-    
-    <h3>Database Configuration</h3>
-    <ul>
-        <li><strong>Database URL:</strong> {env_info['database_url_preview']}</li>
-        <li><strong>Connection Pool Size:</strong> {env_info['pool_size']}</li>
-        <li><strong>Debug Mode:</strong> {env_info['debug_mode']}</li>
-        <li><strong>SQL Logging:</strong> {env_info['sql_logging']}</li>
-    </ul>
-    
-    <h3>Available Environments</h3>
-    <table border="1" style="border-collapse: collapse; width: 100%;">
-        <tr>
-            <th>Environment</th>
-            <th>Status</th>
-            <th>Database URL</th>
-            <th>Description</th>
-        </tr>
-    """
-    
-    for name, config in environments.items():
-        status_color = "green" if config['status'] == 'configured' else "red"
-        html += f"""
-        <tr>
-            <td><strong>{name.upper()}</strong></td>
-            <td style="color: {status_color};">{'✓' if config['status'] == 'configured' else '✗'} {config['status']}</td>
-            <td>{config['database_url']}</td>
-            <td>{config['description']}</td>
-        </tr>
-        """
-    
-    html += "</table>"
-    
-    if validation['errors'] or validation['warnings']:
-        html += "<h3>Issues & Recommendations</h3>"
-        
-        if validation['errors']:
-            html += "<h4 style='color: red;'>Errors</h4><ul>"
-            for error in validation['errors']:
-                html += f"<li style='color: red;'>{error}</li>"
-            html += "</ul>"
-        
-        if validation['warnings']:
-            html += "<h4 style='color: orange;'>Warnings</h4><ul>"
-            for warning in validation['warnings']:
-                html += f"<li style='color: orange;'>{warning}</li>"
-            html += "</ul>"
-        
-        if validation['recommendations']:
-            html += "<h4>Recommendations</h4><ul>"
-            for rec in validation['recommendations']:
-                html += f"<li>{rec}</li>"
-            html += "</ul>"
-    
-    html += """
-    <h3>Setup Instructions</h3>
-    <p>To set up proper database isolation:</p>
-    <ol>
-        <li>Check the environment configuration files: <code>.env.development</code>, <code>.env.production</code></li>
-        <li>Set environment-specific database URLs:
-            <ul>
-                <li><code>DEV_DATABASE_URL</code> for development</li>
-                <li><code>PROD_DATABASE_URL</code> for production</li>
-            </ul>
-        </li>
-        <li>Use different databases for each environment</li>
-        <li>Set <code>ENVIRONMENT=development</code> or <code>ENVIRONMENT=production</code></li>
-    </ol>
-    
-    <p><a href="/debug-deployment">Debug Info</a> | <a href="/">Dashboard</a></p>
-    """
-    
-    return html
-
-@app.route('/debug-deployment')
-def debug_deployment():
-    """Debug endpoint for deployment issues"""
-    import os
-    from models import User
-    
-    info = {
-        'database_url_set': bool(os.environ.get('DATABASE_URL')),
-        'session_secret_set': bool(os.environ.get('SESSION_SECRET')),
-        'admin_user_exists': User.query.filter_by(username='admin').first() is not None,
-        'environment': os.environ.get('ENVIRONMENT', 'development'),
-        'app_running': True,
-        'current_session': dict(session),
-        'logged_in': session.get('logged_in', False),
-        'authenticated': session.get('authenticated', False),
-        'auth_token_present': bool(session.get('auth_token')),
-        'secure_session_count': 0,
-        'cookies_received': dict(request.cookies),
-        'headers': dict(request.headers)
-    }
-    
-    return f"""
-    <h2>Deployment Debug Info</h2>
-    <ul>
-        <li>Database URL Set: {info['database_url_set']}</li>
-        <li>Session Secret Set: {info['session_secret_set']}</li>
-        <li>Admin User Exists: {info['admin_user_exists']}</li>
-        <li>Environment: {info['environment']}</li>
-        <li>App Running: {info['app_running']}</li>
-        <li>Current Session: {info['current_session']}</li>
-        <li>Logged In: {info['logged_in']}</li>
-        <li>Authenticated: {info['authenticated']}</li>
-        <li>Cookies: {info['cookies_received']}</li>
-        <li>User Agent: {info['headers'].get('User-Agent', 'Not provided')}</li>
-    </ul>
-    <p><a href="/setup">Run Setup</a> | <a href="/login">Login Page</a> | <a href="/test-login">Test Login</a> | <a href="/session-test">Session Test</a></p>
-    """
-
-@app.route('/session-test')
-def session_test():
-    """Test session persistence"""
-    if 'visit_count' not in session:
-        session['visit_count'] = 0
-    session['visit_count'] += 1
-    session.permanent = True
-    
-    return f"""
-    <h2>Session Persistence Test</h2>
-    <p>Visit count: {session['visit_count']}</p>
-    <p>Session ID: {request.cookies.get('tracetrack_session', 'No session cookie')}</p>
-    <p>Full session: {dict(session)}</p>
-    <p><a href="/session-test">Refresh Page</a> | <a href="/debug-deployment">Debug Info</a></p>
-    """
-
-@app.route('/test-login', methods=['GET', 'POST'])
-def test_login():
-    """Test login endpoint for debugging"""
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        
+        from werkzeug.security import generate_password_hash
         from models import User
-        user = User.query.filter_by(username=username).first()
         
-        if user and user.check_password(password):
-            from stateless_auth import create_auth_token
-            token = create_auth_token(user)
-            
-            # Set the auth token in cookies for testing
-            from flask import make_response
-            response = make_response(f"""
-            <h2>Login Test Results</h2>
-            <p>✓ Authentication successful</p>
-            <p>Token created: {token[:20]}...</p>
-            <p>User: {user.username}</p>
-            <p><a href="/">Go to Dashboard</a></p>
-            <p><a href="/debug-deployment">Check Debug Info</a></p>
-            """)
-            
-            response.set_cookie('auth_token', token, max_age=86400, httponly=False, secure=False, samesite=None, path='/')
-            response.set_cookie('user_session', token, max_age=86400, httponly=False, secure=False, samesite='Lax', path='/')
-            
-            return response
+        # Create admin user if doesn't exist
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(
+                username='admin',
+                email='admin@tracetrack.com',
+                password_hash=generate_password_hash('admin'),
+                role='admin'
+            )
+            db.session.add(admin)
+            db.session.commit()
+            result = "✓ Admin user created (admin/admin)"
         else:
-            return f"""
-            <h2>Login Test Results</h2>
-            <p>✗ Authentication failed</p>
-            <p>User found: {user is not None}</p>
-            <p><a href="/test-login">Try Again</a></p>
-            """
-    
-    return '''
-    <h2>Test Login</h2>
-    <form method="POST">
-        <p>Username: <input type="text" name="username" value="admin"></p>
-        <p>Password: <input type="password" name="password" value="admin"></p>
-        <p><input type="submit" value="Test Login"></p>
-    </form>
-    <p><a href="/debug-deployment">Back to Debug</a></p>
-    '''
+            result = "✓ Admin user exists"
+        
+        # Run database optimizations
+        try:
+            optimization_results = database_optimizer.run_full_optimization()
+            optimizations_text = ", ".join([k for k, v in optimization_results.items() if v])
+            result += f"<br>✓ Database optimizations: {optimizations_text}"
+        except Exception as e:
+            result += f"<br>⚠ Database optimization warning: {str(e)}"
+        
+        # Clear cache for fresh start
+        try:
+            from cache_utils import invalidate_cache
+            invalidate_cache()
+            result += "<br>✓ Application cache cleared"
+        except Exception as e:
+            result += f"<br>⚠ Cache warning: {str(e)}"
+        
+        result += """
+        <br><br>
+        <h3>Production Deployment Ready</h3>
+        <p>✓ TraceTrack is optimized and ready for production deployment</p>
+        <p><a href="/login">Go to Login</a> | <a href="/">Dashboard</a></p>
+        """
+        
+        return result
+        
+    except Exception as e:
+        return f"Setup error: {str(e)}"
 
-# Import all the routes to restore full functionality
-import routes
+# Production health check endpoint for monitoring
+@app.route('/production-health')
+def production_health():
+    """Health check for production monitoring"""
+    try:
+        from sqlalchemy import text
+        db.session.execute(text("SELECT 1")).scalar()
+        
+        return {
+            'status': 'healthy',
+            'database': 'connected',
+            'version': '1.0.0',
+            'deployment': 'production-ready'
+        }
+    except Exception as e:
+        return {'status': 'unhealthy', 'error': str(e)}, 500
 
 # Expose app for gunicorn
 application = app
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)

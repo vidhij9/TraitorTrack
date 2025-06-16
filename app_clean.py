@@ -152,7 +152,7 @@ def before_request():
         if not is_authenticated():
             # Redirect to login for protected routes
             if request.path != '/' and not request.path.startswith('/api'):
-                return redirect(url_for('login'))
+                return redirect('/login')
 
 @app.after_request
 def after_request(response):
