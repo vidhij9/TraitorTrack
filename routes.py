@@ -1694,6 +1694,7 @@ def api_dashboard_stats():
             'error': str(e)
         }), 500
 
+
 @app.route('/api/scans')
 @login_required
 def api_recent_scans():
