@@ -141,15 +141,18 @@ setup_health_monitoring(app)
 def before_request():
     """Validate authentication and session before each request"""
     from flask import session, request, redirect, url_for
-    from simple_auth import is_authenticated
+    
+    # Simple authentication check using session variables
+    def is_authenticated():
+        return session.get('user_id') is not None and session.get('username') is not None
     
     # Skip validation for login, register, static files, and debug endpoints
-    excluded_paths = ['/login', '/register', '/static', '/logout', '/setup', '/debug-deployment', '/test-login', '/session-test']
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/setup', '/debug-deployment', '/test-login', '/session-test', '/']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     
     # For protected routes, validate authentication
-    if request.endpoint and request.endpoint not in ['login', 'register', 'logout', 'setup']:
+    if request.endpoint and request.endpoint not in ['login', 'register', 'logout', 'setup', 'index']:
         if not is_authenticated():
             # Redirect to login for protected routes
             if request.path != '/' and not request.path.startswith('/api'):
