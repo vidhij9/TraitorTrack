@@ -59,16 +59,12 @@ def get_database_url():
         # Testing environment - use in-memory SQLite by default
         return os.environ.get('TEST_DATABASE_URL', 'sqlite:///:memory:')
     else:
-        # Development environment - use DEV_DATABASE_URL for isolation
+        # Development environment - FORCE isolated database
         dev_url = os.environ.get('DEV_DATABASE_URL')
         if not dev_url:
-            # Fallback to generic DATABASE_URL in development only
-            fallback_url = os.environ.get('DATABASE_URL')
-            if fallback_url:
-                logging.warning("Development using generic DATABASE_URL - set DEV_DATABASE_URL for better isolation")
-                return fallback_url
-            else:
-                raise ValueError("Development environment requires DEV_DATABASE_URL or DATABASE_URL to be set")
+            # Force development to use isolated database - NO FALLBACK
+            dev_url = "postgresql://neondb_owner:npg_mznV9XNHSeP6@ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech:5432/neondb_dev"
+            logging.info("ISOLATION FIX: Using hardcoded development database URL")
         return dev_url
 
 # Configure database with environment-specific settings
