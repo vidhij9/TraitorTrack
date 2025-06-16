@@ -1,23 +1,21 @@
-# Import the working application with environment isolation
+# Production-ready TraceTrack application
 from app_clean import app, db
-from flask import request, redirect, url_for, session, render_template, flash
-from models import User
-from production_auth_fix import production_login_handler, is_production_authenticated, production_logout, require_production_auth
 import logging
 
-# Import optimized components
+# Setup logging for production
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Import optimized components for production
 import optimized_api
 import database_optimizer
 import high_performance_api
 
-# Import all the main routes to ensure they're registered
+# Import routes
 import routes
 
-# Import environment management
-from environment_manager import get_environment_manager
-
-@app.route('/login', methods=['GET', 'POST'])  
-def login():
+@app.route('/production-setup')
+def production_setup():
     logging.info(f"Production login request: method={request.method}")
     
     # Check if already authenticated

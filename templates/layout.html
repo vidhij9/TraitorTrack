@@ -202,7 +202,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link{% if request.path == url_for('index') %} active{% endif %}" href="{{ url_for('index', s=request.args.get('s')) }}">
+                        <a class="nav-link{% if request.path == '/' %} active{% endif %}" href="{{ url_for('index', s=request.args.get('s')) }}">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                     </li>
