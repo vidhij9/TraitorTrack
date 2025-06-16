@@ -275,7 +275,6 @@
         
         // Current progress
         let scannedCount = {{ scanned_child_count }};
-        const expectedCount = {{ expected_child_count }};
         const hasParentBag = {{ 'true' if parent_bag else 'false' }};
         
         // Load existing scanned bags
@@ -601,13 +600,7 @@
                     scannedCount = data.scanned_count || scannedCount + 1;
                     document.getElementById('progress-text').textContent = scannedCount;
                     
-                    // Update progress bar if it exists
-                    const progressBar = document.querySelector('.progress-bar');
-                    if (progressBar && expectedCount > 0) {
-                        const percentage = Math.min((scannedCount / expectedCount) * 100, 100);
-                        progressBar.style.width = percentage + '%';
-                        progressBar.setAttribute('aria-valuenow', scannedCount);
-                    }
+                    // Progress bar removed - unlimited child bags allowed
                     
                     // Clear manual input
                     manualQrInput.value = '';
