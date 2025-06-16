@@ -213,35 +213,25 @@ def load_user(user_id):
 @app.context_processor
 def inject_current_user():
     """Make current_user available in all templates"""
-    from production_auth_fix import is_production_authenticated, get_production_user_data
+    from flask import session
+    # Simple session-based authentication check
+    is_authenticated = session.get('logged_in', False)
     
-    # Create a production user object that matches template expectations
-    class ProductionUser:
+    # Create a user object that matches template expectations
+    class CurrentUser:
         def __init__(self):
-            if is_production_authenticated():
-                user_data = get_production_user_data()
-                if user_data and user_data.get('authenticated'):
-                    from models import User
-                    actual_user = User.query.get(user_data.get('id'))
-                    if actual_user:
-                        self.id = actual_user.id
-                        self.username = actual_user.username
-                        self.email = actual_user.email
-                        self.role = actual_user.role
-                        self._is_authenticated = True
-                    else:
-                        self._setup_anonymous()
-                else:
-                    self._setup_anonymous()
+            if is_authenticated:
+                self.id = session.get('user_id')
+                self.username = session.get('username')
+                self.email = session.get('email')
+                self.role = session.get('user_role')
+                self._is_authenticated = True
             else:
-                self._setup_anonymous()
-        
-        def _setup_anonymous(self):
-            self.id = None
-            self.username = None
-            self.email = None
-            self.role = None
-            self._is_authenticated = False
+                self.id = None
+                self.username = None
+                self.email = None
+                self.role = None
+                self._is_authenticated = False
         
         def is_admin(self):
             return self._is_authenticated and self.role == 'admin'
@@ -250,5 +240,5 @@ def inject_current_user():
         def is_authenticated(self):
             return self._is_authenticated
     
-    current_user = ProductionUser()
+    current_user = CurrentUser()
     return dict(current_user=current_user)
