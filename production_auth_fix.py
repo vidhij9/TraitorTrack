@@ -67,15 +67,25 @@ def production_login_handler(username, password):
 def is_production_authenticated():
     """Check if user is authenticated in production environment"""
     try:
-        # Multiple authentication checks for production reliability
-        checks = [
-            session.get('authenticated') == True,
-            session.get('user_id') is not None,
-            session.get('username') is not None,
-            session.get('auth_time') is not None
-        ]
+        # Support multiple session formats for compatibility
+        authenticated = (
+            session.get('authenticated') == True or 
+            session.get('logged_in') == True
+        )
         
-        return all(checks)
+        user_id = session.get('user_id')
+        username = session.get('username')
+        
+        # Log authentication check for debugging
+        logger.info(f"Production auth check - authenticated: {authenticated}, user_id: {user_id}, username: {username}")
+        
+        # Essential checks - user must be authenticated and have valid ID
+        if not authenticated or not user_id:
+            logger.info("Production auth failed - missing authentication or user_id")
+            return False
+            
+        logger.info("Production auth successful")
+        return True
         
     except Exception as e:
         logger.error(f"Production auth check error: {e}")

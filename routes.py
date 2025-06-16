@@ -70,6 +70,7 @@ import io
 import json
 import secrets
 import random
+import time
 
 # Analytics route removed as requested
 
@@ -373,9 +374,67 @@ def index():
                          total_scans_today=total_scans_today,
                          total_bags=total_bags)
 
-# Login route is now defined in main.py
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """User login endpoint"""
+    if is_authenticated() and request.method == 'GET':
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        if not username or not password:
+            flash('Please enter both username and password.', 'error')
+            return render_template('login.html')
+        
+        # Check if account is locked
+        locked, remaining_time = is_account_locked(username)
+        if locked:
+            flash(f'Account locked. Try again in {remaining_time} seconds.', 'error')
+            return render_template('login.html')
+        
+        try:
+            user = User.query.filter_by(username=username).first()
+            if user and check_password_hash(user.password_hash, password):
+                # Reset failed attempts on successful login
+                reset_failed_attempts(username)
+                
+                # Create authenticated session
+                session.clear()
+                session.permanent = True
+                session['logged_in'] = True
+                session['authenticated'] = True
+                session['user_id'] = user.id
+                session['username'] = user.username
+                session['user_role'] = user.role
+                session['auth_time'] = time.time()
+                
+                # Track successful login
+                track_login_activity(user.id, success=True)
+                
+                flash('Login successful!', 'success')
+                return redirect(url_for('index'))
+            else:
+                # Record failed attempt
+                record_failed_attempt(username)
+                flash('Invalid username or password.', 'error')
+                
+        except Exception as e:
+            logging.error(f"Login error: {e}")
+            flash('Login failed. Please try again.', 'error')
+        
+        return render_template('login.html')
+    
+    return render_template('login.html')
 
-# Logout route now handled in main.py
+@app.route('/logout')
+def logout():
+    """User logout endpoint"""
+    username = session.get('username', 'unknown')
+    session.clear()
+    flash('You have been logged out successfully.', 'success')
+    return redirect(url_for('login'))
 
 @app.route('/fix-admin-password')
 def fix_admin_password():
