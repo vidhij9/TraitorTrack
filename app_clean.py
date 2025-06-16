@@ -43,12 +43,35 @@ def get_database_url():
     """Get appropriate database URL based on environment"""
     flask_env = os.environ.get('FLASK_ENV', 'development')
     
-    if flask_env == 'production':
-        # Production environment - use PROD_DATABASE_URL first, fallback to DATABASE_URL
-        return os.environ.get('PROD_DATABASE_URL') or os.environ.get('DATABASE_URL')
+    # Check if we have separate dev/prod URLs configured
+    dev_db_url = os.environ.get('DEV_DATABASE_URL')
+    prod_db_url = os.environ.get('PROD_DATABASE_URL')
+    fallback_db_url = os.environ.get('DATABASE_URL')
+    
+    if flask_env == 'production' and prod_db_url:
+        return prod_db_url
+    elif flask_env == 'development' and dev_db_url:
+        return dev_db_url
+    elif fallback_db_url:
+        # Use the main DATABASE_URL but create separate databases based on environment
+        if 'neondb' in fallback_db_url:
+            if flask_env == 'development':
+                # Parse URL components properly to avoid changing username
+                from urllib.parse import urlparse, urlunparse
+                parsed = urlparse(fallback_db_url)
+                
+                # Replace only the database name part, keep everything else the same
+                new_path = '/tracetrack_dev'
+                dev_parsed = parsed._replace(path=new_path)
+                dev_url = urlunparse(dev_parsed)
+                return dev_url
+            else:
+                # Production uses the original database
+                return fallback_db_url
+        else:
+            return fallback_db_url
     else:
-        # Development environment - use DEV_DATABASE_URL first, fallback to DATABASE_URL
-        return os.environ.get('DEV_DATABASE_URL') or os.environ.get('DATABASE_URL')
+        raise ValueError("No database URL configured")
 
 # Configure database with environment-specific settings
 flask_env = os.environ.get('FLASK_ENV', 'development')
