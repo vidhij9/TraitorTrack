@@ -1,4 +1,4 @@
-# Import the working application
+# Import the working application with environment isolation
 from app_clean import app, db
 from flask import request, redirect, url_for, session, render_template, flash
 from models import User
@@ -11,6 +11,9 @@ import database_optimizer
 
 # Import all the main routes to ensure they're registered
 import routes
+
+# Import environment management
+from environment_manager import get_environment_manager
 
 @app.route('/login', methods=['GET', 'POST'])  
 def login():
