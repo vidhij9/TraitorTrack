@@ -1,5 +1,12 @@
-# TraceTrack Production Deployment - Complete Application
-from app_production import app, db
+# TraceTrack - Deploy Development Codebase to Production
+from app_clean import app, db
+
+# Import all your tested routes and features
+import routes
+import api
+import optimized_api
+import cache_utils
+import database_optimizer
 
 # Export for gunicorn
 application = app
