@@ -8,32 +8,38 @@ import logging
 # Import all the main routes to ensure they're registered
 import routes
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])  
 def login():
-    logging.info(f"Login request: method={request.method}")
+    logging.info(f"Production login request: method={request.method}")
+    
+    # Import production authentication fix
+    from production_auth_fix import production_login_handler, is_production_authenticated
     
     # Check if already authenticated
-    if is_authenticated() and request.method == 'GET':
+    if is_production_authenticated() and request.method == 'GET':
         logging.info("User already authenticated, redirecting to dashboard")
-        return redirect(url_for('index'))
+        next_url = session.pop('next_url', None)
+        return redirect(next_url or url_for('index'))
     
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         
-        logging.info(f"Login attempt for username: {username}")
+        logging.info(f"Production login attempt for username: {username}")
         
         if not username or not password:
             return render_template('simple_login.html', error='Please enter both username and password.')
         
-        # Use simple authentication
-        success, message = login_user_simple(username, password)
+        # Use production authentication handler
+        success, message = production_login_handler(username, password)
         
         if success:
-            logging.info(f"Login successful for user: {username}")
-            return redirect(url_for('index'))
+            logging.info(f"Production login successful for user: {username}")
+            # Get the stored redirect URL or default to index
+            next_url = session.pop('next_url', None)
+            return redirect(next_url or url_for('index'))
         else:
-            logging.info(f"Login failed for user: {username} - {message}")
+            logging.info(f"Production login failed for user: {username} - {message}")
             return render_template('simple_login.html', error=message)
     
     return render_template('simple_login.html')
