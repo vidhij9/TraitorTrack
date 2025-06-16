@@ -41,14 +41,35 @@ app.config.update(
 # Configure database with environment-specific URLs
 def get_database_url():
     """Get appropriate database URL based on environment"""
-    flask_env = os.environ.get('FLASK_ENV', 'development')
+    environment = os.environ.get('ENVIRONMENT', os.environ.get('FLASK_ENV', 'development'))
     
-    if flask_env == 'production':
-        # Production environment - use PROD_DATABASE_URL first, fallback to DATABASE_URL
-        return os.environ.get('PROD_DATABASE_URL') or os.environ.get('DATABASE_URL')
+    if environment == 'production':
+        # Production environment - MUST use PROD_DATABASE_URL (no fallback for security)
+        prod_url = os.environ.get('PROD_DATABASE_URL')
+        if not prod_url:
+            # Only fallback to DATABASE_URL in production if explicitly allowed
+            fallback_url = os.environ.get('DATABASE_URL')
+            if fallback_url:
+                logging.warning("Production using generic DATABASE_URL - set PROD_DATABASE_URL for proper isolation")
+                return fallback_url
+            else:
+                raise ValueError("Production environment requires PROD_DATABASE_URL to be set")
+        return prod_url
+    elif environment == 'testing':
+        # Testing environment - use in-memory SQLite by default
+        return os.environ.get('TEST_DATABASE_URL', 'sqlite:///:memory:')
     else:
-        # Development environment - use DEV_DATABASE_URL first, fallback to DATABASE_URL
-        return os.environ.get('DEV_DATABASE_URL') or os.environ.get('DATABASE_URL')
+        # Development environment - use DEV_DATABASE_URL for isolation
+        dev_url = os.environ.get('DEV_DATABASE_URL')
+        if not dev_url:
+            # Fallback to generic DATABASE_URL in development only
+            fallback_url = os.environ.get('DATABASE_URL')
+            if fallback_url:
+                logging.warning("Development using generic DATABASE_URL - set DEV_DATABASE_URL for better isolation")
+                return fallback_url
+            else:
+                raise ValueError("Development environment requires DEV_DATABASE_URL or DATABASE_URL to be set")
+        return dev_url
 
 # Configure database with environment-specific settings
 flask_env = os.environ.get('FLASK_ENV', 'development')
