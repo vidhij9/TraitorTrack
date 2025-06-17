@@ -168,61 +168,61 @@ nav.navbar,
     z-index: 1001 !important;
 }
 
-/* Text visibility improvements for all devices */
+/* Text visibility improvements for all devices - Fixed color scheme */
 .navbar-nav .nav-link {
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: #495057 !important;
     font-weight: 500 !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+    text-shadow: none !important;
 }
 
 .navbar-nav .nav-link:hover {
-    color: #ffffff !important;
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #212529 !important;
+    background-color: #f8f9fa !important;
     border-radius: 0.375rem !important;
 }
 
 .navbar-nav .nav-link.active {
-    color: #ffffff !important;
-    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: #0d6efd !important;
+    background-color: #e7f3ff !important;
     border-radius: 0.375rem !important;
     font-weight: 600 !important;
 }
 
 .navbar-brand {
-    color: #ffffff !important;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+    color: #212529 !important;
+    text-shadow: none !important;
     font-weight: 700 !important;
 }
 
-/* Mobile text visibility improvements */
+/* Mobile text visibility improvements - Fixed color scheme */
 @media (max-width: 768px) {
     .navbar-nav .nav-link {
-        color: #ffffff !important;
-        background-color: rgba(0, 0, 0, 0.15) !important;
+        color: #495057 !important;
+        background-color: #f8f9fa !important;
         padding: 0.75rem 1rem !important;
         margin: 0.25rem 0 !important;
         border-radius: 0.375rem !important;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7) !important;
+        text-shadow: none !important;
         font-weight: 600 !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid #dee2e6 !important;
     }
     
     .navbar-nav .nav-link:hover {
-        background-color: rgba(0, 0, 0, 0.25) !important;
-        color: #ffffff !important;
-        border-color: rgba(255, 255, 255, 0.2) !important;
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        border-color: #ced4da !important;
     }
     
     .navbar-nav .nav-link.active {
-        background-color: rgba(255, 255, 255, 0.2) !important;
-        color: #ffffff !important;
+        background-color: #e7f3ff !important;
+        color: #0d6efd !important;
         font-weight: 700 !important;
-        border-color: rgba(255, 255, 255, 0.3) !important;
+        border-color: #86b7fe !important;
     }
     
     .navbar-brand {
-        color: #ffffff !important;
-        text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8) !important;
+        color: #212529 !important;
+        text-shadow: none !important;
         font-weight: 700 !important;
         font-size: 1.5rem !important;
     }
