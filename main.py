@@ -12,6 +12,13 @@ import database_optimizer
 # Import all the main routes to ensure they're registered
 import routes
 
+# Emergency navigation route
+@app.route('/nav')
+def emergency_nav():
+    """Emergency navigation page to bypass navbar issues"""
+    from flask import render_template
+    return render_template('emergency_nav.html')
+
 # Add production deployment setup endpoint
 @app.route('/production-setup')
 def production_setup():
