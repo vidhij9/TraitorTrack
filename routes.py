@@ -1670,7 +1670,6 @@ def remove_bag_from_bill():
         app.logger.error(f'Remove bag from bill error: {str(e)}')
         return redirect(url_for('bill_management'))
 
-@app.route('/bill/scan_parent')
 @app.route('/bill/<int:bill_id>/scan_parent')
 @login_required
 def scan_bill_parent(bill_id):
@@ -1678,12 +1677,9 @@ def scan_bill_parent(bill_id):
     if not (current_user.is_admin() or current_user.role == 'employee'):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
-    if bill_id:
-        bill = Bill.query.get_or_404(bill_id)
-    else:
-        # If no bill_id provided, redirect to bill management
-        flash('Please select a bill first.', 'info')
-        return redirect(url_for('bill_management'))
+    
+    # Get the bill or return 404 if not found
+    bill = Bill.query.get_or_404(bill_id)
     
     form = ScanParentForm()
     

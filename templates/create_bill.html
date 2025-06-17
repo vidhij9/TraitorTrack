@@ -54,9 +54,10 @@
                                 <span class="input-group-text">
                                     <i class="fas fa-hashtag"></i>
                                 </span>
-                                <input type="text" class="form-control" id="bill_id" name="bill_id" required autofocus>
+                                <input type="text" class="form-control" id="bill_id" name="bill_id" 
+                                       value="{{ request.form.get('bill_id', '') }}" required autofocus>
                             </div>
-                            <div class="form-text">Enter a unique identifier for this bill.</div>
+                            <div class="form-text">Enter a unique identifier for this bill (6-20 uppercase alphanumeric characters).</div>
                         </div>
                         
                         <div class="mb-4">
@@ -65,7 +66,7 @@
                                 <span class="input-group-text">
                                     <i class="fas fa-boxes"></i>
                                 </span>
-                                <input type="number" class="form-control" id="parent_bag_count" name="parent_bag_count" min="1" max="50" value="5" required>
+                                <input type="number" class="form-control" id="parent_bag_count" name="parent_bag_count" min="1" max="50" value="{{ request.form.get('parent_bag_count', '5') }}" required>
                             </div>
                             <div class="form-text">How many parent bags should be linked to this bill?</div>
                         </div>
