@@ -554,34 +554,43 @@ def fix_admin_password():
 @limiter.limit("3 per minute")
 def register():
     """User registration page with form validation"""
-    if current_user.is_authenticated:
+    if is_authenticated():
         return redirect(url_for('index'))
     
-    form = RegistrationForm()
-    
-    app.logger.info(f'Registration form validation: {form.validate_on_submit()}')
-    if form.errors:
-        app.logger.info(f'Form errors: {form.errors}')
-    
-    if form.validate_on_submit():
+    if request.method == 'POST':
         try:
-            username = sanitize_input(form.username.data)
-            email = sanitize_input(form.email.data).lower()
+            username = request.form.get('username', '').strip()
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
             
-            app.logger.info(f'Attempting to register user: {username}, {email}')
+            # Basic validation
+            if not username or not email or not password or not confirm_password:
+                flash('All fields are required.', 'error')
+                return render_template('register.html')
+            
+            if len(username) < 3 or len(username) > 20:
+                flash('Username must be between 3 and 20 characters.', 'error')
+                return render_template('register.html')
+            
+            if len(password) < 8:
+                flash('Password must be at least 8 characters long.', 'error')
+                return render_template('register.html')
+            
+            if password != confirm_password:
+                flash('Passwords do not match.', 'error')
+                return render_template('register.html')
             
             # Check if user already exists
             existing_user = User.query.filter_by(username=username).first()
             if existing_user:
-                app.logger.error(f'User {username} already exists')
                 flash('Username already exists. Please choose a different one.', 'error')
-                return render_template('register.html', form=form)
+                return render_template('register.html')
                 
             existing_email = User.query.filter_by(email=email).first()
             if existing_email:
-                app.logger.error(f'Email {email} already exists')
                 flash('Email already registered. Please use a different email.', 'error')
-                return render_template('register.html', form=form)
+                return render_template('register.html')
             
             # Create new user
             user = User()
@@ -589,27 +598,20 @@ def register():
             user.email = email
             user.role = UserRole.EMPLOYEE.value
             user.verified = True
-            user.set_password(form.password.data)
-            
-            app.logger.info(f'User object created, adding to session')
+            user.set_password(password)
             
             db.session.add(user)
             db.session.commit()
             
-            app.logger.info(f'User registered successfully: {username}')
             flash('Registration successful! You can now log in.', 'success')
             return redirect(url_for('login'))
             
         except Exception as e:
             db.session.rollback()
-            error_msg = f'Registration error: {str(e)}'
-            app.logger.error(error_msg)
-            flash(f'Registration failed: {str(e)}', 'error')
-            print(f"Registration error: {e}")  # Additional debugging
-    else:
-        app.logger.info('Form validation failed, rendering form again')
+            app.logger.error(f'Registration error: {str(e)}')
+            flash('Registration failed. Please try again.', 'error')
     
-    return render_template('register.html', form=form)
+    return render_template('register.html')
 
 @app.route('/request_promotion', methods=['GET', 'POST'])
 @login_required

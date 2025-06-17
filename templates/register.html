@@ -12,7 +12,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('register') }}">
-                        {{ form.hidden_tag() }}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
@@ -20,15 +20,8 @@
                                 <span class="input-group-text">
                                     <i class="fas fa-user"></i>
                                 </span>
-                                {{ form.username(class="form-control", id="username", placeholder="Choose a username") }}
+                                <input type="text" class="form-control" id="username" name="username" placeholder="Choose a username" required>
                             </div>
-                            {% if form.username.errors %}
-                                <div class="text-danger small mt-1">
-                                    {% for error in form.username.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                             <div class="form-text">Username must be 3-20 characters long, containing only letters, numbers, and underscores.</div>
                         </div>
                         
@@ -38,15 +31,8 @@
                                 <span class="input-group-text">
                                     <i class="fas fa-envelope"></i>
                                 </span>
-                                {{ form.email(class="form-control", id="email", placeholder="Enter your email address") }}
+                                <input type="email" class="form-control" id="email" name="email" placeholder="Enter your email address" required>
                             </div>
-                            {% if form.email.errors %}
-                                <div class="text-danger small mt-1">
-                                    {% for error in form.email.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                         </div>
                         
                         <div class="mb-3">
@@ -55,17 +41,10 @@
                                 <span class="input-group-text">
                                     <i class="fas fa-lock"></i>
                                 </span>
-                                {{ form.password(class="form-control", id="password", placeholder="Create a password") }}
+                                <input type="password" class="form-control" id="password" name="password" placeholder="Create a password" required>
                             </div>
-                            {% if form.password.errors %}
-                                <div class="text-danger small mt-1">
-                                    {% for error in form.password.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                             <div class="form-text">
-                                Password must be at least 8 characters long and include uppercase and lowercase letters, numbers, and special characters.
+                                Password must be at least 8 characters long.
                             </div>
                         </div>
                         
@@ -75,15 +54,8 @@
                                 <span class="input-group-text">
                                     <i class="fas fa-lock"></i>
                                 </span>
-                                {{ form.confirm_password(class="form-control", id="confirm_password", placeholder="Confirm your password") }}
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
                             </div>
-                            {% if form.confirm_password.errors %}
-                                <div class="text-danger small mt-1">
-                                    {% for error in form.confirm_password.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                         </div>
                         
                         <div class="d-grid gap-2">
