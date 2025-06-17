@@ -40,28 +40,55 @@ app.config.update(
 
 # Configure database with environment-specific URLs
 def get_database_url():
-    """Get appropriate database URL based on environment"""
-    # Use the same database but different table prefixes for isolation
-    base_url = os.environ.get('DATABASE_URL', '')
-    
+    """Get appropriate database URL based on environment with complete database isolation"""
     # Detect environment based on domain and deployment context
     repl_slug = os.environ.get('REPL_SLUG', '')
     
-    # For now, use the same database URL but we'll implement table prefixes
-    # Production and development will be isolated through table naming
     if repl_slug == 'traitortrack':
-        logging.info("PRODUCTION: Using production environment")
-        return base_url
+        # Production environment - use dedicated production database
+        prod_url = os.environ.get('PROD_DATABASE_URL')
+        if prod_url:
+            logging.info("PRODUCTION: Using dedicated production database")
+            return prod_url
+        else:
+            # Use main database but set production schema in engine options
+            base_url = os.environ.get('DATABASE_URL', '')
+            if base_url:
+                logging.info("PRODUCTION: Using main database with production schema")
+                return base_url
+            else:
+                raise ValueError("No database URL configured for production")
     else:
-        logging.info("DEVELOPMENT: Using development environment")
-        return base_url
+        # Development environment - use dedicated development database
+        dev_url = os.environ.get('DEV_DATABASE_URL')
+        if dev_url:
+            logging.info("DEVELOPMENT: Using dedicated development database")
+            return dev_url
+        else:
+            # Use main database but set development schema in engine options
+            base_url = os.environ.get('DATABASE_URL', '')
+            if base_url:
+                logging.info("DEVELOPMENT: Using main database with development schema")
+                return base_url
+            else:
+                raise ValueError("No database URL configured for development")
 
 # Configure database with environment-specific settings
 flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Fix database connection settings to prevent rollbacks
+# Environment-specific schema configuration
+def get_database_schema():
+    """Get database schema based on environment"""
+    repl_slug = os.environ.get('REPL_SLUG', '')
+    if repl_slug == 'traitortrack':
+        return 'production'
+    else:
+        return 'development'
+
+# Configure database engine with schema isolation
+database_schema = get_database_schema()
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_size": 5,
     "max_overflow": 10,
@@ -70,7 +97,8 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_timeout": 20,
     "connect_args": {
         "connect_timeout": 60,
-        "application_name": "tracetrack_app"
+        "application_name": "tracetrack_app",
+        "options": f"-csearch_path={database_schema}"
     }
 }
 
