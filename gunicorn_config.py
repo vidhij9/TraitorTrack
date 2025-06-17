@@ -38,4 +38,4 @@ errorlog = '-'
 graceful_timeout = 30
 
 # Enable reloading for development (disable in production)
-reload = True
+reload = False

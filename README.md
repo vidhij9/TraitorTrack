@@ -55,8 +55,10 @@ TraceTrack includes advanced performance optimizations that make it faster and m
    ```
    export DATABASE_URL=postgresql://user:password@localhost/tracetrack
    export SESSION_SECRET=your-secret-key
+   export ADMIN_PASSWORD=your-admin-password
    export MOBILE_API_KEY=your-mobile-api-key
    ```
+   `SESSION_SECRET` **must** be set to a strong random value before starting the application.
 
 3. Install dependencies:
    ```

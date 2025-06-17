@@ -34,6 +34,7 @@ This document outlines the security measures implemented in the TraceTrack appli
 
 - **HTTPS Enforcement**: Configures the application to use HTTPS for all communications.
 - **Secure Cookie Settings**: Sets cookies with the Secure, HttpOnly, and SameSite attributes.
+- **SESSION_SECRET Environment Variable**: The application requires `SESSION_SECRET` to be set to a strong value; startup will fail if it is missing.
 - **Minimal Error Information**: Limits error information exposed to users to prevent information leakage.
 - **Security Middleware**: Monitors requests for suspicious patterns and potential attacks.
 

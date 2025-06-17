@@ -5,7 +5,7 @@ Consolidates app creation and initialization logic.
 
 import os
 import logging
-from flask import Flask, request, session
+from flask import Flask, request, session, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_limiter import Limiter
@@ -61,7 +61,9 @@ def create_app(config=None):
 def _configure_app(app, config):
     """Configure the Flask application."""
     # Basic configuration
-    app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-change-in-production")
+    app.secret_key = os.environ.get("SESSION_SECRET")
+    if not app.secret_key:
+        raise RuntimeError("SESSION_SECRET environment variable not set")
     app.config['DEBUG'] = os.environ.get('DEBUG', 'False').lower() == 'true'
     
     # Database configuration
@@ -180,15 +182,23 @@ def _create_default_admin():
     """Create default admin user if none exists."""
     from ..models.user import User
     from werkzeug.security import generate_password_hash
-    
+    import secrets
+
     admin = User.query.filter_by(username='admin').first()
     if not admin:
+        admin_password = os.environ.get('ADMIN_PASSWORD')
+        if not admin_password:
+            admin_password = secrets.token_urlsafe(16)
+            logging.warning(
+                f"ADMIN_PASSWORD not set; generated admin password: {admin_password}"
+            )
         admin = User(
             username='admin',
             email='admin@tracetrack.com',
-            password_hash=generate_password_hash('admin'),
+            password_hash=generate_password_hash(admin_password),
             role='admin'
         )
         db.session.add(admin)
         db.session.commit()
         logging.info('Default admin user created')
+
