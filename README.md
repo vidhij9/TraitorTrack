@@ -1,144 +1,58 @@
-# TraceTrack - Supply Chain Tracking System
+# TraceTrack - Supply Chain Traceability Platform
 
-A high-performance web and mobile application for comprehensive traceability tracking of agricultural products through the supply chain.
+## Overview
+A cutting-edge supply chain traceability platform leveraging digital technologies to streamline agricultural bag tracking and management.
 
-## Features
+## Key Features
+- Flask web framework with Python backend
+- JWT-based stateless authentication  
+- Mobile-first responsive design
+- JavaScript-powered QR code scanning
+- Role-based access control
+- Real-time data tracking and analytics
+- Comprehensive error logging and debugging
 
-- QR code-based tracking system for parent and child bags
-- Cross-platform web and mobile interfaces
-- Real-time data synchronization
-- Offline capabilities with background sync
-- Comprehensive reporting and analytics
-- Role-based access control (employee/admin)
+## Quick Start
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-## Performance Optimizations
+# Run application
+python main.py
 
-TraceTrack includes advanced performance optimizations that make it faster and more reliable than commercial solutions like Kezzler:
+# Access at http://localhost:5000
+# Default login: admin/admin
+```
 
-1. **Tiered Caching System**
-   - Memory cache for fast access to frequent data
-   - Disk persistence for larger datasets
-   - Namespace support for targeted cache invalidation
+## File Structure
+```
+├── main.py              # Application entry point
+├── app_clean.py         # Flask application configuration
+├── routes.py            # URL routes and handlers
+├── models.py            # Database models
+├── forms.py             # Form definitions
+├── templates/           # HTML templates
+├── static/              # CSS, JS, images
+└── mobile/              # Mobile app components
+```
 
-2. **Asynchronous Processing**
-   - Background task queue for scan operations
-   - Real-time UI updates while processing continues in background
-   - Task status monitoring and recovery
+## API Endpoints
+- `/api/stats` - System statistics
+- `/api/scans` - Recent scan data
+- `/api/bags/parent/list` - Parent bag listing
+- `/api/bags/child/list` - Child bag listing
 
-3. **Database Optimizations**
-   - Strategic indexing on frequently queried fields
-   - Connection pooling for high concurrency
-   - Query optimization with eager loading
+## Deployment
+Use Replit deployment or configure with:
+```bash
+gunicorn --bind 0.0.0.0:5000 main:app
+```
 
-4. **Mobile App Integration**
-   - Native camera access for QR scanning
-   - Offline-first architecture
-   - Background synchronization
+## Database
+PostgreSQL with automatic table creation and optimization.
 
-## Web Application Deployment
-
-### Prerequisites
-
-- Python 3.11+
-- PostgreSQL database
-- Node.js 20+ (for mobile app development)
-
-### Deployment Steps
-
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   cd tracetrack
-   ```
-
-2. Set up environment variables:
-   ```
-   export DATABASE_URL=postgresql://user:password@localhost/tracetrack
-   export SESSION_SECRET=your-secret-key
-   export MOBILE_API_KEY=your-mobile-api-key
-   ```
-
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-4. Initialize the database:
-   ```
-   flask db upgrade
-   ```
-
-5. Start the application:
-   ```
-   gunicorn --bind 0.0.0.0:5000 main:app
-   ```
-
-The application will be available at `http://localhost:5000`
-
-## Mobile App Development
-
-### Prerequisites
-
-- Node.js 20+
-- Android Studio (for Android builds)
-- Xcode (for iOS builds, Mac only)
-
-### Building the Android App
-
-1. Navigate to the mobile directory:
-   ```
-   cd mobile
-   ```
-
-2. Install Capacitor dependencies:
-   ```
-   npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/camera
-   ```
-
-3. Update the API URL in `app.js` to your deployed web application URL
-
-4. Run the build script:
-   ```
-   ./build-android.sh
-   ```
-
-5. Open Android Studio to build the APK:
-   ```
-   npx cap open android
-   ```
-
-6. In Android Studio, select `Build > Build Bundle(s) / APK(s) > Build APK(s)`
-
-### Customizing the Mobile App
-
-- Update `styles.css` to customize the look and feel
-- Edit `index.html` to change the UI structure
-- Modify `app.js` to add new functionality
-
-## API Documentation
-
-TraceTrack provides a comprehensive API for integration with other systems:
-
-- Web API: `/api/*` endpoints for web interface
-- Mobile API: `/mobile-api/*` endpoints optimized for mobile
-
-See the [API Documentation](docs/api.md) for details on available endpoints.
-
-## System Monitoring
-
-TraceTrack includes built-in health and performance monitoring:
-
-- System Status: `/api/system`
-- Entity Counts: `/api/entity-counts`
-- Activity Stats: `/api/activity/{days}`
-- Cache Statistics: `/api/cache/stats`
-- Task Queue Stats: Available on the admin dashboard
-
-## License
-
-[MIT](LICENSE)
-
-## Acknowledgements
-
-- Inspired by the need for better supply chain traceability systems
-- Special thanks to all contributors
+## Security
+- CSRF protection on all forms
+- Account lockout protection
+- Session-based authentication
+- Input validation and sanitization

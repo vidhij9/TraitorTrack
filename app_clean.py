@@ -188,10 +188,8 @@ def after_request(response):
     
     return response
 
-# Setup deployment configuration
-from deployment_config import configure_for_deployment, setup_monitoring_alerts
-configure_for_deployment(app)
-setup_monitoring_alerts(app)
+# Basic deployment configuration
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 year cache for static files
 
 # Add CSRF token to template context
 @app.context_processor

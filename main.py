@@ -6,10 +6,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import optimized components for production
-import optimized_api
+# Import database optimizer (available)
 import database_optimizer
-import high_performance_api
 
 # Import all the main routes to ensure they're registered
 import routes

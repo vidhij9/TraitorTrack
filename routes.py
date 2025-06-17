@@ -5,15 +5,15 @@ from flask import render_template, request, redirect, url_for, flash, session, j
 # Session-based authentication - no longer using Flask-Login
 from werkzeug.security import check_password_hash, generate_password_hash
 
-# Import production authentication functions
-from production_auth_fix import is_production_authenticated, get_production_user_data, require_production_auth
+# Import authentication functions from simple_auth
+from simple_auth import is_authenticated as simple_is_authenticated, require_auth as simple_require_auth
 
 # Compatibility layer for existing code
 def is_authenticated():
-    return is_production_authenticated()
+    return simple_is_authenticated()
 
 def require_auth(f):
-    return require_production_auth(f)
+    return simple_require_auth(f)
 
 def is_admin():
     """Check if current user is admin"""
@@ -38,7 +38,8 @@ class CurrentUser:
     
     @property
     def email(self):
-        user_data = get_production_user_data()
+        from simple_auth import get_current_user_data
+        user_data = get_current_user_data()
         return user_data.get('email') if user_data else None
     
     @property
