@@ -1449,10 +1449,9 @@ def create_bill():
                 flash('Bill ID is required.', 'error')
                 return render_template('create_bill.html')
             
-            # Validate bill ID format
-            is_valid, error_message = validate_bill_id(bill_id)
-            if not is_valid:
-                flash(f'Invalid bill ID: {error_message}', 'error')
+            # Basic validation - just check if bill_id is not empty
+            if len(bill_id.strip()) == 0:
+                flash('Bill ID cannot be empty.', 'error')
                 return render_template('create_bill.html')
             
             # Check if bill already exists
