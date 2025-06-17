@@ -1449,14 +1449,21 @@ def create_bill():
                 flash('Bill ID is required.', 'error')
                 return render_template('create_bill.html')
             
-            if not validate_bill_id(bill_id):
-                flash('Invalid bill ID format.', 'error')
+            # Validate bill ID format
+            is_valid, error_message = validate_bill_id(bill_id)
+            if not is_valid:
+                flash(f'Invalid bill ID: {error_message}', 'error')
                 return render_template('create_bill.html')
             
             # Check if bill already exists
             existing_bill = Bill.query.filter_by(bill_id=bill_id).first()
             if existing_bill:
-                flash('Bill ID already exists.', 'error')
+                flash('Bill ID already exists. Please use a different ID.', 'error')
+                return render_template('create_bill.html')
+            
+            # Validate parent bag count
+            if parent_bag_count < 1 or parent_bag_count > 50:
+                flash('Number of parent bags must be between 1 and 50.', 'error')
                 return render_template('create_bill.html')
             
             # Create new bill
@@ -1470,6 +1477,7 @@ def create_bill():
             db.session.add(bill)
             db.session.commit()
             
+            app.logger.info(f'Bill created successfully: {bill_id} with {parent_bag_count} parent bags')
             flash('Bill created successfully!', 'success')
             return redirect(url_for('scan_bill_parent', bill_id=bill.id))
             
@@ -1665,7 +1673,7 @@ def remove_bag_from_bill():
 @app.route('/bill/scan_parent')
 @app.route('/bill/<int:bill_id>/scan_parent')
 @login_required
-def scan_bill_parent(bill_id=None):
+def scan_bill_parent(bill_id):
     """Scan parent bags to add to bill - admin and employee access"""
     if not (current_user.is_admin() or current_user.role == 'employee'):
         flash('Access restricted to admin and employee users.', 'error')
