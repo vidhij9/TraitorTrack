@@ -119,8 +119,8 @@ class Link(db.Model):
     """Link model for associating parent and child bags"""
     __tablename__ = 'link'
     id = db.Column(db.Integer, primary_key=True)
-    parent_bag_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}bag.id', ondelete='CASCADE'), nullable=False)
-    child_bag_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}bag.id', ondelete='CASCADE'), nullable=False)
+    parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
+    child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('child_links', lazy='dynamic', cascade='all, delete-orphan'))
     child_bag = db.relationship('Bag', foreign_keys=[child_bag_id], backref=db.backref('parent_links', lazy='dynamic', cascade='all, delete-orphan'))
@@ -156,8 +156,8 @@ class BillBag(db.Model):
     """Association model for linking bills to parent bags"""
     __tablename__ = 'billbag'
     id = db.Column(db.Integer, primary_key=True)
-    bill_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}bill.id', ondelete='CASCADE'), nullable=False)
-    bag_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}bag.id', ondelete='CASCADE'), nullable=False)
+    bill_id = db.Column(db.Integer, db.ForeignKey('bill.id', ondelete='CASCADE'), nullable=False)
+    bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     bill = db.relationship('Bill', backref=db.backref('bag_links', lazy='dynamic', cascade='all, delete-orphan'))
     bag = db.relationship('Bag', backref=db.backref('bill_links', lazy='dynamic', cascade='all, delete-orphan'))
@@ -175,10 +175,10 @@ class Scan(db.Model):
     __tablename__ = 'scan'
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    parent_bag_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}bag.id'), nullable=True)
-    child_bag_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}bag.id'), nullable=True)
+    parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
+    child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
     # location_id removed - no longer tracking locations
-    user_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # Relationships with eager loading for performance
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('parent_scans', lazy='dynamic'))
@@ -200,11 +200,11 @@ class PromotionRequest(db.Model):
     """Model for handling admin promotion requests"""
     __tablename__ = 'promotionrequest'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     requested_by = db.relationship('User', foreign_keys=[user_id], backref='promotion_requests')
     reason = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), default=PromotionRequestStatus.PENDING.value)
-    admin_id = db.Column(db.Integer, db.ForeignKey(f'{TABLE_PREFIX}user.id'), nullable=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     processed_by = db.relationship('User', foreign_keys=[admin_id])
     admin_notes = db.Column(db.Text, nullable=True)
     requested_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
