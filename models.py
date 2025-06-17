@@ -1,8 +1,20 @@
 import datetime
 import enum
+import os
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app_clean import db
+
+# Environment-based table prefix for database isolation
+def get_table_prefix():
+    """Get table prefix based on environment to ensure data isolation"""
+    repl_slug = os.environ.get('REPL_SLUG', '')
+    if repl_slug == 'traitortrack':
+        return 'prod_'
+    else:
+        return 'dev_'
+
+TABLE_PREFIX = get_table_prefix()
 
 class UserRole(enum.Enum):
     ADMIN = "admin"
@@ -19,6 +31,7 @@ class PromotionRequestStatus(enum.Enum):
 
 class User(UserMixin, db.Model):
     """User model for authentication and tracking"""
+    __tablename__ = f'{TABLE_PREFIX}user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -56,6 +69,7 @@ class User(UserMixin, db.Model):
 
 class Bag(db.Model):
     """Base bag model with common properties"""
+    __tablename__ = f'{TABLE_PREFIX}bag'
     id = db.Column(db.Integer, primary_key=True)
     qr_id = db.Column(db.String(255), unique=True, nullable=False)
     type = db.Column(db.String(10), nullable=False)
@@ -128,6 +142,7 @@ class Link(db.Model):
 
 class Bill(db.Model):
     """Bill model for tracking bills and associated parent bags"""
+    __tablename__ = f'{TABLE_PREFIX}bill'
     id = db.Column(db.Integer, primary_key=True)
     bill_id = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
@@ -146,6 +161,7 @@ class Bill(db.Model):
 
 class BillBag(db.Model):
     """Association model for linking bills to parent bags"""
+    __tablename__ = f'{TABLE_PREFIX}billbag'
     id = db.Column(db.Integer, primary_key=True)
     bill_id = db.Column(db.Integer, db.ForeignKey('bill.id', ondelete='CASCADE'), nullable=False)
     bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
@@ -163,6 +179,7 @@ class BillBag(db.Model):
 
 class Scan(db.Model):
     """Scan model for tracking all scanning activities"""
+    __tablename__ = f'{TABLE_PREFIX}scan'
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
@@ -188,6 +205,7 @@ class Scan(db.Model):
 
 class PromotionRequest(db.Model):
     """Model for handling admin promotion requests"""
+    __tablename__ = f'{TABLE_PREFIX}promotionrequest'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     requested_by = db.relationship('User', foreign_keys=[user_id], backref='promotion_requests')

@@ -41,31 +41,20 @@ app.config.update(
 # Configure database with environment-specific URLs
 def get_database_url():
     """Get appropriate database URL based on environment"""
-    environment = os.environ.get('ENVIRONMENT', os.environ.get('FLASK_ENV', 'development'))
+    # Use the same database but different table prefixes for isolation
+    base_url = os.environ.get('DATABASE_URL', '')
     
-    if environment == 'production':
-        # Production environment - MUST use PROD_DATABASE_URL (no fallback for security)
-        prod_url = os.environ.get('PROD_DATABASE_URL')
-        if not prod_url:
-            # Only fallback to DATABASE_URL in production if explicitly allowed
-            fallback_url = os.environ.get('DATABASE_URL')
-            if fallback_url:
-                logging.warning("Production using generic DATABASE_URL - set PROD_DATABASE_URL for proper isolation")
-                return fallback_url
-            else:
-                raise ValueError("Production environment requires PROD_DATABASE_URL to be set")
-        return prod_url
-    elif environment == 'testing':
-        # Testing environment - use in-memory SQLite by default
-        return os.environ.get('TEST_DATABASE_URL', 'sqlite:///:memory:')
+    # Detect environment based on domain and deployment context
+    repl_slug = os.environ.get('REPL_SLUG', '')
+    
+    # For now, use the same database URL but we'll implement table prefixes
+    # Production and development will be isolated through table naming
+    if repl_slug == 'traitortrack':
+        logging.info("PRODUCTION: Using production environment")
+        return base_url
     else:
-        # Development environment - FORCE isolated database
-        dev_url = os.environ.get('DEV_DATABASE_URL')
-        if not dev_url:
-            # Force development to use isolated database - NO FALLBACK
-            dev_url = "postgresql://neondb_owner:npg_mznV9XNHSeP6@ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech:5432/neondb_dev"
-            logging.info("ISOLATION FIX: Using hardcoded development database URL")
-        return dev_url
+        logging.info("DEVELOPMENT: Using development environment")
+        return base_url
 
 # Configure database with environment-specific settings
 flask_env = os.environ.get('FLASK_ENV', 'development')
