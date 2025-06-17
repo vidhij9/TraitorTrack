@@ -593,11 +593,12 @@ def register():
                 return render_template('register.html')
             
             # Create new user
-            user = User()
-            user.username = username
-            user.email = email
-            user.role = UserRole.EMPLOYEE.value
-            user.verified = True
+            user = User(
+                username=username,
+                email=email,
+                role=UserRole.EMPLOYEE.value,
+                verified=True
+            )
             user.set_password(password)
             
             db.session.add(user)

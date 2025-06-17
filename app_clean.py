@@ -72,40 +72,21 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Environment-specific database connection pool settings
-if flask_env == 'production':
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 50,
-        "max_overflow": 60,
-        "pool_recycle": 300,
-        "pool_pre_ping": True,
-        "pool_timeout": 20,
-        "pool_use_lifo": True,
-        "connect_args": {
-            "keepalives": 1,
-            "keepalives_idle": 60,
-            "keepalives_interval": 10,
-            "keepalives_count": 3,
-            "options": "-c statement_timeout=90000"
-        }
+# Fix database connection settings to prevent rollbacks
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_size": 5,
+    "max_overflow": 10,
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+    "pool_timeout": 20,
+    "connect_args": {
+        "connect_timeout": 60,
+        "application_name": "tracetrack_app"
     }
-else:
-    # Development settings - smaller pool, enable SQL logging for debugging
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_recycle": 300,
-        "pool_pre_ping": True,
-        "pool_timeout": 10,
-        "pool_use_lifo": True,
-        "connect_args": {
-            "keepalives": 1,
-            "keepalives_idle": 60,
-            "keepalives_interval": 10,
-            "keepalives_count": 3
-        }
-    }
-    app.config["SQLALCHEMY_ECHO"] = True  # Enable SQL logging in development
+}
+
+# Disable SQL logging to reduce noise
+app.config["SQLALCHEMY_ECHO"] = False
 
 # Security settings - Fix session management for deployment
 app.config.update(
@@ -125,6 +106,17 @@ db.init_app(app)
 login_manager.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
+
+# Create tables after app initialization
+with app.app_context():
+    try:
+        # Import models to ensure they're registered
+        import models
+        # Create all tables
+        db.create_all()
+        logging.info("Database tables created successfully")
+    except Exception as e:
+        logging.error(f"Database initialization error: {e}")
 
 # Re-enable CSRF protection with proper configuration
 app.config['WTF_CSRF_ENABLED'] = True
