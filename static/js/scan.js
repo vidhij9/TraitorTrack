@@ -1,4 +1,11 @@
-document.addEventListener('DOMContentLoaded', function() {
+// Wait for both DOM and QR library to load
+function initializeScanner() {
+    if (typeof Html5Qrcode === 'undefined') {
+        console.log('QR Scanner library not loaded yet, retrying...');
+        setTimeout(initializeScanner, 100);
+        return;
+    }
+    
     const qrIdInput = document.getElementById('qr_id');
     const scanResultDiv = document.getElementById('scan-result');
     const resultQrId = document.getElementById('result-qrid');
@@ -20,6 +27,10 @@ document.addEventListener('DOMContentLoaded', function() {
     stopScannerBtn.addEventListener('click', stopScanner);
     
     function startScanner() {
+        if (typeof Html5Qrcode === 'undefined') {
+            alert('QR Scanner library not loaded. Please refresh the page.');
+            return;
+        }
         html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         
@@ -148,4 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const date = new Date(isoString);
         return date.toLocaleString();
     }
-});
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initializeScanner);
