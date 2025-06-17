@@ -495,6 +495,49 @@ def link_to_bill(qr_id):
         flash('Failed to link to bill', 'error')
         return redirect(url_for('index'))
 
+@app.route('/log_scan', methods=['POST'])
+@login_required
+def log_scan():
+    """Log a QR code scan with status and notes"""
+    try:
+        qr_id = request.form.get('qr_id', '').strip()
+        status = request.form.get('status', '').strip()
+        notes = request.form.get('notes', '').strip()
+        
+        if not qr_id:
+            flash('QR ID is required', 'error')
+            return redirect(url_for('scan'))
+        
+        if not status:
+            flash('Status is required', 'error')
+            return redirect(url_for('scan'))
+        
+        # Find the bag by QR ID
+        bag = Bag.query.filter_by(qr_id=qr_id).first()
+        if not bag:
+            flash(f'Bag with QR ID {qr_id} not found', 'error')
+            return redirect(url_for('scan'))
+        
+        # Create scan record
+        scan = Scan(
+            parent_bag_id=bag.id if bag.type == BagType.PARENT.value else None,
+            child_bag_id=bag.id if bag.type == BagType.CHILD.value else None,
+            user_id=current_user.id,
+            timestamp=datetime.utcnow()
+        )
+        
+        db.session.add(scan)
+        db.session.commit()
+        
+        flash(f'Scan logged successfully for {bag.type} bag {qr_id}', 'success')
+        return redirect(url_for('scan'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Log scan error: {e}")
+        flash('Failed to log scan', 'error')
+        return redirect(url_for('scan'))
+
 @app.route('/fix-admin-password')
 def fix_admin_password():
     """Fix admin password - temporary endpoint"""
