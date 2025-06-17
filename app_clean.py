@@ -216,16 +216,23 @@ def load_user(user_id):
 @app.context_processor
 def inject_current_user():
     """Make current_user available in all templates"""
-    from simple_auth import is_authenticated, get_current_user_data
+    from flask import session
+    from simple_auth import is_authenticated
     
     # Create a user object that matches template expectations
     class ProductionUser:
         def __init__(self):
-            if is_authenticated():
-                user_data = get_current_user_data()
-                if user_data and user_data.get('authenticated'):
+            # Check session directly for better reliability
+            authenticated = (
+                session.get('authenticated', False) or 
+                session.get('logged_in', False)
+            )
+            user_id = session.get('user_id')
+            
+            if authenticated and user_id:
+                try:
                     from models import User
-                    actual_user = User.query.get(user_data.get('id'))
+                    actual_user = User.query.get(user_id)
                     if actual_user:
                         self.id = actual_user.id
                         self.username = actual_user.username
@@ -234,7 +241,7 @@ def inject_current_user():
                         self._is_authenticated = True
                     else:
                         self._setup_anonymous()
-                else:
+                except Exception:
                     self._setup_anonymous()
             else:
                 self._setup_anonymous()

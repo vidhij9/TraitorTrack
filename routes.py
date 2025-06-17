@@ -438,6 +438,16 @@ def logout():
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
 
+@app.route('/auth-test')
+def auth_test():
+    """Authentication test page to debug session issues"""
+    from flask import session
+    
+    # Get session data for debugging
+    session_data = dict(session)
+    
+    return render_template('auth_test.html', session_data=session_data)
+
 
 
 @app.route('/link_to_bill/<qr_id>', methods=['GET', 'POST'])
