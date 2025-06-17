@@ -224,13 +224,13 @@ def load_user(user_id):
 @app.context_processor
 def inject_current_user():
     """Make current_user available in all templates"""
-    from production_auth_fix import is_production_authenticated, get_production_user_data
+    from simple_auth import is_authenticated, get_current_user_data
     
-    # Create a production user object that matches template expectations
+    # Create a user object that matches template expectations
     class ProductionUser:
         def __init__(self):
-            if is_production_authenticated():
-                user_data = get_production_user_data()
+            if is_authenticated():
+                user_data = get_current_user_data()
                 if user_data and user_data.get('authenticated'):
                     from models import User
                     actual_user = User.query.get(user_data.get('id'))
