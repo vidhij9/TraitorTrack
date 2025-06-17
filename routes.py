@@ -1727,23 +1727,21 @@ def process_bill_parent_scan():
             ).first()
         
         if not parent_bag:
-            app.logger.info(f'Parent bag not found: {qr_id}, creating new parent bag')
+            app.logger.warning(f'Parent bag not found: {qr_id}')
             # Check if bag exists with different type (case-insensitive)
             any_bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_id.upper()).first()
             if any_bag:
                 app.logger.info(f'Found bag with type: {any_bag.type} and QR: {any_bag.qr_id}')
-                return jsonify({'success': False, 'message': f'Bag {any_bag.qr_id} exists but is not a parent bag (type: {any_bag.type}).'})
+                return jsonify({'success': False, 'message': f'QR code {any_bag.qr_id} exists but is registered as a {any_bag.type} bag, not a parent bag.'})
             
-            # Create new parent bag automatically
-            parent_bag = Bag(
-                qr_id=qr_id,
-                name=f"Parent Bag {qr_id}",
-                type=BagType.PARENT.value,
-                child_count=0
-            )
-            db.session.add(parent_bag)
-            db.session.flush()  # Get the ID without committing
-            app.logger.info(f'Created new parent bag: {qr_id}')
+            # List available parent bags for reference
+            available_parents = Bag.query.filter(Bag.type == BagType.PARENT.value).limit(5).all()
+            available_qrs = [bag.qr_id for bag in available_parents]
+            
+            if available_qrs:
+                return jsonify({'success': False, 'message': f'Parent bag with QR code "{qr_id}" not found. Available parent bags: {", ".join(available_qrs)}'})
+            else:
+                return jsonify({'success': False, 'message': f'Parent bag with QR code "{qr_id}" not found. No parent bags exist in the system yet.'})
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id}')
         
