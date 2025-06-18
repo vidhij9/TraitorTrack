@@ -171,6 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
             addManualChild();
         }
     });
+    
+    // Auto-start scanner when page loads (with delay to ensure DOM is ready)
+    setTimeout(() => {
+        startScanning();
+    }, 800);
 });
 
 function startScanning() {

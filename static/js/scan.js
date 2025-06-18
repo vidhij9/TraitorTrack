@@ -26,11 +26,21 @@ function initializeScanner() {
     startScannerBtn.addEventListener('click', startScanner);
     stopScannerBtn.addEventListener('click', stopScanner);
     
+    // Auto-start scanner when page loads
+    setTimeout(() => {
+        startScanner();
+    }, 500); // Small delay to ensure DOM is fully ready
+    
     function startScanner() {
         if (typeof Html5Qrcode === 'undefined') {
             alert('QR Scanner library not loaded. Please refresh the page.');
             return;
         }
+        
+        // Update button states
+        startScannerBtn.style.display = 'none';
+        stopScannerBtn.style.display = 'inline-block';
+        
         html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         
@@ -41,6 +51,12 @@ function initializeScanner() {
             onScanFailure
         ).catch(function (err) {
             console.error(`Unable to start scanning: ${err}`);
+            console.log("Could not access the camera: ", err);
+            
+            // Reset button states on error
+            startScannerBtn.style.display = 'inline-block';
+            stopScannerBtn.style.display = 'none';
+            
             alert(`Camera error: ${err}. Please make sure you've granted camera permissions.`);
         });
     }
@@ -49,8 +65,14 @@ function initializeScanner() {
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.stop().then(() => {
                 console.log('QR Code scanning stopped.');
+                // Reset button states
+                startScannerBtn.style.display = 'inline-block';
+                stopScannerBtn.style.display = 'none';
             }).catch(err => {
                 console.error('Failed to stop QR Code scanning:', err);
+                // Reset button states even on error
+                startScannerBtn.style.display = 'inline-block';
+                stopScannerBtn.style.display = 'none';
             });
         }
     }
