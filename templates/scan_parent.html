@@ -5,51 +5,26 @@
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
+    <div class="row mb-2">
         <div class="col-12">
-            <div class="card bg-dark text-light">
-                <div class="card-body">
-                    <h2 class="card-title mb-3">
-                        <i class="fas fa-qrcode me-2"></i>Scan Parent Bag
-                    </h2>
-                    
-                    <div class="progress-container">
-                        <div class="progress-indicator">
-                            <div class="progress-step completed">
-                                <div class="progress-step-circle"><i class="fas fa-check"></i></div>
-                                <div class="progress-step-label">Select Location</div>
-                            </div>
-                            <div class="progress-line progress-line-completed"></div>
-                            <div class="progress-step active">
-                                <div class="progress-step-circle">2</div>
-                                <div class="progress-step-label">Scan Parent Bag</div>
-                            </div>
-                            <div class="progress-line"></div>
-                            <div class="progress-step">
-                                <div class="progress-step-circle">3</div>
-                                <div class="progress-step-label">Scan Child Bags</div>
-                            </div>
-                            <div class="progress-line"></div>
-                            <div class="progress-step">
-                                <div class="progress-step-circle">4</div>
-                                <div class="progress-step-label">Complete</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <p class="card-text">Please scan the QR code on the parent bag.</p>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Scan any QR code to create and track bags in your system.
-                    </div>
+            <div class="mobile-header-card">
+                <h5 class="mb-1">
+                    <i class="fas fa-qrcode me-1"></i>Scan Parent Bag
+                </h5>
+                <div class="mobile-progress-steps">
+                    <span class="step-badge completed">1</span>
+                    <span class="step-badge active">2</span>
+                    <span class="step-badge">3</span>
+                    <span class="step-badge">4</span>
                 </div>
+                <small class="text-muted">Step 2: Scan parent bag QR code</small>
             </div>
         </div>
     </div>
     
     <div class="row">
-        <div class="col-lg-6 mb-4 mb-lg-0">
-            <div class="card">
+        <div class="col-lg-6 mb-2 mb-lg-0">
+            <div class="mobile-scan-camera-card">
                 <div class="card-header bg-primary bg-opacity-25 text-light">
                     <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
@@ -71,38 +46,34 @@
         </div>
         
         <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header bg-success bg-opacity-25 text-light">
-                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Result</h4>
+            <div class="mobile-scan-result-card">
+                <div class="mobile-scan-header">
+                    <h6 class="mb-0"><i class="fas fa-clipboard-check me-1"></i>Scan Result</h6>
                 </div>
-                <div class="card-body">
-                    <div id="result-container" class="alert alert-info mb-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        The result of the scan will appear here.
+                <div class="mobile-scan-body">
+                    <div id="result-container" class="mobile-result-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Scan result will appear here
                     </div>
                     
-                    <div id="scan-success" class="scan-result alert alert-success d-none">
-                        <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully</h5>
-                        <p class="mb-3">QR Code: <span id="parent-qr-value" class="fw-bold"></span></p>
-                        <div class="d-grid">
-                            <a id="scan-child-link" href="#" class="btn btn-success">
-                                <i class="fas fa-arrow-right me-2"></i>Continue to Scan Child Bags
-                            </a>
+                    <div id="scan-success" class="mobile-result-success d-none">
+                        <div class="result-icon">
+                            <i class="fas fa-check-circle"></i>
                         </div>
+                        <h6>Parent Bag Scanned</h6>
+                        <p>QR: <span id="parent-qr-value" class="fw-bold"></span></p>
+                        <a id="scan-child-link" href="#" class="btn btn-success btn-mobile-full">
+                            <i class="fas fa-arrow-right me-1"></i>Scan Child Bags
+                        </a>
                     </div>
                     
-                    <form id="manual-entry-form" class="mt-4">
-                        <div class="mb-3">
-                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-keyboard"></i>
-                                </span>
-                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., P123-10">
-                                <button type="submit" class="btn btn-primary">Submit</button>
-                            </div>
-                            <div class="form-text">If scanning doesn't work, you can manually enter the QR code value here.</div>
+                    <form id="manual-entry-form" class="mobile-manual-form">
+                        <label for="manual-qr-code" class="form-label-mobile">Manual Entry</label>
+                        <div class="mobile-input-group">
+                            <input type="text" class="form-control-mobile" id="manual-qr-code" placeholder="Enter QR code">
+                            <button type="submit" class="btn btn-primary btn-mobile">Submit</button>
                         </div>
+                        <small class="text-muted">If camera doesn't work, enter QR code manually</small>
                     </form>
                 </div>
             </div>
