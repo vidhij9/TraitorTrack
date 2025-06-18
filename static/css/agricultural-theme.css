@@ -319,6 +319,7 @@ body {
     background: linear-gradient(45deg, var(--leaf-light), var(--primary-green));
     border-radius: 10px;
     transition: width 0.8s ease-in-out;
+    color: #ffffff !important;
 }
 
 /* Form enhancements */
@@ -343,7 +344,7 @@ body {
 
 .table thead th {
     background: linear-gradient(45deg, var(--primary-green), var(--secondary-green));
-    color: white;
+    color: #ffffff !important;
     border: none;
     font-weight: 600;
 }
@@ -612,6 +613,34 @@ body {
     }
 }
 
+/* Dark green background text contrast fixes */
+.bg-success,
+.badge-success,
+.btn-success,
+.alert-success.dark,
+[style*="background-color: #28a745"],
+[style*="background-color: #198754"],
+[style*="background: #28a745"],
+[style*="background: #198754"],
+[class*="green"]:not(.text-dark):not(.text-black) {
+    color: #ffffff !important;
+}
+
+/* Ensure dark green elements have light text */
+.bg-dark-green,
+.forest-green,
+.sage-green,
+.leaf-green {
+    color: #ffffff !important;
+}
+
+.bg-dark-green *,
+.forest-green *,
+.sage-green *,
+.leaf-green * {
+    color: #ffffff !important;
+}
+
 /* Micro-interactions */
 .clickable {
     cursor: pointer;
@@ -631,6 +660,7 @@ body {
 
 .badge-success {
     background: linear-gradient(45deg, var(--leaf-light), var(--primary-green));
+    color: #ffffff !important;
 }
 
 .badge-warning {
@@ -641,13 +671,25 @@ body {
 /* Dashboard welcome section */
 .welcome-section {
     background: linear-gradient(135deg, var(--primary-green), var(--secondary-green));
-    color: white;
+    color: #ffffff !important;
     border-radius: 20px;
     padding: 3rem 2rem;
     margin-bottom: 2rem;
     text-align: center;
     position: relative;
     overflow: hidden;
+}
+
+.welcome-section h1,
+.welcome-section h2,
+.welcome-section h3,
+.welcome-section h4,
+.welcome-section h5,
+.welcome-section h6,
+.welcome-section p,
+.welcome-section span,
+.welcome-section div {
+    color: #ffffff !important;
 }
 
 .welcome-section::before {

@@ -395,7 +395,7 @@ body {
 
 .btn-primary {
     background: var(--leaf-green) !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
     box-shadow: 0 3px 6px rgba(74, 124, 89, 0.3);
 }
 
@@ -403,14 +403,14 @@ body {
 .btn-primary:focus,
 .btn-primary:active {
     background: var(--forest-green) !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
     transform: none;
     box-shadow: 0 2px 4px rgba(45, 80, 22, 0.4);
 }
 
 .btn-success {
     background: var(--sage-green) !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
     box-shadow: 0 3px 6px rgba(156, 175, 136, 0.3);
 }
 
@@ -418,33 +418,33 @@ body {
 .btn-success:focus,
 .btn-success:active {
     background: var(--leaf-green) !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
     transform: none;
 }
 
 .btn-secondary {
     background: var(--earth-brown) !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
 }
 
 .btn-secondary:hover,
 .btn-secondary:focus,
 .btn-secondary:active {
     background: var(--soil-dark) !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
     transform: none;
 }
 
 .btn-danger {
     background: #d32f2f !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
 }
 
 .btn-danger:hover,
 .btn-danger:focus,
 .btn-danger:active {
     background: #b71c1c !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
     transform: none;
 }
 
@@ -482,7 +482,7 @@ body {
 }
 
 .form-label {
-    color: var(--forest-green) !important;
+    color: #2c5530 !important;
     font-weight: 600;
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
@@ -561,6 +561,40 @@ a:hover {
 
 .footer .text-muted {
     color: #bdc3c7 !important;
+}
+
+/* Dark green background text contrast fixes */
+.bg-success,
+.badge-success,
+.btn-success,
+.alert-success.dark,
+[style*="background-color: #28a745"],
+[style*="background-color: #198754"],
+[style*="background: #28a745"],
+[style*="background: #198754"],
+[class*="green"]:not(.text-dark):not(.text-black) {
+    color: #ffffff !important;
+}
+
+/* Ensure all dark background elements have proper light text */
+.bg-dark,
+.bg-secondary,
+.bg-primary.dark,
+.navbar-dark,
+.card-header.bg-dark,
+.table-dark,
+[style*="background-color: #343a40"],
+[style*="background-color: #6c757d"],
+[style*="background: #343a40"],
+[style*="background: #6c757d"] {
+    color: #ffffff !important;
+}
+
+.bg-dark *:not(.btn):not(.badge):not(.alert),
+.bg-secondary *:not(.btn):not(.badge):not(.alert),
+.navbar-dark *:not(.btn):not(.badge):not(.alert),
+.card-header.bg-dark *:not(.btn):not(.badge):not(.alert) {
+    color: #ffffff !important;
 }
 
 /* Badges */
