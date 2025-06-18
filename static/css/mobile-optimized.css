@@ -601,6 +601,143 @@ body {
     100% { transform: scale(1); }
 }
 
+/* Mobile Scan Interface */
+.mobile-scan-camera-card,
+.mobile-scan-result-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.mobile-scan-header {
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.mobile-scan-body {
+    padding: 16px;
+}
+
+.mobile-video-container {
+    position: relative;
+    width: 100%;
+    height: 250px;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.mobile-video-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mobile-camera-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #6c757d;
+    background: #f8f9fa;
+}
+
+.mobile-camera-placeholder i {
+    font-size: 48px;
+    margin-bottom: 12px;
+    color: #007bff;
+}
+
+.mobile-camera-placeholder span {
+    font-size: 14px;
+}
+
+.mobile-camera-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.mobile-result-info {
+    padding: 12px;
+    background: #e7f3ff;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #0c5460;
+    margin-bottom: 16px;
+}
+
+.mobile-result-success {
+    text-align: center;
+    padding: 20px;
+    background: #d4edda;
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.mobile-result-success .result-icon {
+    font-size: 32px;
+    color: #28a745;
+    margin-bottom: 8px;
+}
+
+.mobile-result-success h6 {
+    color: #155724;
+    margin-bottom: 8px;
+}
+
+.mobile-result-success p {
+    color: #155724;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.mobile-manual-form {
+    border-top: 1px solid #e9ecef;
+    padding-top: 16px;
+}
+
+.mobile-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.mobile-input-group .form-control-mobile {
+    flex: 1;
+}
+
+.mobile-input-group .btn-mobile {
+    min-width: 80px;
+    padding: 12px 16px;
+}
+
+@media (max-width: 576px) {
+    .mobile-video-container {
+        height: 200px;
+    }
+    
+    .mobile-camera-placeholder i {
+        font-size: 36px;
+    }
+    
+    .mobile-camera-controls {
+        flex-direction: column;
+    }
+    
+    .mobile-input-group {
+        flex-direction: column;
+    }
+    
+    .mobile-input-group .btn-mobile {
+        min-width: auto;
+    }
+}
+
 .stats-mobile-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

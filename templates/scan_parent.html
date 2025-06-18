@@ -25,22 +25,27 @@
     <div class="row">
         <div class="col-lg-6 mb-2 mb-lg-0">
             <div class="mobile-scan-camera-card">
-                <div class="card-header bg-primary bg-opacity-25 text-light">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
+                <div class="mobile-scan-header">
+                    <h6 class="mb-0"><i class="fas fa-camera me-1"></i>Camera Scanner</h6>
                 </div>
-                <div class="card-body p-0">
-                    <div class="video-container position-relative">
-                        <video id="video" playsinline class="d-none"></video>
-                        <canvas id="canvas" class="w-100"></canvas>
+                <div class="mobile-scan-body">
+                    <div class="mobile-video-container">
+                        <video id="video" autoplay muted playsinline style="display: none;"></video>
+                        <canvas id="canvas" style="display: none;"></canvas>
+                        <div id="camera-placeholder" class="mobile-camera-placeholder">
+                            <i class="fas fa-camera"></i>
+                            <span>Tap to start scanning</span>
+                        </div>
                     </div>
-                </div>
-                <div class="card-footer d-flex justify-content-between">
-                    <button id="start-camera" class="btn btn-primary">
-                        <i class="fas fa-play me-2"></i>Start Camera
-                    </button>
-                    <button id="stop-camera" class="btn btn-secondary" disabled>
-                        <i class="fas fa-stop me-2"></i>Stop Camera
-                    </button>
+                    
+                    <div class="mobile-camera-controls">
+                        <button id="start-camera" class="btn btn-success btn-mobile-full">
+                            <i class="fas fa-play me-1"></i>Start Camera
+                        </button>
+                        <button id="stop-camera" class="btn btn-danger btn-mobile-full" style="display: none;">
+                            <i class="fas fa-stop me-1"></i>Stop Camera
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
