@@ -11,30 +11,18 @@
             <span class="badge {% if is_admin %}bg-danger{% else %}bg-secondary{% endif %}">{{ current_user.username[:1].upper() }}</span>
         </div>
         
-        <!-- Ultra-Compact Statistics Grid -->
+        <!-- Ultra-Compact Statistics Table -->
         <div class="row g-1 mb-1">
-            <div class="col-3">
-                <div class="dashboard-stat">
-                    <div class="stat-number">{{ stats.parent_bags }}</div>
-                    <div class="stat-label">Parents</div>
-                </div>
-            </div>
-            <div class="col-3">
-                <div class="dashboard-stat">
-                    <div class="stat-number">{{ stats.child_bags }}</div>
-                    <div class="stat-label">Children</div>
-                </div>
-            </div>
-            <div class="col-3">
-                <div class="dashboard-stat">
-                    <div class="stat-number">{{ stats.bills }}</div>
-                    <div class="stat-label">Bills</div>
-                </div>
-            </div>
-            <div class="col-3">
-                <div class="dashboard-stat">
-                    <div class="stat-number">{{ stats.total_scans }}</div>
-                    <div class="stat-label">Scans</div>
+            <div class="col-12">
+                <div class="bg-white rounded border p-2">
+                    <table class="table table-sm mb-0" style="font-size: 11px;">
+                        <tr>
+                            <td class="text-center p-1"><strong>{{ stats.parent_bags }}</strong><br><small class="text-muted">Parents</small></td>
+                            <td class="text-center p-1"><strong>{{ stats.child_bags }}</strong><br><small class="text-muted">Children</small></td>
+                            <td class="text-center p-1"><strong>{{ stats.bills }}</strong><br><small class="text-muted">Bills</small></td>
+                            <td class="text-center p-1"><strong>{{ stats.total_scans }}</strong><br><small class="text-muted">Scans</small></td>
+                        </tr>
+                    </table>
                 </div>
             </div>
         </div>

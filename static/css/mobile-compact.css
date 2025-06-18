@@ -1,58 +1,30 @@
 /* Mobile Compact UI - Additional optimizations for minimal vertical scrolling */
 
-/* Ultra-compact stats grid like modern apps */
-.stats-compact-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    padding: 8px;
-    background: rgba(0,0,0,0.03);
-    border-radius: 8px;
-    margin: 0 4px;
+/* Ultra-compact stats table */
+.table-compact {
+    margin-bottom: 0 !important;
 }
 
-.stat-micro {
-    background: white;
-    border-radius: 6px;
-    padding: 8px 4px;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    border: 1px solid rgba(0,0,0,0.05);
-    transition: transform 0.1s ease;
+.table-compact td {
+    padding: 4px !important;
+    border: none !important;
+    vertical-align: middle !important;
 }
 
-.stat-micro:active {
-    transform: scale(0.98);
+.table-compact strong {
+    font-size: 14px !important;
+    color: #2c3e50 !important;
+    display: block !important;
+    line-height: 1.1 !important;
 }
 
-.stat-icon {
-    font-size: 12px;
-    margin-bottom: 2px;
-    opacity: 0.7;
+.table-compact small {
+    font-size: 9px !important;
+    color: #7f8c8d !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.2px !important;
+    font-weight: 600 !important;
 }
-
-.stat-value {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2c3e50;
-    line-height: 1;
-    margin-bottom: 1px;
-}
-
-.stat-tiny-label {
-    font-size: 9px;
-    color: #7f8c8d;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    font-weight: 600;
-    line-height: 1;
-}
-
-/* Color coding for different stats */
-.stat-micro:nth-child(1) .stat-value { color: #3498db; }
-.stat-micro:nth-child(2) .stat-value { color: #27ae60; }
-.stat-micro:nth-child(3) .stat-value { color: #f39c12; }
-.stat-micro:nth-child(4) .stat-value { color: #e74c3c; }
 
 /* Ultra-compact header */
 .header-compact {
