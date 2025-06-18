@@ -139,7 +139,7 @@
                                     </span>
                                 {% endif %}
                             </td>
-                            <td>{{ data.user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ data.user.created_at.strftime('%Y-%m-%d') if data.user.created_at else 'N/A' }}</td>
                             <td>
                                 {% if data.last_scan %}
                                     {{ data.last_scan.strftime('%Y-%m-%d %H:%M') }}

@@ -120,14 +120,16 @@ def user_management():
             user_stats = {
                 'total_users': User.query.count(),
                 'admin_users': User.query.filter(User.role == UserRole.ADMIN.value).count(),
-                'verified_users': User.query.filter(User.verified == True).count()
+                'verified_users': User.query.filter(User.verified == True).count(),
+                'active_users': 0  # Add missing active_users field
             }
         except Exception as e:
             app.logger.error(f"Error getting user stats: {e}")
             user_stats = {
                 'total_users': len(users),
                 'admin_users': len([u for u in users if u.role == UserRole.ADMIN.value]),
-                'verified_users': len([u for u in users if getattr(u, 'verified', False)])
+                'verified_users': len([u for u in users if getattr(u, 'verified', False)]),
+                'active_users': 0
             }
         
         return render_template('user_management.html', user_data=user_data, user_stats=user_stats)
