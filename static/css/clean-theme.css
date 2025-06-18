@@ -563,42 +563,24 @@ a:hover {
     color: #bdc3c7 !important;
 }
 
-/* Dark green background text contrast fixes */
-.bg-success,
-.badge-success,
+/* Only dark backgrounds get white text */
 .btn-success,
-.alert-success.dark,
-[style*="background-color: #28a745"],
-[style*="background-color: #198754"],
-[style*="background: #28a745"],
-[style*="background: #198754"],
-[class*="green"]:not(.text-dark):not(.text-black) {
-    color: #ffffff !important;
-}
-
-/* Ensure all dark background elements have proper light text */
-.bg-dark,
-.bg-secondary,
-.bg-primary.dark,
+.btn-primary,
+.btn-secondary,
+.btn-danger,
 .navbar-dark,
+.navbar-dark *,
 .card-header.bg-dark,
-.table-dark,
-[style*="background-color: #343a40"],
-[style*="background-color: #6c757d"],
-[style*="background: #343a40"],
-[style*="background: #6c757d"] {
+.table-dark thead th,
+.bg-dark {
     color: #ffffff !important;
 }
 
-.bg-dark *:not(.btn):not(.badge):not(.alert),
-.bg-secondary *:not(.btn):not(.badge):not(.alert),
-.navbar-dark *:not(.btn):not(.badge):not(.alert),
-.card-header.bg-dark *:not(.btn):not(.badge):not(.alert) {
-    color: #ffffff !important;
-}
-
-/* Badges */
-.badge {
+/* Badges - preserve original contrast */
+.badge-success,
+.badge-primary,
+.badge-secondary,
+.badge-danger {
     color: #ffffff !important;
 }
 

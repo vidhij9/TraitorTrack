@@ -613,32 +613,32 @@ body {
     }
 }
 
-/* Dark green background text contrast fixes */
-.bg-success,
-.badge-success,
+/* Ensure proper contrast for dark green backgrounds only */
 .btn-success,
-.alert-success.dark,
-[style*="background-color: #28a745"],
-[style*="background-color: #198754"],
-[style*="background: #28a745"],
-[style*="background: #198754"],
-[class*="green"]:not(.text-dark):not(.text-black) {
+.btn-primary,
+.welcome-section,
+.welcome-section *,
+.table thead th,
+.progress-bar {
     color: #ffffff !important;
 }
 
-/* Ensure dark green elements have light text */
-.bg-dark-green,
-.forest-green,
-.sage-green,
-.leaf-green {
+/* Dark background badges only */
+.badge-success,
+.badge-primary,
+.badge-dark {
     color: #ffffff !important;
 }
 
-.bg-dark-green *,
-.forest-green *,
-.sage-green *,
-.leaf-green * {
-    color: #ffffff !important;
+/* Preserve light background contrast */
+.alert-success,
+.alert-info,
+.alert-warning,
+.card-body,
+.table tbody td,
+.form-control,
+.dropdown-item {
+    color: inherit;
 }
 
 /* Micro-interactions */
