@@ -5,37 +5,106 @@
 
 {% block content %}
 <div class="container">
-    <div class="ultra-scan-header">
-        <span>Scan Parent</span>
-        <div class="ultra-progress">
-            <span class="progress-dot completed"></span>
-            <span class="progress-dot active"></span>
-            <span class="progress-dot"></span>
-            <span class="progress-dot"></span>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark text-light">
+                <div class="card-body">
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-qrcode me-2"></i>Scan Parent Bag
+                    </h2>
+                    
+                    <div class="progress-container">
+                        <div class="progress-indicator">
+                            <div class="progress-step completed">
+                                <div class="progress-step-circle"><i class="fas fa-check"></i></div>
+                                <div class="progress-step-label">Select Location</div>
+                            </div>
+                            <div class="progress-line progress-line-completed"></div>
+                            <div class="progress-step active">
+                                <div class="progress-step-circle">2</div>
+                                <div class="progress-step-label">Scan Parent Bag</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">3</div>
+                                <div class="progress-step-label">Scan Child Bags</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">4</div>
+                                <div class="progress-step-label">Complete</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="card-text">Please scan the QR code on the parent bag.</p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Scan any QR code to create and track bags in your system.
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
-    <div class="ultra-scan-layout">
-        <!-- Ultra Compact Camera -->
-        <div class="ultra-camera-card">
-            <div class="ultra-video-container">
-                <video id="video" autoplay muted playsinline></video>
-                <canvas id="canvas" style="display: none;"></canvas>
-                <div id="scan-target" class="ultra-scan-target"></div>
+    <div class="row">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card">
+                <div class="card-header bg-primary bg-opacity-25 text-light">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="video-container position-relative">
+                        <video id="video" playsinline class="d-none"></video>
+                        <canvas id="canvas" class="w-100"></canvas>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <button id="start-camera" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Start Camera
+                    </button>
+                    <button id="stop-camera" class="btn btn-secondary" disabled>
+                        <i class="fas fa-stop me-2"></i>Stop Camera
+                    </button>
+                </div>
             </div>
         </div>
         
-        <!-- Ultra Compact Result -->
-        <div class="ultra-result-card">
-            <div id="result-container" class="ultra-result-info">Scanning...</div>
-            <div id="scan-success" class="ultra-result-success d-none">
-                <i class="fas fa-check-circle"></i>
-                <span id="parent-qr-value"></span>
-                <a id="scan-child-link" href="#" class="ultra-btn-continue">Continue</a>
-            </div>
-            <div class="ultra-manual-form">
-                <input type="text" id="manual-qr-code" placeholder="Manual QR" class="ultra-input">
-                <button type="button" onclick="submitManualQR()" class="ultra-btn">OK</button>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-success bg-opacity-25 text-light">
+                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Result</h4>
+                </div>
+                <div class="card-body">
+                    <div id="result-container" class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The result of the scan will appear here.
+                    </div>
+                    
+                    <div id="scan-success" class="scan-result alert alert-success d-none">
+                        <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully</h5>
+                        <p class="mb-3">QR Code: <span id="parent-qr-value" class="fw-bold"></span></p>
+                        <div class="d-grid">
+                            <a id="scan-child-link" href="#" class="btn btn-success">
+                                <i class="fas fa-arrow-right me-2"></i>Continue to Scan Child Bags
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <form id="manual-entry-form" class="mt-4">
+                        <div class="mb-3">
+                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-keyboard"></i>
+                                </span>
+                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., P123-10">
+                                <button type="submit" class="btn btn-primary">Submit</button>
+                            </div>
+                            <div class="form-text">If scanning doesn't work, you can manually enter the QR code value here.</div>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -47,48 +116,71 @@
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
+        const startCameraBtn = document.getElementById('start-camera');
+        const stopCameraBtn = document.getElementById('stop-camera');
         const resultContainer = document.getElementById('result-container');
         const scanSuccess = document.getElementById('scan-success');
         const parentQrValue = document.getElementById('parent-qr-value');
+        const expectedChildCount = document.getElementById('expected-child-count');
         const scanChildLink = document.getElementById('scan-child-link');
+        const manualEntryForm = document.getElementById('manual-entry-form');
         
         let stream = null;
         let scanning = false;
-        const canvasContext = canvas.getContext('2d');
+        let canvasContext = canvas.getContext('2d');
+        let lastDetectedCode = null;
         
-        // Auto-start camera on page load
-        setTimeout(startCamera, 500);
+        // Clear any previous scan results when page loads
+        resultContainer.style.display = 'none';
+        resultContainer.innerHTML = '';
+        
+        // Start camera automatically when page loads
+        startCamera();
+        
+        // Also keep the button functionality as backup
+        startCameraBtn.addEventListener('click', startCamera);
+        
+        // Handle manual entry form submission
+        manualEntryForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const manualQrInput = document.getElementById('manual-qr-code');
+            const qrCode = manualQrInput.value.trim();
+            
+            if (qrCode) {
+                processQrCode(qrCode);
+                manualQrInput.value = '';
+            }
+        });
+        
+        // Stop camera when button is clicked
+        stopCameraBtn.addEventListener('click', stopCamera);
         
         function startCamera() {
-            resultContainer.innerHTML = 'Starting camera...';
-            resultContainer.className = 'ultra-result-info';
-            
+            // Request access to the webcam
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    } 
-                })
-                .then(function(mediaStream) {
-                    stream = mediaStream;
-                    video.srcObject = stream;
-                    video.setAttribute('playsinline', true);
-                    video.style.display = 'block';
-                    video.play();
-                    
-                    resultContainer.innerHTML = 'Camera ready - Point at QR code';
-                    scanning = true;
-                    scanQRCode();
-                })
-                .catch(function(error) {
-                    console.error('Could not access the camera: ', error);
-                    resultContainer.className = 'ultra-result-info';
-                    resultContainer.innerHTML = 'Camera unavailable - Use manual entry';
-                });
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(function(mediaStream) {
+                        stream = mediaStream;
+                        video.srcObject = stream;
+                        video.setAttribute('playsinline', true); // Required for iOS Safari
+                        video.play();
+                        
+                        startCameraBtn.disabled = true;
+                        stopCameraBtn.disabled = false;
+                        
+                        scanning = true;
+                        scanQRCode();
+                    })
+                    .catch(function(error) {
+                        console.error('Could not access the camera: ', error);
+                        resultContainer.className = 'alert alert-danger';
+                        resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
+                            'Could not access the camera. Please check your camera permissions or use manual entry.';
+                    });
             } else {
-                resultContainer.innerHTML = 'Camera not supported - Use manual entry';
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
+                    'Your browser does not support camera access. Please use a modern browser or use manual entry.';
             }
         }
         
@@ -96,8 +188,10 @@
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
-                video.style.display = 'none';
                 scanning = false;
+                
+                startCameraBtn.disabled = false;
+                stopCameraBtn.disabled = true;
             }
         }
         
@@ -243,18 +337,27 @@
             .then(data => {
                 console.log('Server response:', data);
                 if (data.success) {
-                    scanSuccess.classList.remove('d-none');
-                    resultContainer.style.display = 'none';
-                    parentQrValue.textContent = data.parent_qr;
+                    // Show success message and auto-proceed
+                    resultContainer.className = 'alert alert-success';
+                    resultContainer.innerHTML = `<i class="fas fa-check-circle me-2"></i>QR Code "${data.parent_qr}" saved successfully! Moving to next step...`;
+                    resultContainer.style.display = 'block';
                     
-                    const continueUrl = new URL(window.location.origin + '/scan/child');
-                    continueUrl.searchParams.set('parent_qr', data.parent_qr);
-                    scanChildLink.href = continueUrl.toString();
-                    
+                    // Stop the camera since we've got a successful scan
                     stopCamera();
+                    
+                    console.log('Redirecting to child scan page in 2 seconds...');
+                    // Automatically proceed to child scanning after 2 seconds
+                    setTimeout(() => {
+                        const redirectUrl = '{{ url_for("scan_child", s=request.args.get("s")) }}';
+                        console.log('Redirecting to:', redirectUrl);
+                        window.location.href = redirectUrl;
+                    }, 2000);
                 } else {
-                    resultContainer.innerHTML = 'Error: ' + data.message;
-                    resultContainer.className = 'ultra-result-info';
+                    console.log('Error response:', data.message);
+                    // Show error message
+                    resultContainer.className = 'alert alert-danger';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                    resultContainer.style.display = 'block';
                 }
             })
             .catch(error => {
@@ -278,21 +381,20 @@
             return null;
         }
         
-        // Handle manual entry
-        function submitManualQR() {
+        // Handle manual form submission
+        manualEntryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
             const manualQrInput = document.getElementById('manual-qr-code');
             const qrCode = manualQrInput.value.trim();
             
             if (qrCode) {
                 processQrCode(qrCode);
             } else {
-                resultContainer.className = 'ultra-result-info';
-                resultContainer.innerHTML = 'Please enter a QR code value.';
+                resultContainer.className = 'alert alert-warning';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter a QR code value.';
+                resultContainer.style.display = 'block';
             }
-        }
-        
-        // Make function globally available
-        window.submitManualQR = submitManualQR;
+        });
     });
 </script>
 {% endblock %}
