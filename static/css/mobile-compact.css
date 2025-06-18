@@ -1,0 +1,227 @@
+/* Mobile Compact UI - Additional optimizations for minimal vertical scrolling */
+
+/* Ultra-compact elements for mobile */
+@media (max-width: 767px) {
+    /* Reduce all spacing by 50% */
+    .container {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+    }
+    
+    /* Compact cards */
+    .card {
+        margin-bottom: 0.5rem !important;
+        border-radius: 4px !important;
+    }
+    
+    .card-header {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.8rem !important;
+    }
+    
+    .card-body {
+        padding: 0.5rem !important;
+    }
+    
+    /* Compact buttons */
+    .btn {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.75rem !important;
+    }
+    
+    .btn-sm {
+        padding: 0.2rem 0.4rem !important;
+        font-size: 0.7rem !important;
+    }
+    
+    /* Ultra-compact stats */
+    .dashboard-stat {
+        min-height: 55px !important;
+        margin-bottom: 4px !important;
+    }
+    
+    .stat-number {
+        font-size: 1.2rem !important;
+        margin-bottom: 1px !important;
+    }
+    
+    .stat-label {
+        font-size: 0.65rem !important;
+    }
+    
+    /* Compact action buttons */
+    .mobile-action-btn {
+        min-height: 32px !important;
+        padding: 6px 8px !important;
+        font-size: 11px !important;
+    }
+    
+    .mobile-action-btn i {
+        font-size: 10px !important;
+        margin-right: 3px !important;
+    }
+    
+    .mobile-btn-text {
+        font-size: 10px !important;
+    }
+    
+    /* Compact table for recent scans */
+    .table-sm td, .table-sm th {
+        padding: 0.2rem !important;
+        font-size: 0.7rem !important;
+    }
+    
+    /* Compact badges */
+    .badge {
+        font-size: 0.6rem !important;
+        padding: 0.15em 0.3em !important;
+    }
+    
+    /* Reduce navbar size */
+    .navbar {
+        min-height: 42px !important;
+        padding: 2px 0 !important;
+    }
+    
+    .navbar-brand {
+        font-size: 13px !important;
+    }
+    
+    /* Compact flash messages */
+    .alert {
+        padding: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+        font-size: 0.8rem !important;
+    }
+    
+    /* Footer compact */
+    .footer {
+        padding: 0.5rem 0 !important;
+        margin-top: 0.5rem !important;
+    }
+    
+    .footer p {
+        font-size: 0.7rem !important;
+        margin-bottom: 0.1rem !important;
+    }
+    
+    /* Reduce row spacing */
+    .row {
+        margin-bottom: 0.25rem !important;
+    }
+    
+    /* Compact headings */
+    h1, h2, h3, h4, h5, h6 {
+        margin-bottom: 0.25rem !important;
+    }
+    
+    h5 {
+        font-size: 1rem !important;
+    }
+    
+    h6 {
+        font-size: 0.9rem !important;
+    }
+    
+    /* Compact paragraph spacing */
+    p {
+        margin-bottom: 0.25rem !important;
+    }
+    
+    /* Ultra-compact mobile scan history */
+    .border-bottom {
+        padding: 0.5rem !important;
+    }
+    
+    .small, small {
+        font-size: 0.7rem !important;
+    }
+    
+    /* Optimize viewport usage */
+    .content {
+        padding: 0.125rem 0 !important;
+    }
+    
+    /* Minimal margin on rows */
+    .mb-1 {
+        margin-bottom: 0.125rem !important;
+    }
+    
+    .mb-2 {
+        margin-bottom: 0.25rem !important;
+    }
+    
+    /* Grid spacing reduction */
+    .g-1 > * {
+        padding: 0.125rem !important;
+    }
+    
+    /* Icon sizing */
+    .fas, .far, .fab {
+        font-size: 0.8em !important;
+    }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 767px) and (orientation: landscape) {
+    .dashboard-stat {
+        min-height: 50px !important;
+    }
+    
+    .stat-number {
+        font-size: 1.1rem !important;
+    }
+    
+    .stat-label {
+        font-size: 0.6rem !important;
+    }
+    
+    .mobile-action-btn {
+        min-height: 28px !important;
+        padding: 4px 6px !important;
+    }
+    
+    .navbar {
+        min-height: 38px !important;
+    }
+}
+
+/* Very small screens (below 400px) */
+@media (max-width: 399px) {
+    .container {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+    }
+    
+    .col-6 {
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+    }
+    
+    .col-4 {
+        padding-left: 1px !important;
+        padding-right: 1px !important;
+    }
+    
+    .dashboard-stat {
+        min-height: 50px !important;
+    }
+    
+    .stat-number {
+        font-size: 1.1rem !important;
+    }
+    
+    .stat-label {
+        font-size: 0.6rem !important;
+    }
+    
+    .mobile-action-btn {
+        min-height: 30px !important;
+        padding: 5px 4px !important;
+        font-size: 10px !important;
+    }
+    
+    .mobile-btn-text {
+        font-size: 9px !important;
+    }
+}
