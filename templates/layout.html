@@ -170,8 +170,9 @@
     </style>
     
     {% block styles %}{% endblock %}
+    {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
         <div class="container">

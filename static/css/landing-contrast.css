@@ -1,0 +1,88 @@
+/* LANDING PAGE HIGH CONTRAST OVERRIDE - Highest Priority */
+
+/* Force light background and dark text for maximum contrast */
+body {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    color: #212529 !important;
+}
+
+/* Override ALL text elements with maximum specificity */
+* {
+    color: #212529 !important;
+}
+
+/* Specific overrides for common elements */
+h1, h2, h3, h4, h5, h6 {
+    color: #212529 !important;
+    font-weight: 700 !important;
+}
+
+p, span, div, label {
+    color: #212529 !important;
+}
+
+.lead {
+    color: #495057 !important;
+    font-weight: 600 !important;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+/* Ensure buttons maintain proper contrast */
+.btn-primary {
+    background-color: #007bff !important;
+    border-color: #007bff !important;
+    color: #ffffff !important;
+}
+
+.btn-outline-primary {
+    border-color: #007bff !important;
+    color: #007bff !important;
+    background: #ffffff !important;
+}
+
+/* Feature cards */
+.card {
+    background: #ffffff !important;
+    border: 2px solid #dee2e6 !important;
+    color: #212529 !important;
+}
+
+/* Keep blue sections with white text */
+.feature-showcase,
+.feature-showcase * {
+    color: #ffffff !important;
+}
+
+.feature-mini-card,
+.feature-mini-card * {
+    color: #ffffff !important;
+}
+
+/* Version badge */
+.version-badge {
+    color: #007bff !important;
+    background: #ffffff !important;
+    border: 2px solid #007bff !important;
+}
+
+/* Feature icons */
+.feature-icon {
+    color: #007bff !important;
+}
+
+/* Hero section styling */
+.hero-section {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 15px !important;
+}
+
+/* Call to action section */
+.cta-section {
+    background: #ffffff !important;
+    border: 2px solid #e9ecef !important;
+    border-radius: 15px !important;
+}

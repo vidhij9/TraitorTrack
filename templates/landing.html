@@ -2,27 +2,63 @@
 
 {% block title %}Welcome to traitor track{% endblock %}
 
+{% block body_class %}landing-page{% endblock %}
+
 {% block extra_css %}
 <style>
-/* High-contrast landing page design */
-body {
+/* LANDING PAGE HIGH CONTRAST OVERRIDE - Maximum specificity */
+body.landing-page {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
-    min-height: 100vh;
+    min-height: 100vh !important;
+    color: #212529 !important;
 }
 
+/* Force override all existing styles with ultra-high specificity */
+body.landing-page *,
+body.landing-page h1,
+body.landing-page h2,
+body.landing-page h3,
+body.landing-page h4,
+body.landing-page h5,
+body.landing-page h6,
+body.landing-page p,
+body.landing-page span,
+body.landing-page div:not(.feature-showcase):not(.feature-mini-card),
+body.landing-page .card-title,
+body.landing-page .card-text {
+    color: #212529 !important;
+    font-weight: inherit !important;
+}
+
+/* Container styling */
 .container-fluid {
     background: transparent !important;
 }
 
-/* High contrast text - dark on light */
-.landing-text-primary {
+/* All text elements with maximum specificity */
+body .container-fluid h1,
+body .container-fluid h2,
+body .container-fluid h3,
+body .container-fluid h4,
+body .container-fluid h5,
+body .container-fluid h6,
+body .container-fluid p,
+body .container-fluid span,
+body .container-fluid div:not(.feature-showcase):not(.feature-mini-card),
+body .container-fluid .lead {
     color: #212529 !important;
     font-weight: 600 !important;
 }
 
+/* Specific text styling classes */
+.landing-text-primary {
+    color: #212529 !important;
+    font-weight: 700 !important;
+}
+
 .landing-text-secondary {
     color: #495057 !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
 }
 
 .landing-text-muted {
@@ -30,16 +66,10 @@ body {
     font-weight: 500 !important;
 }
 
-/* Headers with strong contrast */
-h1, h2, h3, h4, h5, h6 {
-    color: #212529 !important;
-    font-weight: 700 !important;
-}
-
-/* Lead text with high contrast */
-.lead {
+/* Lead text override */
+body .lead {
     color: #495057 !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     font-size: 1.25rem !important;
 }
 
@@ -67,7 +97,7 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 500 !important;
 }
 
-/* Version number with high contrast */
+/* Version badge */
 .version-badge {
     color: #007bff !important;
     font-weight: 700 !important;
@@ -75,15 +105,16 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0.5rem 1rem !important;
     border-radius: 50px !important;
     border: 2px solid #007bff !important;
+    display: inline-block !important;
 }
 
-/* Feature icons with strong visibility */
+/* Feature icons */
 .feature-icon {
     color: #007bff !important;
     filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.1)) !important;
 }
 
-/* High contrast buttons */
+/* Button styling */
 .btn-primary {
     background-color: #007bff !important;
     border-color: #007bff !important;
@@ -114,7 +145,7 @@ h1, h2, h3, h4, h5, h6 {
     transform: translateY(-1px) !important;
 }
 
-/* Hero section with gradient background */
+/* Hero section */
 .hero-section {
     background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
     border: 1px solid #dee2e6 !important;
@@ -122,28 +153,41 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
 }
 
-/* Feature showcase with high contrast */
+.hero-section * {
+    color: #212529 !important;
+}
+
+.hero-section .landing-text-secondary {
+    color: #495057 !important;
+}
+
+.hero-section .landing-text-muted {
+    color: #6c757d !important;
+}
+
+/* Feature showcase - keep white text on blue background */
 .feature-showcase {
     background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
-    color: #ffffff !important;
     border-radius: 15px !important;
     box-shadow: 0 10px 30px rgba(0,123,255,0.3) !important;
 }
 
-.feature-showcase h3, .feature-showcase h6 {
-    color: #ffffff !important;
-    font-weight: 700 !important;
-}
-
+.feature-showcase *,
+.feature-showcase h3,
+.feature-showcase h6,
 .feature-showcase p {
     color: #ffffff !important;
-    opacity: 0.9 !important;
+    font-weight: 700 !important;
 }
 
 .feature-mini-card {
     background: rgba(255,255,255,0.15) !important;
     border: 1px solid rgba(255,255,255,0.2) !important;
     backdrop-filter: blur(10px) !important;
+}
+
+.feature-mini-card * {
+    color: #ffffff !important;
 }
 
 /* Call to action section */
@@ -154,19 +198,13 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 5px 15px rgba(0,0,0,0.08) !important;
 }
 
-.cta-section h3 {
+.cta-section * {
     color: #212529 !important;
 }
 
 .cta-section p {
     color: #6c757d !important;
 }
-
-/* Override Bootstrap text utilities for high contrast */
-.text-white { color: #ffffff !important; }
-.text-light { color: #495057 !important; }
-.text-muted { color: #6c757d !important; }
-.text-primary { color: #007bff !important; }
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
@@ -175,20 +213,12 @@ h1, h2, h3, h4, h5, h6 {
         padding: 20px !important;
     }
     
-    .display-6 {
-        font-size: 2rem !important;
-    }
-    
-    .lead {
-        font-size: 1.1rem !important;
-    }
-    
     .feature-showcase {
         margin: 10px !important;
     }
 }
 
-/* Ensure logo visibility */
+/* Logo visibility */
 img[alt="Traitor Track"] {
     filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.1)) !important;
 }
