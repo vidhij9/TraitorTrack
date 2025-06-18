@@ -44,71 +44,46 @@
 
 <!-- Status Cards -->
 <div class="row mb-4" id="status-cards">
-    <div class="col-md-3 mb-4">
-        <div class="stats-card">
-            <div class="text-primary mb-2">
-                <i class="fas fa-boxes fa-2x"></i>
+    <!-- Single Horizontal Stats Table -->
+    <div class="col-12 mb-3">
+        <div class="bg-white rounded border p-2">
+            <div class="row text-center" style="font-size: 11px;">
+                <div class="col-3" style="padding: 4px; border-right: 1px solid #dee2e6;">
+                    <div style="font-size: 18px; font-weight: bold; color: #007bff;" id="total-parent-bags">0</div>
+                    <div style="font-size: 9px; color: #666; text-transform: uppercase; font-weight: 600;">Parents</div>
+                </div>
+                <div class="col-3" style="padding: 4px; border-right: 1px solid #dee2e6;">
+                    <div style="font-size: 18px; font-weight: bold; color: #28a745;" id="total-child-bags">0</div>
+                    <div style="font-size: 9px; color: #666; text-transform: uppercase; font-weight: 600;">Children</div>
+                </div>
+                <div class="col-3" style="padding: 4px; border-right: 1px solid #dee2e6;">
+                    <div style="font-size: 18px; font-weight: bold; color: #ffc107;" id="total-bills">0</div>
+                    <div style="font-size: 9px; color: #666; text-transform: uppercase; font-weight: 600;">Bills</div>
+                </div>
+                <div class="col-3" style="padding: 4px;">
+                    <div style="font-size: 18px; font-weight: bold; color: #dc3545;" id="total-scans">0</div>
+                    <div style="font-size: 9px; color: #666; text-transform: uppercase; font-weight: 600;">Scans</div>
+                </div>
             </div>
-            <h3 class="text-primary" id="total-parent-bags">0</h3>
-            <p class="text-muted mb-0">Parent Bags</p>
-            <small class="text-primary">Primary Items</small>
-        </div>
-    </div>
-    <div class="col-md-3 mb-4">
-        <div class="stats-card">
-            <div class="text-success mb-2">
-                <i class="fas fa-cube fa-2x"></i>
-            </div>
-            <h3 class="text-success" id="total-child-bags">0</h3>
-            <p class="text-muted mb-0">Child Bags</p>
-            <small class="text-success">Sub Items</small>
-        </div>
-    </div>
-    <div class="col-md-3 mb-4">
-        <div class="stats-card">
-            <div class="text-warning mb-2">
-                <i class="fas fa-file-invoice fa-2x"></i>
-            </div>
-            <h3 class="text-warning" id="total-bills">0</h3>
-            <p class="text-muted mb-0">Active Bills</p>
-            <small class="text-warning">Open Orders</small>
-        </div>
-    </div>
-    <div class="col-md-3 mb-4">
-        <div class="stats-card">
-            <div class="text-info mb-2">
-                <i class="fas fa-qrcode fa-2x"></i>
-            </div>
-            <h3 class="text-info" id="total-scans">0</h3>
-            <p class="text-muted mb-0">Total Scans</p>
-            <small class="text-info">Scan Events</small>
         </div>
     </div>
 </div>
 
-<!-- Quick Actions -->
-<div class="card bg-dark mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4 mb-3">
-                <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
-                    <i class="fas fa-qrcode me-2"></i>Scan Parent Bags
-                </a>
-            </div>
-            <div class="col-md-4 mb-3">
-                <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
-                    <i class="fas fa-file-invoice me-2"></i>Manage Bills
-                </a>
-            </div>
-            <div class="col-md-4 mb-3">
-                <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-primary btn-lg w-100 action-button">
-                    <i class="fas fa-search me-2"></i>Lookup Child Bag
-                </a>
-            </div>
-        </div>
+<!-- Compact Horizontal Actions -->
+<div class="mb-3">
+    <div class="d-flex" style="gap: 4px;">
+        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary flex-fill text-center" style="font-size: 10px; padding: 8px 4px; height: 60px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="font-size: 18px;">📷</div>
+            <div style="font-size: 9px; font-weight: 600;">SCAN PARENT BAGS</div>
+        </a>
+        <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success flex-fill text-center" style="font-size: 10px; padding: 8px 4px; height: 60px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="font-size: 18px;">📋</div>
+            <div style="font-size: 9px; font-weight: 600;">MANAGE BILLS</div>
+        </a>
+        <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-info flex-fill text-center" style="font-size: 10px; padding: 8px 4px; height: 60px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="font-size: 18px;">🔍</div>
+            <div style="font-size: 9px; font-weight: 600;">LOOKUP CHILD BAG</div>
+        </a>
     </div>
 </div>
 
