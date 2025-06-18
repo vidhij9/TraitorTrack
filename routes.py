@@ -561,7 +561,7 @@ def fix_admin_password():
     return "Admin user not found"
 
 @app.route('/register', methods=['GET', 'POST'])
-@limiter.limit("3 per minute")
+@limiter.limit("10 per minute")  # Increased limit for testing
 def register():
     """User registration page with form validation"""
     if is_authenticated():
