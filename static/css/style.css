@@ -18,6 +18,32 @@
   color: #2c3e50 !important;
 }
 
+/* Force green navbar background on all devices - highest specificity */
+nav.navbar,
+.navbar,
+nav.navbar.navbar-expand-lg,
+.navbar.navbar-expand-lg {
+  background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
+  border-bottom: 2px solid #DAA520 !important;
+  box-shadow: 0 1px 4px rgba(45, 80, 22, 0.3) !important;
+}
+
+/* Ensure navbar text is white */
+nav.navbar .navbar-brand,
+nav.navbar .nav-link,
+.navbar .navbar-brand,
+.navbar .nav-link {
+  color: #ffffff !important;
+}
+
+nav.navbar .nav-link:hover,
+nav.navbar .nav-link:focus,
+.navbar .nav-link:hover,
+.navbar .nav-link:focus {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
 .text-success {
   color: var(--tt-green) !important;
 }

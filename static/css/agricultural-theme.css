@@ -38,12 +38,12 @@ body {
     body { font-size: 16px; }
 }
 
-/* High contrast navigation */
+/* High contrast navigation - Override to use green theme */
 .navbar {
-    background: var(--white) !important;
-    border-bottom: 2px solid var(--border);
+    background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
+    border-bottom: 2px solid #DAA520;
     min-height: 64px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
 }
 
 .navbar-brand {
