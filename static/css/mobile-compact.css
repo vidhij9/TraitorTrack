@@ -1,5 +1,205 @@
 /* Mobile Compact UI - Additional optimizations for minimal vertical scrolling */
 
+/* Ultra-compact stats grid like modern apps */
+.stats-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 8px;
+    background: rgba(0,0,0,0.03);
+    border-radius: 8px;
+    margin: 0 4px;
+}
+
+.stat-micro {
+    background: white;
+    border-radius: 6px;
+    padding: 8px 4px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: transform 0.1s ease;
+}
+
+.stat-micro:active {
+    transform: scale(0.98);
+}
+
+.stat-icon {
+    font-size: 12px;
+    margin-bottom: 2px;
+    opacity: 0.7;
+}
+
+.stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2c3e50;
+    line-height: 1;
+    margin-bottom: 1px;
+}
+
+.stat-tiny-label {
+    font-size: 9px;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* Color coding for different stats */
+.stat-micro:nth-child(1) .stat-value { color: #3498db; }
+.stat-micro:nth-child(2) .stat-value { color: #27ae60; }
+.stat-micro:nth-child(3) .stat-value { color: #f39c12; }
+.stat-micro:nth-child(4) .stat-value { color: #e74c3c; }
+
+/* Ultra-compact header */
+.header-compact {
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    border-radius: 8px;
+    margin: 0 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    color: white;
+}
+
+.header-icon {
+    font-size: 14px;
+    margin-right: 6px;
+}
+
+.header-text {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.header-user {
+    display: flex;
+    align-items: center;
+}
+
+.user-badge {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.user-badge.admin {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+/* Ultra-compact action grid */
+.actions-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 8px;
+    margin: 0 4px;
+}
+
+.action-micro {
+    background: white;
+    border-radius: 6px;
+    padding: 10px 4px;
+    text-align: center;
+    text-decoration: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: all 0.1s ease;
+    display: block;
+}
+
+.action-micro:hover,
+.action-micro:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    text-decoration: none;
+}
+
+.action-micro:active {
+    transform: scale(0.98);
+}
+
+.action-icon {
+    font-size: 16px;
+    margin-bottom: 3px;
+}
+
+.action-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1;
+}
+
+/* Action color themes */
+.action-primary { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+.action-success { background: linear-gradient(135deg, #27ae60, #229954); color: white; }
+.action-info { background: linear-gradient(135deg, #17a2b8, #138496); color: white; }
+.action-warning { background: linear-gradient(135deg, #f39c12, #e67e22); color: white; }
+
+/* Make it even more compact on very small screens */
+@media (max-width: 399px) {
+    .stats-compact-grid {
+        gap: 4px;
+        padding: 6px;
+    }
+    
+    .stat-micro {
+        padding: 6px 2px;
+    }
+    
+    .stat-icon {
+        font-size: 10px;
+    }
+    
+    .stat-value {
+        font-size: 14px;
+    }
+    
+    .stat-tiny-label {
+        font-size: 8px;
+    }
+    
+    .actions-compact-grid {
+        gap: 4px;
+        padding: 6px;
+    }
+    
+    .action-micro {
+        padding: 8px 2px;
+    }
+    
+    .action-icon {
+        font-size: 14px;
+    }
+    
+    .action-label {
+        font-size: 9px;
+    }
+}
+
 /* Ultra-compact elements for mobile */
 @media (max-width: 767px) {
     /* Reduce all spacing by 50% */
