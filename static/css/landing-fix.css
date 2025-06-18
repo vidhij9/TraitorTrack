@@ -1,40 +1,56 @@
 /* Landing page text visibility fixes */
 
-/* Ensure all text is visible with proper contrast */
+/* Force dark background for better contrast */
+body {
+    background-color: #1a1a1a !important;
+}
+
 .container-fluid {
     background-color: #1a1a1a !important;
+}
+
+/* Force all text to be white with high contrast */
+* {
+    color: #ffffff !important;
 }
 
 /* Main text elements */
 .lead, .text-light, .text-muted {
     color: #ffffff !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
 }
 
-/* Headers */
+/* Headers - make them stand out */
 h1, h2, h3, h4, h5, h6 {
     color: #ffffff !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8) !important;
 }
 
 /* Paragraphs and general text */
 p {
-    color: #e0e0e0 !important;
-}
-
-/* Feature text */
-.text-white {
     color: #ffffff !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.6) !important;
 }
 
-.text-muted {
-    color: #cccccc !important;
+/* Override all Bootstrap text classes */
+.text-white, .text-light, .text-muted, .text-secondary {
+    color: #ffffff !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.6) !important;
 }
 
 /* Card content */
 .card-text {
     color: #ffffff !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.6) !important;
 }
 
 .card-title {
+    color: #ffffff !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.6) !important;
+}
+
+/* Divs and spans */
+div, span, small {
     color: #ffffff !important;
 }
 
@@ -45,6 +61,17 @@ p {
 
 .bg-dark {
     background-color: #2d2d2d !important;
+}
+
+/* Force dark backgrounds */
+.row, .col-lg-6, .col-md-4, .col-md-6, .col-12 {
+    background-color: transparent !important;
+}
+
+/* Cards need dark backgrounds */
+.card {
+    background-color: #2d2d2d !important;
+    border: 1px solid #444 !important;
 }
 
 /* Version number */
@@ -102,4 +129,25 @@ p {
 /* Ensure logo visibility */
 img[alt="Traitor Track"] {
     filter: brightness(1.2) !important;
+}
+
+/* Footer text */
+footer, .footer {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+/* Override any remaining light text */
+.flex-grow-1, .align-self-center {
+    color: #ffffff !important;
+}
+
+/* Feature icons area */
+.d-flex .flex-shrink-0, .d-flex .flex-grow-1 {
+    color: #ffffff !important;
+}
+
+/* Ensure all paragraph text is visible */
+.mb-0, .mb-1, .mb-3, .mb-4 {
+    color: #ffffff !important;
 }
