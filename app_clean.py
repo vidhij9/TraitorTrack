@@ -41,7 +41,7 @@ app.config.update(
 # Configure database with environment-specific URLs
 def get_current_environment():
     """Detect current environment with improved logic"""
-    # Check explicit environment variable first
+    # Check explicit environment variable first - highest priority
     env = os.environ.get('ENVIRONMENT', '').lower()
     if env in ['production', 'prod']:
         return 'production'
@@ -55,17 +55,8 @@ def get_current_environment():
     elif flask_env in ['development', 'dev']:
         return 'development'
     
-    # Check Replit environment indicators
-    replit_env = os.environ.get('REPLIT_ENVIRONMENT', '').lower()
-    if replit_env == 'production':
-        return 'production'
-    
-    # Check REPL_SLUG for specific production deployments
-    repl_slug = os.environ.get('REPL_SLUG', '')
-    if repl_slug == 'traitortrack':
-        return 'production'
-    
-    # Default to development for safety
+    # For development safety, default to development unless explicitly configured for production
+    # This prevents accidental production mode in development environments
     return 'development'
 
 def get_database_url():
