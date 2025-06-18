@@ -23,7 +23,7 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, input, textarea, select, button, a 
 }
 
 /* Card and content backgrounds */
-.card {
+.card, .card.bg-dark {
     background-color: #ffffff !important;
     border: 1px solid #dee2e6 !important;
     color: #2c3e50 !important;
@@ -31,22 +31,40 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, input, textarea, select, button, a 
 }
 
 .card-body, .card-header, .card-footer {
-    background-color: transparent !important;
+    background-color: #ffffff !important;
     color: #2c3e50 !important;
 }
 
-/* Table styling */
-.table {
+.card-header.bg-dark, .card.bg-dark .card-header {
+    background-color: #f8f9fa !important;
     color: #2c3e50 !important;
-    background-color: transparent !important;
 }
 
-.table td, .table th {
+/* Table styling - Force light theme */
+.table, .table-dark {
+    color: #2c3e50 !important;
+    background-color: #ffffff !important;
+}
+
+.table td, .table th, .table-dark td, .table-dark th {
+    color: #2c3e50 !important;
+    background-color: #ffffff !important;
+    border-color: #dee2e6 !important;
+}
+
+.table thead th, .table-dark thead th {
+    background-color: #f8f9fa !important;
     color: #2c3e50 !important;
     border-color: #dee2e6 !important;
 }
 
-.table-dark {
+.table tbody tr:hover, .table-dark tbody tr:hover {
+    background-color: #f1f3f4 !important;
+    color: #2c3e50 !important;
+}
+
+.table-striped tbody tr:nth-of-type(odd), 
+.table-dark.table-striped tbody tr:nth-of-type(odd) {
     background-color: #f8f9fa !important;
     color: #2c3e50 !important;
 }

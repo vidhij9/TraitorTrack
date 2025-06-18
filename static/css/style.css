@@ -12,9 +12,10 @@
   --tt-gray: #6c757d;
 }
 
-/* Override some Bootstrap defaults for dark theme */
+/* Override some Bootstrap defaults for light theme */
 .bg-dark {
-  background-color: var(--tt-dark) !important;
+  background-color: #ffffff !important;
+  color: #2c3e50 !important;
 }
 
 .text-success {

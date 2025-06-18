@@ -172,23 +172,24 @@ body {
     letter-spacing: 0.05em;
 }
 
-/* Maximum contrast tables */
+/* Maximum contrast tables - Light theme override */
 .table-responsive {
     font-size: 0.875rem;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid var(--border);
+    border: 1px solid #dee2e6;
 }
 
-.table {
+.table, .table-dark {
     margin-bottom: 0;
-    background: var(--white);
+    background: #ffffff !important;
+    color: #2c3e50 !important;
 }
 
-.table thead th {
-    background: var(--primary);
-    color: var(--white);
+.table thead th, .table-dark thead th {
+    background: #f8f9fa !important;
+    color: #2c3e50 !important;
     font-weight: 700;
     font-size: 0.875rem;
     padding: 1rem 0.75rem;
@@ -197,16 +198,24 @@ body {
     letter-spacing: 0.05em;
 }
 
-.table tbody td {
+.table tbody td, .table-dark tbody td {
     padding: 1rem 0.75rem;
     vertical-align: middle;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #dee2e6;
     font-size: 0.875rem;
-    color: var(--text-primary);
+    color: #2c3e50 !important;
+    background-color: #ffffff !important;
 }
 
-.table tbody tr:hover {
-    background-color: var(--gray-100);
+.table tbody tr:hover, .table-dark tbody tr:hover {
+    background-color: #f1f3f4 !important;
+    color: #2c3e50 !important;
+}
+
+.table-striped tbody tr:nth-of-type(odd), 
+.table-dark.table-striped tbody tr:nth-of-type(odd) {
+    background-color: #f8f9fa !important;
+    color: #2c3e50 !important;
 }
 
 .table tbody tr:last-child td {

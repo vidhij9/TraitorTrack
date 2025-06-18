@@ -19,28 +19,28 @@
     <!-- Compact Statistics Overview -->
     <div class="row mb-2">
         <div class="col-12">
-            <div class="card bg-dark">
+            <div class="card bg-light border">
                 <div class="card-body p-1">
                     <div class="row g-0 text-center">
                         <div class="col">
-                            <div class="stat-number-sm">{{ stats.total_bags }}</div>
-                            <div class="stat-label-sm">Total</div>
+                            <div class="stat-number-sm text-dark">{{ stats.total_bags }}</div>
+                            <div class="stat-label-sm text-dark">Total</div>
                         </div>
                         <div class="col">
                             <div class="stat-number-sm text-info">{{ stats.parent_bags }}</div>
-                            <div class="stat-label-sm">Parent</div>
+                            <div class="stat-label-sm text-dark">Parent</div>
                         </div>
                         <div class="col">
                             <div class="stat-number-sm text-success">{{ stats.child_bags }}</div>
-                            <div class="stat-label-sm">Child</div>
+                            <div class="stat-label-sm text-dark">Child</div>
                         </div>
                         <div class="col d-none d-sm-block">
                             <div class="stat-number-sm text-primary">{{ stats.linked_bags|default(0) }}</div>
-                            <div class="stat-label-sm">Linked</div>
+                            <div class="stat-label-sm text-dark">Linked</div>
                         </div>
                         <div class="col d-none d-sm-block">
                             <div class="stat-number-sm text-warning">{{ stats.unlinked_bags|default(0) }}</div>
-                            <div class="stat-label-sm">Unlinked</div>
+                            <div class="stat-label-sm text-dark">Unlinked</div>
                         </div>
                     </div>
                 </div>
@@ -49,7 +49,7 @@
     </div>
 
     <!-- Compact Collapsible Filters -->
-    <div class="card bg-dark mb-2">
+    <div class="card bg-light border mb-2">
         <div class="card-header p-2" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" style="cursor: pointer;">
             <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 small"><i class="fas fa-filter me-2"></i>Filters</h6>
@@ -135,9 +135,9 @@
     </div>
 
     <!-- Bags Table -->
-    <div class="card bg-dark">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
+    <div class="card bg-light border">
+        <div class="card-header d-flex justify-content-between align-items-center bg-light text-dark">
+            <h5 class="mb-0 text-dark">
                 <i class="fas fa-list me-2"></i>Bags 
                 <span class="badge bg-secondary ms-2">{{ stats.filtered_count }} found</span>
             </h5>
@@ -146,8 +146,8 @@
         <div class="card-body p-0">
             {% if bags %}
             <div class="table-responsive">
-                <table class="table table-dark table-striped table-hover mb-0">
-                    <thead class="table-dark">
+                <table class="table table-light table-striped table-hover mb-0">
+                    <thead class="table-light">
                         <tr>
                             <th width="20%">QR Code</th>
                             <th width="12%" class="mobile-hide-sm">Type</th>
