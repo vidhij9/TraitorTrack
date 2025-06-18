@@ -27,27 +27,23 @@
             </div>
         </div>
         
-        <!-- Ultra-Compact Quick Actions -->
+        <!-- Horizontal Compact Actions -->
         <div class="row g-1 mb-1">
-            <div class="col-3">
-                <a href="{{ url_for('scan_parent') }}" class="btn btn-primary btn-sm w-100 py-1" style="font-size: 11px;">
-                    📷 Scan
-                </a>
-            </div>
-            <div class="col-3">
-                <a href="{{ url_for('bill_management') }}" class="btn btn-success btn-sm w-100 py-1" style="font-size: 11px;">
-                    📋 Bills
-                </a>
-            </div>
-            <div class="col-3">
-                <a href="{{ url_for('child_lookup') }}" class="btn btn-info btn-sm w-100 py-1" style="font-size: 11px;">
-                    🔍 Search
-                </a>
-            </div>
-            <div class="col-3">
-                <a href="{{ url_for('bag_management') }}" class="btn btn-warning btn-sm w-100 py-1" style="font-size: 11px;">
-                    📦 Bags
-                </a>
+            <div class="col-12">
+                <div class="d-flex gap-1">
+                    <a href="{{ url_for('scan_parent') }}" class="btn btn-primary btn-sm flex-fill py-1" style="font-size: 10px; min-height: 32px;">
+                        📷<br><small>Scan</small>
+                    </a>
+                    <a href="{{ url_for('bill_management') }}" class="btn btn-success btn-sm flex-fill py-1" style="font-size: 10px; min-height: 32px;">
+                        📋<br><small>Bills</small>
+                    </a>
+                    <a href="{{ url_for('child_lookup') }}" class="btn btn-info btn-sm flex-fill py-1" style="font-size: 10px; min-height: 32px;">
+                        🔍<br><small>Search</small>
+                    </a>
+                    <a href="{{ url_for('bag_management') }}" class="btn btn-warning btn-sm flex-fill py-1" style="font-size: 10px; min-height: 32px;">
+                        📦<br><small>Bags</small>
+                    </a>
+                </div>
             </div>
         </div>
         

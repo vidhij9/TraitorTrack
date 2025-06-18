@@ -1,0 +1,98 @@
+/* FORCE MOBILE COMPACT DESIGN - Override everything */
+
+/* Force table stats to be ultra compact */
+.table-sm td {
+    padding: 2px 4px !important;
+    font-size: 10px !important;
+    border: none !important;
+}
+
+.table-sm strong {
+    font-size: 12px !important;
+    display: block !important;
+    line-height: 1 !important;
+    color: #2c3e50 !important;
+}
+
+.table-sm small {
+    font-size: 8px !important;
+    color: #666 !important;
+    text-transform: uppercase !important;
+    font-weight: 600 !important;
+}
+
+/* Force compact buttons */
+.btn-sm {
+    padding: 4px 6px !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    min-height: 28px !important;
+}
+
+.btn-sm small {
+    font-size: 8px !important;
+    display: block !important;
+    margin-top: 1px !important;
+}
+
+/* Force compact containers */
+.container {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+.row {
+    margin-left: -2px !important;
+    margin-right: -2px !important;
+}
+
+.row > * {
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+}
+
+/* Force minimal margins */
+.mb-1 {
+    margin-bottom: 0.25rem !important;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem !important;
+}
+
+/* Override any card backgrounds */
+.card, .card.bg-dark, .card.bg-primary, .card.bg-success, .card.bg-warning, .card.bg-info {
+    background: white !important;
+    color: #333 !important;
+    border: 1px solid #ddd !important;
+    min-height: auto !important;
+    padding: 4px !important;
+}
+
+.card-body {
+    padding: 4px !important;
+}
+
+.card-header {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    background: #f8f9fa !important;
+    color: #333 !important;
+}
+
+/* Force compact dashboard header */
+.bg-dark {
+    background: #343a40 !important;
+    color: white !important;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+}
+
+/* Force flex gap */
+.d-flex.gap-1 {
+    gap: 0.125rem !important;
+}
+
+.flex-fill {
+    flex: 1 1 0% !important;
+}

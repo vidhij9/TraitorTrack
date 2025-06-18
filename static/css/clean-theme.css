@@ -644,20 +644,31 @@ a:hover {
     margin: 0.5rem 0 !important;
 }
 
-/* Stats cards - Ultra Compact Mobile Dashboard */
-.stats-card, .dashboard-stat {
+/* Stats cards - FORCE Ultra Compact Layout */
+.stats-card, .dashboard-stat, .card.dashboard-stat {
     background: white !important;
     border: 1px solid rgba(0,0,0,0.1) !important;
     border-radius: 6px !important;
     color: #2c3e50 !important;
-    padding: 8px 4px !important;
+    padding: 4px 2px !important;
     text-align: center !important;
-    margin-bottom: 6px !important;
+    margin-bottom: 4px !important;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-    min-height: 60px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
+}
+
+/* Force override all Bootstrap card styles */
+.card.bg-primary, .card.bg-success, .card.bg-warning, .card.bg-info {
+    background: white !important;
+    color: #2c3e50 !important;
+    border: 1px solid rgba(0,0,0,0.1) !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    padding: 4px 2px !important;
 }
 
 /* Remove hover effects that cause problems on mobile */
