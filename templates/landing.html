@@ -2,6 +2,10 @@
 
 {% block title %}Welcome to traitor track{% endblock %}
 
+{% block extra_css %}
+<link href="{{ url_for('static', filename='css/landing-fix.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Hero Section -->
