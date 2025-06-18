@@ -167,8 +167,8 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="/">
-                <i class="fas fa-qrcode me-2"></i>Traitor Track
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <img src="{{ url_for('static', filename='img/traitor-track-logo-black.svg') }}" alt="Traitor Track" class="logo-img">
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -317,7 +317,9 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-6 mb-3 mb-md-0">
-                    <h5 class="text-light mb-3">Traitor Track</h5>
+                    <div class="mb-3">
+                        <img src="{{ url_for('static', filename='img/traitor-track-logo.svg') }}" alt="Traitor Track" style="max-height: 40px; width: auto;">
+                    </div>
                     <p class="text-muted mb-0">Advanced supply chain traceability platform for comprehensive agricultural product tracking.</p>
                 </div>
                 <div class="col-md-6 text-md-end">

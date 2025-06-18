@@ -12,6 +12,21 @@
     --sage-green: #9CAF88;
 }
 
+/* Logo styling */
+.navbar-brand {
+    padding: 0.5rem 0 !important;
+}
+
+.navbar-brand img {
+    max-height: 45px;
+    width: auto;
+    transition: opacity 0.3s ease;
+}
+
+.navbar-brand:hover img {
+    opacity: 0.8;
+}
+
 /* Reset and ensure visibility */
 * {
     color: inherit;
