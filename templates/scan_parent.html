@@ -5,82 +5,37 @@
 
 {% block content %}
 <div class="container">
-    <div class="row mb-2">
-        <div class="col-12">
-            <div class="mobile-header-card">
-                <h5 class="mb-1">
-                    <i class="fas fa-qrcode me-1"></i>Scan Parent Bag
-                </h5>
-                <div class="mobile-progress-steps">
-                    <span class="step-badge completed">1</span>
-                    <span class="step-badge active">2</span>
-                    <span class="step-badge">3</span>
-                    <span class="step-badge">4</span>
-                </div>
-                <small class="text-muted">Step 2: Scan parent bag QR code</small>
-            </div>
+    <div class="ultra-scan-header">
+        <span>Scan Parent</span>
+        <div class="ultra-progress">
+            <span class="progress-dot completed"></span>
+            <span class="progress-dot active"></span>
+            <span class="progress-dot"></span>
+            <span class="progress-dot"></span>
         </div>
     </div>
     
-    <div class="row">
-        <div class="col-lg-6 mb-2 mb-lg-0">
-            <div class="mobile-scan-camera-card">
-                <div class="mobile-scan-header">
-                    <h6 class="mb-0"><i class="fas fa-camera me-1"></i>Camera Scanner</h6>
-                </div>
-                <div class="mobile-scan-body">
-                    <div class="mobile-video-container">
-                        <video id="video" autoplay muted playsinline style="display: none;"></video>
-                        <canvas id="canvas" style="display: none;"></canvas>
-                        <div id="camera-placeholder" class="mobile-camera-placeholder">
-                            <i class="fas fa-camera"></i>
-                            <span>Tap to start scanning</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mobile-camera-controls">
-                        <button id="start-camera" class="btn btn-success btn-mobile-full">
-                            <i class="fas fa-play me-1"></i>Start Camera
-                        </button>
-                        <button id="stop-camera" class="btn btn-danger btn-mobile-full" style="display: none;">
-                            <i class="fas fa-stop me-1"></i>Stop Camera
-                        </button>
-                    </div>
-                </div>
+    <div class="ultra-scan-layout">
+        <!-- Ultra Compact Camera -->
+        <div class="ultra-camera-card">
+            <div class="ultra-video-container">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="canvas" style="display: none;"></canvas>
+                <div id="scan-target" class="ultra-scan-target"></div>
             </div>
         </div>
         
-        <div class="col-lg-6">
-            <div class="mobile-scan-result-card">
-                <div class="mobile-scan-header">
-                    <h6 class="mb-0"><i class="fas fa-clipboard-check me-1"></i>Scan Result</h6>
-                </div>
-                <div class="mobile-scan-body">
-                    <div id="result-container" class="mobile-result-info">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Scan result will appear here
-                    </div>
-                    
-                    <div id="scan-success" class="mobile-result-success d-none">
-                        <div class="result-icon">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <h6>Parent Bag Scanned</h6>
-                        <p>QR: <span id="parent-qr-value" class="fw-bold"></span></p>
-                        <a id="scan-child-link" href="#" class="btn btn-success btn-mobile-full">
-                            <i class="fas fa-arrow-right me-1"></i>Scan Child Bags
-                        </a>
-                    </div>
-                    
-                    <form id="manual-entry-form" class="mobile-manual-form">
-                        <label for="manual-qr-code" class="form-label-mobile">Manual Entry</label>
-                        <div class="mobile-input-group">
-                            <input type="text" class="form-control-mobile" id="manual-qr-code" placeholder="Enter QR code">
-                            <button type="submit" class="btn btn-primary btn-mobile">Submit</button>
-                        </div>
-                        <small class="text-muted">If camera doesn't work, enter QR code manually</small>
-                    </form>
-                </div>
+        <!-- Ultra Compact Result -->
+        <div class="ultra-result-card">
+            <div id="result-container" class="ultra-result-info">Scanning...</div>
+            <div id="scan-success" class="ultra-result-success d-none">
+                <i class="fas fa-check-circle"></i>
+                <span id="parent-qr-value"></span>
+                <a id="scan-child-link" href="#" class="ultra-btn-continue">Continue</a>
+            </div>
+            <div class="ultra-manual-form">
+                <input type="text" id="manual-qr-code" placeholder="Manual QR" class="ultra-input">
+                <button type="button" onclick="submitManualQR()" class="ultra-btn">OK</button>
             </div>
         </div>
     </div>
@@ -92,12 +47,9 @@
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
-        const startCameraBtn = document.getElementById('start-camera');
-        const stopCameraBtn = document.getElementById('stop-camera');
         const resultContainer = document.getElementById('result-container');
         const scanSuccess = document.getElementById('scan-success');
         const parentQrValue = document.getElementById('parent-qr-value');
-        const expectedChildCount = document.getElementById('expected-child-count');
         const scanChildLink = document.getElementById('scan-child-link');
         const manualEntryForm = document.getElementById('manual-entry-form');
         
@@ -132,31 +84,35 @@
         stopCameraBtn.addEventListener('click', stopCamera);
         
         function startCamera() {
-            // Request access to the webcam
+            resultContainer.innerHTML = 'Starting camera...';
+            resultContainer.className = 'ultra-result-info';
+            
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                    .then(function(mediaStream) {
-                        stream = mediaStream;
-                        video.srcObject = stream;
-                        video.setAttribute('playsinline', true); // Required for iOS Safari
-                        video.play();
-                        
-                        startCameraBtn.disabled = true;
-                        stopCameraBtn.disabled = false;
-                        
-                        scanning = true;
-                        scanQRCode();
-                    })
-                    .catch(function(error) {
-                        console.error('Could not access the camera: ', error);
-                        resultContainer.className = 'alert alert-danger';
-                        resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                            'Could not access the camera. Please check your camera permissions or use manual entry.';
-                    });
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                })
+                .then(function(mediaStream) {
+                    stream = mediaStream;
+                    video.srcObject = stream;
+                    video.setAttribute('playsinline', true);
+                    video.style.display = 'block';
+                    video.play();
+                    
+                    resultContainer.innerHTML = 'Camera ready - Point at QR code';
+                    scanning = true;
+                    scanQRCode();
+                })
+                .catch(function(error) {
+                    console.error('Could not access the camera: ', error);
+                    resultContainer.className = 'ultra-result-info';
+                    resultContainer.innerHTML = 'Camera unavailable - Use manual entry';
+                });
             } else {
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                    'Your browser does not support camera access. Please use a modern browser or use manual entry.';
+                resultContainer.innerHTML = 'Camera not supported - Use manual entry';
             }
         }
         
@@ -164,10 +120,8 @@
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
+                video.style.display = 'none';
                 scanning = false;
-                
-                startCameraBtn.disabled = false;
-                stopCameraBtn.disabled = true;
             }
         }
         

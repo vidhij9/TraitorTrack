@@ -5,103 +5,72 @@
 {% block content %}
 <div class="container">
     {% if current_user.is_authenticated %}
-        <!-- Compact Dashboard Header -->
-        <div class="row mb-2">
-            <div class="col-12">
-                <div class="mobile-header-card">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h4 class="mb-1">
-                                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
-                            </h4>
-                            <small class="text-muted">
-                                {% if is_admin %}Admin {{ current_user.username }}{% else %}{{ current_user.username }}{% endif %}
-                            </small>
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt me-1"></i>Login Page</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('register') }}"><i class="fas fa-user-plus me-1"></i>Register Page</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Logout</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+        <!-- Ultra Compact Header -->
+        <div class="ultra-compact-header">
+            <span class="header-title">
+                <i class="fas fa-tachometer-alt"></i>
+                {% if is_admin %}Admin {% endif %}{{ current_user.username }}
+            </span>
+            <div class="dropdown">
+                <button class="btn-micro" data-bs-toggle="dropdown">⋯</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
+                </ul>
             </div>
         </div>
         
-        <!-- Compact Statistics Grid -->
-        <div class="stats-mobile-grid mb-2">
-            <div class="stat-mobile-card bg-primary">
-                <div class="stat-mobile-number">{{ stats.parent_bags }}</div>
-                <div class="stat-mobile-label">Parents</div>
+        <!-- Ultra Compact Stats -->
+        <div class="ultra-stats-grid">
+            <div class="ultra-stat bg-primary">
+                <div class="ultra-stat-num">{{ stats.parent_bags }}</div>
+                <div class="ultra-stat-label">P</div>
             </div>
-            <div class="stat-mobile-card bg-success">
-                <div class="stat-mobile-number">{{ stats.child_bags }}</div>
-                <div class="stat-mobile-label">Children</div>
+            <div class="ultra-stat bg-success">
+                <div class="ultra-stat-num">{{ stats.child_bags }}</div>
+                <div class="ultra-stat-label">C</div>
             </div>
-            <div class="stat-mobile-card bg-warning">
-                <div class="stat-mobile-number">{{ stats.bills }}</div>
-                <div class="stat-mobile-label">Bills</div>
+            <div class="ultra-stat bg-warning">
+                <div class="ultra-stat-num">{{ stats.bills }}</div>
+                <div class="ultra-stat-label">B</div>
             </div>
-            <div class="stat-mobile-card bg-info">
-                <div class="stat-mobile-number">{{ stats.total_scans }}</div>
-                <div class="stat-mobile-label">Scans</div>
+            <div class="ultra-stat bg-info">
+                <div class="ultra-stat-num">{{ stats.total_scans }}</div>
+                <div class="ultra-stat-label">S</div>
             </div>
         </div>
         
-        <!-- Quick Actions Row -->
-        <div class="actions-mobile-grid mb-2">
-            <a href="{{ url_for('scan_parent') }}" class="action-mobile-btn btn-primary">
+        <!-- Ultra Compact Actions -->
+        <div class="ultra-actions-grid">
+            <a href="{{ url_for('scan_parent') }}" class="ultra-action btn-primary">
                 <i class="fas fa-qrcode"></i>
-                <span>Scan</span>
             </a>
-            <a href="{{ url_for('bill_management') }}" class="action-mobile-btn btn-success">
+            <a href="{{ url_for('bill_management') }}" class="ultra-action btn-success">
                 <i class="fas fa-file-invoice"></i>
-                <span>Bills</span>
             </a>
-            <a href="{{ url_for('child_lookup') }}" class="action-mobile-btn btn-info">
+            <a href="{{ url_for('child_lookup') }}" class="ultra-action btn-info">
                 <i class="fas fa-search"></i>
-                <span>Search</span>
             </a>
-            <a href="{{ url_for('bag_management') }}" class="action-mobile-btn btn-warning">
+            <a href="{{ url_for('bag_management') }}" class="ultra-action btn-warning">
                 <i class="fas fa-boxes"></i>
-                <span>Bags</span>
             </a>
         </div>
         
-        <!-- Recent Scans - Mobile Optimized -->
+        <!-- Ultra Compact Recent Scans -->
         {% if recent_scans %}
-            <div class="row">
-                <div class="col-12">
-                    <div class="mobile-scans-container">
-                        <div class="mobile-scans-header">
-                            <h6 class="mb-0"><i class="fas fa-history me-1"></i>Recent Activity</h6>
-                            <a href="{{ url_for('scan_history') if url_for('scan_history') else '#' }}" class="btn btn-sm btn-outline-primary">View All</a>
+            <div class="ultra-scans-container">
+                <div class="ultra-scans-header">Recent</div>
+                <div class="ultra-scans-list">
+                    {% for scan in recent_scans[:3] %}
+                        <div class="ultra-scan-item">
+                            <span class="scan-time">{{ scan.timestamp.strftime('%H:%M') }}</span>
+                            {% if scan.parent_bag %}
+                                <span class="ultra-badge bg-primary">P</span>
+                            {% endif %}
+                            {% if scan.child_bag %}
+                                <span class="ultra-badge bg-success">C</span>
+                            {% endif %}
                         </div>
-                        <div class="mobile-scans-list">
-                            {% for scan in recent_scans[:5] %}
-                                <div class="mobile-scan-item">
-                                    <div class="scan-info">
-                                        <div class="scan-time">{{ scan.timestamp.strftime('%m/%d %H:%M') }}</div>
-                                        <div class="scan-location">{{ scan.location.name }}</div>
-                                    </div>
-                                    <div class="scan-qr-codes">
-                                        {% if scan.parent_bag %}
-                                            <span class="badge bg-primary badge-sm">P:{{ scan.parent_bag.qr_id[:6] }}</span>
-                                        {% endif %}
-                                        {% if scan.child_bag %}
-                                            <span class="badge bg-success badge-sm">C:{{ scan.child_bag.qr_id[:6] }}</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
             </div>
         {% endif %}
