@@ -110,23 +110,34 @@ body {
     margin: 4px 0 0 0;
 }
 
-/* Touch-friendly buttons */
-.btn-mobile {
+/* Touch-friendly buttons - compact mobile version */
+.btn-mobile, .mobile-action-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 12px 20px;
-    font-size: 16px;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
     font-weight: 500;
     border: none;
     border-radius: var(--border-radius);
     cursor: pointer;
     transition: var(--transition);
     text-decoration: none;
-    min-height: 48px;
-    min-width: 48px;
+    min-height: 36px !important;
+    min-width: 36px;
     position: relative;
     overflow: hidden;
+    line-height: 1.2;
+}
+
+.mobile-action-btn i {
+    font-size: 11px !important;
+    margin-right: 4px !important;
+}
+
+.mobile-btn-text {
+    font-size: 11px !important;
+    font-weight: 600 !important;
 }
 
 .btn-mobile:active {
@@ -171,7 +182,62 @@ body {
 /* Full-width mobile buttons */
 .btn-mobile-full {
     width: 100%;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+}
+
+/* Badge optimizations for mobile */
+.badge-sm {
+    font-size: 0.65rem !important;
+    padding: 0.2em 0.4em !important;
+}
+
+/* Container padding adjustments */
+@media (max-width: 576px) {
+    .container {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+    
+    .row {
+        margin-left: -4px;
+        margin-right: -4px;
+    }
+    
+    .row > * {
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+}
+
+/* Compact footer */
+.footer {
+    padding: 1rem 0 !important;
+    margin-top: 1rem;
+}
+
+.footer p {
+    margin-bottom: 0.25rem !important;
+    font-size: 0.8rem !important;
+}
+
+/* Mobile navigation improvements */
+@media (max-width: 991px) {
+    .navbar-nav {
+        background: rgba(0,0,0,0.05);
+        border-radius: 6px;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        margin-bottom: 2px;
+    }
+    
+    .navbar-nav .nav-link:hover {
+        background: rgba(0,0,0,0.1);
+    }
 }
 
 /* Mobile form elements */

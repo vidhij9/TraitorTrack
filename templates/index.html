@@ -5,58 +5,67 @@
 {% block content %}
 <div class="container">
     {% if current_user.is_authenticated %}
-        <!-- Dashboard for logged-in users -->
-        <div class="row mb-4">
+        <!-- Dashboard for logged-in users - Compact -->
+        <div class="row mb-1">
             <div class="col-12">
                 <div class="card bg-dark text-light">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h2 class="card-title mb-0">
-                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                            </h2>
-                            <div class="btn-group">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0 fs-6">
+                                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                            </h5>
+                            <div class="d-none d-md-flex btn-group">
                                 <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm">
-                                    <i class="fas fa-sign-in-alt me-1"></i>Login Page
+                                    <i class="fas fa-sign-in-alt me-1"></i>Login
                                 </a>
                                 <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-sm">
-                                    <i class="fas fa-user-plus me-1"></i>Register Page
+                                    <i class="fas fa-user-plus me-1"></i>Register
                                 </a>
                                 <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">
                                     <i class="fas fa-sign-out-alt me-1"></i>Logout
                                 </a>
                             </div>
                         </div>
-                        {% if is_admin %}
-                            <p class="card-text">Welcome back, Admin {{ current_user.username }}! Here's the current system status.</p>
-                        {% else %}
-                            <p class="card-text">Welcome back, {{ current_user.username }}! Here's your tracking overview.</p>
-                        {% endif %}
+                        <div class="d-block d-md-none mt-1">
+                            {% if is_admin %}
+                                <small class="text-muted">Admin {{ current_user.username }}</small>
+                            {% else %}
+                                <small class="text-muted">{{ current_user.username }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="d-none d-md-block">
+                            {% if is_admin %}
+                                <p class="card-text small mb-0">Welcome back, Admin {{ current_user.username }}!</p>
+                            {% else %}
+                                <p class="card-text small mb-0">Welcome back, {{ current_user.username }}!</p>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Statistics Cards -->
-        <div class="row g-1 mb-2">
+        <!-- Statistics Cards - Compact Mobile -->
+        <div class="row g-1 mb-1">
             <div class="col-6 col-md-3">
                 <div class="card dashboard-stat bg-primary bg-opacity-25 text-light">
-                    <div class="card-body p-1 text-center">
+                    <div class="card-body text-center">
                         <div class="stat-number">{{ stats.parent_bags }}</div>
-                        <div class="stat-label">Parent Bags</div>
+                        <div class="stat-label">Parents</div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="card dashboard-stat bg-success bg-opacity-25 text-light">
-                    <div class="card-body p-1 text-center">
+                    <div class="card-body text-center">
                         <div class="stat-number">{{ stats.child_bags }}</div>
-                        <div class="stat-label">Child Bags</div>
+                        <div class="stat-label">Children</div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="card dashboard-stat bg-warning bg-opacity-25 text-light">
-                    <div class="card-body p-1 text-center">
+                    <div class="card-body text-center">
                         <div class="stat-number">{{ stats.bills }}</div>
                         <div class="stat-label">Bills</div>
                     </div>
@@ -64,38 +73,38 @@
             </div>
             <div class="col-6 col-md-3">
                 <div class="card dashboard-stat bg-info bg-opacity-25 text-light">
-                    <div class="card-body p-1 text-center">
+                    <div class="card-body text-center">
                         <div class="stat-number">{{ stats.total_scans }}</div>
-                        <div class="stat-label">Total Scans</div>
+                        <div class="stat-label">Scans</div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Quick Actions -->
-        <div class="row mb-2">
+        <!-- Quick Actions - Compact -->
+        <div class="row mb-1">
             <div class="col-12">
                 <div class="card bg-dark text-light">
-                    <div class="card-header p-1">
-                        <h6 class="mb-0"><i class="fas fa-bolt me-1"></i>Quick Actions</h6>
+                    <div class="card-header py-1 px-2">
+                        <h6 class="mb-0 fs-6"><i class="fas fa-bolt me-1"></i>Actions</h6>
                     </div>
-                    <div class="card-body p-1">
+                    <div class="card-body py-1 px-2">
                         <div class="row g-1">
                             <div class="col-4">
-                                <a href="{{ url_for('scan_parent') }}" class="btn btn-primary d-flex align-items-center justify-content-center w-100 mobile-action-btn">
-                                    <i class="fas fa-qrcode me-1"></i>
+                                <a href="{{ url_for('scan_parent') }}" class="btn btn-primary mobile-action-btn w-100">
+                                    <i class="fas fa-qrcode"></i>
                                     <span class="mobile-btn-text">Scan</span>
                                 </a>
                             </div>
                             <div class="col-4">
-                                <a href="{{ url_for('bill_management') }}" class="btn btn-success d-flex align-items-center justify-content-center w-100 mobile-action-btn">
-                                    <i class="fas fa-file-invoice me-1"></i>
+                                <a href="{{ url_for('bill_management') }}" class="btn btn-success mobile-action-btn w-100">
+                                    <i class="fas fa-file-invoice"></i>
                                     <span class="mobile-btn-text">Bills</span>
                                 </a>
                             </div>
                             <div class="col-4">
-                                <a href="{{ url_for('child_lookup') }}" class="btn btn-info d-flex align-items-center justify-content-center w-100 mobile-action-btn">
-                                    <i class="fas fa-search me-1"></i>
+                                <a href="{{ url_for('child_lookup') }}" class="btn btn-info mobile-action-btn w-100">
+                                    <i class="fas fa-search"></i>
                                     <span class="mobile-btn-text">Search</span>
                                 </a>
                             </div>
@@ -105,50 +114,77 @@
             </div>
         </div>
         
-        <!-- Recent Scans -->
+        <!-- Recent Scans - Mobile Optimized -->
         {% if recent_scans %}
             <div class="row">
                 <div class="col-12">
                     <div class="card bg-dark text-light">
-                        <div class="card-header">
-                            <h4 class="mb-0"><i class="fas fa-history me-2"></i>Recent Scans</h4>
+                        <div class="card-header py-1 px-2">
+                            <h6 class="mb-0 fs-6"><i class="fas fa-history me-1"></i>Recent Activity</h6>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-dark table-hover mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Location</th>
-                                            <th>Parent QR</th>
-                                            <th>Child QR</th>
-                                            <th>User</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for scan in recent_scans %}
-                                            <tr>
-                                                <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                                                <td>{{ scan.location.name }}</td>
-                                                <td>
+                            <div class="d-block d-md-none">
+                                <!-- Mobile card view -->
+                                {% for scan in recent_scans[:5] %}
+                                    <div class="border-bottom border-secondary p-2">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="small text-muted">{{ scan.timestamp.strftime('%m/%d %H:%M') }}</div>
+                                                <div class="fw-bold">{{ scan.location.name }}</div>
+                                                <div class="small">
                                                     {% if scan.parent_bag %}
-                                                        <span class="badge bg-primary">{{ scan.parent_bag.qr_id }}</span>
-                                                    {% else %}
-                                                        <span class="text-muted">-</span>
+                                                        <span class="badge bg-primary badge-sm">P:{{ scan.parent_bag.qr_id[:6] }}</span>
                                                     {% endif %}
-                                                </td>
-                                                <td>
                                                     {% if scan.child_bag %}
-                                                        <span class="badge bg-success">{{ scan.child_bag.qr_id }}</span>
-                                                    {% else %}
-                                                        <span class="text-muted">-</span>
+                                                        <span class="badge bg-success badge-sm">C:{{ scan.child_bag.qr_id[:6] }}</span>
                                                     {% endif %}
-                                                </td>
-                                                <td>{{ scan.scanned_by.username }}</td>
+                                                </div>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="small text-muted">{{ scan.scanned_by.username }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="d-none d-md-block">
+                                <!-- Desktop table view -->
+                                <div class="table-responsive">
+                                    <table class="table table-dark table-hover mb-0 table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th class="small">Time</th>
+                                                <th class="small">Location</th>
+                                                <th class="small">Parent</th>
+                                                <th class="small">Child</th>
+                                                <th class="small">User</th>
                                             </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {% for scan in recent_scans[:8] %}
+                                                <tr>
+                                                    <td class="small">{{ scan.timestamp.strftime('%m/%d %H:%M') }}</td>
+                                                    <td class="small">{{ scan.location.name }}</td>
+                                                    <td class="small">
+                                                        {% if scan.parent_bag %}
+                                                            <span class="badge bg-primary badge-sm">{{ scan.parent_bag.qr_id[:8] }}</span>
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="small">
+                                                        {% if scan.child_bag %}
+                                                            <span class="badge bg-success badge-sm">{{ scan.child_bag.qr_id[:8] }}</span>
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="small">{{ scan.scanned_by.username }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
