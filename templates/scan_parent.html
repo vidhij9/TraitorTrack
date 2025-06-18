@@ -55,33 +55,10 @@
         
         let stream = null;
         let scanning = false;
-        let canvasContext = canvas.getContext('2d');
-        let lastDetectedCode = null;
+        const canvasContext = canvas.getContext('2d');
         
-        // Clear any previous scan results when page loads
-        resultContainer.style.display = 'none';
-        resultContainer.innerHTML = '';
-        
-        // Start camera automatically when page loads
-        startCamera();
-        
-        // Also keep the button functionality as backup
-        startCameraBtn.addEventListener('click', startCamera);
-        
-        // Handle manual entry form submission
-        manualEntryForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const manualQrInput = document.getElementById('manual-qr-code');
-            const qrCode = manualQrInput.value.trim();
-            
-            if (qrCode) {
-                processQrCode(qrCode);
-                manualQrInput.value = '';
-            }
-        });
-        
-        // Stop camera when button is clicked
-        stopCameraBtn.addEventListener('click', stopCamera);
+        // Auto-start camera on page load
+        setTimeout(startCamera, 500);
         
         function startCamera() {
             resultContainer.innerHTML = 'Starting camera...';
@@ -267,27 +244,18 @@
             .then(data => {
                 console.log('Server response:', data);
                 if (data.success) {
-                    // Show success message and auto-proceed
-                    resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = `<i class="fas fa-check-circle me-2"></i>QR Code "${data.parent_qr}" saved successfully! Moving to next step...`;
-                    resultContainer.style.display = 'block';
+                    scanSuccess.classList.remove('d-none');
+                    resultContainer.style.display = 'none';
+                    parentQrValue.textContent = data.parent_qr;
                     
-                    // Stop the camera since we've got a successful scan
+                    const continueUrl = new URL(window.location.origin + '/scan/child');
+                    continueUrl.searchParams.set('parent_qr', data.parent_qr);
+                    scanChildLink.href = continueUrl.toString();
+                    
                     stopCamera();
-                    
-                    console.log('Redirecting to child scan page in 2 seconds...');
-                    // Automatically proceed to child scanning after 2 seconds
-                    setTimeout(() => {
-                        const redirectUrl = '{{ url_for("scan_child", s=request.args.get("s")) }}';
-                        console.log('Redirecting to:', redirectUrl);
-                        window.location.href = redirectUrl;
-                    }, 2000);
                 } else {
-                    console.log('Error response:', data.message);
-                    // Show error message
-                    resultContainer.className = 'alert alert-danger';
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
-                    resultContainer.style.display = 'block';
+                    resultContainer.innerHTML = 'Error: ' + data.message;
+                    resultContainer.className = 'ultra-result-info';
                 }
             })
             .catch(error => {
