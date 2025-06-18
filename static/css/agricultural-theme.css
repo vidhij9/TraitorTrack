@@ -187,15 +187,20 @@ body {
     color: #2c3e50 !important;
 }
 
-.table thead th, .table-dark thead th {
-    background: linear-gradient(45deg, var(--primary-green), var(--secondary-green)) !important;
+/* Force table headers to have dark green background and white text */
+.table thead th, 
+.table-dark thead th,
+.table.table-hover thead th,
+.table.table-striped thead th,
+thead th {
+    background: #2d5a3d !important;
     color: #ffffff !important;
-    font-weight: 700;
-    font-size: 0.875rem;
-    padding: 1rem 0.75rem;
-    border: none;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-weight: 700 !important;
+    font-size: 0.875rem !important;
+    padding: 1rem 0.75rem !important;
+    border: none !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
 }
 
 .table tbody td, .table-dark tbody td {
