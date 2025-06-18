@@ -39,19 +39,47 @@ app.config.update(
 )
 
 # Configure database with environment-specific URLs
+def get_current_environment():
+    """Detect current environment with improved logic"""
+    # Check explicit environment variable first
+    env = os.environ.get('ENVIRONMENT', '').lower()
+    if env in ['production', 'prod']:
+        return 'production'
+    elif env in ['development', 'dev']:
+        return 'development'
+    
+    # Check Flask environment
+    flask_env = os.environ.get('FLASK_ENV', '').lower()
+    if flask_env == 'production':
+        return 'production'
+    elif flask_env in ['development', 'dev']:
+        return 'development'
+    
+    # Check Replit environment indicators
+    replit_env = os.environ.get('REPLIT_ENVIRONMENT', '').lower()
+    if replit_env == 'production':
+        return 'production'
+    
+    # Check REPL_SLUG for specific production deployments
+    repl_slug = os.environ.get('REPL_SLUG', '')
+    if repl_slug == 'traitortrack':
+        return 'production'
+    
+    # Default to development for safety
+    return 'development'
+
 def get_database_url():
     """Get appropriate database URL based on environment with complete database isolation"""
-    # Detect environment based on domain and deployment context
-    repl_slug = os.environ.get('REPL_SLUG', '')
+    current_env = get_current_environment()
     
-    if repl_slug == 'traitortrack':
-        # Production environment - use dedicated production database
+    if current_env == 'production':
+        # Production environment - try dedicated production database first
         prod_url = os.environ.get('PROD_DATABASE_URL')
         if prod_url:
             logging.info("PRODUCTION: Using dedicated production database")
             return prod_url
         else:
-            # Use main database but set production schema in engine options
+            # Use main database with production schema
             base_url = os.environ.get('DATABASE_URL', '')
             if base_url:
                 logging.info("PRODUCTION: Using main database with production schema")
@@ -59,13 +87,13 @@ def get_database_url():
             else:
                 raise ValueError("No database URL configured for production")
     else:
-        # Development environment - use dedicated development database
+        # Development environment - try dedicated development database first
         dev_url = os.environ.get('DEV_DATABASE_URL')
         if dev_url:
             logging.info("DEVELOPMENT: Using dedicated development database")
             return dev_url
         else:
-            # Use main database but set development schema in engine options
+            # Use main database with development schema
             base_url = os.environ.get('DATABASE_URL', '')
             if base_url:
                 logging.info("DEVELOPMENT: Using main database with development schema")
@@ -81,11 +109,8 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Environment-specific schema configuration
 def get_database_schema():
     """Get database schema based on environment"""
-    repl_slug = os.environ.get('REPL_SLUG', '')
-    if repl_slug == 'traitortrack':
-        return 'production'
-    else:
-        return 'development'
+    current_env = get_current_environment()
+    return current_env
 
 # Configure database engine with schema isolation
 database_schema = get_database_schema()
