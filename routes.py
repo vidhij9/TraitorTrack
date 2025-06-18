@@ -80,32 +80,54 @@ import logging
 @login_required
 def user_management():
     """User management dashboard for admins"""
-    if not current_user.is_admin():
-        flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
-    
-    users = User.query.order_by(User.created_at.desc()).all()
-    
-    # Get statistics for each user
-    user_data = []
-    for user in users:
-        scan_count = Scan.query.filter(Scan.user_id == user.id).count()
-        last_scan = Scan.query.filter(Scan.user_id == user.id).order_by(desc(Scan.timestamp)).first()
+    try:
+        if not current_user.is_admin():
+            flash('Admin access required.', 'error')
+            return redirect(url_for('index'))
         
-        user_data.append({
-            'user': user,
-            'scan_count': scan_count,
-            'last_scan': last_scan.timestamp if last_scan else None
-        })
-    
-    # Add user stats for the template
-    user_stats = {
-        'total_users': User.query.count(),
-        'admin_users': User.query.filter(User.role == UserRole.ADMIN.value).count(),
-        'verified_users': User.query.filter(User.verified == True).count()
-    }
-    
-    return render_template('user_management.html', user_data=user_data, user_stats=user_stats)
+        users = User.query.order_by(User.created_at.desc()).all()
+        
+        # Get statistics for each user
+        user_data = []
+        for user in users:
+            try:
+                scan_count = Scan.query.filter(Scan.user_id == user.id).count()
+                last_scan = Scan.query.filter(Scan.user_id == user.id).order_by(desc(Scan.timestamp)).first()
+                
+                user_data.append({
+                    'user': user,
+                    'scan_count': scan_count,
+                    'last_scan': last_scan.timestamp if last_scan else None
+                })
+            except Exception as e:
+                app.logger.error(f"Error processing user {user.id}: {e}")
+                user_data.append({
+                    'user': user,
+                    'scan_count': 0,
+                    'last_scan': None
+                })
+        
+        # Add user stats for the template with error handling
+        try:
+            user_stats = {
+                'total_users': User.query.count(),
+                'admin_users': User.query.filter(User.role == UserRole.ADMIN.value).count(),
+                'verified_users': User.query.filter(User.verified == True).count()
+            }
+        except Exception as e:
+            app.logger.error(f"Error getting user stats: {e}")
+            user_stats = {
+                'total_users': len(users),
+                'admin_users': len([u for u in users if u.role == UserRole.ADMIN.value]),
+                'verified_users': len([u for u in users if getattr(u, 'verified', False)])
+            }
+        
+        return render_template('user_management.html', user_data=user_data, user_stats=user_stats)
+        
+    except Exception as e:
+        app.logger.error(f"User management error: {e}")
+        flash('Error loading user management. Please try again.', 'error')
+        return redirect(url_for('index'))
 
 @app.route('/admin/users/<int:user_id>')
 @login_required
