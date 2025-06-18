@@ -10,7 +10,11 @@ from simple_auth import is_authenticated as simple_is_authenticated, require_aut
 
 # Compatibility layer for existing code
 def is_authenticated():
-    return simple_is_authenticated()
+    # Use both session formats for compatibility
+    return (
+        session.get('logged_in', False) or 
+        session.get('authenticated', False)
+    ) and session.get('user_id') is not None
 
 def require_auth(f):
     return simple_require_auth(f)
@@ -48,7 +52,11 @@ class CurrentUser:
     
     @property
     def is_authenticated(self):
-        return session.get('logged_in', False)
+        # Check both session formats for compatibility
+        return (
+            session.get('logged_in', False) or 
+            session.get('authenticated', False)
+        ) and session.get('user_id') is not None
     
     def is_admin(self):
         """Check if user is admin"""
