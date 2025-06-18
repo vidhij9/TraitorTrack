@@ -48,13 +48,13 @@ body {
 
 .navbar-brand {
     font-weight: 800;
-    color: var(--text-primary) !important;
+    color: #ffffff !important;
     font-size: 1.5rem;
     letter-spacing: -0.025em;
 }
 
 .navbar-nav .nav-link {
-    color: var(--text-secondary) !important;
+    color: #ffffff !important;
     font-size: 0.9rem;
     padding: 0.75rem 1rem !important;
     border-radius: 6px;
@@ -64,13 +64,13 @@ body {
 }
 
 .navbar-nav .nav-link:hover {
-    color: var(--accent) !important;
-    background: var(--gray-100);
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .navbar-nav .nav-link.active {
-    color: var(--white) !important;
-    background: var(--accent);
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.2);
     font-weight: 700;
 }
 
