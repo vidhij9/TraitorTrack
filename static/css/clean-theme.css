@@ -295,7 +295,7 @@ body {
 
 .table thead th {
     background: linear-gradient(135deg, var(--leaf-green) 0%, var(--forest-green) 100%) !important;
-    color: var(--cream-white) !important;
+    color: #ffffff !important;
     border: none !important;
     font-weight: 700 !important;
     padding: 1.25rem 1rem !important;
@@ -571,6 +571,7 @@ a:hover {
 .navbar-dark,
 .navbar-dark *,
 .card-header.bg-dark,
+.table thead th,
 .table-dark thead th,
 .bg-dark {
     color: #ffffff !important;
