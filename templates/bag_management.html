@@ -149,13 +149,12 @@
                 <table class="table table-light table-striped table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th width="20%">QR Code</th>
-                            <th width="12%" class="mobile-hide-sm">Type</th>
+                            <th width="25%">QR Code</th>
                             <th width="15%" class="d-none d-md-table-cell">Date</th>
-                            <th width="18%">Status</th>
+                            <th width="20%">Status</th>
                             <th width="15%" class="mobile-hide-sm">Bill</th>
-                            <th width="12%" class="d-none d-lg-table-cell">Last Scan</th>
-                            <th width="8%">Actions</th>
+                            <th width="15%" class="d-none d-lg-table-cell">Last Scan</th>
+                            <th width="10%">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -163,26 +162,19 @@
                         <tr>
                             <td>
                                 <div class="d-flex flex-column">
-                                    <strong>{{ bag.qr_id }}</strong>
-                                    <small class="d-md-none">
+                                    <div class="d-flex align-items-center">
+                                        <strong class="me-2">{{ bag.qr_id }}</strong>
                                         {% if bag.type == 'parent' %}
                                             <span class="badge bg-info">Parent</span>
                                         {% else %}
                                             <span class="badge bg-success">Child</span>
                                         {% endif %}
-                                        <span class="text-muted ms-1">{{ bag.created_at.strftime('%m/%d') if bag.created_at else 'N/A' }}</span>
-                                    </small>
+                                    </div>
+                                    <small class="d-md-none text-muted mt-1">{{ bag.created_at.strftime('%m/%d') if bag.created_at else 'N/A' }}</small>
                                     {% if bag.notes %}
-                                    <small class="text-muted">{{ bag.notes[:20] }}{% if bag.notes|length > 20 %}...{% endif %}</small>
+                                    <small class="text-muted mt-1">{{ bag.notes[:30] }}{% if bag.notes|length > 30 %}...{% endif %}</small>
                                     {% endif %}
                                 </div>
-                            </td>
-                            <td class="mobile-hide-sm">
-                                {% if bag.type == 'parent' %}
-                                    <span class="badge bg-info">Parent</span>
-                                {% else %}
-                                    <span class="badge bg-success">Child</span>
-                                {% endif %}
                             </td>
                             <td class="d-none d-md-table-cell">
                                 <small>{{ bag.created_at.strftime('%Y-%m-%d') if bag.created_at else 'N/A' }}</small>
