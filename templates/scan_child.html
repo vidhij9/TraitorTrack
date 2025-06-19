@@ -85,17 +85,17 @@
                             {% endif %}
                         </div>
                         
-                        <div class="d-flex gap-2 flex-wrap">
+                        <div class="d-flex gap-2 flex-wrap justify-content-end">
                             {% if parent_bag %}
-                            <button id="scan-another-parent" class="btn btn-outline-light btn-sm">
-                                <i class="fas fa-qrcode me-1"></i>Change Parent
+                            <button id="scan-another-parent" class="btn btn-outline-light btn-sm text-nowrap">
+                                <i class="fas fa-qrcode me-1"></i><span class="d-none d-sm-inline">Change </span>Parent
                             </button>
-                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-success">
-                                <i class="fas fa-check-circle me-2"></i>Complete Scanning
+                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-success text-nowrap">
+                                <i class="fas fa-check-circle me-1 me-sm-2"></i><span class="d-none d-sm-inline">Complete </span>Scanning
                             </a>
                             {% else %}
-                            <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary">
-                                <i class="fas fa-qrcode me-2"></i>Scan Parent First
+                            <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary text-nowrap">
+                                <i class="fas fa-qrcode me-1 me-sm-2"></i><span class="d-none d-sm-inline">Scan Parent </span>First
                             </a>
                             {% endif %}
                         </div>

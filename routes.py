@@ -2164,20 +2164,21 @@ def api_delete_child_scan():
         
         db.session.delete(link)
         
-        # Delete scan records for this child bag linked to this parent
+        # Delete scan records for this child bag
         scans = Scan.query.filter_by(child_bag_id=child_bag.id).all()
         for scan in scans:
             db.session.delete(scan)
         
-        # Note: We don't delete the child bag itself, just the link and scan records
+        # Delete the child bag itself since unlinked child bags should not exist
+        db.session.delete(child_bag)
         
         db.session.commit()
         
-        app.logger.info(f"Removed link for child bag {qr_code} from parent {parent_qr}")
+        app.logger.info(f"Removed link and deleted child bag {qr_code} from parent {parent_qr}")
         
         return jsonify({
             'success': True,
-            'message': f'Child bag {qr_code} removed from parent {parent_qr} successfully'
+            'message': f'Child bag {qr_code} removed from parent {parent_qr} and deleted successfully'
         })
         
     except Exception as e:
