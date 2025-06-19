@@ -131,7 +131,8 @@ app.config.update(
     PREFERRED_URL_SCHEME='https',
     WTF_CSRF_TIME_LIMIT=None,
     WTF_CSRF_SSL_STRICT=False,
-    SESSION_TYPE='filesystem',  # Use filesystem sessions
+    WTF_CSRF_ENABLED=True,
+    SECRET_KEY=os.environ.get("SESSION_SECRET", "dev-secret-key"),
 )
 
 # Initialize extensions
@@ -151,10 +152,7 @@ with app.app_context():
     except Exception as e:
         logging.error(f"Database initialization error: {e}")
 
-# Re-enable CSRF protection with proper configuration
-app.config['WTF_CSRF_ENABLED'] = True
-app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
-app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow HTTP in development
+# CSRF protection configuration moved to main config above
 
 # Setup error handlers and monitoring
 from error_handlers import setup_error_handlers, setup_request_logging, setup_health_monitoring
