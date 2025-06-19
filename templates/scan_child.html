@@ -74,33 +74,31 @@
         <div class="col-12">
             <div class="card bg-success bg-opacity-25 text-light">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-6 col-12 mb-2 mb-md-0">
-                            {% if parent_bag %}
-                            <h4 class="mb-0">Child Bags: <span id="progress-text">{{ scanned_child_count }}</span></h4>
-                            <p class="mb-0">Scanned and linked to {{ parent_bag.qr_id }}</p>
-                            {% else %}
-                            <h4 class="mb-0">Child Bags: <span id="progress-text">0</span></h4>
-                            <p class="mb-0">No parent bag selected</p>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="col-md-6 col-12">
-                            <div class="d-flex gap-2 justify-content-md-end justify-content-center flex-wrap">
-                                {% if parent_bag %}
-                                <button id="scan-another-parent" class="btn btn-outline-light btn-sm">
-                                    <i class="fas fa-qrcode me-1"></i>Change Parent
-                                </button>
-                                <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-success">
-                                    <i class="fas fa-check-circle me-1"></i>Complete Scanning
-                                </a>
-                                {% else %}
-                                <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary">
-                                    <i class="fas fa-qrcode me-1"></i>Scan Parent First
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
+                    <!-- Status Section -->
+                    <div class="text-center mb-3">
+                        {% if parent_bag %}
+                        <h4 class="mb-1">Child Bags: <span id="progress-text">{{ scanned_child_count }}</span></h4>
+                        <p class="mb-0">Scanned and linked to {{ parent_bag.qr_id }}</p>
+                        {% else %}
+                        <h4 class="mb-1">Child Bags: <span id="progress-text">0</span></h4>
+                        <p class="mb-0">No parent bag selected</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action Buttons - Always Visible -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        {% if parent_bag %}
+                        <button id="scan-another-parent" class="btn btn-outline-light">
+                            <i class="fas fa-qrcode me-2"></i>Change Parent
+                        </button>
+                        <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light">
+                            <i class="fas fa-check-circle me-2"></i>Complete Scanning
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary">
+                            <i class="fas fa-qrcode me-2"></i>Scan Parent First
+                        </a>
+                        {% endif %}
                     </div>
                     
                     {% if parent_bag %}
