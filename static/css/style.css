@@ -22,10 +22,34 @@
 nav.navbar,
 .navbar,
 nav.navbar.navbar-expand-lg,
-.navbar.navbar-expand-lg {
+.navbar.navbar-expand-lg,
+nav.navbar.navbar-expand-lg.shadow-sm.sticky-top {
   background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
   border-bottom: 2px solid #DAA520 !important;
   box-shadow: 0 1px 4px rgba(45, 80, 22, 0.3) !important;
+}
+
+/* Override any Bootstrap navbar-light classes */
+.navbar-light {
+  background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
+}
+
+/* Target specific Bootstrap navbar classes that might override */
+.navbar.bg-light,
+.navbar-expand-lg.bg-light,
+nav.navbar.bg-light {
+  background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
+}
+
+/* Media query specific overrides for desktop */
+@media (min-width: 992px) {
+  nav.navbar,
+  .navbar,
+  nav.navbar.navbar-expand-lg,
+  .navbar.navbar-expand-lg {
+    background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
+    border-bottom: 2px solid #DAA520 !important;
+  }
 }
 
 /* Ensure navbar text is white */

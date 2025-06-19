@@ -218,9 +218,22 @@ body .lead {
     }
 }
 
-/* Logo visibility */
+/* Logo visibility - Force display */
 img[alt="Traitor Track"] {
     filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.1)) !important;
+    opacity: 1 !important;
+    display: block !important;
+    visibility: visible !important;
+    max-width: 300px !important;
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Ensure logo container is visible */
+.mb-4.d-flex.align-items-center.flex-wrap {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 </style>
 {% endblock %}

@@ -1,0 +1,65 @@
+/* Ultimate Navbar Override - Load this last to ensure green background */
+
+/* Maximum specificity selectors for navbar */
+html body nav.navbar,
+html body .navbar,
+html body nav.navbar.navbar-expand-lg,
+html body .navbar.navbar-expand-lg,
+html body nav.navbar.navbar-expand-lg.shadow-sm,
+html body nav.navbar.navbar-expand-lg.shadow-sm.sticky-top,
+html body .navbar.navbar-light,
+html body nav.navbar.navbar-light,
+html body .navbar.bg-light,
+html body nav.navbar.bg-light {
+    background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
+    background-color: #2d5016 !important;
+    border-bottom: 2px solid #DAA520 !important;
+    box-shadow: 0 1px 4px rgba(45, 80, 22, 0.3) !important;
+}
+
+/* Ensure text is white on all navbar elements */
+html body nav.navbar .navbar-brand,
+html body nav.navbar .nav-link,
+html body .navbar .navbar-brand,
+html body .navbar .nav-link,
+html body nav.navbar .navbar-nav .nav-link,
+html body .navbar .navbar-nav .nav-link {
+    color: #ffffff !important;
+}
+
+html body nav.navbar .nav-link:hover,
+html body nav.navbar .nav-link:focus,
+html body .navbar .nav-link:hover,
+html body .navbar .nav-link:focus {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Navbar toggler styling */
+html body nav.navbar .navbar-toggler,
+html body .navbar .navbar-toggler {
+    border: 1px solid #FFF8DC !important;
+    background-color: transparent !important;
+}
+
+html body nav.navbar .navbar-toggler-icon,
+html body .navbar .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+}
+
+/* Extra overrides for desktop breakpoints */
+@media (min-width: 768px) {
+    html body nav.navbar,
+    html body .navbar {
+        background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
+        background-color: #2d5016 !important;
+    }
+}
+
+@media (min-width: 992px) {
+    html body nav.navbar,
+    html body .navbar {
+        background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%) !important;
+        background-color: #2d5016 !important;
+    }
+}
