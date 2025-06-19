@@ -18,95 +18,75 @@
 {% endblock %}
 
 {% block content %}
-<!-- Welcome Section -->
-<div class="welcome-section mb-4">
-    <h1 class="display-4 mb-3">
-        <i class="fas fa-chart-line me-3"></i>
-        TraceTrack Dashboard
-    </h1>
-    <p class="lead mb-0">Advanced Supply Chain Management System</p>
-    <small class="text-light">Real-time tracking and analytics platform</small>
+<!-- Compact Header -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h4 class="mb-0">
+        <i class="fas fa-chart-line me-2"></i>TraceTrack Dashboard
+    </h4>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-data">
+        <i class="fas fa-sync-alt"></i>
+    </button>
 </div>
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-chart-line me-2"></i>
-        Farm Analytics Dashboard
-    </h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-data">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Status Cards -->
-<div class="row mb-4" id="status-cards">
-    <!-- Single Horizontal Stats Table -->
-    <div class="col-12 mb-3">
-        <div class="bg-white rounded border p-2">
-            <div class="row text-center" style="font-size: 11px;">
-                <div class="col-3" style="padding: 4px; border-right: 1px solid #dee2e6;">
-                    <div style="font-size: 18px; font-weight: bold; color: #007bff;" id="total-parent-bags">0</div>
-                    <div style="font-size: 9px; color: #666; text-transform: uppercase; font-weight: 600;">Parents</div>
-                </div>
-                <div class="col-3" style="padding: 4px; border-right: 1px solid #dee2e6;">
-                    <div style="font-size: 18px; font-weight: bold; color: #28a745;" id="total-child-bags">0</div>
-                    <div style="font-size: 9px; color: #666; text-transform: uppercase; font-weight: 600;">Children</div>
-                </div>
-                <div class="col-3" style="padding: 4px; border-right: 1px solid #dee2e6;">
-                    <div style="font-size: 18px; font-weight: bold; color: #ffc107;" id="total-bills">0</div>
-                    <div style="font-size: 9px; color: #666; text-transform: uppercase; font-weight: 600;">Bills</div>
-                </div>
-                <div class="col-3" style="padding: 4px;">
-                    <div style="font-size: 18px; font-weight: bold; color: #dc3545;" id="total-scans">0</div>
-                    <div style="font-size: 9px; color: #666; text-transform: uppercase; font-weight: 600;">Scans</div>
-                </div>
+<!-- Compact Stats -->
+<div class="mb-2">
+    <div class="bg-white rounded border py-1 px-2">
+        <div class="row text-center g-0">
+            <div class="col-3">
+                <span class="fw-bold text-primary" id="total-parent-bags">0</span>
+                <small class="d-block text-muted" style="font-size: 10px;">Parents</small>
+            </div>
+            <div class="col-3">
+                <span class="fw-bold text-success" id="total-child-bags">0</span>
+                <small class="d-block text-muted" style="font-size: 10px;">Children</small>
+            </div>
+            <div class="col-3">
+                <span class="fw-bold text-warning" id="total-bills">0</span>
+                <small class="d-block text-muted" style="font-size: 10px;">Bills</small>
+            </div>
+            <div class="col-3">
+                <span class="fw-bold text-danger" id="total-scans">0</span>
+                <small class="d-block text-muted" style="font-size: 10px;">Scans</small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Compact Horizontal Actions -->
-<div class="mb-3">
-    <div class="d-flex" style="gap: 4px;">
-        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary flex-fill text-center" style="font-size: 10px; padding: 8px 4px; height: 60px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 18px;">📷</div>
-            <div style="font-size: 9px; font-weight: 600;">SCAN PARENT BAGS</div>
+<!-- Compact Actions -->
+<div class="mb-2">
+    <div class="d-flex gap-1">
+        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-sm flex-fill py-1">
+            <i class="fas fa-camera"></i> Scan
         </a>
-        <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success flex-fill text-center" style="font-size: 10px; padding: 8px 4px; height: 60px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 18px;">📋</div>
-            <div style="font-size: 9px; font-weight: 600;">MANAGE BILLS</div>
+        <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success btn-sm flex-fill py-1">
+            <i class="fas fa-file-invoice"></i> Bills
         </a>
-        <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-info flex-fill text-center" style="font-size: 10px; padding: 8px 4px; height: 60px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 18px;">🔍</div>
-            <div style="font-size: 9px; font-weight: 600;">LOOKUP CHILD BAG</div>
+        <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-info btn-sm flex-fill py-1">
+            <i class="fas fa-search"></i> Lookup
         </a>
     </div>
 </div>
 
-<!-- Recent Scans Table -->
-<div class="card bg-dark mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">Recent Scans</h5>
+<!-- Compact Recent Scans -->
+<div class="card bg-dark">
+    <div class="card-header py-2">
+        <h6 class="mb-0">Recent Scans</h6>
     </div>
-    <div class="card-body">
+    <div class="card-body p-2">
         <div class="table-responsive">
-            <table class="table table-hover" id="recent-scans-table">
+            <table class="table table-hover table-sm mb-0" id="recent-scans-table" style="font-size: 12px;">
                 <thead>
                     <tr>
-                        <th>QR ID</th>
-                        <th>Type</th>
-                        <th>User</th>
-                        <th>Timestamp</th>
-                        <th>Actions</th>
+                        <th style="width: 30%;">QR ID</th>
+                        <th style="width: 15%;">Type</th>
+                        <th style="width: 20%;">User</th>
+                        <th style="width: 25%;">Time</th>
+                        <th style="width: 10%;"></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td colspan="5" class="text-center">Loading recent scans...</td>
+                        <td colspan="5" class="text-center">Loading...</td>
                     </tr>
                 </tbody>
             </table>

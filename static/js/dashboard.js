@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = recentScansTable.querySelector('tbody');
         
         if (scans.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No recent scans found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No recent scans</td></tr>';
             return;
         }
         
@@ -204,16 +204,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const row = document.createElement('tr');
             
             const typeClass = scan.type === 'parent' ? 'bg-primary' : 'bg-info';
-            const typeText = scan.type === 'parent' ? 'Parent' : 'Child';
+            const typeText = scan.type === 'parent' ? 'P' : 'C';
             
             row.innerHTML = `
-                <td>${scan.product_qr}</td>
-                <td><span class="badge ${typeClass}">${typeText}</span></td>
-                <td>${scan.username}</td>
-                <td>${formatDateTime(scan.timestamp)}</td>
+                <td class="text-truncate" style="max-width: 120px;" title="${scan.product_qr}">${scan.product_qr}</td>
+                <td><span class="badge ${typeClass} badge-sm">${typeText}</span></td>
+                <td class="text-truncate" style="max-width: 80px;" title="${scan.username}">${scan.username}</td>
+                <td style="font-size: 11px;">${formatCompactDateTime(scan.timestamp)}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewScanDetails('${scan.id}')">
-                        <i class="fas fa-eye"></i>
+                    <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="viewScanDetails('${scan.id}')" title="View Details">
+                        <i class="fas fa-eye" style="font-size: 10px;"></i>
                     </button>
                 </td>
             `;
@@ -232,6 +232,26 @@ document.addEventListener('DOMContentLoaded', function() {
             hour: '2-digit',
             minute: '2-digit'
         });
+    }
+    
+    function formatCompactDateTime(dateStr) {
+        if (!dateStr) return 'N/A';
+        
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffHours = (now - date) / (1000 * 60 * 60);
+        
+        if (diffHours < 1) {
+            const diffMinutes = Math.floor((now - date) / (1000 * 60));
+            return `${diffMinutes}m ago`;
+        } else if (diffHours < 24) {
+            return `${Math.floor(diffHours)}h ago`;
+        } else {
+            return date.toLocaleDateString('en-US', {
+                month: 'numeric',
+                day: 'numeric'
+            });
+        }
     }
     
     // Global functions
