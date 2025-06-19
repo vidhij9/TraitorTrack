@@ -16,36 +16,17 @@
         </div>
     </div>
 
-    <!-- Compact Statistics Overview -->
-    <div class="row mb-2">
-        <div class="col-12">
-            <div class="card bg-light border">
-                <div class="card-body p-1">
-                    <div class="row g-0 text-center">
-                        <div class="col">
-                            <div class="stat-number-sm text-dark">{{ stats.total_bags }}</div>
-                            <div class="stat-label-sm text-dark">Total</div>
-                        </div>
-                        <div class="col">
-                            <div class="stat-number-sm text-info">{{ stats.parent_bags }}</div>
-                            <div class="stat-label-sm text-dark">Parent</div>
-                        </div>
-                        <div class="col">
-                            <div class="stat-number-sm text-success">{{ stats.child_bags }}</div>
-                            <div class="stat-label-sm text-dark">Child</div>
-                        </div>
-                        <div class="col d-none d-sm-block">
-                            <div class="stat-number-sm text-primary">{{ stats.linked_bags|default(0) }}</div>
-                            <div class="stat-label-sm text-dark">Linked</div>
-                        </div>
-                        <div class="col d-none d-sm-block">
-                            <div class="stat-number-sm text-warning">{{ stats.unlinked_bags|default(0) }}</div>
-                            <div class="stat-label-sm text-dark">Unlinked</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- Inline Statistics -->
+    <div class="mb-2">
+        <small class="text-muted">
+            <strong>{{ stats.total_bags }}</strong> total • 
+            <span class="text-info"><strong>{{ stats.parent_bags }}</strong> parent</span> • 
+            <span class="text-success"><strong>{{ stats.child_bags }}</strong> child</span>
+            <span class="d-none d-sm-inline"> • 
+                <span class="text-primary"><strong>{{ stats.linked_bags|default(0) }}</strong> linked</span> • 
+                <span class="text-warning"><strong>{{ stats.unlinked_bags|default(0) }}</strong> unlinked</span>
+            </span>
+        </small>
     </div>
 
     <!-- Compact Collapsible Filters -->
