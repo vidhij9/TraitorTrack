@@ -312,6 +312,25 @@ def create_user():
         flash(f'Error creating user: {str(e)}', 'error')
         return redirect(url_for('user_management'))
 
+@app.route('/admin/system-integrity')
+@login_required
+def admin_system_integrity():
+    """View system integrity report and duplicate prevention status (admin only)"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        # Get comprehensive system integrity report
+        report = get_system_integrity_report()
+        
+        return render_template('admin_system_integrity.html', report=report)
+        
+    except Exception as e:
+        app.logger.error(f'System integrity report error: {str(e)}')
+        flash('Error generating system integrity report.', 'error')
+        return redirect(url_for('index'))
+
 @app.route('/seed_sample_data')
 @login_required
 def seed_sample_data():
