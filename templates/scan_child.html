@@ -86,20 +86,22 @@
                     </div>
                     
                     <!-- Action Buttons - Always Visible -->
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                        {% if parent_bag %}
+                    {% if parent_bag %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mb-3">
                         <button id="scan-another-parent" class="btn btn-outline-light">
                             <i class="fas fa-qrcode me-2"></i>Change Parent
                         </button>
                         <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light">
                             <i class="fas fa-check-circle me-2"></i>Complete Scanning
                         </a>
-                        {% else %}
+                    </div>
+                    {% else %}
+                    <div class="d-grid gap-2 justify-content-center mb-3">
                         <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary">
                             <i class="fas fa-qrcode me-2"></i>Scan Parent First
                         </a>
-                        {% endif %}
                     </div>
+                    {% endif %}
                     
                     {% if parent_bag %}
                     <div class="alert alert-info mt-3 mb-0">
