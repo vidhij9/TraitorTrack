@@ -73,6 +73,13 @@ from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, Prom
 from forms import LoginForm, RegistrationForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
+from duplicate_prevention import (
+    validate_new_bag_qr_code, 
+    validate_new_bill_id, 
+    check_qr_code_uniqueness,
+    log_duplicate_attempt,
+    get_system_integrity_report
+)
 
 import csv
 import io
@@ -498,9 +505,16 @@ def link_to_bill(qr_id):
                 flash('Bill ID is required', 'error')
                 return render_template('link_to_bill.html', parent_bag=parent_bag)
             
-            # Find or create bill
+            # Check if bill already exists
             bill = Bill.query.filter_by(bill_id=bill_id).first()
             if not bill:
+                # Validate bill ID uniqueness before creating
+                is_valid, error_message = validate_new_bill_id(bill_id)
+                if not is_valid:
+                    log_duplicate_attempt(bill_id, 'bill', 'bag', current_user.id)
+                    flash(error_message, 'error')
+                    return render_template('link_to_bill.html', parent_bag=parent_bag)
+                
                 bill = Bill(
                     bill_id=bill_id,
                     description=f"Bill for {bill_id}",
@@ -834,16 +848,28 @@ def scan_parent_bag():
             return jsonify({'success': False, 'message': 'Please provide a QR code.'})
         
         try:
-            # Check if this QR code already exists as a child bag
-            existing_child = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
-            if existing_child:
-                return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag. Cannot use as parent bag.'})
+            # Comprehensive duplicate check for QR code uniqueness
+            is_valid, error_message = validate_new_bag_qr_code(qr_id, BagType.PARENT.value)
             
-            # Look up the parent bag first, if not found create it automatically
-            parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+            # Check if bag already exists
+            existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
             
-            if not parent_bag:
-                # Create new parent bag automatically for any QR code
+            if existing_bag:
+                if existing_bag.type == BagType.PARENT.value:
+                    # Parent bag already exists, just record the scan
+                    parent_bag = existing_bag
+                    app.logger.info(f'Using existing parent bag: {qr_id}')
+                else:
+                    # QR code exists as child bag - prevent cross-type usage
+                    log_duplicate_attempt(qr_id, 'parent', 'child', current_user.id)
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag. Cannot use as parent bag.'})
+            else:
+                # Validate against system-wide uniqueness (includes bill IDs)
+                if not is_valid:
+                    log_duplicate_attempt(qr_id, 'parent', 'bill', current_user.id)
+                    return jsonify({'success': False, 'message': error_message})
+                
+                # Create new parent bag
                 parent_bag = Bag(
                     qr_id=qr_id,
                     name=f"Bag {qr_id}",
@@ -852,8 +878,6 @@ def scan_parent_bag():
                 db.session.add(parent_bag)
                 db.session.commit()
                 app.logger.info(f'New parent bag created for QR code: {qr_id}')
-            else:
-                app.logger.info(f'Using existing parent bag: {qr_id}')
             
             # Record the scan
             scan = Scan(
@@ -898,11 +922,24 @@ def scan_parent_bag():
                     flash('Please enter a QR code.', 'error')
                     return render_template('scan_parent.html', form=form)
                 
-                # Look up the parent bag first, if not found create it automatically
-                parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+                # Comprehensive duplicate check for QR code uniqueness
+                is_valid, error_message = validate_new_bag_qr_code(qr_id, BagType.PARENT.value)
+                existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
                 
-                if not parent_bag:
-                    # Create new parent bag automatically for any QR code
+                if existing_bag:
+                    if existing_bag.type == BagType.PARENT.value:
+                        parent_bag = existing_bag
+                    else:
+                        log_duplicate_attempt(qr_id, 'parent', 'child', current_user.id)
+                        flash(f'QR code {qr_id} is already registered as a child bag. Cannot use as parent bag.', 'error')
+                        return render_template('scan_parent.html', form=form)
+                else:
+                    if not is_valid:
+                        log_duplicate_attempt(qr_id, 'parent', 'bill', current_user.id)
+                        flash(error_message, 'error')
+                        return render_template('scan_parent.html', form=form)
+                    
+                    # Create new parent bag
                     parent_bag = Bag(
                         qr_id=qr_id,
                         name=f"Bag {qr_id}",
@@ -994,10 +1031,36 @@ def scan_child_bag():
             return jsonify({'success': False, 'message': 'Please provide a QR code.'})
         
         try:
-            # Check if this QR code already exists as a parent bag
-            existing_parent = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
-            if existing_parent:
-                return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag. Cannot use as child bag.'})
+            # Comprehensive duplicate check for QR code uniqueness
+            is_valid, error_message = validate_new_bag_qr_code(qr_id, BagType.CHILD.value)
+            
+            # Check if bag already exists
+            existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
+            
+            if existing_bag:
+                if existing_bag.type == BagType.PARENT.value:
+                    # QR code exists as parent bag - prevent cross-type usage
+                    log_duplicate_attempt(qr_id, 'child', 'parent', current_user.id)
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag. Cannot use as child bag.'})
+                else:
+                    # Child bag already exists
+                    child_bag = existing_bag
+                    app.logger.info(f'Using existing child bag: {qr_id}')
+            else:
+                # Validate against system-wide uniqueness (includes bill IDs)
+                if not is_valid:
+                    log_duplicate_attempt(qr_id, 'child', 'bill', current_user.id)
+                    return jsonify({'success': False, 'message': error_message})
+                
+                # Create new child bag
+                child_bag = Bag(
+                    qr_id=qr_id,
+                    name=f"Bag {qr_id}",
+                    type=BagType.CHILD.value
+                )
+                db.session.add(child_bag)
+                db.session.commit()
+                app.logger.info(f'New child bag created for QR code: {qr_id}')
             
             # Get parent bag from session or find the most recent parent bag
             last_scan = session.get('last_scan')
@@ -1017,9 +1080,6 @@ def scan_child_bag():
                 if recent_parent_scan and recent_parent_scan.parent_bag_id:
                     parent_bag = Bag.query.get(recent_parent_scan.parent_bag_id)
                     app.logger.info(f'Using most recent parent bag: {parent_bag.qr_id if parent_bag else "None"}')
-            
-            # Look up the child bag first, if not found create it automatically
-            child_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.CHILD.value).first()
             
             # Check if this child bag is already linked to the current parent
             if child_bag and parent_bag:
@@ -1042,19 +1102,6 @@ def scan_child_bag():
                         app.logger.warning(f'Child bag {qr_id} has invalid parent link, cleaning up')
                         db.session.delete(existing_parent_link)
                         db.session.commit()
-            
-            if not child_bag:
-                # Create new child bag automatically for any QR code
-                child_bag = Bag(
-                    qr_id=qr_id,
-                    name=f"Bag {qr_id}",
-                    type=BagType.CHILD.value
-                )
-                db.session.add(child_bag)
-                db.session.commit()
-                app.logger.info(f'New child bag created for QR code: {qr_id}')
-            else:
-                app.logger.info(f'Using existing child bag: {qr_id}')
             
             # Create link between parent and child if parent exists
             if parent_bag:
@@ -1486,10 +1533,11 @@ def create_bill():
                 flash('Bill ID cannot be empty.', 'error')
                 return render_template('create_bill.html')
             
-            # Check if bill already exists
-            existing_bill = Bill.query.filter_by(bill_id=bill_id).first()
-            if existing_bill:
-                flash('Bill ID already exists. Please use a different ID.', 'error')
+            # Comprehensive duplicate check for bill ID uniqueness
+            is_valid, error_message = validate_new_bill_id(bill_id)
+            if not is_valid:
+                log_duplicate_attempt(bill_id, 'bill', 'bag', current_user.id)
+                flash(error_message, 'error')
                 return render_template('create_bill.html')
             
             # Validate parent bag count
@@ -1748,11 +1796,25 @@ def process_bill_parent_scan():
             app.logger.warning(f'Invalid parent QR format: {qr_id} - {error_message}')
             return jsonify({'success': False, 'message': f'Invalid parent bag QR code format: {error_message}'})
         
-        # Look up the parent bag - try exact match first, then case-insensitive
-        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        # Check if this QR code exists and validate it can be used as parent bag
+        existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
         
-        if not parent_bag:
-            # Try case-insensitive search
+        if existing_bag:
+            if existing_bag.type == BagType.CHILD.value:
+                log_duplicate_attempt(qr_id, 'parent', 'child', current_user.id)
+                return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag. Cannot use as parent bag for bills.'})
+            elif existing_bag.type == BagType.PARENT.value:
+                parent_bag = existing_bag
+            else:
+                return jsonify({'success': False, 'message': f'Invalid bag type for QR code {qr_id}.'})
+        else:
+            # Check if QR code conflicts with bill IDs
+            is_unique, conflict_type, conflict_details = check_qr_code_uniqueness(qr_id)
+            if not is_unique and conflict_type == 'bill':
+                log_duplicate_attempt(qr_id, 'parent', 'bill', current_user.id)
+                return jsonify({'success': False, 'message': f'QR code {qr_id} is already used as a bill ID. Cannot use as parent bag.'})
+            
+            # Try case-insensitive search for existing parent bag
             parent_bag = Bag.query.filter(
                 func.upper(Bag.qr_id) == qr_id.upper(),
                 Bag.type == BagType.PARENT.value
