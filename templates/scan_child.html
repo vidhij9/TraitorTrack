@@ -4,110 +4,76 @@
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
+    <div class="row mb-3">
         <div class="col-12">
             <div class="card bg-dark text-light">
-                <div class="card-body">
-                    <h2 class="card-title mb-3">
-                        <i class="fas fa-qrcode me-2"></i>Scan Child Bags
-                    </h2>
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h4 class="mb-0">
+                            <i class="fas fa-qrcode me-2"></i>Scan Child Bags
+                        </h4>
+                        {% if parent_bag %}
+                        <small class="text-success">
+                            <i class="fas fa-link me-1"></i>Parent: {{ parent_bag.qr_id }}
+                        </small>
+                        {% endif %}
+                    </div>
                     
                     <div class="progress-container">
                         <div class="progress-indicator">
-                            <div class="progress-step completed">
-                                <div class="progress-step-circle"><i class="fas fa-check"></i></div>
-                                <div class="progress-step-label">Select Location</div>
-                            </div>
-                            <div class="progress-line progress-line-completed"></div>
                             <div class="progress-step completed">
                                 <div class="progress-step-circle"><i class="fas fa-check"></i></div>
                                 <div class="progress-step-label">Scan Parent Bag</div>
                             </div>
                             <div class="progress-line progress-line-completed"></div>
                             <div class="progress-step active">
-                                <div class="progress-step-circle">3</div>
+                                <div class="progress-step-circle">2</div>
                                 <div class="progress-step-label">Scan Child Bags</div>
                             </div>
                             <div class="progress-line"></div>
                             <div class="progress-step">
-                                <div class="progress-step-circle">4</div>
+                                <div class="progress-step-circle">3</div>
                                 <div class="progress-step-label">Complete</div>
                             </div>
                         </div>
                     </div>
                     
-                    {% if parent_bag %}
-                    <div class="alert alert-primary mb-3">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-box fa-2x me-3"></i>
-                            <div>
-                                <h5 class="mb-1">Parent Bag: <span class="fw-bold">{{ parent_bag.qr_id }}</span></h5>
-                                <p class="mb-0">Scan child bags to link to this parent bag.</p>
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="alert alert-warning mb-3">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
-                            <div>
-                                <h5 class="mb-1">No Parent Bag Selected</h5>
-                                <p class="mb-0">Please scan a parent bag first before scanning child bags.</p>
-                                <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-sm btn-primary mt-2">
-                                    <i class="fas fa-qrcode me-1"></i>Scan Parent Bag
-                                </a>
-                            </div>
-                        </div>
+                    {% if not parent_bag %}
+                    <div class="alert alert-warning mb-0 mt-2">
+                        <i class="fas fa-exclamation-triangle me-2"></i>No parent bag selected.
+                        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-sm btn-primary ms-2">
+                            <i class="fas fa-qrcode me-1"></i>Scan Parent
+                        </a>
                     </div>
                     {% endif %}
-                    
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Any readable QR code can be scanned and linked to this parent bag.
-                    </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="row mb-4">
+    <div class="row mb-3">
         <div class="col-12">
             <div class="card bg-success bg-opacity-25 text-light">
-                <div class="card-body">
-                    <!-- Status Section -->
-                    <div class="text-center mb-3">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <h5 class="mb-0">Child Bags: <span id="progress-text">{{ scanned_child_count }}</span></h5>
+                            {% if parent_bag %}
+                            <small class="text-light opacity-75">Linked to {{ parent_bag.qr_id }}</small>
+                            {% endif %}
+                        </div>
+                        
                         {% if parent_bag %}
-                        <h4 class="mb-1">Child Bags: <span id="progress-text">{{ scanned_child_count }}</span></h4>
-                        <p class="mb-0">Scanned and linked to {{ parent_bag.qr_id }}</p>
-                        {% else %}
-                        <h4 class="mb-1">Child Bags: <span id="progress-text">0</span></h4>
-                        <p class="mb-0">No parent bag selected</p>
+                        <div class="d-flex gap-2">
+                            <button id="scan-another-parent" class="btn btn-outline-light btn-sm">
+                                <i class="fas fa-qrcode me-1"></i>Change Parent
+                            </button>
+                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light btn-sm">
+                                <i class="fas fa-check-circle me-1"></i>Complete Scanning
+                            </a>
+                        </div>
                         {% endif %}
                     </div>
-                    
-                    <!-- Action Buttons - Always Visible -->
-                    {% if parent_bag %}
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mb-3">
-                        <button id="scan-another-parent" class="btn btn-outline-light">
-                            <i class="fas fa-qrcode me-2"></i>Change Parent
-                        </button>
-                        <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light">
-                            <i class="fas fa-check-circle me-2"></i>Complete Scanning
-                        </a>
-                    </div>
-                    {% else %}
-                    <div class="d-grid gap-2 justify-content-center mb-3">
-                        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary">
-                            <i class="fas fa-qrcode me-2"></i>Scan Parent First
-                        </a>
-                    </div>
-                    {% endif %}
-                    
-                    {% if parent_bag %}
-                    <div class="alert alert-info mt-3 mb-0">
-                        <i class="fas fa-info-circle me-2"></i>Scan as many child bags as needed - no limit!
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
