@@ -4,33 +4,33 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="d-flex justify-content-between flex-wrap align-items-center pb-2 mb-3 border-bottom">
-        <h1 class="h3 mb-2 mb-md-0"><i class="fas fa-boxes me-2"></i><span class="d-none d-sm-inline">Advanced </span>Bags</h1>
-        <div class="btn-toolbar mb-2 mb-md-0 mobile-stack-sm">
-            <a href="{{ url_for('scan_parent') }}" class="btn btn-primary btn-sm me-2">
-                <i class="fas fa-plus me-1"></i><span class="d-none d-md-inline">Scan </span>New
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="d-flex align-items-center">
+            <h1 class="h4 mb-0 me-3"><i class="fas fa-boxes me-1"></i>Bags</h1>
+            <small class="text-muted">
+                <strong>{{ stats.total_bags }}</strong> total • 
+                <span class="text-info"><strong>{{ stats.parent_bags }}</strong> parent</span> • 
+                <span class="text-success"><strong>{{ stats.child_bags }}</strong> child</span>
+            </small>
+        </div>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ url_for('scan_parent') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i><span class="d-none d-lg-inline ms-1">New</span>
             </a>
             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
-                <i class="fas fa-refresh me-1"></i><span class="d-none d-md-inline">Clear</span>
+                <i class="fas fa-refresh"></i><span class="d-none d-lg-inline ms-1">Clear</span>
             </button>
         </div>
     </div>
 
-    <!-- Inline Statistics -->
-    <div class="mb-2">
-        <small class="text-muted">
-            <strong>{{ stats.total_bags }}</strong> total • 
-            <span class="text-info"><strong>{{ stats.parent_bags }}</strong> parent</span> • 
-            <span class="text-success"><strong>{{ stats.child_bags }}</strong> child</span>
-        </small>
-    </div>
+
 
     <!-- Compact Collapsible Filters -->
-    <div class="card bg-light border mb-2">
-        <div class="card-header p-2" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" style="cursor: pointer;">
+    <div class="card bg-light border mb-1">
+        <div class="card-header py-1 px-2" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" style="cursor: pointer;">
             <div class="d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 small"><i class="fas fa-filter me-2"></i>Filters</h6>
-                <i class="fas fa-chevron-down"></i>
+                <small class="mb-0"><i class="fas fa-filter me-1"></i>Filters</small>
+                <i class="fas fa-chevron-down small"></i>
             </div>
         </div>
         <div class="collapse" id="filtersCollapse">
