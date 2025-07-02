@@ -21,6 +21,7 @@ def create_auth_session(user):
         session['user_id'] = user.id
         session['username'] = user.username
         session['user_role'] = getattr(user.role, 'value', user.role) if hasattr(user, 'role') else 'user'
+        session['dispatch_area'] = getattr(user, 'dispatch_area', None)  # Store dispatch area for area-based access control
         session['auth_time'] = datetime.now().timestamp()
         
         # Force session to save

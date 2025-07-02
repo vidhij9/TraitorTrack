@@ -960,7 +960,8 @@ def scan_parent_bag():
                 parent_bag = Bag(
                     qr_id=qr_id,
                     name=f"Bag {qr_id}",
-                    type=BagType.PARENT.value
+                    type=BagType.PARENT.value,
+                    dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
                 )
                 db.session.add(parent_bag)
                 db.session.commit()
@@ -1030,7 +1031,8 @@ def scan_parent_bag():
                     parent_bag = Bag(
                         qr_id=qr_id,
                         name=f"Bag {qr_id}",
-                        type=BagType.PARENT.value
+                        type=BagType.PARENT.value,
+                        dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
                     )
                     db.session.add(parent_bag)
                     db.session.commit()
@@ -1143,7 +1145,8 @@ def scan_child_bag():
                 child_bag = Bag(
                     qr_id=qr_id,
                     name=f"Bag {qr_id}",
-                    type=BagType.CHILD.value
+                    type=BagType.CHILD.value,
+                    dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
                 )
                 db.session.add(child_bag)
                 db.session.commit()
@@ -1421,6 +1424,10 @@ def bag_management():
     # Build query
     query = Bag.query
     
+    # Area-based filtering for dispatchers
+    if current_user.is_dispatcher() and current_user.dispatch_area:
+        query = query.filter(Bag.dispatch_area == current_user.dispatch_area)
+    
     # Type filter
     if bag_type != 'all':
         query = query.filter(Bag.type == bag_type)
@@ -1547,9 +1554,9 @@ def bag_management():
 @app.route('/bills')
 @login_required
 def bill_management():
-    """Bill management dashboard with search functionality - admin and employee access"""
-    if not (current_user.is_admin() or current_user.role == 'employee'):
-        flash('Access restricted to admin and employee users.', 'error')
+    """Bill management dashboard with search functionality - admin and biller access"""
+    if not current_user.can_edit_bills():
+        flash('Access restricted to admin and biller users.', 'error')
         return redirect(url_for('index'))
     
     # Get search parameters
