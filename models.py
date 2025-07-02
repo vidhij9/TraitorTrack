@@ -10,11 +10,24 @@ from app_clean import db
 
 class UserRole(enum.Enum):
     ADMIN = "admin"
-    EMPLOYEE = "employee"
+    BILLER = "biller"
+    DISPATCHER = "dispatcher"
 
 class BagType(enum.Enum):
     PARENT = "parent"
     CHILD = "child"
+
+class DispatchArea(enum.Enum):
+    LUCKNOW = "lucknow"
+    INDORE = "indore"
+    JAIPUR = "jaipur"
+    HISAR = "hisar"
+    SRI_GANGANAGAR = "sri_ganganagar"
+    SANGARIA = "sangaria"
+    BATHINDA = "bathinda"
+    RAIPUR = "raipur"
+    RANCHI = "ranchi"
+    AKOLA = "akola"
 
 class PromotionRequestStatus(enum.Enum):
     PENDING = "pending"
@@ -28,7 +41,8 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), default=UserRole.EMPLOYEE.value)
+    role = db.Column(db.String(20), default=UserRole.DISPATCHER.value)
+    dispatch_area = db.Column(db.String(30), nullable=True)  # Only for dispatchers
     verification_token = db.Column(db.String(100), nullable=True)
     verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -54,6 +68,30 @@ class User(UserMixin, db.Model):
         """Check if user is an admin"""
         return self.role == UserRole.ADMIN.value
     
+    def is_biller(self):
+        """Check if user is a biller"""
+        return self.role == UserRole.BILLER.value
+    
+    def is_dispatcher(self):
+        """Check if user is a dispatcher"""
+        return self.role == UserRole.DISPATCHER.value
+    
+    def can_access_area(self, area):
+        """Check if user can access a specific dispatch area"""
+        if self.is_admin() or self.is_biller():
+            return True
+        if self.is_dispatcher():
+            return self.dispatch_area == area
+        return False
+    
+    def can_edit_bills(self):
+        """Check if user can edit bills"""
+        return self.is_admin() or self.is_biller()
+    
+    def can_manage_users(self):
+        """Check if user can manage other users"""
+        return self.is_admin()
+    
     def __repr__(self):
         return f"<User {self.username}>"
 
@@ -68,6 +106,7 @@ class Bag(db.Model):
     name = db.Column(db.String(100), nullable=True)
     child_count = db.Column(db.Integer, nullable=True)  # For parent bags
     parent_id = db.Column(db.Integer, nullable=True)  # For child bags
+    dispatch_area = db.Column(db.String(30), nullable=True)  # Area for area-based access control
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     # Comprehensive indexes for high-performance queries on large datasets

@@ -23,6 +23,27 @@ def is_admin():
     """Check if current user is admin"""
     return session.get('user_role') == 'admin'
 
+def is_biller():
+    """Check if current user is a biller"""
+    return session.get('user_role') == 'biller'
+
+def is_dispatcher():
+    """Check if current user is a dispatcher"""
+    return session.get('user_role') == 'dispatcher'
+
+def can_edit_bills():
+    """Check if current user can edit bills"""
+    role = session.get('user_role')
+    return role in ['admin', 'biller']
+
+def can_manage_users():
+    """Check if current user can manage other users"""
+    return session.get('user_role') == 'admin'
+
+def get_user_dispatch_area():
+    """Get current user's dispatch area"""
+    return session.get('dispatch_area')
+
 def get_current_user_id():
     """Get current user ID from session"""
     return session.get('user_id')
@@ -51,6 +72,10 @@ class CurrentUser:
         return session.get('user_role')
     
     @property
+    def dispatch_area(self):
+        return session.get('dispatch_area')
+    
+    @property
     def is_authenticated(self):
         # Check both session formats for compatibility
         return (
@@ -61,6 +86,32 @@ class CurrentUser:
     def is_admin(self):
         """Check if user is admin"""
         return session.get('user_role') == 'admin'
+    
+    def is_biller(self):
+        """Check if user is a biller"""
+        return session.get('user_role') == 'biller'
+    
+    def is_dispatcher(self):
+        """Check if user is a dispatcher"""
+        return session.get('user_role') == 'dispatcher'
+    
+    def can_edit_bills(self):
+        """Check if user can edit bills"""
+        role = session.get('user_role')
+        return role in ['admin', 'biller']
+    
+    def can_manage_users(self):
+        """Check if user can manage other users"""
+        return session.get('user_role') == 'admin'
+    
+    def can_access_area(self, area):
+        """Check if user can access a specific dispatch area"""
+        role = session.get('user_role')
+        if role in ['admin', 'biller']:
+            return True
+        if role == 'dispatcher':
+            return session.get('dispatch_area') == area
+        return False
 
 current_user = CurrentUser()
 from sqlalchemy import desc, func, and_, or_
