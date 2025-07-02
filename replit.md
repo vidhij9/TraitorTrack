@@ -20,8 +20,8 @@ TraceTrack is a comprehensive supply chain traceability platform built for agric
 - **Theme System**: Agricultural-themed CSS with dark mode support
 
 ### Database Schema
-- **Users**: Authentication with role-based access (admin/employee)
-- **Bags**: Parent-child relationship tracking with QR codes
+- **Users**: Authentication with hierarchical role system (admin/biller/dispatcher)
+- **Bags**: Parent-child relationship tracking with QR codes and area-based assignments
 - **Bills**: Invoice management with bag linking
 - **Scans**: Audit trail for all QR code interactions
 - **Links**: Many-to-many relationships between bags and bills
@@ -31,7 +31,8 @@ TraceTrack is a comprehensive supply chain traceability platform built for agric
 ### Authentication System
 - Session-based authentication with CSRF protection
 - Account lockout mechanism for failed login attempts
-- Role-based access control (admin/employee)
+- Hierarchical role-based access control (admin/biller/dispatcher)
+- Area-based access control for dispatchers
 - Password strength validation and security headers
 
 ### Bag Management
@@ -107,8 +108,46 @@ TraceTrack is a comprehensive supply chain traceability platform built for agric
 - Data integrity checks and validation
 - Backup and recovery procedures
 
+## User Hierarchy System
+
+The system implements a three-tier hierarchical role system:
+
+### 1. Admin (Full Access)
+- Complete system administration
+- User management capabilities
+- Access to all areas and functions
+- Can edit bills and manage all data
+
+### 2. Biller (Bill Management Access)
+- Bill creation and editing rights
+- Access to all dispatch areas
+- Cannot manage users
+- Full bill lifecycle management
+
+### 3. Dispatcher (Area-Restricted Employee)
+- Limited to assigned dispatch area only
+- Can scan bags and create QR codes
+- Area-specific data visibility
+- Cannot edit bills or manage users
+
+### Dispatch Areas
+The system supports 10 dispatch locations:
+- Lucknow
+- Indore
+- Jaipur
+- Hisar
+- Sri Ganganagar
+- Sangaria
+- Bathinda
+- Raipur
+- Ranchi
+- Akola
+
+Each dispatcher is assigned to one specific area and can only see and manage bags/data from their assigned location.
+
 ## Changelog
 
+- July 02, 2025. Updated user management system with hierarchical roles and area-based access control
 - July 02, 2025. Initial setup
 
 ## User Preferences
