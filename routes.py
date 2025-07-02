@@ -225,6 +225,7 @@ def edit_user(user_id):
         username = request.form.get('username')
         email = request.form.get('email')
         role = request.form.get('role')
+        dispatch_area = request.form.get('dispatch_area')
         
         if username:
             user.username = username
@@ -232,6 +233,14 @@ def edit_user(user_id):
             user.email = email
         if role and role in [UserRole.ADMIN.value, UserRole.BILLER.value, UserRole.DISPATCHER.value]:
             user.role = role
+            # Update dispatch area based on role
+            if role == UserRole.DISPATCHER.value:
+                if not dispatch_area:
+                    flash('Dispatch area is required for dispatchers.', 'error')
+                    return redirect(url_for('user_management'))
+                user.dispatch_area = dispatch_area
+            else:
+                user.dispatch_area = None  # Clear dispatch area for non-dispatchers
             
         db.session.commit()
         flash('User updated successfully!', 'success')
@@ -328,10 +337,16 @@ def create_user():
         email = request.form.get('email')
         password = request.form.get('password')
         role = request.form.get('role', UserRole.DISPATCHER.value)
+        dispatch_area = request.form.get('dispatch_area')
         
         # Validate required fields
         if not username or not email or not password:
             flash('All fields are required.', 'error')
+            return redirect(url_for('user_management'))
+        
+        # Validate dispatch area for dispatchers
+        if role == UserRole.DISPATCHER.value and not dispatch_area:
+            flash('Dispatch area is required for dispatchers.', 'error')
             return redirect(url_for('user_management'))
         
         # Check if user already exists
@@ -348,6 +363,7 @@ def create_user():
             username=username,
             email=email,
             role=role,
+            dispatch_area=dispatch_area if role == UserRole.DISPATCHER.value else None,
             verified=True
         )
         user.set_password(password)

@@ -220,8 +220,25 @@
                     <div class="mb-3">
                         <label for="role" class="form-label">Role</label>
                         <select class="form-select" id="role" name="role">
-                            <option value="employee">Employee</option>
+                            <option value="dispatcher">Dispatcher</option>
+                            <option value="biller">Biller</option>
                             <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="dispatch-area-container">
+                        <label for="dispatch_area" class="form-label">Dispatch Area (for Dispatchers)</label>
+                        <select class="form-select" id="dispatch_area" name="dispatch_area">
+                            <option value="">Select Area</option>
+                            <option value="lucknow">Lucknow</option>
+                            <option value="indore">Indore</option>
+                            <option value="jaipur">Jaipur</option>
+                            <option value="hisar">Hisar</option>
+                            <option value="sri_ganganagar">Sri Ganganagar</option>
+                            <option value="sangaria">Sangaria</option>
+                            <option value="bathinda">Bathinda</option>
+                            <option value="raipur">Raipur</option>
+                            <option value="ranchi">Ranchi</option>
+                            <option value="akola">Akola</option>
                         </select>
                     </div>
                 </div>
@@ -260,8 +277,25 @@
                     <div class="mb-3">
                         <label for="edit_role" class="form-label">Role</label>
                         <select class="form-select" id="edit_role" name="role">
-                            <option value="employee">Employee</option>
+                            <option value="dispatcher">Dispatcher</option>
+                            <option value="biller">Biller</option>
                             <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="edit-dispatch-area-container">
+                        <label for="edit_dispatch_area" class="form-label">Dispatch Area (for Dispatchers)</label>
+                        <select class="form-select" id="edit_dispatch_area" name="dispatch_area">
+                            <option value="">Select Area</option>
+                            <option value="lucknow">Lucknow</option>
+                            <option value="indore">Indore</option>
+                            <option value="jaipur">Jaipur</option>
+                            <option value="hisar">Hisar</option>
+                            <option value="sri_ganganagar">Sri Ganganagar</option>
+                            <option value="sangaria">Sangaria</option>
+                            <option value="bathinda">Bathinda</option>
+                            <option value="raipur">Raipur</option>
+                            <option value="ranchi">Ranchi</option>
+                            <option value="akola">Akola</option>
                         </select>
                     </div>
                 </div>
@@ -374,6 +408,31 @@ function deleteUser(userId) {
         });
     }
 }
+
+// Handle dispatch area visibility based on role selection
+function toggleDispatchArea(selectElement, containerElementId) {
+    const container = document.getElementById(containerElementId);
+    if (selectElement.value === 'dispatcher') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// Add event listeners for role changes
+document.getElementById('role').addEventListener('change', function() {
+    toggleDispatchArea(this, 'dispatch-area-container');
+});
+
+document.getElementById('edit_role').addEventListener('change', function() {
+    toggleDispatchArea(this, 'edit-dispatch-area-container');
+});
+
+// Initialize dispatch area visibility on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleDispatchArea(document.getElementById('role'), 'dispatch-area-container');
+    toggleDispatchArea(document.getElementById('edit_role'), 'edit-dispatch-area-container');
+});
 
 // Live search
 document.getElementById('userSearch').addEventListener('input', filterUsers);
