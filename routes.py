@@ -230,7 +230,7 @@ def edit_user(user_id):
             user.username = username
         if email:
             user.email = email
-        if role and role in [UserRole.ADMIN.value, UserRole.EMPLOYEE.value]:
+        if role and role in [UserRole.ADMIN.value, UserRole.BILLER.value, UserRole.DISPATCHER.value]:
             user.role = role
             
         db.session.commit()
@@ -277,13 +277,13 @@ def demote_user(user_id):
     user = User.query.get_or_404(user_id)
     
     try:
-        if user.role == UserRole.EMPLOYEE.value:
+        if user.role == UserRole.DISPATCHER.value:
             return jsonify({'success': False, 'message': 'User is already an employee'})
             
         if user.id == current_user.id:
             return jsonify({'success': False, 'message': 'Cannot demote yourself'})
             
-        user.role = UserRole.EMPLOYEE.value
+        user.role = UserRole.DISPATCHER.value
         db.session.commit()
         
         return jsonify({'success': True, 'message': f'{user.username} demoted to employee'})
@@ -327,7 +327,7 @@ def create_user():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
-        role = request.form.get('role', UserRole.EMPLOYEE.value)
+        role = request.form.get('role', UserRole.DISPATCHER.value)
         
         # Validate required fields
         if not username or not email or not password:
@@ -519,6 +519,7 @@ def login():
                 session['user_id'] = user.id
                 session['username'] = user.username
                 session['user_role'] = user.role
+                session['dispatch_area'] = user.dispatch_area  # Store dispatch area for area-based access control
                 session['auth_time'] = time.time()
                 
                 # Track successful login
@@ -722,7 +723,7 @@ def register():
             user = User(
                 username=username,
                 email=email,
-                role=UserRole.EMPLOYEE.value,
+                role=UserRole.DISPATCHER.value,
                 verified=True
             )
             user.set_password(password)
@@ -820,8 +821,8 @@ def admin_promote_user():
     form = AdminPromotionForm()
     
     # Populate user choices (only employees)
-    employees = User.query.filter_by(role=UserRole.EMPLOYEE.value).all()
-    form.user_id.choices = [(u.id, f"{u.username} ({u.email})") for u in employees]
+    dispatchers = User.query.filter_by(role=UserRole.DISPATCHER.value).all()
+    form.user_id.choices = [(u.id, f"{u.username} ({u.email})") for u in dispatchers]
     
     if form.validate_on_submit():
         try:
