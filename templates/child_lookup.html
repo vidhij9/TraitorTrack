@@ -3,6 +3,8 @@
 {% block title %} - Search Bags{% endblock %}
 
 {% block head %}
+<!-- jsQR library for QR code detection -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
     #video {
         width: 100%;
@@ -256,13 +258,20 @@
         let canvasContext = canvas.getContext('2d');
         let lastDetectedCode = null;
         
-        // Automatically start camera when page loads
-        setTimeout(() => {
-            startCamera();
-        }, 1000);
+        // Start camera when button is clicked  
+        startCameraBtn.addEventListener('click', startCamera);
         
         // Stop camera when button is clicked
         stopCameraBtn.addEventListener('click', stopCamera);
+        
+        // Automatically start camera when page loads (after jsQR is loaded)
+        setTimeout(() => {
+            if (typeof jsQR !== 'undefined') {
+                startCamera();
+            } else {
+                console.error('jsQR library not loaded');
+            }
+        }, 1000);
         
         function startCamera() {
             // Request access to the webcam
@@ -282,18 +291,10 @@
                     })
                     .catch(function(error) {
                         console.error('Could not access the camera: ', error);
-                        if (resultContainer) {
-                            resultContainer.className = 'alert alert-danger';
-                            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                                'Could not access the camera. Please check your camera permissions or use manual entry.';
-                        }
+                        alert('Could not access the camera. Please check your camera permissions or use manual entry.');
                     });
             } else {
-                if (resultContainer) {
-                    resultContainer.className = 'alert alert-danger';
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                        'Your browser does not support camera access. Please use a modern browser or use manual entry.';
-                }
+                alert('Your browser does not support camera access. Please use a modern browser or use manual entry.');
             }
         }
         
@@ -356,7 +357,4 @@
         }
     });
 </script>
-
-<!-- jsQR library for QR code detection -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 {% endblock %}
