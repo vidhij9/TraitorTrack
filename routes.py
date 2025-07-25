@@ -523,6 +523,13 @@ def login():
         
         try:
             user = User.query.filter_by(username=username).first()
+            app.logger.info(f"Login attempt for username: {username}")
+            app.logger.info(f"User found: {user is not None}")
+            if user:
+                app.logger.info(f"User role: {user.role}, verified: {user.verified}")
+                password_valid = check_password_hash(user.password_hash, password)
+                app.logger.info(f"Password valid: {password_valid}")
+                
             if user and check_password_hash(user.password_hash, password):
                 # Reset failed attempts on successful login
                 reset_failed_attempts(username)
