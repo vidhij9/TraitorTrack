@@ -97,15 +97,15 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="video-container position-relative" style="height: 300px; overflow: hidden;">
-                        <video id="video" playsinline class="d-none"></video>
-                        <canvas id="canvas" class="w-100 h-100"></canvas>
-                        <div class="scan-overlay">
+                        <video id="video" playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;"></video>
+                        <canvas id="canvas" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; z-index: 2;"></canvas>
+                        <div class="scan-overlay position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; z-index: 3;">
                             <div class="scan-indicator"></div>
                             <div class="scan-frame"></div>
                         </div>
                         
                         <!-- Camera status overlay -->
-                        <div class="camera-status-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" id="camera-status">
+                        <div class="camera-status-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" id="camera-status" style="z-index: 4; background: rgba(0,0,0,0.8);">
                             <div class="bg-dark bg-opacity-75 text-white p-3 rounded text-center">
                                 <div class="spinner-border mb-2" role="status"></div>
                                 <div>Starting camera...</div>
@@ -184,14 +184,15 @@
         position: relative;
         overflow: hidden;
         border-radius: 0;
-        background-color: #1a1a1a;
+        background-color: #000;
+    }
+    
+    #video {
+        background-color: #000;
     }
     
     #canvas {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        background-color: #1a1a1a;
+        background: transparent;
     }
     
     .scan-overlay {
@@ -306,6 +307,11 @@
             cameraStatus.classList.remove('d-none');
             scanningStatus.classList.remove('d-none');
             
+            // Set canvas dimensions to match container
+            const videoContainer = document.querySelector('.video-container');
+            canvas.width = videoContainer.offsetWidth;
+            canvas.height = videoContainer.offsetHeight;
+            
             // Request access to the webcam
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ 
@@ -319,11 +325,22 @@
                         stream = mediaStream;
                         video.srcObject = stream;
                         video.setAttribute('playsinline', true); // Required for iOS Safari
+                        
+                        // Wait for video to load and then start scanning
+                        video.addEventListener('loadedmetadata', function() {
+                            // Set canvas dimensions based on video
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                        });
+                        
                         video.play();
                         
                         // Hide camera status overlay once video starts
                         video.addEventListener('playing', function() {
                             cameraStatus.classList.add('d-none');
+                            // Ensure canvas matches video dimensions
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
                         });
                         
                         startCameraBtn.disabled = true;
@@ -379,9 +396,16 @@
                 // Hide scanning status
                 scanningStatus.classList.add('d-none');
                 
-                // Clear canvas
+                // Clear canvas and show a blank screen
                 canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-                canvas.style.backgroundColor = '#1a1a1a';
+                canvasContext.fillStyle = '#000';
+                canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Show "camera stopped" message on canvas
+                canvasContext.fillStyle = '#fff';
+                canvasContext.font = '16px Arial';
+                canvasContext.textAlign = 'center';
+                canvasContext.fillText('Camera stopped', canvas.width/2, canvas.height/2);
             }
         }
         
@@ -391,9 +415,16 @@
             requestAnimationFrame(scanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Draw a scanning marker to help users position the code
-                canvas.height = video.videoHeight;
-                canvas.width = video.videoWidth;
+                // Ensure canvas matches video dimensions
+                if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                }
+                
+                // Clear the canvas
+                canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw the current video frame (this makes the camera feed visible)
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
                 // Add scanning overlay for user feedback
@@ -403,7 +434,7 @@
                 
                 // Draw scanning frame
                 canvasContext.strokeStyle = '#00FF00';
-                canvasContext.lineWidth = 4;
+                canvasContext.lineWidth = 3;
                 canvasContext.beginPath();
                 canvasContext.rect(
                     centerX - scanSize/2,
@@ -422,12 +453,12 @@
                     centerX - scanSize/2,
                     centerY - scanSize/2,
                     cornerSize,
-                    4
+                    3
                 );
                 canvasContext.fillRect(
                     centerX - scanSize/2,
                     centerY - scanSize/2,
-                    4,
+                    3,
                     cornerSize
                 );
                 
@@ -436,40 +467,40 @@
                     centerX + scanSize/2 - cornerSize,
                     centerY - scanSize/2,
                     cornerSize,
-                    4
+                    3
                 );
                 canvasContext.fillRect(
-                    centerX + scanSize/2 - 4,
+                    centerX + scanSize/2 - 3,
                     centerY - scanSize/2,
-                    4,
+                    3,
                     cornerSize
                 );
                 
                 // Bottom-left corner
                 canvasContext.fillRect(
                     centerX - scanSize/2,
-                    centerY + scanSize/2 - 4,
+                    centerY + scanSize/2 - 3,
                     cornerSize,
-                    4
+                    3
                 );
                 canvasContext.fillRect(
                     centerX - scanSize/2,
                     centerY + scanSize/2 - cornerSize,
-                    4,
+                    3,
                     cornerSize
                 );
                 
                 // Bottom-right corner
                 canvasContext.fillRect(
                     centerX + scanSize/2 - cornerSize,
-                    centerY + scanSize/2 - 4,
+                    centerY + scanSize/2 - 3,
                     cornerSize,
-                    4
+                    3
                 );
                 canvasContext.fillRect(
-                    centerX + scanSize/2 - 4,
+                    centerX + scanSize/2 - 3,
                     centerY + scanSize/2 - cornerSize,
-                    4,
+                    3,
                     cornerSize
                 );
                 
@@ -487,8 +518,8 @@
                     canvasContext.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
                     canvasContext.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
                     canvasContext.lineTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
-                    canvasContext.lineWidth = 6;
-                    canvasContext.strokeStyle = "#FF0000";
+                    canvasContext.lineWidth = 4;
+                    canvasContext.strokeStyle = "#FF3030";
                     canvasContext.stroke();
                     
                     // To prevent multiple scans of the same code
