@@ -1381,7 +1381,9 @@ def child_lookup():
             
             bag_info['scans'] = scans
         else:
-            flash('Bag not found. Please check the QR code.', 'error')
+            # More descriptive error message based on the searched QR code
+            original_qr = request.form.get('qr_id', qr_id)
+            flash(f'Bag "{original_qr}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
     
     return render_template('child_lookup.html', form=form, bag_info=bag_info)
 
