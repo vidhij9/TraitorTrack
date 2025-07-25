@@ -1102,6 +1102,8 @@ def scan_child():
     scanned_child_count = 0
     
     if parent_bag:
+        # Set the current parent in session for API endpoints
+        session['current_parent_qr'] = parent_bag.qr_id
         # Count how many child bags are already linked to this parent
         scanned_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
     
@@ -2154,23 +2156,43 @@ def view_scan_details(scan_id):
     return render_template('scan_details.html', scan=scan, bag=bag)
 
 @app.route('/api/scanned-children')
+@login_required
 def api_scanned_children():
     """Get scanned child bags for current session"""
     try:
-        # Get parent bag from session
-        parent_qr = session.get('current_parent_qr')
-        if not parent_qr:
-            return jsonify({
-                'success': False,
-                'message': 'No active parent bag session'
-            })
+        # Get parent bag from session using same logic as scan_child route
+        parent_bag = None
         
-        # Find parent bag
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        # First try current_parent_qr
+        parent_qr = session.get('current_parent_qr')
+        if parent_qr:
+            parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        
+        # If not found, try last_scan
+        if not parent_bag:
+            last_scan = session.get('last_scan')
+            if last_scan and last_scan.get('type') == 'parent':
+                parent_qr_id = last_scan.get('qr_id')
+                if parent_qr_id:
+                    parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
+                    if parent_bag:
+                        parent_qr = parent_qr_id
+        
+        # If still not found, find most recent parent bag for this user
+        if not parent_bag:
+            recent_parent_scan = Scan.query.filter_by(user_id=current_user.id).filter(
+                Scan.parent_bag_id.isnot(None)
+            ).order_by(desc(Scan.timestamp)).first()
+            
+            if recent_parent_scan and recent_parent_scan.parent_bag_id:
+                parent_bag = Bag.query.get(recent_parent_scan.parent_bag_id)
+                if parent_bag:
+                    parent_qr = parent_bag.qr_id
+        
         if not parent_bag:
             return jsonify({
                 'success': False,
-                'message': 'Parent bag not found'
+                'message': 'No active parent bag session'
             })
         
         # Get all linked child bags
