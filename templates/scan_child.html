@@ -97,15 +97,11 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="video-container position-relative">
-                        <video id="video" playsinline class="d-none"></video>
-                        <canvas id="canvas" class="w-100"></canvas>
-                        
-                        <!-- Camera status overlay -->
-                        <div class="camera-status-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" id="camera-status" style="z-index: 4; background: rgba(0,0,0,0.8);">
-                            <div class="bg-dark bg-opacity-75 text-white p-3 rounded text-center">
-                                <div class="spinner-border mb-2" role="status"></div>
-                                <div>Starting camera...</div>
-                            </div>
+                        <video id="video" playsinline style="display: none;"></video>
+                        <canvas id="canvas" class="w-100" style="background-color: #000; display: block;"></canvas>
+                        <div id="camera-status" class="position-absolute top-50 start-50 translate-middle text-white text-center" style="z-index: 10;">
+                            <i class="fas fa-camera fa-3x mb-2"></i>
+                            <p>Click Start Camera to begin scanning</p>
                         </div>
                     </div>
                 </div>
@@ -234,10 +230,11 @@
         // Load existing scanned bags
         loadScannedBags();
         
-        // Only start camera automatically if we have a parent bag
-        if (hasParentBag) {
-            startCamera();
-        } else {
+        // Initialize canvas size immediately
+        initializeCanvas();
+        
+        // Don't start camera automatically - wait for user action
+        if (!hasParentBag) {
             resultContainer.className = 'alert alert-warning';
             resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please scan a parent bag first before scanning child bags.';
         }
@@ -269,81 +266,144 @@
             }
         });
         
-        function startCamera() {
-            const scanningStatus = document.getElementById('scanning-status');
-            const cameraStatus = document.getElementById('camera-status');
+        function initializeCanvas() {
+            const container = canvas.parentElement;
+            const rect = container.getBoundingClientRect();
             
-            // Show camera loading status
-            cameraStatus.classList.remove('d-none');
-            scanningStatus.classList.remove('d-none');
+            canvas.width = rect.width || 640;
+            canvas.height = rect.height || 480;
             
-            // Request access to the webcam
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    } 
-                })
-                    .then(function(mediaStream) {
-                        stream = mediaStream;
-                        video.srcObject = stream;
-                        video.setAttribute('playsinline', true); // Required for iOS Safari
-                        
-                        video.onloadedmetadata = function() {
-                            video.play().then(() => {
-                                console.log('Video is playing');
-                            }).catch(error => {
-                                console.error('Error playing video:', error);
-                                resultContainer.className = 'alert alert-danger';
-                                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                                    'Error starting video playback. Please try again.';
-                            });
-                        };
-                        
-                        // Hide camera status overlay once video starts
-                        video.addEventListener('playing', function() {
-                            cameraStatus.classList.add('d-none');
-                        });
-                        
-                        startCameraBtn.disabled = true;
-                        stopCameraBtn.disabled = false;
-                        
-                        scanning = true;
-                        scanQRCode();
-                        
-                        // Update scanning status
-                        scanningStatus.innerHTML = `
-                            <div class="d-flex align-items-center">
-                                <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
-                                <span class="text-success">Camera active - Position QR code in the scanning area</span>
-                            </div>
-                        `;
-                        
-                        // Show switch camera button if multiple cameras available
-                        navigator.mediaDevices.enumerateDevices().then(devices => {
-                            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                            if (videoDevices.length > 1) {
-                                document.getElementById('switch-camera').classList.remove('d-none');
-                            }
-                        });
-                    })
-                    .catch(function(error) {
-                        console.error('Could not access the camera: ', error);
-                        cameraStatus.classList.add('d-none');
-                        scanningStatus.classList.add('d-none');
-                        resultContainer.className = 'alert alert-danger';
-                        resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                            'Could not access the camera. Please check your camera permissions or use manual entry below.';
-                    });
-            } else {
-                cameraStatus.classList.add('d-none');
-                scanningStatus.classList.add('d-none');
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                    'Your browser does not support camera access. Please use a modern browser or use manual entry below.';
+            canvasContext.fillStyle = '#000000';
+            canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+            
+            console.log('Canvas initialized:', canvas.width, 'x', canvas.height);
+        }
+        
+        function updateCameraStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('camera-status');
+            if (statusDiv) {
+                if (type === 'success') {
+                    statusDiv.style.display = 'none';
+                } else {
+                    statusDiv.innerHTML = `<i class="fas fa-camera fa-3x mb-2"></i><p>${message}</p>`;
+                    statusDiv.style.display = 'block';
+                }
             }
+        }
+        
+        function startCamera() {
+            console.log('Starting camera...');
+            updateCameraStatus('Requesting camera access...');
+            
+            const scanningStatus = document.getElementById('scanning-status');
+            if (scanningStatus) {
+                scanningStatus.classList.remove('d-none');
+            }
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showError('Your browser does not support camera access. Please use a modern browser or try manual entry.');
+                return;
+            }
+            
+            const constraints = { 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280, min: 320 },
+                    height: { ideal: 720, min: 240 }
+                } 
+            };
+            
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(function(mediaStream) {
+                    console.log('Camera access granted');
+                    stream = mediaStream;
+                    video.srcObject = stream;
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.autoplay = true;
+                    
+                    video.onloadedmetadata = function() {
+                        console.log('Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
+                        
+                        if (video.videoWidth === 0 || video.videoHeight === 0) {
+                            showError('Camera failed to initialize properly. Please try again.');
+                            return;
+                        }
+                        
+                        video.play().then(() => {
+                            console.log('Video playing successfully');
+                            
+                            startCameraBtn.disabled = true;
+                            stopCameraBtn.disabled = false;
+                            updateCameraStatus('Camera active', 'success');
+                            
+                            setupCanvas();
+                            
+                            scanning = true;
+                            requestAnimationFrame(scanQRCode);
+                            
+                            if (scanningStatus) {
+                                scanningStatus.innerHTML = `
+                                    <div class="d-flex align-items-center">
+                                        <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+                                        <span class="text-success">Camera active - Position QR code in scanning area</span>
+                                    </div>
+                                `;
+                            }
+                            
+                        }).catch(error => {
+                            console.error('Error playing video:', error);
+                            showError('Failed to start video playback. Please try again.');
+                        });
+                    };
+                    
+                })
+                .catch(function(error) {
+                    console.error('Could not access the camera:', error);
+                    let errorMessage = 'Could not access the camera. ';
+                    
+                    switch(error.name) {
+                        case 'NotAllowedError':
+                            errorMessage = 'Camera access was denied. Please allow camera access and try again.';
+                            break;
+                        case 'NotFoundError':
+                            errorMessage = 'No camera found. Make sure your device has a camera.';
+                            break;
+                        case 'NotReadableError':
+                            errorMessage = 'Camera is already in use by another application.';
+                            break;
+                        default:
+                            errorMessage += 'Please check your camera permissions or try manual entry.';
+                    }
+                    
+                    showError(errorMessage);
+                    updateCameraStatus(errorMessage);
+                });
+        }
+        
+        function setupCanvas() {
+            if (!video.videoWidth || !video.videoHeight) {
+                console.error('Cannot setup canvas: invalid video dimensions');
+                return;
+            }
+            
+            const container = canvas.parentElement;
+            const containerRect = container.getBoundingClientRect();
+            
+            canvas.width = Math.min(containerRect.width || 640, 640);
+            canvas.height = Math.min(containerRect.height || 480, 480);
+            
+            console.log('Canvas setup complete:', canvas.width, 'x', canvas.height);
+        }
+        
+        function showError(message) {
+            resultContainer.className = 'alert alert-danger';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + message;
+            resultContainer.style.display = 'block';
         }
         
         function stopCamera() {
