@@ -64,12 +64,12 @@
                         </div>
                         
                         {% if parent_bag %}
-                        <div class="d-flex gap-1 flex-shrink-0">
-                            <button id="scan-another-parent" class="btn btn-outline-light btn-sm" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
-                                <i class="fas fa-qrcode"></i> Parent
+                        <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                            <button id="scan-another-parent" class="btn btn-outline-light" style="font-size: 0.6rem; padding: 0.2rem 0.4rem; border-radius: 3px;">
+                                Parent
                             </button>
-                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light btn-sm" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
-                                <i class="fas fa-check"></i> Complete
+                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light" style="font-size: 0.6rem; padding: 0.2rem 0.4rem; border-radius: 3px;">
+                                Complete
                             </a>
                         </div>
                         {% endif %}
