@@ -101,7 +101,7 @@
                         <canvas id="canvas" class="w-100" style="background-color: #000; display: block;"></canvas>
                         <div id="camera-status" class="position-absolute top-50 start-50 translate-middle text-white text-center" style="z-index: 10;">
                             <i class="fas fa-camera fa-3x mb-2"></i>
-                            <p>Click Start Camera to begin scanning</p>
+                            <p>Starting camera automatically...</p>
                         </div>
                     </div>
                 </div>
@@ -233,10 +233,13 @@
         // Initialize canvas size immediately
         initializeCanvas();
         
-        // Don't start camera automatically - wait for user action
+        // Auto-start camera if parent bag exists
         if (!hasParentBag) {
             resultContainer.className = 'alert alert-warning';
             resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please scan a parent bag first before scanning child bags.';
+        } else {
+            // Start camera automatically when page loads
+            setTimeout(startCamera, 500);
         }
         
         // Button event listeners

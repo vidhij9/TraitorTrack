@@ -54,7 +54,7 @@
                         <canvas id="canvas" class="w-100" style="background-color: #000; display: block;"></canvas>
                         <div id="camera-status" class="position-absolute top-50 start-50 translate-middle text-white text-center" style="z-index: 10;">
                             <i class="fas fa-camera fa-3x mb-2"></i>
-                            <p>Click Start Camera to begin scanning</p>
+                            <p>Starting camera automatically...</p>
                         </div>
                     </div>
                 </div>
@@ -181,8 +181,8 @@
         // Initialize canvas size immediately
         initializeCanvas();
         
-        // Don't start camera automatically - wait for user action
-        // startCamera();
+        // Start camera automatically when page loads
+        setTimeout(startCamera, 500);
         
         // Set up button event listeners
         startCameraBtn.addEventListener('click', startCamera);
@@ -247,7 +247,8 @@
                 return;
             }
             
-            const constraints = { 
+            // Try rear camera first, fallback to any camera
+            let constraints = { 
                 video: { 
                     facingMode: 'environment',
                     width: { ideal: 1280, min: 320 },
@@ -257,7 +258,29 @@
             
             console.log('Requesting camera access with constraints:', constraints);
             
-            navigator.mediaDevices.getUserMedia(constraints)
+            // Function to try camera access with fallbacks
+            function tryGetUserMedia(currentConstraints) {
+                return navigator.mediaDevices.getUserMedia(currentConstraints)
+                    .catch(function(error) {
+                        console.log('Failed with constraints:', currentConstraints, 'Error:', error.name);
+                        
+                        // If rear camera fails, try any available camera
+                        if (currentConstraints.video.facingMode === 'environment') {
+                            console.log('Rear camera not available, trying front camera');
+                            const fallbackConstraints = {
+                                video: {
+                                    width: { ideal: 1280, min: 320 },
+                                    height: { ideal: 720, min: 240 }
+                                }
+                            };
+                            return navigator.mediaDevices.getUserMedia(fallbackConstraints);
+                        }
+                        // If that also fails, throw the original error
+                        throw error;
+                    });
+            }
+            
+            tryGetUserMedia(constraints)
                 .then(function(mediaStream) {
                     console.log('Camera access granted');
                     stream = mediaStream;
@@ -293,12 +316,21 @@
                             requestAnimationFrame(scanQRCode);
                             
                             // Show success message
-                            showSuccess('Camera started successfully. Point camera at QR code to scan.');
+                            console.log('Camera initialized and scanning started');
                             
                         }).catch(error => {
                             console.error('Error playing video:', error);
                             showError('Failed to start video playback. Please try again.');
                         });
+                    };
+                    
+                    // Additional event handler for when video starts playing
+                    video.onplaying = function() {
+                        console.log('Video is now playing - starting render loop');
+                        if (!scanning) {
+                            scanning = true;
+                            requestAnimationFrame(scanQRCode);
+                        }
                     };
                     
                     video.onerror = function(error) {
@@ -353,12 +385,27 @@
             const container = canvas.parentElement;
             const containerRect = container.getBoundingClientRect();
             
+            // Set canvas size to match container but maintain reasonable limits
+            const containerWidth = containerRect.width || 640;
+            const containerHeight = containerRect.height || 480;
+            
             // Set canvas internal drawing size
-            canvas.width = Math.min(containerRect.width || 640, 640);
-            canvas.height = Math.min(containerRect.height || 480, 480);
+            canvas.width = Math.min(containerWidth, 800);
+            canvas.height = Math.min(containerHeight, 600);
+            
+            // Ensure aspect ratio makes sense
+            const videoAspect = video.videoWidth / video.videoHeight;
+            const targetHeight = canvas.width / videoAspect;
+            
+            if (targetHeight <= canvas.height) {
+                canvas.height = targetHeight;
+            } else {
+                canvas.width = canvas.height * videoAspect;
+            }
             
             console.log('Canvas setup complete:', canvas.width, 'x', canvas.height);
             console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+            console.log('Container dimensions:', containerWidth, 'x', containerHeight);
         }
         
         function showError(message) {
