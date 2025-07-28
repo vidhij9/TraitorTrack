@@ -125,37 +125,12 @@
                                                     
                                                     {% if session.get('user_role') == 'admin' %}
                                                         <!-- Only admin can delete bills -->
-                                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBillModal{{ data.bill.id }}">
+                                                        <button type="button" class="btn btn-outline-danger delete-bill-btn" 
+                                                                data-bill-id="{{ data.bill.id }}" 
+                                                                data-bill-name="{{ data.bill.bill_id }}">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
                                                     {% endif %}
-                                                </div>
-                                                
-                                                <!-- Delete Confirmation Modal -->
-                                                <div class="modal fade" id="deleteBillModal{{ data.bill.id }}" tabindex="-1" aria-labelledby="deleteBillModalLabel{{ data.bill.id }}" aria-hidden="true">
-                                                    <div class="modal-dialog">
-                                                        <div class="modal-content">
-                                                            <div class="modal-header bg-danger text-white">
-                                                                <h5 class="modal-title" id="deleteBillModalLabel{{ data.bill.id }}">
-                                                                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
-                                                                </h5>
-                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <p>Are you sure you want to delete Bill <strong>{{ data.bill.bill_id }}</strong>?</p>
-                                                                <p class="text-danger">This action cannot be undone.</p>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                                <form method="POST" action="{{ url_for('delete_bill', bill_id=data.bill.id) }}" style="display: inline;">
-                                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                                    <button type="submit" class="btn btn-danger">
-                                                                        <i class="fas fa-trash me-2"></i>Delete
-                                                                    </button>
-                                                                </form>
-                                                            </div>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -183,4 +158,130 @@
         </div>
     </div>
 </div>
+
+<!-- Single Delete Confirmation Modal -->
+<div class="modal fade" id="deleteBillModal" tabindex="-1" aria-labelledby="deleteBillModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteBillModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete Bill <strong id="billNameToDelete"></strong>?</p>
+                <p class="text-danger mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteBillForm" method="POST" action="" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Fix modal positioning and mobile issues */
+.modal {
+    z-index: 1055 !important; /* Higher than default */
+}
+
+.modal-backdrop {
+    z-index: 1050 !important;
+}
+
+.modal-dialog-centered {
+    min-height: calc(100% - 3.5rem) !important;
+}
+
+/* Mobile modal improvements */
+@media (max-width: 767px) {
+    .modal-dialog {
+        margin: 1rem !important;
+        max-width: calc(100% - 2rem) !important;
+    }
+    
+    .modal-content {
+        border-radius: 8px !important;
+    }
+    
+    .modal-header {
+        padding: 0.75rem !important;
+    }
+    
+    .modal-body {
+        padding: 1rem !important;
+    }
+    
+    .modal-footer {
+        padding: 0.75rem !important;
+        gap: 0.5rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.875rem !important;
+        min-height: 32px;
+        touch-action: manipulation;
+    }
+    
+    .delete-bill-btn {
+        min-width: 36px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle delete bill buttons
+    const deleteButtons = document.querySelectorAll('.delete-bill-btn');
+    const deleteBillModal = document.getElementById('deleteBillModal');
+    const deleteBillForm = document.getElementById('deleteBillForm');
+    const billNameElement = document.getElementById('billNameToDelete');
+    
+    if (deleteBillModal && deleteBillForm && billNameElement) {
+        const modal = new bootstrap.Modal(deleteBillModal, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const billId = this.getAttribute('data-bill-id');
+                const billName = this.getAttribute('data-bill-name');
+                
+                if (billId && billName) {
+                    // Update modal content
+                    billNameElement.textContent = billName;
+                    deleteBillForm.action = `/bill/${billId}/delete`;
+                    
+                    // Show modal with delay to prevent conflicts
+                    setTimeout(() => {
+                        modal.show();
+                    }, 100);
+                }
+            });
+        });
+        
+        // Ensure modal cleanup on hide
+        deleteBillModal.addEventListener('hidden.bs.modal', function () {
+            // Clear form action
+            deleteBillForm.action = '';
+            billNameElement.textContent = '';
+        });
+    }
+});
+</script>
 {% endblock %}
