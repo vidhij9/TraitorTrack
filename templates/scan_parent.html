@@ -49,9 +49,9 @@
                     <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
                 <div class="card-body p-0">
-                    <div class="video-container position-relative">
+                    <div class="video-container">
                         <video id="video" playsinline class="d-none"></video>
-                        <canvas id="canvas" class="w-100"></canvas>
+                        <canvas id="canvas"></canvas>
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
@@ -168,6 +168,14 @@
                         video.setAttribute('playsinline', true); // Required for iOS Safari
                         video.play();
                         
+                        // Wait for video to load before starting scan
+                        video.addEventListener('loadedmetadata', function() {
+                            // Initialize canvas dimensions
+                            const containerRect = canvas.getBoundingClientRect();
+                            canvas.width = containerRect.width;
+                            canvas.height = containerRect.height;
+                        });
+                        
                         startCameraBtn.disabled = true;
                         stopCameraBtn.disabled = false;
                         
@@ -206,9 +214,12 @@
             requestAnimationFrame(scanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Draw a scanning marker to help users position the code
-                canvas.height = video.videoHeight;
-                canvas.width = video.videoWidth;
+                // Set canvas dimensions to match the container's display size
+                const containerRect = canvas.getBoundingClientRect();
+                canvas.width = containerRect.width;
+                canvas.height = containerRect.height;
+                
+                // Draw the video feed to canvas, maintaining aspect ratio
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
                 // Add scanning overlay for user feedback
