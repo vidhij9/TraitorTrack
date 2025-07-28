@@ -115,16 +115,31 @@
         border-radius: 0;
         background-color: #000;
         min-height: 300px;
+        width: 100%;
+        aspect-ratio: 1;
+        max-height: 80vh;
     }
     
     #video {
         background-color: #000;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
     
     #canvas {
         background-color: #000;
-        height: auto;
-        min-height: 300px;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover;
+        display: block;
+    }
+    
+    @media (max-width: 768px) {
+        .video-container {
+            min-height: 250px;
+            max-height: 70vh;
+        }
     }
 </style>
 <script>
@@ -216,10 +231,33 @@
             requestAnimationFrame(scanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Draw a scanning marker to help users position the code
-                canvas.height = video.videoHeight;
-                canvas.width = video.videoWidth;
-                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+                // Set canvas size to match the container
+                const container = canvas.parentElement;
+                const containerRect = container.getBoundingClientRect();
+                canvas.width = containerRect.width;
+                canvas.height = containerRect.height;
+                
+                // Calculate video scaling to fit canvas while maintaining aspect ratio
+                const videoAspect = video.videoWidth / video.videoHeight;
+                const canvasAspect = canvas.width / canvas.height;
+                
+                let drawWidth, drawHeight, offsetX, offsetY;
+                
+                if (videoAspect > canvasAspect) {
+                    // Video is wider than canvas
+                    drawHeight = canvas.height;
+                    drawWidth = drawHeight * videoAspect;
+                    offsetX = (canvas.width - drawWidth) / 2;
+                    offsetY = 0;
+                } else {
+                    // Video is taller than canvas
+                    drawWidth = canvas.width;
+                    drawHeight = drawWidth / videoAspect;
+                    offsetX = 0;
+                    offsetY = (canvas.height - drawHeight) / 2;
+                }
+                
+                canvasContext.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
                 
                 // Add scanning overlay for user feedback
                 const centerX = canvas.width / 2;
