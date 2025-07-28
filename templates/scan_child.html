@@ -191,23 +191,16 @@
         background: transparent;
     }
     
-    /* Mobile responsive buttons */
+    /* Keep buttons horizontal but make them responsive */
     @media (max-width: 768px) {
-        .d-flex.align-items-center.justify-content-between {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 1rem;
-        }
-        
         .d-flex.gap-2 {
-            justify-content: center;
             flex-wrap: wrap;
-            gap: 0.5rem;
+            gap: 0.3rem;
         }
         
         .btn-sm {
-            font-size: 0.75rem;
-            padding: 0.4rem 0.8rem;
+            font-size: 0.7rem;
+            padding: 0.3rem 0.5rem;
             white-space: nowrap;
         }
     }
