@@ -50,8 +50,8 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="video-container position-relative">
-                        <video id="video" playsinline style="display: none;"></video>
-                        <canvas id="canvas" class="w-100" style="background-color: #000; display: block;"></canvas>
+                        <video id="video" playsinline autoplay muted class="w-100" style="background-color: #000;"></video>
+                        <canvas id="canvas" class="w-100" style="background-color: #000; display: none;"></canvas>
                         <div id="camera-status" class="position-absolute top-50 start-50 translate-middle text-white text-center" style="z-index: 10;">
                             <i class="fas fa-camera fa-3x mb-2"></i>
                             <p>Starting camera automatically...</p>
@@ -262,26 +262,18 @@
                     video.onloadedmetadata = function() {
                         console.log('Video metadata loaded');
                         
-                        video.play().then(() => {
-                            console.log('Video playing');
-                            
-                            // Update UI
-                            startCameraBtn.disabled = true;
-                            stopCameraBtn.disabled = false;
-                            updateCameraStatus('Camera active', 'success');
-                            
-                            // Set canvas size
-                            canvas.width = 640;
-                            canvas.height = 480;
-                            
-                            // Start scanning
-                            scanning = true;
-                            scanQRCode();
-                            
-                        }).catch(error => {
-                            console.error('Video play error:', error);
-                            updateCameraStatus('Failed to start video');
-                        });
+                        // Update UI
+                        startCameraBtn.disabled = true;
+                        stopCameraBtn.disabled = false;
+                        updateCameraStatus('Camera active', 'success');
+                        
+                        // Set canvas size to match video
+                        canvas.width = video.videoWidth || 640;
+                        canvas.height = video.videoHeight || 480;
+                        
+                        // Start scanning
+                        scanning = true;
+                        scanQRCode();
                     };
                 })
                 .catch(function(error) {
@@ -366,138 +358,44 @@
         }
         
         function scanQRCode() {
-            if (!scanning) {
+            if (!scanning || !video || !stream) {
                 return;
             }
             
-            // Continue the animation loop
+            // Continue the scanning loop
             requestAnimationFrame(scanQRCode);
             
-            // Check if video is ready for processing
-            if (!video || !stream || 
-                video.readyState < video.HAVE_CURRENT_DATA ||
-                video.videoWidth === 0 || 
-                video.videoHeight === 0 ||
-                canvas.width === 0 || 
-                canvas.height === 0) {
+            // Check if video is ready
+            if (video.readyState < video.HAVE_CURRENT_DATA || 
+                video.videoWidth === 0 || video.videoHeight === 0) {
                 return;
             }
             
             try {
-                // Clear the canvas completely
-                canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+                // Set canvas size to match video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
                 
-                // Fill with black background first
-                canvasContext.fillStyle = '#000000';
-                canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+                // Draw current video frame to canvas for QR detection
+                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // Calculate how to fit the video into the canvas
-                const videoAspect = video.videoWidth / video.videoHeight;
-                const canvasAspect = canvas.width / canvas.height;
+                // Get image data for QR detection
+                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
                 
-                let drawX = 0, drawY = 0, drawWidth = canvas.width, drawHeight = canvas.height;
-                
-                // Scale to fill the canvas while maintaining aspect ratio
-                if (videoAspect > canvasAspect) {
-                    // Video is wider - scale to canvas height and center
-                    drawHeight = canvas.height;
-                    drawWidth = drawHeight * videoAspect;
-                    drawX = (canvas.width - drawWidth) / 2;
-                } else {
-                    // Video is taller - scale to canvas width and center
-                    drawWidth = canvas.width;
-                    drawHeight = drawWidth / videoAspect;
-                    drawY = (canvas.height - drawHeight) / 2;
-                }
-                
-                // Draw the video frame to the canvas
-                canvasContext.drawImage(
-                    video,
-                    0, 0, video.videoWidth, video.videoHeight,
-                    drawX, drawY, drawWidth, drawHeight
-                );
-                
-                // Add scanning overlay for user feedback
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-                const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
-                
-                // Draw scanning frame
-                canvasContext.strokeStyle = '#00FF00';
-                canvasContext.lineWidth = 3;
-                canvasContext.beginPath();
-                canvasContext.rect(
-                    centerX - scanSize/2,
-                    centerY - scanSize/2,
-                    scanSize,
-                    scanSize
-                );
-                canvasContext.stroke();
-                
-                // Add corner markers
-                const cornerSize = scanSize * 0.1;
-                canvasContext.fillStyle = '#00FF00';
-                
-                // Top-left corner
-                canvasContext.fillRect(centerX - scanSize/2, centerY - scanSize/2, cornerSize, 3);
-                canvasContext.fillRect(centerX - scanSize/2, centerY - scanSize/2, 3, cornerSize);
-                
-                // Top-right corner
-                canvasContext.fillRect(centerX + scanSize/2 - cornerSize, centerY - scanSize/2, cornerSize, 3);
-                canvasContext.fillRect(centerX + scanSize/2 - 3, centerY - scanSize/2, 3, cornerSize);
-                
-                // Bottom-left corner
-                canvasContext.fillRect(centerX - scanSize/2, centerY + scanSize/2 - 3, cornerSize, 3);
-                canvasContext.fillRect(centerX - scanSize/2, centerY + scanSize/2 - cornerSize, 3, cornerSize);
-                
-                // Bottom-right corner
-                canvasContext.fillRect(centerX + scanSize/2 - cornerSize, centerY + scanSize/2 - 3, cornerSize, 3);
-                canvasContext.fillRect(centerX + scanSize/2 - 3, centerY + scanSize/2 - cornerSize, 3, cornerSize);
-                
-                // Try to detect QR codes
-                try {
-                    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                if (typeof jsQR !== 'undefined' && imageData) {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
                     
-                    if (typeof jsQR !== 'undefined' && imageData) {
-                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                            inversionAttempts: "dontInvert",
-                        });
-                        
-                        if (code && code.data) {
-                            // Highlight the detected QR code
-                            canvasContext.beginPath();
-                            canvasContext.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
-                            canvasContext.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
-                            canvasContext.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
-                            canvasContext.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
-                            canvasContext.lineTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
-                            canvasContext.lineWidth = 4;
-                            canvasContext.strokeStyle = "#FF0000";
-                            canvasContext.stroke();
-                            
-                            // Prevent multiple scans of the same code
-                            if (lastDetectedCode !== code.data) {
-                                lastDetectedCode = code.data;
-                                console.log('QR Code detected:', code.data);
-                                processQrCode(code.data);
-                            }
+                    if (code && code.data) {
+                        // Prevent multiple scans of the same code
+                        if (lastDetectedCode !== code.data) {
+                            lastDetectedCode = code.data;
+                            console.log('QR Code detected:', code.data);
+                            processQrCode(code.data);
                         }
-                    } else if (typeof jsQR === 'undefined') {
-                        console.error('jsQR library not loaded');
                     }
-                } catch (error) {
-                    console.error('Error during QR code detection:', error);
                 }
-                
             } catch (error) {
-                console.error('Error drawing video to canvas:', error);
-                console.error('Video state:', {
-                    readyState: video.readyState,
-                    videoWidth: video.videoWidth,
-                    videoHeight: video.videoHeight,
-                    canvasWidth: canvas.width,
-                    canvasHeight: canvas.height
-                });
+                console.error('Error during QR scanning:', error);
             }
         }
         
