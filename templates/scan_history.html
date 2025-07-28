@@ -103,12 +103,12 @@
                                 </td>
                                 <td>
                                     {% if scan.parent_bag_id and scan.parent_bag %}
-                                        <a href="{{ url_for('bag_details', qr_id=scan.parent_bag.qr_id) }}" 
+                                        <a href="{{ url_for('bag_details', qr_id=scan.parent_bag.qr_id|urlencode) }}" 
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     {% elif scan.child_bag_id and scan.child_bag %}
-                                        <a href="{{ url_for('bag_details', qr_id=scan.child_bag.qr_id) }}" 
+                                        <a href="{{ url_for('bag_details', qr_id=scan.child_bag.qr_id|urlencode) }}" 
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-eye"></i>
                                         </a>

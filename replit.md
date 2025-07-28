@@ -4,6 +4,15 @@
 
 TraceTrack is a comprehensive supply chain traceability platform built for agricultural bag tracking and management. The system provides real-time tracking of parent and child bags through QR code scanning, bill management, and user authentication with role-based access control.
 
+## Recent Changes (July 28, 2025)
+
+✓ Fixed "View Bag Details" button 404 error by resolving route name inconsistencies
+✓ Updated all template references from 'bag_detail' to 'bag_details' across the application
+✓ Added URL encoding support for QR codes with special characters in templates
+✓ Enhanced bag_details route to handle URL-encoded QR codes using Flask's <path:> converter
+✓ Added QR code validation to prevent URLs from being stored as bag identifiers
+✓ Implemented proper error handling for invalid QR codes containing URLs
+
 ## System Architecture
 
 ### Backend Architecture

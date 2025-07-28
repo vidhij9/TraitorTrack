@@ -2,6 +2,28 @@
 Routes for traitor track application - Location functionality completely removed
 """
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response
+
+def validate_qr_code(qr_id):
+    """Validate that a QR code is not a URL and meets basic requirements"""
+    if not qr_id or len(qr_id.strip()) == 0:
+        return False, "QR code cannot be empty"
+    
+    qr_id = qr_id.strip()
+    
+    # Check if it looks like a URL
+    if qr_id.startswith(('http://', 'https://', 'ftp://', 'www.')) or '://' in qr_id:
+        return False, "URLs are not valid QR codes for bag identifiers"
+    
+    # Check length (reasonable limits)
+    if len(qr_id) > 100:
+        return False, "QR code is too long (max 100 characters)"
+    
+    # Check for problematic characters
+    invalid_chars = ['<', '>', '"', "'", '&', '%']
+    if any(char in qr_id for char in invalid_chars):
+        return False, "QR code contains invalid characters"
+    
+    return True, "Valid QR code"
 # Session-based authentication - no longer using Flask-Login
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -1996,10 +2018,19 @@ def process_bill_parent_scan():
         app.logger.error(f'Bill parent scan error: {str(e)}')
         return jsonify({'success': False, 'message': 'Error linking parent bag to bill.'})
 
-@app.route('/bag/<qr_id>')
+@app.route('/bag/<path:qr_id>')
 @login_required
 def bag_details(qr_id):
     """Display detailed information about a specific bag"""
+    # URL decode the qr_id to handle special characters
+    from urllib.parse import unquote
+    qr_id = unquote(qr_id)
+    
+    # Validate that the QR ID doesn't look like a URL
+    if qr_id.startswith(('http://', 'https://', 'ftp://', 'www.')):
+        app.logger.warning(f'Invalid QR ID - appears to be a URL: {qr_id}')
+        abort(400, description="Invalid QR code - URLs are not valid bag identifiers")
+    
     bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
     
     # Get related information

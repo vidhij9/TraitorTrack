@@ -57,7 +57,7 @@
                     </div>
                 </div>
                 <div class="card-footer bg-light">
-                    <a href="{{ url_for('bag_details', qr_id=child_bag.qr_id) }}" class="btn btn-sm btn-outline-primary">
+                    <a href="{{ url_for('bag_details', qr_id=child_bag.qr_id|urlencode) }}" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-history me-1"></i>View Scan History
                     </a>
                 </div>
@@ -108,7 +108,7 @@
                     {% endif %}
                 </div>
                 <div class="card-footer bg-light">
-                    <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id) }}" class="btn btn-sm btn-outline-success">
+                    <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}" class="btn btn-sm btn-outline-success">
                         <i class="fas fa-history me-1"></i>View Scan History
                     </a>
                 </div>

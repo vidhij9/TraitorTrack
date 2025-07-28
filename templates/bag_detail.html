@@ -95,7 +95,7 @@
                     {% if not is_parent and bag.parent_bag %}
                     <dt class="col-sm-5">Parent Bag:</dt>
                     <dd class="col-sm-7">
-                        <a href="{{ url_for('bag_details', qr_id=bag.parent_bag.qr_id) }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{{ url_for('bag_details', qr_id=bag.parent_bag.qr_id|urlencode) }}" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-box me-1"></i><code>{{ bag.parent_bag.qr_id }}</code>
                         </a>
                     </dd>
@@ -197,7 +197,7 @@
                             {% for child in child_bags %}
                             <tr>
                                 <td>
-                                    <a href="{{ url_for('bag_details', qr_id=child.qr_id) }}" class="text-decoration-none">
+                                    <a href="{{ url_for('bag_details', qr_id=child.qr_id|urlencode) }}" class="text-decoration-none">
                                         <code>{{ child.qr_id }}</code>
                                     </a>
                                 </td>
@@ -212,7 +212,7 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('bag_details', qr_id=child.qr_id) }}" class="btn btn-outline-primary">
+                                        <a href="{{ url_for('bag_details', qr_id=child.qr_id|urlencode) }}" class="btn btn-outline-primary">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <button class="btn btn-outline-danger" onclick="removeChildBag('{{ bag.qr_id }}', '{{ child.qr_id }}')" title="Remove from parent">

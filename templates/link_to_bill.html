@@ -8,7 +8,7 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="/">Home</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id) }}">Parent Bag: {{ parent_bag.qr_id }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}">Parent Bag: {{ parent_bag.qr_id }}</a></li>
                 <li class="breadcrumb-item active" aria-current="page">Link to Bill</li>
             </ol>
         </nav>
@@ -52,7 +52,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-link me-2"></i>{{ link and 'Update' or 'Link' }} to Bill
                         </button>
-                        <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id) }}" class="btn btn-outline-secondary">
+                        <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Bag
                         </a>
                     </div>
