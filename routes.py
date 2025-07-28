@@ -1699,7 +1699,7 @@ def create_bill():
 @login_required
 def delete_bill(bill_id):
     """Delete a bill and all its bag links - admin only"""
-    if not current_user.is_admin():
+    if not is_admin():
         flash('Admin access required to delete bills.', 'error')
         return redirect(url_for('bill_management'))
     try:
@@ -1725,7 +1725,7 @@ def delete_bill(bill_id):
 @login_required
 def finish_bill_scan(bill_id):
     """Complete bill scanning and mark as finished - admin and employee access"""
-    if not (current_user.is_admin() or current_user.role == 'employee'):
+    if not (is_admin() or session.get('user_role') == 'employee'):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('bill_management'))
     
