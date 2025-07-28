@@ -90,10 +90,14 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        {% if bag %}
-                            <a href="{{ url_for('bag_details', qr_id=bag.qr_id|urlencode|urlencode) }}" class="btn btn-primary">
+                        {% if bag and bag.qr_id and not (bag.qr_id.startswith('http://') or bag.qr_id.startswith('https://') or bag.qr_id.startswith('www.')) %}
+                            <a href="{{ url_for('bag_details', qr_id=bag.qr_id|urlencode) }}" class="btn btn-primary">
                                 <i class="fas fa-eye me-2"></i>View Bag Details
                             </a>
+                        {% elif bag %}
+                            <div class="alert alert-warning p-2">
+                                <small><i class="fas fa-exclamation-triangle me-1"></i>Invalid QR code format</small>
+                            </div>
                         {% endif %}
                         
                         <a href="/" class="btn btn-secondary">

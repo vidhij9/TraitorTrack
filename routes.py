@@ -2186,6 +2186,14 @@ def view_scan_details(scan_id):
     elif scan.child_bag_id:
         bag = Bag.query.get(scan.child_bag_id)
     
+    # Validate bag QR code if bag exists
+    if bag and bag.qr_id:
+        is_valid, error_msg = validate_qr_code(bag.qr_id)
+        if not is_valid:
+            app.logger.warning(f'Invalid QR code found in bag {bag.id}: {bag.qr_id} - {error_msg}')
+            # Set bag to None to prevent template from trying to create invalid links
+            bag = None
+    
     return render_template('scan_details.html', scan=scan, bag=bag)
 
 @app.route('/api/scanned-children')
