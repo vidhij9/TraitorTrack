@@ -438,7 +438,7 @@ function saveChanges() {
         if (data.success) {
             showAlert('success', 'Parent bag children updated successfully!');
             setTimeout(() => {
-                window.location.href = `/bag/{{ parent_qr }}`;
+                window.location.href = "{{ url_for('bag_details', qr_id=parent_qr|urlencode) }}";
             }, 1500);
         } else {
             showAlert('danger', data.message || 'Error updating children');

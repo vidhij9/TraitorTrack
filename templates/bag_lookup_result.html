@@ -68,7 +68,7 @@
                     <dl class="row">
                         <dt class="col-sm-4">QR Code:</dt>
                         <dd class="col-sm-8">
-                            <a href="{{ url_for('bag_detailss', qr_id=parent_bag.qr_id) }}">
+                            <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}">
                                 <code>{{ parent_bag.qr_id }}</code>
                             </a>
                         </dd>
@@ -170,9 +170,15 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('bag_details', qr_id=child.qr_id|urlencode) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye me-1"></i>Details
-                                </a>
+                                {% if child.qr_id and not (child.qr_id.startswith('http://') or child.qr_id.startswith('https://') or child.qr_id.startswith('www.')) %}
+                                    <a href="{{ url_for('bag_details', qr_id=child.qr_id|urlencode) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>Details
+                                    </a>
+                                {% else %}
+                                    <button class="btn btn-sm btn-outline-secondary" disabled title="Invalid QR">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Invalid
+                                    </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -305,9 +311,15 @@
         <a href="{{ url_for('child_lookup') }}" class="btn btn-secondary">
             <i class="fas fa-search me-2"></i>Search Another Bag
         </a>
-        <a href="{{ url_for('bag_details', qr_id=searched_bag.qr_id|urlencode) }}" class="btn btn-primary">
-            <i class="fas fa-eye me-2"></i>View Full Details
-        </a>
+        {% if searched_bag.qr_id and not (searched_bag.qr_id.startswith('http://') or searched_bag.qr_id.startswith('https://') or searched_bag.qr_id.startswith('www.')) %}
+            <a href="{{ url_for('bag_details', qr_id=searched_bag.qr_id|urlencode) }}" class="btn btn-primary">
+                <i class="fas fa-eye me-2"></i>View Full Details
+            </a>
+        {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>Cannot view details - Invalid QR code format
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
