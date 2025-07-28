@@ -96,10 +96,10 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="video-container position-relative" style="height: 300px; overflow: hidden;">
-                        <video id="video" playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;"></video>
-                        <canvas id="canvas" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; z-index: 2;"></canvas>
-                        <div class="scan-overlay position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; z-index: 3;">
+                    <div class="video-container">
+                        <video id="video" playsinline class="d-none"></video>
+                        <canvas id="canvas"></canvas>
+                        <div class="scan-overlay position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;">
                             <div class="scan-indicator"></div>
                             <div class="scan-frame"></div>
                         </div>
@@ -316,10 +316,10 @@
             cameraStatus.classList.remove('d-none');
             scanningStatus.classList.remove('d-none');
             
-            // Set canvas dimensions to match container
-            const videoContainer = document.querySelector('.video-container');
-            canvas.width = videoContainer.offsetWidth;
-            canvas.height = videoContainer.offsetHeight;
+            // Set canvas dimensions to match container display size
+            const containerRect = canvas.getBoundingClientRect();
+            canvas.width = containerRect.width;
+            canvas.height = containerRect.height;
             
             // Request access to the webcam
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -337,9 +337,10 @@
                         
                         // Wait for video to load and then start scanning
                         video.addEventListener('loadedmetadata', function() {
-                            // Set canvas dimensions based on video
-                            canvas.width = video.videoWidth;
-                            canvas.height = video.videoHeight;
+                            // Set canvas dimensions to match container display size
+                            const containerRect = canvas.getBoundingClientRect();
+                            canvas.width = containerRect.width;
+                            canvas.height = containerRect.height;
                         });
                         
                         video.play();
@@ -347,9 +348,10 @@
                         // Hide camera status overlay once video starts
                         video.addEventListener('playing', function() {
                             cameraStatus.classList.add('d-none');
-                            // Ensure canvas matches video dimensions
-                            canvas.width = video.videoWidth;
-                            canvas.height = video.videoHeight;
+                            // Ensure canvas matches container dimensions
+                            const containerRect = canvas.getBoundingClientRect();
+                            canvas.width = containerRect.width;
+                            canvas.height = containerRect.height;
                         });
                         
                         startCameraBtn.disabled = true;
@@ -424,11 +426,10 @@
             requestAnimationFrame(scanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Ensure canvas matches video dimensions
-                if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                }
+                // Set canvas dimensions to match container display size
+                const containerRect = canvas.getBoundingClientRect();
+                canvas.width = containerRect.width;
+                canvas.height = containerRect.height;
                 
                 // Clear the canvas
                 canvasContext.clearRect(0, 0, canvas.width, canvas.height);
