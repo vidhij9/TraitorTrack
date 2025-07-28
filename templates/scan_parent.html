@@ -188,18 +188,33 @@
         function startCamera() {
             // Request access to the webcam
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                })
                     .then(function(mediaStream) {
                         stream = mediaStream;
                         video.srcObject = stream;
                         video.setAttribute('playsinline', true); // Required for iOS Safari
-                        video.play();
                         
-                        startCameraBtn.disabled = true;
-                        stopCameraBtn.disabled = false;
-                        
-                        scanning = true;
-                        scanQRCode();
+                        video.onloadedmetadata = function() {
+                            video.play().then(() => {
+                                console.log('Video is playing');
+                                startCameraBtn.disabled = true;
+                                stopCameraBtn.disabled = false;
+                                
+                                scanning = true;
+                                scanQRCode();
+                            }).catch(error => {
+                                console.error('Error playing video:', error);
+                                resultContainer.className = 'alert alert-danger';
+                                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
+                                    'Error starting video playback. Please try again.';
+                            });
+                        };
                     })
                     .catch(function(error) {
                         console.error('Could not access the camera: ', error);
@@ -230,34 +245,37 @@
             
             requestAnimationFrame(scanQRCode);
             
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
                 // Set canvas size to match the container
                 const container = canvas.parentElement;
                 const containerRect = container.getBoundingClientRect();
                 canvas.width = containerRect.width;
                 canvas.height = containerRect.height;
                 
-                // Calculate video scaling to fit canvas while maintaining aspect ratio
+                // Clear canvas first
+                canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw video to fill entire canvas (crop to fit)
                 const videoAspect = video.videoWidth / video.videoHeight;
                 const canvasAspect = canvas.width / canvas.height;
                 
-                let drawWidth, drawHeight, offsetX, offsetY;
+                let sourceX = 0, sourceY = 0, sourceWidth = video.videoWidth, sourceHeight = video.videoHeight;
                 
                 if (videoAspect > canvasAspect) {
-                    // Video is wider than canvas
-                    drawHeight = canvas.height;
-                    drawWidth = drawHeight * videoAspect;
-                    offsetX = (canvas.width - drawWidth) / 2;
-                    offsetY = 0;
+                    // Video is wider - crop sides
+                    sourceWidth = video.videoHeight * canvasAspect;
+                    sourceX = (video.videoWidth - sourceWidth) / 2;
                 } else {
-                    // Video is taller than canvas
-                    drawWidth = canvas.width;
-                    drawHeight = drawWidth / videoAspect;
-                    offsetX = 0;
-                    offsetY = (canvas.height - drawHeight) / 2;
+                    // Video is taller - crop top/bottom
+                    sourceHeight = video.videoWidth / canvasAspect;
+                    sourceY = (video.videoHeight - sourceHeight) / 2;
                 }
                 
-                canvasContext.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+                canvasContext.drawImage(
+                    video,
+                    sourceX, sourceY, sourceWidth, sourceHeight,
+                    0, 0, canvas.width, canvas.height
+                );
                 
                 // Add scanning overlay for user feedback
                 const centerX = canvas.width / 2;
