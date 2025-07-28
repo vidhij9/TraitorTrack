@@ -2026,10 +2026,8 @@ def bag_details(qr_id):
     from urllib.parse import unquote
     qr_id = unquote(qr_id)
     
-    # Validate that the QR ID doesn't look like a URL
-    if qr_id.startswith(('http://', 'https://', 'ftp://', 'www.')):
-        app.logger.warning(f'Invalid QR ID - appears to be a URL: {qr_id}')
-        abort(400, description="Invalid QR code - URLs are not valid bag identifiers")
+    # Log the QR ID for debugging
+    app.logger.info(f'Looking up bag with QR ID: {qr_id}')
     
     bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
     
@@ -2186,13 +2184,7 @@ def view_scan_details(scan_id):
     elif scan.child_bag_id:
         bag = Bag.query.get(scan.child_bag_id)
     
-    # Validate bag QR code if bag exists
-    if bag and bag.qr_id:
-        is_valid, error_msg = validate_qr_code(bag.qr_id)
-        if not is_valid:
-            app.logger.warning(f'Invalid QR code found in bag {bag.id}: {bag.qr_id} - {error_msg}')
-            # Set bag to None to prevent template from trying to create invalid links
-            bag = None
+
     
     return render_template('scan_details.html', scan=scan, bag=bag)
 
