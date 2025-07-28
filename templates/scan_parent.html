@@ -182,7 +182,13 @@
         initializeCanvas();
         
         // Start camera automatically when page loads
-        setTimeout(startCamera, 500);
+        setTimeout(function() {
+            console.log('Attempting auto-start camera...');
+            console.log('jsQR available:', typeof jsQR !== 'undefined');
+            console.log('Canvas context:', !!canvasContext);
+            console.log('Video element:', !!video);
+            startCamera();
+        }, 1000);
         
         // Set up button event listeners
         startCameraBtn.addEventListener('click', startCamera);
@@ -231,6 +237,9 @@
         
         function startCamera() {
             console.log('Starting camera...');
+            console.log('Available media devices:', !!navigator.mediaDevices);
+            console.log('getUserMedia support:', !!navigator.mediaDevices?.getUserMedia);
+            
             updateCameraStatus('Requesting camera access...');
             
             // Clear any previous error messages
@@ -280,17 +289,16 @@
                     });
             }
             
-            tryGetUserMedia(constraints)
-                .then(function(mediaStream) {
-                    console.log('Camera access granted');
-                    stream = mediaStream;
-                    video.srcObject = stream;
-                    video.muted = true;
-                    video.playsInline = true;
-                    video.autoplay = true;
-                    
-                    // Set up event handlers before playing
-                    video.onloadedmetadata = function() {
+            function handleStreamSuccess(mediaStream) {
+                console.log('Camera access granted');
+                stream = mediaStream;
+                video.srcObject = stream;
+                video.muted = true;
+                video.playsInline = true;
+                video.autoplay = true;
+                
+                // Set up event handlers before playing
+                video.onloadedmetadata = function() {
                         console.log('Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
                         
                         if (video.videoWidth === 0 || video.videoHeight === 0) {
@@ -348,31 +356,57 @@
                             });
                         }
                     }, 5000);
-                    
-                })
+            }
+            
+            // Actually call the camera setup
+            tryGetUserMedia(constraints)
+                .then(handleStreamSuccess)
                 .catch(function(error) {
                     console.error('Could not access the camera:', error);
+                    console.error('Error details:', {
+                        name: error.name,
+                        message: error.message,
+                        constraint: error.constraint
+                    });
+                    
                     let errorMessage = 'Could not access the camera. ';
+                    let showErrorAlert = true;
                     
                     switch(error.name) {
                         case 'NotAllowedError':
-                            errorMessage = 'Camera access was denied. Please allow camera access and try again.';
+                            errorMessage = 'Camera access was denied. Please click "Allow" when prompted for camera permissions and refresh the page.';
                             break;
                         case 'NotFoundError':
                             errorMessage = 'No camera found. Make sure your device has a camera.';
                             break;
                         case 'NotReadableError':
-                            errorMessage = 'Camera is already in use by another application.';
+                            errorMessage = 'Camera is already in use by another application. Please close other apps using the camera.';
                             break;
                         case 'OverconstrainedError':
-                            errorMessage = 'Camera does not meet the required specifications.';
+                            errorMessage = 'Camera does not meet the required specifications. Trying with basic settings...';
+                            showErrorAlert = false;
+                            // Try again with minimal constraints
+                            setTimeout(() => {
+                                const basicConstraints = { video: true };
+                                navigator.mediaDevices.getUserMedia(basicConstraints)
+                                    .then(handleStreamSuccess)
+                                    .catch(err => {
+                                        console.error('Basic camera access also failed:', err);
+                                        showError('Camera not compatible with this device.');
+                                        updateCameraStatus('Camera not available');
+                                    });
+                            }, 1000);
                             break;
                         default:
                             errorMessage += 'Please check your camera permissions or try manual entry.';
                     }
                     
-                    showError(errorMessage);
-                    updateCameraStatus(errorMessage);
+                    if (showErrorAlert) {
+                        showError(errorMessage);
+                        updateCameraStatus(errorMessage);
+                    } else {
+                        updateCameraStatus(errorMessage);
+                    }
                 });
         }
         
