@@ -55,21 +55,21 @@
         <div class="col-12">
             <div class="card bg-success bg-opacity-25 text-light">
                 <div class="card-body py-3">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div>
+                    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                        <div class="flex-grow-1 min-width-0">
                             <h5 class="mb-0">Child Bags: <span id="progress-text">{{ scanned_child_count }}</span></h5>
                             {% if parent_bag %}
-                            <small class="text-light opacity-75">Linked to {{ parent_bag.qr_id }}</small>
+                            <small class="text-light opacity-75 text-truncate d-block">Linked to {{ parent_bag.qr_id }}</small>
                             {% endif %}
                         </div>
                         
                         {% if parent_bag %}
-                        <div class="d-flex gap-2">
-                            <button id="scan-another-parent" class="btn btn-outline-light btn-sm">
-                                <i class="fas fa-qrcode me-1"></i>Change Parent
+                        <div class="d-flex gap-2 flex-shrink-0 align-items-center">
+                            <button id="scan-another-parent" class="btn btn-outline-light btn-sm text-nowrap">
+                                <i class="fas fa-qrcode me-1"></i><span class="d-none d-sm-inline">Change </span>Parent
                             </button>
-                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light btn-sm">
-                                <i class="fas fa-check-circle me-1"></i>Complete Scanning
+                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light btn-sm text-nowrap">
+                                <i class="fas fa-check-circle me-1"></i><span class="d-none d-sm-inline">Complete </span>Scanning
                             </a>
                         </div>
                         {% endif %}
@@ -191,6 +191,40 @@
         background: transparent;
     }
     
+    /* Button alignment and responsive fixes */
+    .min-width-0 {
+        min-width: 0;
+    }
+    
+    .text-nowrap {
+        white-space: nowrap;
+    }
+    
+    /* Ensure buttons don't shrink too much on mobile */
+    @media (max-width: 576px) {
+        .btn-sm.text-nowrap {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        /* Stack buttons vertically on very small screens if needed */
+        .d-flex.gap-2.flex-shrink-0 {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        /* Ensure parent container allows wrapping */
+        .d-flex.align-items-start.justify-content-between.flex-wrap {
+            align-items: stretch;
+        }
+    }
+    
+    /* Medium screens - show abbreviated text */
+    @media (min-width: 577px) and (max-width: 767px) {
+        .btn-sm .d-none.d-sm-inline {
+            display: none !important;
+        }
+    }
 
 </style>
 <script>
