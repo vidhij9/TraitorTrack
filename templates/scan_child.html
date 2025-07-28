@@ -96,9 +96,9 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="video-container position-relative" style="height: 300px; overflow: hidden;">
+                    <div class="video-container position-relative">
                         <video id="video" playsinline class="d-none"></video>
-                        <canvas id="canvas" class="w-100" style="height: 300px;"></canvas>
+                        <canvas id="canvas" class="w-100"></canvas>
                         
                         <!-- Camera status overlay -->
                         <div class="camera-status-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" id="camera-status" style="z-index: 4; background: rgba(0,0,0,0.8);">
@@ -181,6 +181,7 @@
         overflow: hidden;
         border-radius: 0;
         background-color: #000;
+        min-height: 300px;
     }
     
     #video {
@@ -189,6 +190,8 @@
     
     #canvas {
         background-color: #000;
+        height: auto;
+        min-height: 300px;
     }
 </style>
 <script>
@@ -341,21 +344,83 @@
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 canvas.height = video.videoHeight;
                 canvas.width = video.videoWidth;
-                
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // Add a simple scanning frame
+                // Add scanning overlay for user feedback
                 const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-                const scanSize = Math.min(canvas.width, canvas.height) * 0.7;
+                const centerY = canvas.height / 2;  
+                const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
                 
+                // Draw scanning frame
                 canvasContext.strokeStyle = '#00FF00';
                 canvasContext.lineWidth = 4;
-                canvasContext.strokeRect(
+                canvasContext.beginPath();
+                canvasContext.rect(
                     centerX - scanSize/2,
                     centerY - scanSize/2,
                     scanSize,
                     scanSize
+                );
+                canvasContext.stroke();
+                
+                // Add corner markers
+                const cornerSize = scanSize * 0.1;
+                canvasContext.fillStyle = '#00FF00';
+                
+                // Top-left corner
+                canvasContext.fillRect(
+                    centerX - scanSize/2,
+                    centerY - scanSize/2,
+                    cornerSize,
+                    4
+                );
+                canvasContext.fillRect(
+                    centerX - scanSize/2,
+                    centerY - scanSize/2,
+                    4,
+                    cornerSize
+                );
+                
+                // Top-right corner
+                canvasContext.fillRect(
+                    centerX + scanSize/2 - cornerSize,
+                    centerY - scanSize/2,
+                    cornerSize,
+                    4
+                );
+                canvasContext.fillRect(
+                    centerX + scanSize/2 - 4,
+                    centerY - scanSize/2,
+                    4,
+                    cornerSize
+                );
+                
+                // Bottom-left corner
+                canvasContext.fillRect(
+                    centerX - scanSize/2,
+                    centerY + scanSize/2 - 4,
+                    cornerSize,
+                    4
+                );
+                canvasContext.fillRect(
+                    centerX - scanSize/2,
+                    centerY + scanSize/2 - cornerSize,
+                    4,
+                    cornerSize
+                );
+                
+                // Bottom-right corner
+                canvasContext.fillRect(
+                    centerX + scanSize/2 - cornerSize,
+                    centerY + scanSize/2 - 4,
+                    cornerSize,
+                    4
+                );
+                canvasContext.fillRect(
+                    centerX + scanSize/2 - 4,
+                    centerY + scanSize/2 - cornerSize,
+                    4,
+                    cornerSize
                 );
                 
                 // Process the image for QR code detection

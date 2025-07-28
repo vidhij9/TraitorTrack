@@ -107,6 +107,26 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+    /* QR Scanner Styles */
+    .video-container {
+        position: relative;
+        overflow: hidden;
+        border-radius: 0;
+        background-color: #000;
+        min-height: 300px;
+    }
+    
+    #video {
+        background-color: #000;
+    }
+    
+    #canvas {
+        background-color: #000;
+        height: auto;
+        min-height: 300px;
+    }
+</style>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video');
