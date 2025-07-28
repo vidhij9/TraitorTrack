@@ -189,15 +189,46 @@
 <style>
 /* Fix modal positioning and mobile issues */
 .modal {
-    z-index: 1055 !important; /* Higher than default */
+    z-index: 10000 !important; /* Higher than loading container */
 }
 
 .modal-backdrop {
-    z-index: 1050 !important;
+    z-index: 9998 !important; /* Just below modal */
 }
 
 .modal-dialog-centered {
     min-height: calc(100% - 3.5rem) !important;
+}
+
+/* Prevent modal flickering on desktop */
+@media (min-width: 768px) {
+    .modal-dialog {
+        position: relative !important;
+        transform: none !important;
+        transition: none !important;
+    }
+    
+    .modal.show .modal-dialog {
+        transform: none !important;
+    }
+    
+    .modal-content {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    .modal.fade .modal-dialog {
+        transition: none !important;
+        transform: none !important;
+    }
+    
+    .modal.fade {
+        transition: none !important;
+    }
+    
+    .modal.show {
+        animation: none !important;
+    }
 }
 
 /* Mobile modal improvements */
@@ -249,31 +280,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const billNameElement = document.getElementById('billNameToDelete');
     
     if (deleteBillModal && deleteBillForm && billNameElement) {
+        // Destroy any existing modal instance
+        let existingModalInstance = bootstrap.Modal.getInstance(deleteBillModal);
+        if (existingModalInstance) {
+            existingModalInstance.dispose();
+        }
+        
         const modal = new bootstrap.Modal(deleteBillModal, {
             backdrop: 'static',
-            keyboard: false
+            keyboard: false,
+            focus: false
         });
         
         deleteButtons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const billId = this.getAttribute('data-bill-id');
-                const billName = this.getAttribute('data-bill-name');
-                
-                if (billId && billName) {
-                    // Update modal content
-                    billNameElement.textContent = billName;
-                    deleteBillForm.action = `/bill/${billId}/delete`;
-                    
-                    // Show modal with delay to prevent conflicts
-                    setTimeout(() => {
-                        modal.show();
-                    }, 100);
-                }
-            });
+            // Remove any existing event listeners
+            button.removeEventListener('click', handleDeleteClick);
+            button.addEventListener('click', handleDeleteClick);
         });
+        
+        function handleDeleteClick(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const billId = this.getAttribute('data-bill-id');
+            const billName = this.getAttribute('data-bill-name');
+            
+            if (billId && billName) {
+                // Update modal content
+                billNameElement.textContent = billName;
+                deleteBillForm.action = `/bill/${billId}/delete`;
+                
+                // Show modal immediately - no delay needed
+                modal.show();
+            }
+        }
         
         // Ensure modal cleanup on hide
         deleteBillModal.addEventListener('hidden.bs.modal', function () {
