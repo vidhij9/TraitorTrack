@@ -129,11 +129,19 @@
         resultContainer.style.display = 'none';
         resultContainer.innerHTML = '';
         
-        // Start camera automatically when page loads
-        startCamera();
-        
-        // Also keep the button functionality as backup
+        // Start camera when button is clicked  
         startCameraBtn.addEventListener('click', startCamera);
+        
+        // Automatically start camera when page loads (after jsQR is loaded)
+        setTimeout(() => {
+            if (typeof jsQR !== 'undefined') {
+                startCamera();
+            } else {
+                console.error('jsQR library not loaded');
+                resultContainer.className = 'alert alert-warning';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library is loading. Please wait or use manual entry.';
+            }
+        }, 1000);
         
         // Handle manual entry form submission
         manualEntryForm.addEventListener('submit', function(event) {
@@ -171,11 +179,13 @@
                         resultContainer.className = 'alert alert-danger';
                         resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
                             'Could not access the camera. Please check your camera permissions or use manual entry.';
+                        resultContainer.style.display = 'block';
                     });
             } else {
                 resultContainer.className = 'alert alert-danger';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
                     'Your browser does not support camera access. Please use a modern browser or use manual entry.';
+                resultContainer.style.display = 'block';
             }
         }
         

@@ -264,13 +264,22 @@
         // Load existing scanned bags
         loadScannedBags();
         
-        // Only start camera automatically if we have a parent bag
-        if (hasParentBag) {
-            startCamera();
-        } else {
-            resultContainer.className = 'alert alert-warning';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please scan a parent bag first before scanning child bags.';
-        }
+        // Automatically start camera when page loads (after jsQR is loaded)
+        setTimeout(() => {
+            if (typeof jsQR !== 'undefined') {
+                // Only start camera automatically if we have a parent bag
+                if (hasParentBag) {
+                    startCamera();
+                } else {
+                    resultContainer.className = 'alert alert-warning';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please scan a parent bag first before scanning child bags.';
+                }
+            } else {
+                console.error('jsQR library not loaded');
+                resultContainer.className = 'alert alert-warning';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library is loading. Please wait or use manual entry.';
+            }
+        }, 1000);
         
         // Button event listeners
         startCameraBtn.addEventListener('click', startCamera);
