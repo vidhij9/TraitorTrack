@@ -125,9 +125,10 @@
                                                     
                                                     {% if session.get('user_role') == 'admin' %}
                                                         <!-- Only admin can delete bills -->
-                                                        <button type="button" class="btn btn-outline-danger delete-bill-btn" 
-                                                                data-bill-id="{{ data.bill.id }}" 
-                                                                data-bill-name="{{ data.bill.bill_id }}">
+                                                        <button type="button" class="btn btn-outline-danger" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#deleteModal"
+                                                                onclick="setupDelete('{{ data.bill.id }}', '{{ data.bill.bill_id }}')">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
                                                     {% endif %}
@@ -187,22 +188,9 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const deleteButtons = document.querySelectorAll('.delete-bill-btn');
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    const modalBillName = document.getElementById('modalBillName');
-    const deleteForm = document.getElementById('deleteForm');
-    
-    deleteButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const billId = this.getAttribute('data-bill-id');
-            const billName = this.getAttribute('data-bill-name');
-            
-            modalBillName.textContent = billName;
-            deleteForm.action = `/bill/${billId}/delete`;
-            modal.show();
-        });
-    });
-});
+function setupDelete(billId, billName) {
+    document.getElementById('modalBillName').textContent = billName;
+    document.getElementById('deleteForm').action = '/bill/' + billId + '/delete';
+}
 </script>
 {% endblock %}
