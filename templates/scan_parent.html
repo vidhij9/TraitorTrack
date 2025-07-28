@@ -237,176 +237,65 @@
         
         function startCamera() {
             console.log('Starting camera...');
-            console.log('Available media devices:', !!navigator.mediaDevices);
-            console.log('getUserMedia support:', !!navigator.mediaDevices?.getUserMedia);
-            
             updateCameraStatus('Requesting camera access...');
-            
-            // Clear any previous error messages
-            resultContainer.style.display = 'none';
             
             // Stop any existing stream first
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
             }
             
-            // Check if browser supports camera access
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showError('Your browser does not support camera access. Please use a modern browser or try manual entry.');
-                return;
-            }
-            
-            // Try rear camera first, fallback to any camera
-            let constraints = { 
+            // Simple camera constraints - start with basic settings
+            const constraints = { 
                 video: { 
                     facingMode: 'environment',
-                    width: { ideal: 1280, min: 320 },
-                    height: { ideal: 720, min: 240 }
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
                 } 
             };
             
-            console.log('Requesting camera access with constraints:', constraints);
-            
-            // Function to try camera access with fallbacks
-            function tryGetUserMedia(currentConstraints) {
-                return navigator.mediaDevices.getUserMedia(currentConstraints)
-                    .catch(function(error) {
-                        console.log('Failed with constraints:', currentConstraints, 'Error:', error.name);
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(function(mediaStream) {
+                    console.log('Camera access granted');
+                    stream = mediaStream;
+                    video.srcObject = stream;
+                    
+                    video.onloadedmetadata = function() {
+                        console.log('Video metadata loaded');
                         
-                        // If rear camera fails, try any available camera
-                        if (currentConstraints.video.facingMode === 'environment') {
-                            console.log('Rear camera not available, trying front camera');
-                            const fallbackConstraints = {
-                                video: {
-                                    width: { ideal: 1280, min: 320 },
-                                    height: { ideal: 720, min: 240 }
-                                }
-                            };
-                            return navigator.mediaDevices.getUserMedia(fallbackConstraints);
-                        }
-                        // If that also fails, throw the original error
-                        throw error;
-                    });
-            }
-            
-            function handleStreamSuccess(mediaStream) {
-                console.log('Camera access granted');
-                stream = mediaStream;
-                video.srcObject = stream;
-                video.muted = true;
-                video.playsInline = true;
-                video.autoplay = true;
-                
-                // Set up event handlers before playing
-                video.onloadedmetadata = function() {
-                        console.log('Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
-                        
-                        if (video.videoWidth === 0 || video.videoHeight === 0) {
-                            console.error('Invalid video dimensions');
-                            showError('Camera failed to initialize properly. Please try again.');
-                            return;
-                        }
-                        
-                        // Play the video
                         video.play().then(() => {
-                            console.log('Video is playing successfully');
+                            console.log('Video playing');
                             
-                            // Update UI state
+                            // Update UI
                             startCameraBtn.disabled = true;
                             stopCameraBtn.disabled = false;
                             updateCameraStatus('Camera active', 'success');
                             
-                            // Set up canvas dimensions based on video
-                            setupCanvas();
+                            // Set canvas size
+                            canvas.width = 640;
+                            canvas.height = 480;
                             
-                            // Start scanning loop
+                            // Start scanning
                             scanning = true;
-                            requestAnimationFrame(scanQRCode);
-                            
-                            // Show success message
-                            console.log('Camera initialized and scanning started');
+                            scanQRCode();
                             
                         }).catch(error => {
-                            console.error('Error playing video:', error);
-                            showError('Failed to start video playback. Please try again.');
+                            console.error('Video play error:', error);
+                            updateCameraStatus('Failed to start video');
                         });
                     };
-                    
-                    // Additional event handler for when video starts playing
-                    video.onplaying = function() {
-                        console.log('Video is now playing - starting render loop');
-                        if (!scanning) {
-                            scanning = true;
-                            requestAnimationFrame(scanQRCode);
-                        }
-                    };
-                    
-                    video.onerror = function(error) {
-                        console.error('Video error:', error);
-                        showError('Video stream error. Please refresh and try again.');
-                    };
-                    
-                    // Fallback: if metadata doesn't load within 5 seconds
-                    setTimeout(() => {
-                        if (!scanning && stream) {
-                            console.log('Metadata load timeout, attempting direct play');
-                            video.play().catch(error => {
-                                console.error('Fallback play failed:', error);
-                                showError('Camera initialization failed. Please try again.');
-                            });
-                        }
-                    }, 5000);
-            }
-            
-            // Actually call the camera setup
-            tryGetUserMedia(constraints)
-                .then(handleStreamSuccess)
+                })
                 .catch(function(error) {
-                    console.error('Could not access the camera:', error);
-                    console.error('Error details:', {
-                        name: error.name,
-                        message: error.message,
-                        constraint: error.constraint
-                    });
+                    console.error('Camera error:', error);
+                    let message = 'Camera access failed. ';
                     
-                    let errorMessage = 'Could not access the camera. ';
-                    let showErrorAlert = true;
-                    
-                    switch(error.name) {
-                        case 'NotAllowedError':
-                            errorMessage = 'Camera access was denied. Please click "Allow" when prompted for camera permissions and refresh the page.';
-                            break;
-                        case 'NotFoundError':
-                            errorMessage = 'No camera found. Make sure your device has a camera.';
-                            break;
-                        case 'NotReadableError':
-                            errorMessage = 'Camera is already in use by another application. Please close other apps using the camera.';
-                            break;
-                        case 'OverconstrainedError':
-                            errorMessage = 'Camera does not meet the required specifications. Trying with basic settings...';
-                            showErrorAlert = false;
-                            // Try again with minimal constraints
-                            setTimeout(() => {
-                                const basicConstraints = { video: true };
-                                navigator.mediaDevices.getUserMedia(basicConstraints)
-                                    .then(handleStreamSuccess)
-                                    .catch(err => {
-                                        console.error('Basic camera access also failed:', err);
-                                        showError('Camera not compatible with this device.');
-                                        updateCameraStatus('Camera not available');
-                                    });
-                            }, 1000);
-                            break;
-                        default:
-                            errorMessage += 'Please check your camera permissions or try manual entry.';
+                    if (error.name === 'NotAllowedError') {
+                        message = 'Camera permission denied. Please allow camera access and refresh the page.';
+                    } else if (error.name === 'NotFoundError') {
+                        message = 'No camera found on this device.';
                     }
                     
-                    if (showErrorAlert) {
-                        showError(errorMessage);
-                        updateCameraStatus(errorMessage);
-                    } else {
-                        updateCameraStatus(errorMessage);
-                    }
+                    updateCameraStatus(message);
+                    showError(message);
                 });
         }
         
