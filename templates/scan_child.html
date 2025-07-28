@@ -64,12 +64,12 @@
                         </div>
                         
                         {% if parent_bag %}
-                        <div class="d-flex gap-2">
-                            <button id="scan-another-parent" class="btn btn-outline-light btn-sm">
-                                <i class="fas fa-qrcode me-1"></i>Change Parent
+                        <div class="d-flex gap-1 flex-shrink-0">
+                            <button id="scan-another-parent" class="btn btn-outline-light btn-sm" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                                <i class="fas fa-qrcode"></i> Parent
                             </button>
-                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light btn-sm">
-                                <i class="fas fa-check-circle me-1"></i>Complete Scanning
+                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light btn-sm" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                                <i class="fas fa-check"></i> Complete
                             </a>
                         </div>
                         {% endif %}
@@ -82,15 +82,15 @@
     <div class="row">
         <div class="col-lg-6 mb-4 mb-lg-0">
             <div class="card">
-                <div class="card-header bg-primary bg-opacity-25 text-light">
+                <div class="card-header bg-primary bg-opacity-25 text-light py-2">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
-                        <div class="d-flex gap-2">
-                            <button id="start-camera" class="btn btn-sm btn-light">
-                                <i class="fas fa-play me-1"></i><span class="d-none d-sm-inline">Start</span>
+                        <h5 class="mb-0"><i class="fas fa-camera me-1"></i>Scanner</h5>
+                        <div class="d-flex gap-1">
+                            <button id="start-camera" class="btn btn-sm btn-light" style="font-size: 0.7rem; padding: 0.2rem 0.4rem;">
+                                <i class="fas fa-play"></i>
                             </button>
-                            <button id="stop-camera" class="btn btn-sm btn-outline-light" disabled>
-                                <i class="fas fa-stop me-1"></i><span class="d-none d-sm-inline">Stop</span>
+                            <button id="stop-camera" class="btn btn-sm btn-outline-light" disabled style="font-size: 0.7rem; padding: 0.2rem 0.4rem;">
+                                <i class="fas fa-stop"></i>
                             </button>
                         </div>
                     </div>
@@ -109,19 +109,14 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-footer">
-                    <div class="row align-items-center">
-                        <div class="col">
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Position QR code in the green frame
-                            </small>
-                        </div>
-                        <div class="col-auto">
-                            <button id="switch-camera" class="btn btn-sm btn-outline-primary d-none">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
+                <div class="card-footer py-1">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>Position QR in frame
+                        </small>
+                        <button id="switch-camera" class="btn btn-sm btn-outline-primary d-none" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -129,8 +124,8 @@
         
         <div class="col-lg-6">
             <div class="card">
-                <div class="card-header bg-success bg-opacity-25 text-light">
-                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Results</h4>
+                <div class="card-header bg-success bg-opacity-25 text-light py-2">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-check me-1"></i>Results</h5>
                 </div>
                 <div class="card-body">
                     <div id="result-container" class="alert alert-info mb-3">
@@ -191,17 +186,26 @@
         background: transparent;
     }
     
-    /* Keep buttons horizontal but make them responsive */
+    /* Ensure buttons are always visible and properly sized */
+    .d-flex.gap-1.flex-shrink-0 {
+        flex-shrink: 0;
+        min-width: 0;
+    }
+    
+    .d-flex.gap-1.flex-shrink-0 .btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    /* Mobile optimizations */
     @media (max-width: 768px) {
-        .d-flex.gap-2 {
-            flex-wrap: wrap;
-            gap: 0.3rem;
+        .d-flex.align-items-center.justify-content-between {
+            align-items: flex-start;
         }
         
-        .btn-sm {
-            font-size: 0.7rem;
-            padding: 0.3rem 0.5rem;
-            white-space: nowrap;
+        .d-flex.gap-1.flex-shrink-0 {
+            flex-wrap: nowrap;
+            gap: 0.25rem;
         }
     }
 
