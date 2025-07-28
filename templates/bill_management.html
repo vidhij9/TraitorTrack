@@ -159,23 +159,23 @@
     </div>
 </div>
 
-<!-- Custom Delete Confirmation Modal -->
-<div id="customDeleteModal" class="custom-modal-overlay" style="display: none;">
-    <div class="custom-modal-container">
-        <div class="custom-modal-content">
-            <div class="custom-modal-header">
-                <h5 class="custom-modal-title">
+<!-- Simple Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
                     <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
                 </h5>
-                <button type="button" class="custom-modal-close" id="closeCustomModal">&times;</button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="custom-modal-body">
-                <p>Are you sure you want to delete Bill <strong id="customBillNameToDelete"></strong>?</p>
+            <div class="modal-body">
+                <p>Are you sure you want to delete Bill <strong id="modalBillName">?</strong></p>
                 <p class="text-danger mb-0">This action cannot be undone.</p>
             </div>
-            <div class="custom-modal-footer">
-                <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
-                <form id="customDeleteBillForm" method="POST" action="" style="display: inline;">
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" action="" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-trash me-2"></i>Delete
@@ -186,177 +186,22 @@
     </div>
 </div>
 
-<style>
-/* Custom Modal Styles */
-.custom-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
-
-.custom-modal-container {
-    width: 100%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-.custom-modal-content {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    overflow: hidden;
-}
-
-.custom-modal-header {
-    background-color: #dc3545;
-    color: white;
-    padding: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.custom-modal-title {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 500;
-}
-
-.custom-modal-close {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-}
-
-.custom-modal-close:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
-.custom-modal-body {
-    padding: 1.5rem;
-    color: #333;
-}
-
-.custom-modal-footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid #dee2e6;
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-}
-
-/* Mobile improvements */
-@media (max-width: 767px) {
-    .custom-modal-overlay {
-        padding: 0.5rem;
-    }
-    
-    .custom-modal-header {
-        padding: 0.75rem;
-    }
-    
-    .custom-modal-body {
-        padding: 1rem;
-    }
-    
-    .custom-modal-footer {
-        padding: 0.75rem;
-        flex-direction: row;
-    }
-    
-    .btn-group-sm .btn {
-        padding: 0.25rem 0.5rem !important;
-        font-size: 0.875rem !important;
-        min-height: 32px;
-        touch-action: manipulation;
-    }
-    
-    .delete-bill-btn {
-        min-width: 36px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-}
-</style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Custom modal elements
-    const customModal = document.getElementById('customDeleteModal');
-    const customForm = document.getElementById('customDeleteBillForm');
-    const customBillName = document.getElementById('customBillNameToDelete');
-    const closeBtn = document.getElementById('closeCustomModal');
-    const cancelBtn = document.getElementById('cancelDeleteBtn');
     const deleteButtons = document.querySelectorAll('.delete-bill-btn');
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const modalBillName = document.getElementById('modalBillName');
+    const deleteForm = document.getElementById('deleteForm');
     
-    if (!customModal || !customForm || !customBillName) return;
-    
-    // Show modal function
-    function showModal(billId, billName) {
-        customBillName.textContent = billName;
-        customForm.action = `/bill/${billId}/delete`;
-        customModal.style.display = 'flex';
-        document.body.style.overflow = 'hidden'; // Prevent background scroll
-    }
-    
-    // Hide modal function
-    function hideModal() {
-        customModal.style.display = 'none';
-        document.body.style.overflow = 'auto'; // Restore scroll
-        customForm.action = '';
-        customBillName.textContent = '';
-    }
-    
-    // Event listeners for delete buttons
     deleteButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
+        button.addEventListener('click', function() {
             const billId = this.getAttribute('data-bill-id');
             const billName = this.getAttribute('data-bill-name');
             
-            if (billId && billName) {
-                showModal(billId, billName);
-            }
+            modalBillName.textContent = billName;
+            deleteForm.action = `/bill/${billId}/delete`;
+            modal.show();
         });
-    });
-    
-    // Close modal events
-    closeBtn.addEventListener('click', hideModal);
-    cancelBtn.addEventListener('click', hideModal);
-    
-    // Close on overlay click
-    customModal.addEventListener('click', function(e) {
-        if (e.target === customModal) {
-            hideModal();
-        }
-    });
-    
-    // Close on Escape key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && customModal.style.display === 'flex') {
-            hideModal();
-        }
     });
 });
 </script>
