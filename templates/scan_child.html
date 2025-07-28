@@ -64,11 +64,11 @@
                         </div>
                         
                         {% if parent_bag %}
-                        <div style="display: flex; gap: 4px; flex-shrink: 0;">
-                            <button id="scan-another-parent" class="btn btn-outline-light" style="font-size: 0.6rem; padding: 0.2rem 0.4rem; border-radius: 3px;">
+                        <div style="display: flex; gap: 3px; flex-shrink: 0;">
+                            <button id="scan-another-parent" class="btn btn-outline-light" style="font-size: 0.55rem; padding: 0.15rem 0.35rem; border-radius: 3px; line-height: 1.2;">
                                 Parent
                             </button>
-                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light" style="font-size: 0.6rem; padding: 0.2rem 0.4rem; border-radius: 3px;">
+                            <a id="finish-button" href="{{ url_for('finish_scanning', s=request.args.get('s')) }}" class="btn btn-light" style="font-size: 0.55rem; padding: 0.15rem 0.35rem; border-radius: 3px; line-height: 1.2;">
                                 Complete
                             </a>
                         </div>
