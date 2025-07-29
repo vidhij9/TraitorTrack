@@ -364,13 +364,12 @@ def create_user():
             return redirect(url_for('user_management'))
         
         # Create new user
-        user = User(
-            username=username,
-            email=email,
-            role=role,
-            dispatch_area=dispatch_area if role == UserRole.DISPATCHER.value else None,
-            verified=True
-        )
+        user = User()
+        user.username = username
+        user.email = email
+        user.role = role
+        user.dispatch_area = dispatch_area if role == UserRole.DISPATCHER.value else None
+        user.verified = True
         user.set_password(password)
         
         db.session.add(user)
@@ -416,27 +415,27 @@ def seed_sample_data():
         if Bag.query.count() < 10:
             for i in range(20):
                 # Create parent bags
-                parent_bag = Bag(
-                    qr_id=f"PARENT_{i+1:03d}_{secrets.token_hex(4).upper()}",
-                    type=BagType.PARENT.value,
-                    name=f"Parent Bag {i+1}",
-                    child_count=random.randint(1, 5)
-                )
+                parent_bag = Bag()
+                parent_bag.qr_id = f"PARENT_{i+1:03d}_{secrets.token_hex(4).upper()}"
+                parent_bag.type = BagType.PARENT.value
+                parent_bag.name = f"Parent Bag {i+1}"
+                parent_bag.child_count = random.randint(1, 5)
                 db.session.add(parent_bag)
                 db.session.flush()  # Get the ID
                 
                 # Create child bags for this parent
                 for j in range(parent_bag.child_count):
-                    child_bag = Bag(
-                        qr_id=f"CHILD_{i+1:03d}_{j+1:02d}_{secrets.token_hex(3).upper()}",
-                        type=BagType.CHILD.value,
-                        name=f"Child Bag {i+1}-{j+1}",
-                        parent_id=parent_bag.id
-                    )
+                    child_bag = Bag()
+                    child_bag.qr_id = f"CHILD_{i+1:03d}_{j+1:02d}_{secrets.token_hex(3).upper()}"
+                    child_bag.type = BagType.CHILD.value
+                    child_bag.name = f"Child Bag {i+1}-{j+1}"
+                    child_bag.parent_id = parent_bag.id
                     db.session.add(child_bag)
                     
                     # Create link
-                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+                    link = Link()
+                    link.parent_bag_id = parent_bag.id
+                    link.child_bag_id = child_bag.id
                     db.session.add(link)
             
             db.session.commit()
@@ -446,10 +445,9 @@ def seed_sample_data():
         if bags and Scan.query.count() < 50:
             for _ in range(100):
                 bag = random.choice(bags)
-                scan = Scan(
-                    timestamp=datetime.utcnow() - timedelta(days=random.randint(0, 30)),
-                    user_id=current_user.id
-                )
+                scan = Scan()
+                scan.timestamp = datetime.utcnow() - timedelta(days=random.randint(0, 30))
+                scan.user_id = current_user.id
                 
                 if bag.type == BagType.PARENT.value:
                     scan.parent_bag_id = bag.id
@@ -611,15 +609,14 @@ def link_to_bill(qr_id):
                 is_valid, error_message = validate_new_bill_id(bill_id)
                 if not is_valid:
                     log_duplicate_attempt(bill_id, 'bill', 'bag', current_user.id)
-                    flash(error_message, 'error')
+                    flash(error_message or 'Invalid bill ID', 'error')
                     return render_template('link_to_bill.html', parent_bag=parent_bag)
                 
-                bill = Bill(
-                    bill_id=bill_id,
-                    description=f"Bill for {bill_id}",
-                    parent_bag_count=0,
-                    status='draft'
-                )
+                bill = Bill()
+                bill.bill_id = bill_id
+                bill.description = f"Bill for {bill_id}"
+                bill.parent_bag_count = 0
+                bill.status = 'draft'
                 db.session.add(bill)
                 db.session.flush()
             
@@ -630,10 +627,9 @@ def link_to_bill(qr_id):
             ).first()
             
             if not existing_link:
-                bill_bag = BillBag(
-                    bill_id=bill.id,
-                    parent_bag_id=parent_bag.id
-                )
+                bill_bag = BillBag()
+                bill_bag.bill_id = bill.id
+                bill_bag.bag_id = parent_bag.id
                 db.session.add(bill_bag)
                 
                 # Update bill count
@@ -675,12 +671,11 @@ def log_scan():
             return redirect(url_for('scan'))
         
         # Create scan record
-        scan = Scan(
-            parent_bag_id=bag.id if bag.type == BagType.PARENT.value else None,
-            child_bag_id=bag.id if bag.type == BagType.CHILD.value else None,
-            user_id=current_user.id,
-            timestamp=datetime.utcnow()
-        )
+        scan = Scan()
+        scan.parent_bag_id = bag.id if bag.type == BagType.PARENT.value else None
+        scan.child_bag_id = bag.id if bag.type == BagType.CHILD.value else None
+        scan.user_id = current_user.id
+        scan.timestamp = datetime.utcnow()
         
         db.session.add(scan)
         db.session.commit()
@@ -748,12 +743,11 @@ def register():
                 return render_template('register.html')
             
             # Create new user
-            user = User(
-                username=username,
-                email=email,
-                role=UserRole.DISPATCHER.value,
-                verified=True
-            )
+            user = User()
+            user.username = username
+            user.email = email
+            user.role = UserRole.DISPATCHER.value
+            user.verified = True
             user.set_password(password)
             
             db.session.add(user)
@@ -1036,26 +1030,24 @@ def scan_parent_bag():
                 else:
                     if not is_valid:
                         log_duplicate_attempt(qr_id, 'parent', 'bill', current_user.id)
-                        flash(error_message, 'error')
+                        flash(error_message or 'Invalid QR code', 'error')
                         return render_template('scan_parent.html', form=form)
                     
                     # Create new parent bag
-                    parent_bag = Bag(
-                        qr_id=qr_id,
-                        name=f"Bag {qr_id}",
-                        type=BagType.PARENT.value,
-                        dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
-                    )
+                    parent_bag = Bag()
+                    parent_bag.qr_id = qr_id
+                    parent_bag.name = f"Bag {qr_id}"
+                    parent_bag.type = BagType.PARENT.value
+                    parent_bag.dispatch_area = current_user.dispatch_area if current_user.is_dispatcher() else None
                     db.session.add(parent_bag)
                     db.session.commit()
                     flash(f'New parent bag created for QR code: {qr_id}', 'info')
                 
                 # Record the scan
-                scan = Scan(
-                    parent_bag_id=parent_bag.id,
-                    user_id=current_user.id,
-                    timestamp=datetime.utcnow()
-                )
+                scan = Scan()
+                scan.parent_bag_id = parent_bag.id
+                scan.user_id = current_user.id
+                scan.timestamp = datetime.utcnow()
                 
                 db.session.add(scan)
                 db.session.commit()
@@ -1156,12 +1148,11 @@ def scan_child_bag():
                     return jsonify({'success': False, 'message': error_message})
                 
                 # Create new child bag
-                child_bag = Bag(
-                    qr_id=qr_id,
-                    name=f"Bag {qr_id}",
-                    type=BagType.CHILD.value,
-                    dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
-                )
+                child_bag = Bag()
+                child_bag.qr_id = qr_id
+                child_bag.name = f"Bag {qr_id}"
+                child_bag.type = BagType.CHILD.value
+                child_bag.dispatch_area = current_user.dispatch_area if current_user.is_dispatcher() else None
                 db.session.add(child_bag)
                 db.session.commit()
                 app.logger.info(f'New child bag created for QR code: {qr_id}')
@@ -1215,15 +1206,16 @@ def scan_child_bag():
                 # Check if link already exists
                 existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
                 if not existing_link:
-                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+                    link = Link()
+                    link.parent_bag_id = parent_bag.id
+                    link.child_bag_id = child_bag.id
                     db.session.add(link)
             
             # Record the scan
-            scan = Scan(
-                child_bag_id=child_bag.id,
-                user_id=current_user.id,
-                timestamp=datetime.utcnow()
-            )
+            scan = Scan()
+            scan.child_bag_id = child_bag.id
+            scan.user_id = current_user.id
+            scan.timestamp = datetime.utcnow()
             
             db.session.add(scan)
             db.session.commit()
@@ -1647,7 +1639,7 @@ def create_bill():
             is_valid, error_message = validate_new_bill_id(bill_id)
             if not is_valid:
                 log_duplicate_attempt(bill_id, 'bill', 'bag', current_user.id)
-                flash(error_message, 'error')
+                flash(error_message or 'Invalid bill ID', 'error')
                 return render_template('create_bill.html')
             
             # Validate parent bag count
@@ -1656,12 +1648,11 @@ def create_bill():
                 return render_template('create_bill.html')
             
             # Create new bill
-            bill = Bill(
-                bill_id=bill_id,
-                description='',
-                parent_bag_count=parent_bag_count,
-                status='new'
-            )
+            bill = Bill()
+            bill.bill_id = bill_id
+            bill.description = ''
+            bill.parent_bag_count = parent_bag_count
+            bill.status = 'new'
             
             db.session.add(bill)
             db.session.commit()
@@ -2018,10 +2009,9 @@ def process_bill_parent_scan():
             return jsonify({'success': False, 'message': f'Bill already has the maximum number of parent bags ({bill.parent_bag_count}). Cannot add more bags.'})
         
         # Create bill-bag link
-        bill_bag = BillBag(
-            bill_id=bill.id,
-            bag_id=parent_bag.id
-        )
+        bill_bag = BillBag()
+        bill_bag.bill_id = bill.id
+        bill_bag.bag_id = parent_bag.id
         
         db.session.add(bill_bag)
         db.session.commit()
@@ -2525,11 +2515,10 @@ def api_edit_parent_children():
                 child_bag = Bag.query.filter_by(qr_id=child_qr.strip(), type='child').first()
                 if not child_bag:
                     # Create new child bag automatically for any QR code
-                    child_bag = Bag(
-                        qr_id=child_qr.strip(),
-                        name=f"Bag {child_qr.strip()}",
-                        type=BagType.CHILD.value
-                    )
+                    child_bag = Bag()
+                    child_bag.qr_id = child_qr.strip()
+                    child_bag.name = f"Bag {child_qr.strip()}"
+                    child_bag.type = BagType.CHILD.value
                     db.session.add(child_bag)
                     db.session.flush()  # Get the ID for the new bag
                     app.logger.info(f'New child bag created for QR code: {child_qr.strip()}')
@@ -2544,10 +2533,9 @@ def api_edit_parent_children():
                 
                 # Only create new link if it doesn't already exist
                 if not existing_link:
-                    new_link = Link(
-                        parent_bag_id=parent_bag.id,
-                        child_bag_id=child_bag.id
-                    )
+                    new_link = Link()
+                    new_link.parent_bag_id = parent_bag.id
+                    new_link.child_bag_id = child_bag.id
                     db.session.add(new_link)
         
         db.session.commit()
