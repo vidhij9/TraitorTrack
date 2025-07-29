@@ -1905,6 +1905,10 @@ def scan_bill_parent(bill_id):
     # Get current parent bags linked to this bill
     linked_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
     
+    # Get current count for debugging
+    current_count = bill.bag_links.count()
+    app.logger.info(f'Scan bill parent page - Bill {bill.id} has {current_count} linked bags')
+    
     return render_template('scan_bill_parent.html', form=form, bill=bill, linked_bags=linked_bags)
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
@@ -2028,14 +2032,19 @@ def process_bill_parent_scan():
         # Get updated count after adding the bag
         updated_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
         
-        return jsonify({
+        app.logger.info(f'Response data - linked_count: {updated_bag_count}, expected_count: {bill.parent_bag_count}')
+        
+        response_data = {
             'success': True, 
             'message': f'Parent bag {qr_id} linked to bill successfully!',
             'parent_qr': qr_id,
             'linked_count': updated_bag_count,
             'expected_count': bill.parent_bag_count,
             'remaining_bags': bill.parent_bag_count - updated_bag_count
-        })
+        }
+        
+        app.logger.info(f'Sending response: {response_data}')
+        return jsonify(response_data)
         
     except Exception as e:
         db.session.rollback()
