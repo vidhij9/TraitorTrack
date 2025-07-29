@@ -511,6 +511,19 @@ def login():
         return redirect(url_for('index'))
     
     if request.method == 'POST':
+        try:
+            # Validate CSRF token first
+            from flask_wtf.csrf import validate_csrf
+            try:
+                validate_csrf(request.form.get('csrf_token'))
+            except Exception as csrf_error:
+                app.logger.warning(f'CSRF validation failed for login: {csrf_error}')
+                flash('Security token expired. Please refresh the page and try again.', 'error')
+                return render_template('login.html')
+        except ImportError:
+            # Handle case where CSRF is not available
+            pass
+            
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         
@@ -709,6 +722,15 @@ def register():
     
     if request.method == 'POST':
         try:
+            # Validate CSRF token first
+            from flask_wtf.csrf import validate_csrf
+            try:
+                validate_csrf(request.form.get('csrf_token'))
+            except Exception as csrf_error:
+                app.logger.warning(f'CSRF validation failed for registration: {csrf_error}')
+                flash('Security token expired. Please refresh the page and try again.', 'error')
+                return render_template('register.html')
+            
             username = request.form.get('username', '').strip()
             email = request.form.get('email', '').strip().lower()
             password = request.form.get('password', '')
