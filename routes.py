@@ -533,7 +533,7 @@ def login():
                 password_valid = check_password_hash(user.password_hash, password)
                 app.logger.info(f"Password valid: {password_valid}")
                 
-            if user and check_password_hash(user.password_hash, password):
+            if user and user.verified and check_password_hash(user.password_hash, password):
                 # Reset failed attempts on successful login
                 reset_failed_attempts(username)
                 
