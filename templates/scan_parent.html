@@ -52,6 +52,16 @@
                     <div class="video-container">
                         <video id="video" playsinline class="d-none"></video>
                         <canvas id="canvas"></canvas>
+                        <!-- Green scanning overlay -->
+                        <div class="qr-scanner-overlay" id="scanner-overlay">
+                            <div class="qr-scanner-target">
+                                <div class="corner-tl"></div>
+                                <div class="corner-tr"></div>
+                                <div class="corner-bl"></div>
+                                <div class="corner-br"></div>
+                                <div class="scanning-line" id="scanning-line"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
@@ -106,6 +116,138 @@
 </div>
 {% endblock %}
 
+{% block head %}
+<style>
+/* Enhanced QR Scanner Styles */
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 75%;
+    overflow: hidden;
+    background-color: #000000;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.video-container video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* QR Scanner Overlay */
+.qr-scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.qr-scanner-target {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    border: none;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+/* Simpler approach with individual corner elements */
+.corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 4px solid #00FF00;
+}
+
+.corner-tl {
+    top: -4px;
+    left: -4px;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 15px;
+}
+
+.corner-tr {
+    top: -4px;
+    right: -4px;
+    border-left: none;
+    border-bottom: none;
+    border-top-right-radius: 15px;
+}
+
+.corner-bl {
+    bottom: -4px;
+    left: -4px;
+    border-right: none;
+    border-top: none;
+    border-bottom-left-radius: 15px;
+}
+
+.corner-br {
+    bottom: -4px;
+    right: -4px;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 15px;
+}
+
+/* Scanning animation line */
+.scanning-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00FF00, transparent);
+    animation: scanning 2s linear infinite;
+}
+
+@keyframes scanning {
+    0% {
+        top: -2px;
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        top: 198px;
+        opacity: 0;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .qr-scanner-target {
+        width: 150px;
+        height: 150px;
+    }
+}
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -119,6 +261,7 @@
         const expectedChildCount = document.getElementById('expected-child-count');
         const scanChildLink = document.getElementById('scan-child-link');
         const manualEntryForm = document.getElementById('manual-entry-form');
+        const scannerOverlay = document.getElementById('scanner-overlay');
         
         let stream = null;
         let scanning = false;
@@ -256,6 +399,11 @@
                                 
                                 scanning = true;
                                 
+                                // Show scanner overlay
+                                if (scannerOverlay) {
+                                    scannerOverlay.style.display = 'flex';
+                                }
+                                
                                 resultContainer.className = 'alert alert-success';
                                 resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active! Point at a QR code to scan.';
                                 resultContainer.style.display = 'block';
@@ -310,6 +458,11 @@
                 stream.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
                 scanning = false;
+                
+                // Hide scanner overlay
+                if (scannerOverlay) {
+                    scannerOverlay.style.display = 'none';
+                }
                 
                 startCameraBtn.disabled = false;
                 stopCameraBtn.disabled = true;
@@ -481,21 +634,21 @@
             .then(data => {
                 console.log('Server response:', data);
                 if (data.success) {
-                    // Show success message and auto-proceed
+                    // Show success message and auto-proceed immediately
                     resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = `<i class="fas fa-check-circle me-2"></i>QR Code "${data.parent_qr}" saved successfully! Moving to next step...`;
+                    resultContainer.innerHTML = `<i class="fas fa-check-circle me-2"></i>Parent bag "${data.parent_qr}" added successfully! Redirecting to child scanning...`;
                     resultContainer.style.display = 'block';
                     
                     // Stop the camera since we've got a successful scan
                     stopCamera();
                     
-                    console.log('Redirecting to child scan page in 2 seconds...');
-                    // Automatically proceed to child scanning after 2 seconds
+                    console.log('Parent bag automatically added, redirecting to child scan page...');
+                    // Automatically proceed to child scanning immediately
                     setTimeout(() => {
                         const redirectUrl = '{{ url_for("scan_child", s=request.args.get("s")) }}';
                         console.log('Redirecting to:', redirectUrl);
                         window.location.href = redirectUrl;
-                    }, 2000);
+                    }, 1000); // Reduced to 1 second for faster flow
                 } else {
                     console.log('Error response:', data.message);
                     // Show error message
