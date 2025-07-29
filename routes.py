@@ -213,6 +213,10 @@ def user_management():
                 'active_users': active_users_today,
                 'new_users_this_week': new_users_this_week
             }
+            
+            # Debug logging
+            app.logger.info(f"User stats calculated: {user_stats}")
+            
         except Exception as e:
             app.logger.error(f"Error getting user stats: {e}")
             user_stats = {
@@ -221,6 +225,7 @@ def user_management():
                 'active_users': 0,
                 'new_users_this_week': 0
             }
+            app.logger.info(f"Fallback user stats: {user_stats}")
         
         return render_template('user_management.html', user_data=user_data, user_stats=user_stats)
         

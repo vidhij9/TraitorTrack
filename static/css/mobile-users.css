@@ -1,5 +1,14 @@
 /* Ultra-compact mobile-first design for users page */
 
+/* Override any existing h4 and p styles that might be interfering */
+.card-body h4,
+.card-body p {
+    color: white !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
 /* Mobile-first base styles */
 @media (max-width: 767px) {
     /* Container optimization */
