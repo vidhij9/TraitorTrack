@@ -4,8 +4,20 @@
 
 TraceTrack is a comprehensive supply chain traceability platform built for agricultural bag tracking and management. The system provides real-time tracking of parent and child bags through QR code scanning, bill management, and user authentication with role-based access control.
 
-## Recent Changes (July 28, 2025)
+## Recent Changes (July 29, 2025)
 
+✓ **MAJOR RESPONSIVE DESIGN OVERHAUL** - Fixed mobile vs desktop inconsistency issues
+✓ Created unified responsive CSS system (`unified-responsive.css`) replacing 7 conflicting CSS files
+✓ Updated layout.html to use single responsive CSS file instead of multiple conflicting ones
+✓ Removed aggressive mobile-only styles that were breaking desktop experience
+✓ Implemented consistent breakpoints: mobile (<768px), tablet (768-1199px), desktop (≥1200px)
+✓ Added proper CSS custom properties for consistent theming across all devices
+✓ Fixed navigation bar to work consistently on both mobile and desktop
+✓ Replaced page-specific mobile-users.css with inline responsive styles
+✓ Added support for extra_css block in layout.html for page-specific customizations
+✓ Enhanced accessibility with proper focus states and reduced motion support
+
+### Previous Changes (July 28, 2025)
 ✓ Fixed "View Bag Details" button 404 error by resolving route name inconsistencies
 ✓ Updated all template references from 'bag_detail' to 'bag_details' across the application
 ✓ Added URL encoding support for QR codes with special characters in templates
