@@ -287,6 +287,13 @@ def inject_current_user():
         def is_admin(self):
             return self._is_authenticated and self.role == 'admin'
         
+        def is_biller(self):
+            return self._is_authenticated and self.role == 'biller'
+        
+        def can_edit_bills(self):
+            """Check if user can edit bills"""
+            return self.is_admin() or self.is_biller()
+        
         @property
         def is_authenticated(self):
             return self._is_authenticated
