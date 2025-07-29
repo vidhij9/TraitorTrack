@@ -122,24 +122,24 @@ body {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
 }
 
-/* Container and Layout */
+/* Container and Layout - Mobile-first compact approach */
 .container,
 .container-fluid {
-    padding-left: var(--spacing-md);
-    padding-right: var(--spacing-md);
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
 }
 
 .content {
     flex: 1;
-    padding: var(--spacing-sm) 0;
+    padding: var(--spacing-xs) 0;
 }
 
-/* Cards */
+/* Cards - Mobile-first compact design */
 .card {
     border: 1px solid var(--gray-300);
     border-radius: var(--border-radius);
     background: var(--white);
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
 }
@@ -153,19 +153,19 @@ body {
     color: var(--white);
     border-bottom: 1px solid var(--gray-300);
     font-weight: 600;
-    font-size: var(--font-size-base);
-    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
 }
 
 .card-body {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
 }
 
-/* Buttons */
+/* Buttons - Mobile-first compact approach */
 .btn {
     border-radius: var(--border-radius-sm);
     font-size: var(--font-size-sm);
-    padding: 0.75rem 1rem;
+    padding: var(--spacing-sm) var(--spacing-md);
     font-weight: 500;
     transition: var(--transition);
     border: 1px solid transparent;
@@ -173,19 +173,19 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.5rem;
+    min-height: 2.25rem;
 }
 
 .btn-sm {
-    padding: 0.5rem 0.75rem;
+    padding: 0.375rem var(--spacing-sm);
     font-size: var(--font-size-xs);
-    min-height: 2rem;
+    min-height: 1.75rem;
 }
 
 .btn-lg {
-    padding: 1rem 1.5rem;
-    font-size: var(--font-size-lg);
-    min-height: 3rem;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-base);
+    min-height: 2.75rem;
 }
 
 .btn-primary {
@@ -248,16 +248,16 @@ body {
     color: var(--white);
 }
 
-/* Forms */
+/* Forms - Mobile-first compact approach */
 .form-control,
 .form-select {
     background-color: var(--white);
     color: var(--gray-800);
     border: 2px solid var(--gray-300);
     border-radius: var(--border-radius-sm);
-    padding: 0.75rem;
+    padding: var(--spacing-sm);
     font-size: var(--font-size-base);
-    min-height: 2.5rem;
+    min-height: 2.25rem;
     width: 100%;
     transition: var(--transition);
 }
@@ -279,7 +279,7 @@ body {
     display: block;
 }
 
-/* Tables */
+/* Tables - Mobile-first compact approach */
 .table {
     margin-bottom: 0;
     color: var(--gray-800);
@@ -289,15 +289,15 @@ body {
     border-top: none;
     border-bottom: 2px solid var(--gray-300);
     font-weight: 600;
-    font-size: var(--font-size-sm);
-    padding: var(--spacing-md);
+    font-size: 0.7rem;
+    padding: var(--spacing-sm);
     vertical-align: middle;
 }
 
 .table td {
     border-top: 1px solid var(--gray-200);
-    font-size: var(--font-size-sm);
-    padding: var(--spacing-md);
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-sm);
     vertical-align: middle;
 }
 
@@ -332,10 +332,11 @@ body {
     color: #856404;
 }
 
-/* Dashboard specific */
+/* Dashboard specific - Mobile-first compact approach */
 .dashboard-stat {
     background: var(--white);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-sm);
     text-align: center;
@@ -348,7 +349,7 @@ body {
 }
 
 .stat-number {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--primary-color);
     margin-bottom: var(--spacing-xs);
@@ -356,20 +357,22 @@ body {
 }
 
 .stat-label {
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
     color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 500;
 }
 
-/* Video container for QR scanning */
+/* Video container for QR scanning - Mobile-first compact approach */
 .video-container {
     position: relative;
     width: 100%;
+    padding-bottom: 75%;
+    min-height: 250px;
     background-color: #000000;
     border: 1px solid var(--gray-300);
-    border-radius: var(--border-radius);
+    border-radius: var(--border-radius-sm);
     overflow: hidden;
 }
 
@@ -380,7 +383,8 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    background-color: #000;
 }
 
 /* ==================== MOBILE STYLES ==================== */
@@ -622,11 +626,23 @@ body {
     }
 }
 
-/* ==================== TABLET AND DESKTOP STYLES ==================== */
+/* ==================== TABLET AND LARGER DESKTOP STYLES ==================== */
 @media (min-width: 768px) {
-    /* Typography enhancements */
-    body {
-        font-size: var(--font-size-base);
+    /* Keep mobile-first compact design but with slight improvements for larger screens */
+    .container,
+    .container-fluid {
+        padding-left: var(--spacing-md);
+        padding-right: var(--spacing-md);
+        max-width: 1200px; /* Prevent overly wide layouts */
+    }
+    
+    .content {
+        padding: var(--spacing-sm) 0;
+    }
+    
+    /* Navigation - keep mobile styling but allow horizontal layout */
+    .navbar {
+        min-height: 64px;
     }
     
     .navbar-brand {
@@ -635,115 +651,118 @@ body {
     
     .navbar-nav .nav-link {
         font-size: var(--font-size-sm);
-        padding: 0.75rem 1rem;
+        padding: var(--spacing-sm) var(--spacing-md);
+        margin: 0 2px;
     }
     
-    /* Improved spacing */
-    .container,
-    .container-fluid {
-        padding-left: var(--spacing-lg);
-        padding-right: var(--spacing-lg);
-    }
-    
-    .content {
-        padding: var(--spacing-md) 0;
-    }
-    
+    /* Cards - keep mobile compact styling */
     .card {
-        margin-bottom: var(--spacing-xl);
+        margin-bottom: var(--spacing-md);
+        box-shadow: var(--shadow-sm);
     }
     
     .card-header {
-        padding: var(--spacing-lg);
-        font-size: var(--font-size-base);
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-size-sm);
     }
     
     .card-body {
-        padding: var(--spacing-xl);
+        padding: var(--spacing-md);
     }
     
-    /* Button improvements */
+    /* Buttons - keep mobile sizing for consistency */
     .btn {
-        padding: 0.75rem 1.25rem;
+        padding: var(--spacing-sm) var(--spacing-md);
         font-size: var(--font-size-sm);
-        min-height: 2.75rem;
-    }
-    
-    .btn-sm {
-        padding: 0.5rem 0.75rem;
-        font-size: var(--font-size-xs);
         min-height: 2.25rem;
     }
     
-    .btn-lg {
-        padding: 1rem 1.5rem;
-        font-size: var(--font-size-lg);
-        min-height: 3.25rem;
+    .btn-sm {
+        padding: 0.375rem var(--spacing-sm);
+        font-size: var(--font-size-xs);
+        min-height: 1.75rem;
     }
     
-    /* Form improvements */
-    .form-control,
-    .form-select {
-        padding: 0.75rem;
+    .btn-lg {
+        padding: var(--spacing-md) var(--spacing-lg);
         font-size: var(--font-size-base);
         min-height: 2.75rem;
     }
     
-    .form-label {
+    /* Forms - keep mobile compact styling */
+    .form-control,
+    .form-select {
+        padding: var(--spacing-sm);
         font-size: var(--font-size-base);
+        min-height: 2.25rem;
+    }
+    
+    .form-label {
+        font-size: var(--font-size-sm);
+        margin-bottom: var(--spacing-xs);
+    }
+    
+    /* Tables - keep mobile compact styling */
+    .table th,
+    .table td {
+        padding: var(--spacing-sm);
+        font-size: var(--font-size-xs);
+    }
+    
+    .table th {
+        font-size: 0.7rem;
+    }
+    
+    /* Dashboard - keep mobile compact styling */
+    .dashboard-stat {
+        padding: var(--spacing-md);
         margin-bottom: var(--spacing-sm);
     }
     
-    /* Table improvements */
-    .table th,
-    .table td {
-        padding: var(--spacing-md);
-        font-size: var(--font-size-sm);
-    }
-    
-    /* Dashboard improvements */
-    .dashboard-stat {
-        padding: var(--spacing-xl);
-    }
-    
     .stat-number {
-        font-size: 2.5rem;
+        font-size: 1.5rem;
     }
     
     .stat-label {
-        font-size: var(--font-size-sm);
+        font-size: var(--font-size-xs);
     }
     
-    /* Video container desktop */
+    /* Video container - slight improvement for larger screens */
     .video-container {
-        padding-bottom: 56.25%; /* 16:9 aspect ratio */
-        min-height: 400px;
+        padding-bottom: 60%;
+        min-height: 300px;
+        border-radius: var(--border-radius-sm);
+    }
+    
+    .video-container video,
+    .video-container canvas {
+        object-fit: contain;
+        background-color: #000;
+    }
+    
+    /* Allow some responsive improvements for very large screens */
+    @media (min-width: 1200px) {
+        .container,
+        .container-fluid {
+            max-width: 1400px;
+        }
+        
+        /* Slightly larger dashboard stats on very large screens */
+        .dashboard-stat {
+            padding: var(--spacing-lg);
+        }
+        
+        .stat-number {
+            font-size: 1.75rem;
+        }
+        
+        .stat-label {
+            font-size: var(--font-size-sm);
+        }
     }
 }
 
-/* ==================== LARGE DESKTOP STYLES (> 1200px) ==================== */
-@media (min-width: 1200px) {
-    .container {
-        max-width: 1140px;
-    }
-    
-    .dashboard-stat {
-        padding: var(--spacing-xl);
-    }
-    
-    .stat-number {
-        font-size: 3rem;
-    }
-    
-    .card-body {
-        padding: 2rem;
-    }
-    
-    .video-container {
-        padding-bottom: 50%;
-        min-height: 500px;
-    }
-}
+
 
 /* ==================== ACCESSIBILITY AND DARK MODE ==================== */
 @media (prefers-color-scheme: dark) {
