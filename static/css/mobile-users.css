@@ -50,23 +50,47 @@
     }
     
     .card-body {
-        padding: 6px 8px !important;
+        padding: 8px 10px !important;
+        min-height: 65px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
     }
     
     .card-body h4 {
-        font-size: 1rem !important;
-        margin-bottom: 0 !important;
-        line-height: 1 !important;
+        font-size: 1.1rem !important;
+        margin-bottom: 2px !important;
+        line-height: 1.1 !important;
+        font-weight: bold !important;
     }
     
     .card-body p {
-        font-size: 0.65rem !important;
+        font-size: 0.75rem !important;
         margin-bottom: 0 !important;
-        line-height: 1 !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
     
     .card-body .fas {
         font-size: 1.2rem !important;
+    }
+    
+    /* Fix for statistics cards - ensure text is visible */
+    .card-body .d-flex {
+        height: 100% !important;
+        align-items: center !important;
+    }
+    
+    .card-body .d-flex > div:first-child {
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+    
+    .card-body .align-self-center {
+        flex-shrink: 0 !important;
+        margin-left: 4px !important;
     }
     
     /* Compact table container */
@@ -214,15 +238,16 @@
     /* Landscape orientation adjustments */
     @media (max-width: 767px) and (orientation: landscape) {
         .card-body {
-            padding: 4px 6px !important;
+            padding: 6px 8px !important;
+            min-height: 55px !important;
         }
         
         .card-body h4 {
-            font-size: 0.9rem !important;
+            font-size: 0.95rem !important;
         }
         
         .card-body p {
-            font-size: 0.6rem !important;
+            font-size: 0.65rem !important;
         }
         
         .table th {
@@ -343,15 +368,16 @@
     }
     
     .card-body {
-        padding: 4px !important;
+        padding: 6px !important;
+        min-height: 50px !important;
     }
     
     .card-body h4 {
-        font-size: 0.9rem !important;
+        font-size: 0.95rem !important;
     }
     
     .card-body p {
-        font-size: 0.55rem !important;
+        font-size: 0.65rem !important;
     }
     
     .table th,
