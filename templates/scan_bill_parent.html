@@ -124,11 +124,54 @@
     }
 }
 
-/* Responsive adjustments */
+/* Desktop adjustments */
+@media (min-width: 769px) {
+    .qr-scanner-target {
+        width: 250px;
+        height: 250px;
+    }
+    
+    .video-container {
+        padding-bottom: 60%;
+    }
+    
+    .corner-tl, .corner-tr, .corner-bl, .corner-br {
+        width: 40px;
+        height: 40px;
+        border: 5px solid #00FF00;
+    }
+    
+    @keyframes scanning {
+        0% {
+            top: -2px;
+            opacity: 0;
+        }
+        10% {
+            opacity: 1;
+        }
+        90% {
+            opacity: 1;
+        }
+        100% {
+            top: 248px;
+            opacity: 0;
+        }
+    }
+}
+
+/* Mobile adjustments */
 @media (max-width: 768px) {
     .qr-scanner-target {
         width: 150px;
         height: 150px;
+    }
+    
+    .video-container {
+        padding-bottom: 75%;
+    }
+    
+    .card-footer small {
+        display: none;
     }
 }
 </style>
@@ -217,13 +260,16 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-footer d-flex justify-content-between">
-                    <button id="start-camera" class="btn btn-primary">
-                        <i class="fas fa-play me-2"></i>Start Camera
-                    </button>
-                    <button id="stop-camera" class="btn btn-secondary" disabled>
-                        <i class="fas fa-stop me-2"></i>Stop Camera
-                    </button>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div class="btn-group">
+                        <button id="start-camera" class="btn btn-primary">
+                            <i class="fas fa-play me-2"></i>Start Camera
+                        </button>
+                        <button id="stop-camera" class="btn btn-secondary" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop Camera
+                        </button>
+                    </div>
+                    <small class="text-muted">Point camera at QR code to scan</small>
                 </div>
             </div>
         </div>
@@ -301,6 +347,7 @@
         let scanning = false;
         let canvasContext = canvas.getContext('2d');
         let lastDetectedCode = null;
+        let lastScanTime = 0;
         
         // Start camera automatically when page loads
         startCamera();
@@ -388,9 +435,10 @@
                 });
                 
                 if (code && code.data) {
-                    // To prevent multiple scans of the same code
-                    if (lastDetectedCode !== code.data) {
+                    // Allow rescanning after a short delay, but prevent rapid multiple scans
+                    if (lastDetectedCode !== code.data || Date.now() - lastScanTime > 2000) {
                         lastDetectedCode = code.data;
+                        lastScanTime = Date.now();
                         processQrCode(code.data);
                     }
                 }
@@ -520,6 +568,7 @@
                     // Reset last detected code after a short delay to allow for new scans
                     setTimeout(() => {
                         lastDetectedCode = null;
+                        lastScanTime = 0;
                     }, 2000);
                 } else {
                     // Show error message with more emphasis
@@ -532,12 +581,17 @@
                     manualQrInput.value = qrCode;
                     manualQrInput.style.borderColor = '#dc3545';
                     
-                    // Reset styling after a delay
+                    // Reset styling after a delay, but keep lastDetectedCode for a shorter time
                     setTimeout(() => {
                         manualQrInput.style.borderColor = '';
                         resultContainer.style.border = '';
-                        lastDetectedCode = null;
                     }, 5000);
+                    
+                    // Reset detection after shorter delay to allow retry
+                    setTimeout(() => {
+                        lastDetectedCode = null;
+                        lastScanTime = 0;
+                    }, 3000);
                 }
             })
             .catch(error => {
@@ -556,8 +610,13 @@
                 setTimeout(() => {
                     manualQrInput.style.borderColor = '';
                     resultContainer.style.border = '';
-                    lastDetectedCode = null;
                 }, 5000);
+                
+                // Reset detection after shorter delay to allow retry
+                setTimeout(() => {
+                    lastDetectedCode = null;
+                    lastScanTime = 0;
+                }, 3000);
             });
         }
         
