@@ -193,7 +193,7 @@ class Bill(db.Model):
 
 class BillBag(db.Model):
     """Association model for linking bills to parent bags"""
-    __tablename__ = 'billbag'
+    __tablename__ = 'bill_bag'
     id = db.Column(db.Integer, primary_key=True)
     bill_id = db.Column(db.Integer, db.ForeignKey('bill.id', ondelete='CASCADE'), nullable=False)
     bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
@@ -202,8 +202,7 @@ class BillBag(db.Model):
     bag = db.relationship('Bag', backref=db.backref('bill_links', lazy='dynamic', cascade='all, delete-orphan'))
     # Composite index for faster bill-bag relationship lookups
     __table_args__ = (
-        db.Index('idx_billbag_bill_bag', 'bill_id', 'bag_id'),
-        db.UniqueConstraint('bill_id', 'bag_id', name='uq_bill_bag'),
+        db.UniqueConstraint('bill_id', 'bag_id', name='uq_bill_bag_new'),
     )
     
     def __repr__(self):

@@ -2049,6 +2049,8 @@ def process_bill_parent_scan():
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Bill parent scan error: {str(e)}')
+        import traceback
+        app.logger.error(f'Traceback: {traceback.format_exc()}')
         return jsonify({'success': False, 'message': 'Error linking parent bag to bill.'})
 
 @app.route('/bag/<path:qr_id>')
