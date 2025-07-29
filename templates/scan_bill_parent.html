@@ -2,6 +2,138 @@
 
 {% block title %}Scan Parent Bags for Bill - traitor track{% endblock %}
 
+{% block head %}
+<style>
+/* Enhanced QR Scanner Styles */
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 75%;
+    overflow: hidden;
+    background-color: #000000;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.video-container video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* QR Scanner Overlay */
+.qr-scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.qr-scanner-target {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    border: none;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+/* Corner markers */
+.corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 4px solid #00FF00;
+}
+
+.corner-tl {
+    top: -4px;
+    left: -4px;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 15px;
+}
+
+.corner-tr {
+    top: -4px;
+    right: -4px;
+    border-left: none;
+    border-bottom: none;
+    border-top-right-radius: 15px;
+}
+
+.corner-bl {
+    bottom: -4px;
+    left: -4px;
+    border-right: none;
+    border-top: none;
+    border-bottom-left-radius: 15px;
+}
+
+.corner-br {
+    bottom: -4px;
+    right: -4px;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 15px;
+}
+
+/* Scanning animation line */
+.scanning-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00FF00, transparent);
+    animation: scanning 2s linear infinite;
+}
+
+@keyframes scanning {
+    0% {
+        top: -2px;
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        top: 198px;
+        opacity: 0;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .qr-scanner-target {
+        width: 150px;
+        height: 150px;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-4">
@@ -50,12 +182,12 @@
             <div class="card bg-warning bg-opacity-25 text-light">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-0">Progress: <span id="progress-text">{{ bill.bag_links.count() }} of {{ bill.parent_bag_count }} parent bags scanned</span></h4>
+                        <h6 class="mb-0">Progress: <span id="progress-text">{{ bill.bag_links.count() }} of {{ bill.parent_bag_count }} parent bags scanned</span></h6>
                     </div>
                     
                     <div>
-                        <a href="{{ url_for('finish_bill_scan', bill_id=bill.id) }}" class="btn btn-success">
-                            <i class="fas fa-check-circle me-2"></i>Complete Bill
+                        <a href="{{ url_for('finish_bill_scan', bill_id=bill.id) }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-check-circle me-1"></i>Complete
                         </a>
                     </div>
                 </div>
@@ -73,6 +205,16 @@
                     <div class="video-container">
                         <video id="video" playsinline></video>
                         <canvas id="canvas" class="d-none"></canvas>
+                        <!-- Green scanning overlay -->
+                        <div class="qr-scanner-overlay" id="scanner-overlay">
+                            <div class="qr-scanner-target">
+                                <div class="corner-tl"></div>
+                                <div class="corner-tr"></div>
+                                <div class="corner-bl"></div>
+                                <div class="corner-br"></div>
+                                <div class="scanning-line" id="scanning-line"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
@@ -142,6 +284,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video');
@@ -152,6 +295,7 @@
         const scannedList = document.getElementById('scanned-list');
         const manualEntryForm = document.getElementById('manual-entry-form');
         const progressText = document.getElementById('progress-text');
+        const scannerOverlay = document.getElementById('scanner-overlay');
         
         let stream = null;
         let scanning = false;
@@ -191,6 +335,11 @@
                         startCameraBtn.disabled = true;
                         stopCameraBtn.disabled = false;
                         
+                        // Show scanner overlay
+                        if (scannerOverlay) {
+                            scannerOverlay.style.display = 'flex';
+                        }
+                        
                         scanning = true;
                         scanQRCode();
                     })
@@ -212,6 +361,11 @@
                 stream.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
                 scanning = false;
+                
+                // Hide scanner overlay
+                if (scannerOverlay) {
+                    scannerOverlay.style.display = 'none';
+                }
                 
                 startCameraBtn.disabled = false;
                 stopCameraBtn.disabled = true;
