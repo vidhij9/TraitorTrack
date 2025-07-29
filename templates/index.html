@@ -6,7 +6,7 @@
 <div class="container">
     {% if current_user.is_authenticated %}
         <!-- Ultra-Compact Header -->
-        <div class="d-flex justify-content-between align-items-center bg-dark text-white rounded px-2 py-1 mb-1" style="font-size: 13px;">
+        <div class="d-flex justify-content-between align-items-center bg-light text-white rounded px-2 py-1 mb-1" style="font-size: 13px;">
             <span>📊 Dashboard</span>
             <span class="badge {% if is_admin %}bg-danger{% else %}bg-secondary{% endif %}">{{ current_user.username[:1].upper() }}</span>
         </div>
@@ -76,23 +76,23 @@
                 </div>
             </div>
             <div class="col-lg-6">
-                <div class="card bg-dark text-light border-0">
+                <div class="card bg-light border-0">
                     <div class="card-body p-4">
                         <h3 class="mb-3">Key Features</h3>
                         <ul class="list-group list-group-flush mb-3">
-                            <li class="list-group-item bg-dark text-light border-secondary">
+                            <li class="list-group-item bg-light border-secondary">
                                 <i class="fas fa-qrcode text-primary me-2"></i>QR-based parent-child bag tracking
                             </li>
-                            <li class="list-group-item bg-dark text-light border-secondary">
+                            <li class="list-group-item bg-light border-secondary">
                                 <i class="fas fa-chart-line text-success me-2"></i>Real-time performance analytics
                             </li>
-                            <li class="list-group-item bg-dark text-light border-secondary">
+                            <li class="list-group-item bg-light border-secondary">
                                 <i class="fas fa-mobile-alt text-warning me-2"></i>Mobile application support
                             </li>
-                            <li class="list-group-item bg-dark text-light border-secondary">
+                            <li class="list-group-item bg-light border-secondary">
                                 <i class="fas fa-shield-alt text-info me-2"></i>Advanced security and authentication
                             </li>
-                            <li class="list-group-item bg-dark text-light border-secondary">
+                            <li class="list-group-item bg-light border-secondary">
                                 <i class="fas fa-tachometer-alt text-danger me-2"></i>High performance for 100+ concurrent users
                             </li>
                         </ul>

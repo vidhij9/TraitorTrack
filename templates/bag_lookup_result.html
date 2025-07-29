@@ -18,7 +18,7 @@
     <div class="row">
         <!-- Searched Bag Information -->
         <div class="col-md-6">
-            <div class="card bg-dark mb-4">
+            <div class="card bg-light mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-{% if bag_type == 'parent' %}box{% else %}tag{% endif %} me-2"></i>
@@ -58,7 +58,7 @@
         <div class="col-md-6">
             {% if bag_type == 'child' %}
             <!-- Parent Bag Information -->
-            <div class="card bg-dark mb-4">
+            <div class="card bg-light mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-box me-2"></i>Parent Bag
@@ -85,7 +85,7 @@
 
             <!-- Bill Information -->
             {% if bill %}
-            <div class="card bg-dark mb-4">
+            <div class="card bg-light mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-file-invoice me-2"></i>Associated Bill
@@ -118,7 +118,7 @@
                 </div>
             </div>
             {% else %}
-            <div class="card bg-dark border-warning mb-4">
+            <div class="card bg-light border-warning mb-4">
                 <div class="card-header bg-warning text-dark">
                     <h5 class="mb-0">
                         <i class="fas fa-exclamation-triangle me-2"></i>No Bill Associated
@@ -139,7 +139,7 @@
 
     <!-- Child Bags (for parent bag lookup) -->
     {% if bag_type == 'parent' and child_bags %}
-    <div class="card bg-dark mb-4">
+    <div class="card bg-light mb-4">
         <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-tags me-2"></i>Child Bags ({{ child_bags|length }})
@@ -147,7 +147,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-dark table-striped">
+                <table class="table  table-striped">
                     <thead>
                         <tr>
                             <th>QR Code</th>
@@ -182,7 +182,7 @@
         </div>
     </div>
     {% elif bag_type == 'parent' and not child_bags %}
-    <div class="card bg-dark border-warning mb-4">
+    <div class="card bg-light border-warning mb-4">
         <div class="card-header bg-warning text-dark">
             <h5 class="mb-0">
                 <i class="fas fa-exclamation-triangle me-2"></i>No Child Bags
@@ -201,7 +201,7 @@
 
     <!-- All Child Bags (for child bag lookup) -->
     {% if bag_type == 'child' and child_bags and child_bags|length > 1 %}
-    <div class="card bg-dark mb-4">
+    <div class="card bg-light mb-4">
         <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-tags me-2"></i>All Child Bags in Parent ({{ child_bags|length }})
@@ -209,7 +209,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-dark table-striped">
+                <table class="table  table-striped">
                     <thead>
                         <tr>
                             <th>QR Code</th>
@@ -252,7 +252,7 @@
 
     <!-- Scan History -->
     {% if scans %}
-    <div class="card bg-dark mb-4">
+    <div class="card bg-light mb-4">
         <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-history me-2"></i>Scan History ({{ scans|length }})
@@ -260,7 +260,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-dark table-striped">
+                <table class="table  table-striped">
                     <thead>
                         <tr>
                             <th>Timestamp</th>
@@ -288,7 +288,7 @@
         </div>
     </div>
     {% else %}
-    <div class="card bg-dark border-warning mb-4">
+    <div class="card bg-light border-warning mb-4">
         <div class="card-header bg-warning text-dark">
             <h5 class="mb-0">
                 <i class="fas fa-exclamation-triangle me-2"></i>No Scan History

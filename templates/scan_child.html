@@ -6,7 +6,7 @@
 <div class="container">
     <div class="row mb-3">
         <div class="col-12">
-            <div class="card bg-dark text-light">
+            <div class="card bg-light">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <h4 class="mb-0">
@@ -53,13 +53,13 @@
     
     <div class="row mb-3">
         <div class="col-12">
-            <div class="card bg-success bg-opacity-25 text-light">
+            <div class="card bg-success bg-opacity-25 text-dark">
                 <div class="card-body py-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <div>
                             <h5 class="mb-0">Child Bags: <span id="progress-text">{{ scanned_child_count }}</span></h5>
                             {% if parent_bag %}
-                            <small class="text-light opacity-75">Linked to {{ parent_bag.qr_id }}</small>
+                            <small class="text-dark opacity-75">Linked to {{ parent_bag.qr_id }}</small>
                             {% endif %}
                         </div>
                         
@@ -82,7 +82,7 @@
     <div class="row">
         <div class="col-lg-6 mb-4 mb-lg-0">
             <div class="card">
-                <div class="card-header bg-primary bg-opacity-25 text-light py-2">
+                <div class="card-header bg-primary bg-opacity-25 text-dark py-2">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-camera me-1"></i>Scanner</h5>
                         <div class="d-flex gap-1">
@@ -102,7 +102,7 @@
                         
                         <!-- Camera status overlay -->
                         <div class="camera-status-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" id="camera-status" style="z-index: 4; background: rgba(0,0,0,0.8);">
-                            <div class="bg-dark bg-opacity-75 text-white p-3 rounded text-center">
+                            <div class="bg-light bg-opacity-75 text-white p-3 rounded text-center">
                                 <div class="spinner-border mb-2" role="status"></div>
                                 <div>Starting camera...</div>
                             </div>
@@ -124,7 +124,7 @@
         
         <div class="col-lg-6">
             <div class="card">
-                <div class="card-header bg-success bg-opacity-25 text-light py-2">
+                <div class="card-header bg-success bg-opacity-25 text-dark py-2">
                     <h5 class="mb-0"><i class="fas fa-clipboard-check me-1"></i>Results</h5>
                 </div>
                 <div class="card-body">

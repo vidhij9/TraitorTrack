@@ -17,7 +17,7 @@
 
     <div class="row">
         <div class="col-md-8">
-            <div class="card bg-dark text-light">
+            <div class="card bg-light">
                 <div class="card-header">
                     <h4 class="mb-0">
                         <i class="fas fa-qrcode me-2"></i>Scan Information
@@ -27,7 +27,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <h6 class="text-muted">Scan Details</h6>
-                            <table class="table table-borderless text-light">
+                            <table class="table table-borderless text-dark">
                                 <tr>
                                     <td><strong>Scan ID:</strong></td>
                                     <td>{{ scan.id }}</td>
@@ -58,7 +58,7 @@
                         {% if bag %}
                         <div class="col-md-6">
                             <h6 class="text-muted">Bag Information</h6>
-                            <table class="table table-borderless text-light">
+                            <table class="table table-borderless text-dark">
                                 <tr>
                                     <td><strong>QR Code:</strong></td>
                                     <td><code>{{ bag.qr_id }}</code></td>
@@ -84,7 +84,7 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card bg-dark text-light">
+            <div class="card bg-light">
                 <div class="card-header">
                     <h5 class="mb-0">Actions</h5>
                 </div>
@@ -104,7 +104,7 @@
             </div>
 
             {% if bag and bag.type == 'parent' %}
-            <div class="card bg-dark text-light mt-3">
+            <div class="card bg-light mt-3">
                 <div class="card-header">
                     <h6 class="mb-0">Quick Stats</h6>
                 </div>

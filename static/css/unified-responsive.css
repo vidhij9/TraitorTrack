@@ -305,7 +305,7 @@ body {
 }
 
 .table-striped tbody tr:nth-of-type(odd) {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--gray-100);
 }
 
 /* Alerts */
