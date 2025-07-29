@@ -1857,7 +1857,7 @@ def remove_bag_from_bill():
         parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
         if not parent_bag:
             flash('Parent bag not found.', 'error')
-            return redirect(url_for('view_bill', bill_id=bill_id))
+            return redirect(url_for('scan_bill_parent', bill_id=bill_id))
         
         # Find and remove the bill-bag link
         bill_bag = BillBag.query.filter_by(bill_id=bill_id, bag_id=parent_bag.id).first()
@@ -2051,6 +2051,11 @@ def process_bill_parent_scan():
         app.logger.error(f'Bill parent scan error: {str(e)}')
         import traceback
         app.logger.error(f'Traceback: {traceback.format_exc()}')
+        
+        # Handle CSRF errors specifically for AJAX requests
+        if 'CSRF' in str(e) or 'csrf' in str(e).lower():
+            return jsonify({'success': False, 'message': 'Security token expired. Please refresh the page and try again.'})
+        
         return jsonify({'success': False, 'message': 'Error linking parent bag to bill.'})
 
 @app.route('/bag/<path:qr_id>')

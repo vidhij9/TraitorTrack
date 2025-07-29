@@ -474,7 +474,6 @@
             })
             .then(data => {
                 console.log('Server response:', data); // Debug log
-                console.log('Linked count:', data.linked_count, 'Expected count:', data.expected_count); // Debug specific fields
                 if (data.success) {
                     // Update UI for success
                     resultContainer.className = 'alert alert-success';
@@ -530,16 +529,11 @@
                         });
                     });
                     
-                    // Update progress text
-                    const linkedCount = data.linked_count !== undefined ? data.linked_count : 'undefined';
+                    // Update progress text - use server data or current count
+                    const linkedCount = data.linked_count !== undefined ? data.linked_count : 0;
                     const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
-                    console.log('Updating progress with:', linkedCount, 'of', expectedCount); // Debug progress update
-                    
-                    if (linkedCount !== 'undefined') {
-                        progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
-                    } else {
-                        console.error('ERROR: linked_count is undefined in response data');
-                    }
+                    console.log('Progress update - linked:', linkedCount, 'expected:', expectedCount);
+                    progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
                     
                     // Check if we've added enough parent bags to complete the bill
                     if (linkedCount >= expectedCount) {
