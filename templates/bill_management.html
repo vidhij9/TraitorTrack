@@ -187,10 +187,57 @@
     </div>
 </div>
 
+<style>
+/* Fix modal flickering by preventing hover interference */
+.modal {
+    pointer-events: auto !important;
+    z-index: 1060 !important;
+}
+
+.modal-backdrop {
+    z-index: 1050 !important;
+}
+
+/* Prevent table hover from affecting modal display */
+.table tbody tr:hover {
+    transform: none !important;
+    transition: none !important;
+}
+
+/* Ensure modal stays stable during hover events */
+.modal.show {
+    display: block !important;
+    opacity: 1 !important;
+}
+
+/* Prevent any hover effects from interfering with modal */
+body.modal-open {
+    overflow: hidden !important;
+}
+
+body.modal-open .table tbody tr:hover {
+    background-color: #f8f9fa !important;
+    transform: none !important;
+}
+</style>
+
 <script>
 function setupDelete(billId, billName) {
     document.getElementById('modalBillName').textContent = billName;
     document.getElementById('deleteForm').action = '/bill/' + billId + '/delete';
 }
+
+// Additional fix: Prevent event bubbling that might cause flickering
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('deleteModal');
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function() {
+            document.body.style.pointerEvents = 'auto';
+        });
+        modal.addEventListener('shown.bs.modal', function() {
+            modal.style.pointerEvents = 'auto';
+        });
+    }
+});
 </script>
 {% endblock %}
