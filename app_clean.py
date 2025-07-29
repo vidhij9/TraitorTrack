@@ -79,14 +79,7 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Environment-specific schema configuration
-def get_database_schema():
-    """Get database schema based on environment"""
-    current_env = get_current_environment()
-    return current_env
-
-# Configure database engine with schema isolation
-database_schema = get_database_schema()
+# Configure database engine options
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_size": 5,
     "max_overflow": 10,
@@ -95,8 +88,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_timeout": 20,
     "connect_args": {
         "connect_timeout": 60,
-        "application_name": "tracetrack_app",
-        "options": f"-csearch_path={database_schema}"
+        "application_name": "tracetrack_app"
     }
 }
 
