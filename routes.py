@@ -1931,6 +1931,12 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
+        # First validate that it's not a URL
+        is_qr_valid, qr_error = validate_qr_code(qr_id)
+        if not is_qr_valid:
+            app.logger.warning(f'Invalid QR code: {qr_id} - {qr_error}')
+            return jsonify({'success': False, 'message': qr_error})
+        
         is_valid, error_message, child_count = validate_parent_qr_id(qr_id)
         if not is_valid:
             app.logger.warning(f'Invalid parent QR format: {qr_id} - {error_message}')
@@ -2019,11 +2025,16 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Successfully linked parent bag {qr_id} to bill {bill.bill_id}')
         
+        # Get updated count after adding the bag
+        updated_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        
         return jsonify({
             'success': True, 
             'message': f'Parent bag {qr_id} linked to bill successfully!',
             'parent_qr': qr_id,
-            'remaining_bags': bill.parent_bag_count - (current_bag_count + 1)
+            'linked_count': updated_bag_count,
+            'expected_count': bill.parent_bag_count,
+            'remaining_bags': bill.parent_bag_count - updated_bag_count
         })
         
     except Exception as e:

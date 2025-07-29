@@ -470,7 +470,7 @@
                                 listItem.remove();
                                 
                                 // Update count
-                                const linkedCount = data.linked_count || data.parent_count;
+                                const linkedCount = data.linked_count || 0;
                                 const expectedCount = {{ bill.parent_bag_count }};
                                 progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
                                 
@@ -482,7 +482,7 @@
                     });
                     
                     // Update progress text
-                    const linkedCount = data.linked_count || data.parent_count;
+                    const linkedCount = data.linked_count || 0;
                     const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
                     progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
                     
