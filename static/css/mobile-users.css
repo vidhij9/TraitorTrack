@@ -56,8 +56,8 @@
     }
     
     .card-body {
-        padding: 12px !important;
-        min-height: 80px !important;
+        padding: 8px !important;
+        min-height: 65px !important;
     }
     
 
@@ -84,24 +84,24 @@
     }
     
     .card-body .align-self-center .fas {
-        font-size: 1.5rem !important;
+        font-size: 1.2rem !important;
     }
     
-    /* Ensure statistics text is always visible with better sizing */
+    /* Ensure statistics text is always visible with proper sizing */
     .card-body h4 {
         color: white !important;
         display: block !important;
-        font-size: 1.2rem !important;
+        font-size: 0.9rem !important;
         font-weight: bold !important;
-        line-height: 1.1 !important;
-        margin-bottom: 4px !important;
+        line-height: 1 !important;
+        margin-bottom: 2px !important;
     }
     
     .card-body p {
         color: white !important;
         display: block !important;
-        font-size: 0.8rem !important;
-        line-height: 1.2 !important;
+        font-size: 0.65rem !important;
+        line-height: 1.1 !important;
         margin-bottom: 0 !important;
         word-wrap: break-word !important;
     }
