@@ -90,17 +90,23 @@
     /* Ensure statistics text is visible with proper sizing */
     .card-body h4 {
         color: white !important;
-        font-size: 0.9rem !important;
+        font-size: 1rem !important;
         font-weight: bold !important;
         line-height: 1.1 !important;
         margin-bottom: 2px !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     .card-body p {
         color: white !important;
-        font-size: 0.65rem !important;
+        font-size: 0.7rem !important;
         line-height: 1.1 !important;
         margin-bottom: 0 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     /* Compact table container */

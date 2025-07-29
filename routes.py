@@ -197,19 +197,29 @@ def user_management():
         
         # Add user stats for the template with error handling
         try:
+            # Calculate new users this week
+            week_ago = datetime.now() - timedelta(days=7)
+            new_users_this_week = User.query.filter(User.created_at >= week_ago).count()
+            
+            # Calculate active users today
+            today = datetime.now().date()
+            active_users_today = Scan.query.filter(
+                func.date(Scan.timestamp) == today
+            ).distinct(Scan.user_id).count()
+            
             user_stats = {
                 'total_users': User.query.count(),
                 'admin_users': User.query.filter(User.role == UserRole.ADMIN.value).count(),
-                'verified_users': User.query.filter(User.verified == True).count(),
-                'active_users': 0  # Add missing active_users field
+                'active_users': active_users_today,
+                'new_users_this_week': new_users_this_week
             }
         except Exception as e:
             app.logger.error(f"Error getting user stats: {e}")
             user_stats = {
                 'total_users': len(users),
                 'admin_users': len([u for u in users if u.role == UserRole.ADMIN.value]),
-                'verified_users': len([u for u in users if getattr(u, 'verified', False)]),
-                'active_users': 0
+                'active_users': 0,
+                'new_users_this_week': 0
             }
         
         return render_template('user_management.html', user_data=user_data, user_stats=user_stats)
