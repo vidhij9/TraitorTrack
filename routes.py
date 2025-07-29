@@ -1868,7 +1868,20 @@ def remove_bag_from_bill():
         else:
             flash('Bag link not found.', 'error')
         
-        return redirect(url_for('view_bill', bill_id=bill_id))
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').find('application/json') != -1
+        
+        if is_ajax:
+            # For AJAX requests, return JSON
+            current_bag_count = BillBag.query.filter_by(bill_id=bill_id).count()
+            return jsonify({
+                'success': True, 
+                'message': f'Parent bag {parent_qr} removed successfully.',
+                'linked_count': current_bag_count
+            })
+        else:
+            # For normal form submissions, redirect back to scan page
+            return redirect(url_for('scan_bill_parent', bill_id=bill_id))
         
     except Exception as e:
         db.session.rollback()

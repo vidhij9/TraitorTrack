@@ -418,8 +418,14 @@
                 },
                 body: 'qr_code=' + encodeURIComponent(qrCode) + '&bill_id={{ bill.id }}' + '&csrf_token={{ csrf_token() }}'
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Server response:', data); // Debug log
                 if (data.success) {
                     // Update UI for success
                     resultContainer.className = 'alert alert-success';
@@ -452,6 +458,8 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
                             },
                             body: 'parent_qr=' + encodeURIComponent(data.parent_qr) + '&bill_id={{ bill.id }}' + '&csrf_token={{ csrf_token() }}'
                         })
@@ -514,24 +522,42 @@
                         lastDetectedCode = null;
                     }, 2000);
                 } else {
-                    // Show error message
-                    resultContainer.className = 'alert alert-danger';
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                    // Show error message with more emphasis
+                    resultContainer.className = 'alert alert-danger border-danger';
+                    resultContainer.style.border = '2px solid #dc3545';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i><strong>Error:</strong> ' + data.message;
                     
-                    // Reset last detected code after a short delay
+                    // Clear the manual input field to show what was scanned
+                    const manualQrInput = document.getElementById('manual-qr-code');
+                    manualQrInput.value = qrCode;
+                    manualQrInput.style.borderColor = '#dc3545';
+                    
+                    // Reset styling after a delay
                     setTimeout(() => {
+                        manualQrInput.style.borderColor = '';
+                        resultContainer.style.border = '';
                         lastDetectedCode = null;
-                    }, 2000);
+                    }, 5000);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + 
-                    'An error occurred while processing the QR code. Please try again.';
+                resultContainer.className = 'alert alert-danger border-danger';
+                resultContainer.style.border = '2px solid #dc3545';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i><strong>Network Error:</strong> ' + 
+                    'An error occurred while processing the QR code. Please check your connection and try again.';
                 
-                // Reset last detected code
-                lastDetectedCode = null;
+                // Show the scanned code in manual entry for reference
+                const manualQrInput = document.getElementById('manual-qr-code');
+                manualQrInput.value = qrCode;
+                manualQrInput.style.borderColor = '#dc3545';
+                
+                // Reset styling after a delay
+                setTimeout(() => {
+                    manualQrInput.style.borderColor = '';
+                    resultContainer.style.border = '';
+                    lastDetectedCode = null;
+                }, 5000);
             });
         }
         
