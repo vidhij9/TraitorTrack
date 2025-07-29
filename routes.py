@@ -1874,10 +1874,12 @@ def remove_bag_from_bill():
         if is_ajax:
             # For AJAX requests, return JSON
             current_bag_count = BillBag.query.filter_by(bill_id=bill_id).count()
+            bill = Bill.query.get(bill_id)
             return jsonify({
                 'success': True, 
                 'message': f'Parent bag {parent_qr} removed successfully.',
-                'linked_count': current_bag_count
+                'linked_count': current_bag_count,
+                'expected_count': bill.parent_bag_count or 10 if bill else 10
             })
         else:
             # For normal form submissions, redirect back to scan page
@@ -1885,9 +1887,23 @@ def remove_bag_from_bill():
         
     except Exception as e:
         db.session.rollback()
-        flash('Error removing bag from bill.', 'error')
         app.logger.error(f'Remove bag from bill error: {str(e)}')
-        return redirect(url_for('bill_management'))
+        
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').find('application/json') != -1
+        
+        if is_ajax:
+            return jsonify({
+                'success': False, 
+                'message': 'Error removing bag from bill.'
+            })
+        else:
+            flash('Error removing bag from bill.', 'error')
+            bill_id = request.form.get('bill_id', type=int)
+            if bill_id:
+                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
+            else:
+                return redirect(url_for('bills'))
 
 @app.route('/bill/<int:bill_id>/scan_parent')
 @login_required
@@ -2039,8 +2055,8 @@ def process_bill_parent_scan():
             'message': f'Parent bag {qr_id} linked to bill successfully!',
             'parent_qr': qr_id,
             'linked_count': updated_bag_count,
-            'expected_count': bill.parent_bag_count,
-            'remaining_bags': bill.parent_bag_count - updated_bag_count
+            'expected_count': bill.parent_bag_count or 10,  # Ensure expected_count is always set
+            'remaining_bags': (bill.parent_bag_count or 10) - updated_bag_count
         }
         
         app.logger.info(f'Sending response: {response_data}')

@@ -517,20 +517,29 @@
                                 // Remove from UI
                                 listItem.remove();
                                 
-                                // Update count
+                                // Update count using server response
                                 const linkedCount = data.linked_count || 0;
-                                const expectedCount = {{ bill.parent_bag_count }};
+                                const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
                                 progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
                                 
                                 // Show success message
                                 resultContainer.className = 'alert alert-info';
                                 resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Parent bag removed successfully.';
+                            } else {
+                                // Show error message
+                                resultContainer.className = 'alert alert-danger';
+                                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (data.message || 'Error removing bag');
                             }
+                        })
+                        .catch(error => {
+                            console.error('Error removing bag:', error);
+                            resultContainer.className = 'alert alert-danger';
+                            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Error removing bag. Please try again.';
                         });
                     });
                     
-                    // Update progress text - use server data or current count
-                    const linkedCount = data.linked_count !== undefined ? data.linked_count : 0;
+                    // Update progress text - use server data
+                    const linkedCount = data.linked_count || 0;
                     const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
                     console.log('Progress update - linked:', linkedCount, 'expected:', expectedCount);
                     progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
