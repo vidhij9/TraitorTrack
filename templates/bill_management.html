@@ -192,10 +192,12 @@
 .modal {
     pointer-events: auto !important;
     z-index: 1060 !important;
+    position: fixed !important;
 }
 
 .modal-backdrop {
     z-index: 1050 !important;
+    position: fixed !important;
 }
 
 /* Prevent table hover from affecting modal display */
@@ -208,15 +210,49 @@
 .modal.show {
     display: block !important;
     opacity: 1 !important;
+    visibility: visible !important;
 }
 
 /* Prevent any hover effects from interfering with modal */
 body.modal-open {
     overflow: hidden !important;
+    position: relative !important;
 }
 
 body.modal-open .table tbody tr:hover {
     background-color: #f8f9fa !important;
+    transform: none !important;
+}
+
+/* Disable all hover effects when modal is open */
+body.modal-open * {
+    pointer-events: none !important;
+}
+
+body.modal-open .modal,
+body.modal-open .modal * {
+    pointer-events: auto !important;
+}
+
+/* Additional stability for modal elements */
+.modal-dialog {
+    position: relative !important;
+    margin: auto !important;
+}
+
+.modal-content {
+    position: relative !important;
+    background: white !important;
+    border: 1px solid rgba(0,0,0,0.2) !important;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+}
+
+/* Prevent any animations or transitions that could cause flickering */
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out !important;
+}
+
+.modal.show .modal-dialog {
     transform: none !important;
 }
 </style>
@@ -227,17 +263,81 @@ function setupDelete(billId, billName) {
     document.getElementById('deleteForm').action = '/bill/' + billId + '/delete';
 }
 
-// Additional fix: Prevent event bubbling that might cause flickering
+// Enhanced modal stability and flickering prevention
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('deleteModal');
+    const backdrop = document.querySelector('.modal-backdrop');
+    
     if (modal) {
-        modal.addEventListener('show.bs.modal', function() {
-            document.body.style.pointerEvents = 'auto';
+        // Prevent flickering when modal is shown
+        modal.addEventListener('show.bs.modal', function(e) {
+            // Stop any conflicting events
+            e.stopPropagation();
+            
+            // Ensure stable display
+            document.body.classList.add('modal-open');
+            document.body.style.overflow = 'hidden';
+            document.body.style.paddingRight = '0px';
         });
-        modal.addEventListener('shown.bs.modal', function() {
+        
+        modal.addEventListener('shown.bs.modal', function(e) {
+            // Ensure modal is fully stable after showing
+            e.stopPropagation();
+            modal.style.display = 'block';
+            modal.style.opacity = '1';
             modal.style.pointerEvents = 'auto';
         });
+        
+        // Clean up when modal is hidden
+        modal.addEventListener('hide.bs.modal', function(e) {
+            e.stopPropagation();
+        });
+        
+        modal.addEventListener('hidden.bs.modal', function(e) {
+            e.stopPropagation();
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        });
+        
+        // Prevent mouse events from interfering with modal
+        modal.addEventListener('mouseenter', function(e) {
+            e.stopPropagation();
+        });
+        
+        modal.addEventListener('mouseleave', function(e) {
+            e.stopPropagation();
+        });
+        
+        // Prevent clicks outside modal from causing issues
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                // Only close if clicking the backdrop area
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+        });
     }
+    
+    // Prevent table hover events from interfering with modal
+    const tableRows = document.querySelectorAll('.table tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function(e) {
+            if (document.body.classList.contains('modal-open')) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        });
+        
+        row.addEventListener('mouseleave', function(e) {
+            if (document.body.classList.contains('modal-open')) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        });
+    });
 });
 </script>
 {% endblock %}
