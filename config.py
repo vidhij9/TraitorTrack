@@ -75,8 +75,8 @@ class DevelopmentConfig(Config):
     SESSION_COOKIE_SECURE = False  # Allow non-HTTPS for development
     SECURITY_STRICT_MODE = False   # More lenient security in development
     
-    # Development-specific database
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DEV_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    # Development uses Replit's default DATABASE_URL
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     
     # Smaller connection pool for development
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -117,8 +117,8 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
     SECURITY_STRICT_MODE = True
     
-    # Production-specific database
-    SQLALCHEMY_DATABASE_URI = os.environ.get("PROD_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    # Production uses dedicated production database
+    SQLALCHEMY_DATABASE_URI = os.environ.get("PRODUCTION_DATABASE_URL")
     
     # Optimized production database settings
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -141,9 +141,8 @@ class ProductionConfig(Config):
     def __init__(self):
         if not os.environ.get("SESSION_SECRET"):
             raise ValueError("SESSION_SECRET must be set in production")
-        # Check for production database URL first, then fallback to generic
-        if not (os.environ.get("PROD_DATABASE_URL") or os.environ.get("DATABASE_URL")):
-            raise ValueError("PROD_DATABASE_URL or DATABASE_URL must be set in production")
+        if not os.environ.get("PRODUCTION_DATABASE_URL"):
+            raise ValueError("PRODUCTION_DATABASE_URL must be set in production")
 
 
 # Create a mapping of environment names to configuration classes

@@ -38,59 +38,41 @@ app.config.update(
     SESSION_REFRESH_EACH_REQUEST=True  # Update session on each request
 )
 
-# Configure database with environment-specific URLs
 def get_current_environment():
-    """Detect current environment with improved logic"""
-    # Check explicit environment variable first - highest priority
+    """Detect current environment - simplified logic"""
+    # Check if we're on the production domain
+    replit_domains = os.environ.get('REPLIT_DOMAINS', '')
+    if 'traitortrack.replit.app' in replit_domains:
+        return 'production'
+    
+    # Check explicit environment variable
     env = os.environ.get('ENVIRONMENT', '').lower()
-    if env in ['production', 'prod']:
+    if env == 'production':
         return 'production'
-    elif env in ['development', 'dev']:
-        return 'development'
     
-    # Check Flask environment
-    flask_env = os.environ.get('FLASK_ENV', '').lower()
-    if flask_env == 'production':
-        return 'production'
-    elif flask_env in ['development', 'dev']:
-        return 'development'
-    
-    # For development safety, default to development unless explicitly configured for production
-    # This prevents accidental production mode in development environments
+    # Default to development (Replit preview and local dev)
     return 'development'
 
 def get_database_url():
-    """Get appropriate database URL based on environment with complete database isolation"""
+    """Get appropriate database URL based on environment"""
     current_env = get_current_environment()
     
     if current_env == 'production':
-        # Production environment - try dedicated production database first
-        prod_url = os.environ.get('PROD_DATABASE_URL')
+        # Production: use dedicated production database URL
+        prod_url = os.environ.get('PRODUCTION_DATABASE_URL')
         if prod_url:
-            logging.info("PRODUCTION: Using dedicated production database")
+            logging.info("PRODUCTION: Using production database")
             return prod_url
         else:
-            # Use main database with production schema
-            base_url = os.environ.get('DATABASE_URL', '')
-            if base_url:
-                logging.info("PRODUCTION: Using main database with production schema")
-                return base_url
-            else:
-                raise ValueError("No database URL configured for production")
+            raise ValueError("PRODUCTION_DATABASE_URL must be set for production deployment")
     else:
-        # Development environment - try dedicated development database first
-        dev_url = os.environ.get('DEV_DATABASE_URL')
+        # Development: use Replit's default DATABASE_URL
+        dev_url = os.environ.get('DATABASE_URL')
         if dev_url:
-            logging.info("DEVELOPMENT: Using dedicated development database")
+            logging.info("DEVELOPMENT: Using development database")
             return dev_url
         else:
-            # Use main database with development schema
-            base_url = os.environ.get('DATABASE_URL', '')
-            if base_url:
-                logging.info("DEVELOPMENT: Using main database with development schema")
-                return base_url
-            else:
-                raise ValueError("No database URL configured for development")
+            raise ValueError("DATABASE_URL not available in development environment")
 
 # Configure database with environment-specific settings
 flask_env = os.environ.get('FLASK_ENV', 'development')
