@@ -469,10 +469,50 @@
                     // Draw minimal interface for performance
                     drawMinimalChildScanningInterface();
                     
-                    // Extract smaller center region for faster processing
-                    const centerX = canvas.width / 2;
-                    const centerY = canvas.height / 2;
-                    const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                    // Enhanced scanning for small QR codes - full frame processing
+                    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // Multiple detection attempts for small QR codes
+                    let code = null;
+                    
+                    // Attempt 1: Standard detection with both inversions
+                    code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "attemptBoth",
+                    });
+                    
+                    // Attempt 2: High contrast for small codes
+                    if (!code) {
+                        const contrastData = enhanceContrastForSmallCodes(imageData);
+                        code = jsQR(contrastData.data, contrastData.width, contrastData.height, {
+                            inversionAttempts: "attemptBoth",
+                        });
+                    }
+                    
+                    // Attempt 3: Edge detection for very small codes
+                    if (!code) {
+                        const edgeData = applyEdgeDetectionForSmallCodes(imageData);
+                        code = jsQR(edgeData.data, edgeData.width, edgeData.height, {
+                            inversionAttempts: "attemptBoth",
+                        });
+                    }
+                    
+                    if (code && code.data) {
+                        // Draw orange corner brackets for visual feedback
+                        drawOrangeCornerFeedback(code);
+                        
+                        // Process the QR code data
+                        const qrData = code.data.trim();
+                        console.log("Child QR detected:", qrData);
+                        
+                        // Auto-submit if not already processing
+                        if (!isProcessing && lastDetectedCode !== qrData) {
+                            lastDetectedCode = qrData;
+                            isProcessing = true;
+                            
+                            // Submit child bag automatically
+                            submitChildBag(qrData);
+                        }
+                    }
                     const startX = Math.max(0, centerX - scanSize/2);
                     const startY = Math.max(0, centerY - scanSize/2);
                     const width = Math.min(scanSize, canvas.width - startX);
@@ -945,6 +985,152 @@
                 }
             }
         });
+        // Enhanced contrast for small QR codes
+        function enhanceContrastForSmallCodes(imageData) {
+            const data = new Uint8ClampedArray(imageData.data);
+            const contrast = 3.0; // Very strong contrast for small codes
+            const intercept = 128 * (1 - contrast);
+            
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = Math.max(0, Math.min(255, data[i] * contrast + intercept));     // red
+                data[i + 1] = Math.max(0, Math.min(255, data[i + 1] * contrast + intercept)); // green
+                data[i + 2] = Math.max(0, Math.min(255, data[i + 2] * contrast + intercept)); // blue
+            }
+            
+            return new ImageData(data, imageData.width, imageData.height);
+        }
+        
+        // Edge detection for very small QR codes
+        function applyEdgeDetectionForSmallCodes(imageData) {
+            const data = new Uint8ClampedArray(imageData.data);
+            const width = imageData.width;
+            const height = imageData.height;
+            
+            // Strong edge detection for small codes
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    const idx = (y * width + x) * 4;
+                    
+                    const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                    const threshold = 30; // Very low threshold for small codes
+                    const edge = Math.abs(gray - 128) > threshold ? 0 : 255;
+                    
+                    data[idx] = edge;     // red
+                    data[idx + 1] = edge; // green
+                    data[idx + 2] = edge; // blue
+                }
+            }
+            
+            return new ImageData(data, width, height);
+        }
+        
+        // Draw orange corner feedback for detected QR codes
+        function drawOrangeCornerFeedback(code) {
+            console.log('Drawing orange corner feedback');
+            
+            // Get QR code bounds
+            const topLeft = code.location.topLeftCorner;
+            const topRight = code.location.topRightCorner;
+            const bottomLeft = code.location.bottomLeftCorner;
+            const bottomRight = code.location.bottomRightCorner;
+            
+            // Draw orange corner brackets for visibility
+            const cornerLength = 30;
+            canvasContext.strokeStyle = '#FF8C00'; // Orange color
+            canvasContext.lineWidth = 8;
+            canvasContext.lineCap = 'round';
+            
+            // Top-left corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(topLeft.x, topLeft.y + cornerLength);
+            canvasContext.lineTo(topLeft.x, topLeft.y);
+            canvasContext.lineTo(topLeft.x + cornerLength, topLeft.y);
+            canvasContext.stroke();
+            
+            // Top-right corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(topRight.x - cornerLength, topRight.y);
+            canvasContext.lineTo(topRight.x, topRight.y);
+            canvasContext.lineTo(topRight.x, topRight.y + cornerLength);
+            canvasContext.stroke();
+            
+            // Bottom-left corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(bottomLeft.x, bottomLeft.y - cornerLength);
+            canvasContext.lineTo(bottomLeft.x, bottomLeft.y);
+            canvasContext.lineTo(bottomLeft.x + cornerLength, bottomLeft.y);
+            canvasContext.stroke();
+            
+            // Bottom-right corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(bottomRight.x - cornerLength, bottomRight.y);
+            canvasContext.lineTo(bottomRight.x, bottomRight.y);
+            canvasContext.lineTo(bottomRight.x, bottomRight.y - cornerLength);
+            canvasContext.stroke();
+        }
+        
+        // Auto-submit child bag function
+        function submitChildBag(qrData) {
+            console.log('Auto-submitting child bag:', qrData);
+            
+            // Show processing status
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2"></div>Processing ' + qrData + '...</div>';
+            
+            // Submit via AJAX for instant processing
+            fetch('{{ url_for("scan_child", s=request.args.get("s")) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: 'qr_code=' + encodeURIComponent(qrData) + '&csrf_token=' + encodeURIComponent('{{ csrf_token() }}')
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Child bag submission response:', data);
+                
+                if (data.success) {
+                    // Show success feedback
+                    resultContainer.className = 'alert alert-success';
+                    resultContainer.innerHTML = '<i class="fas fa-check me-2"></i>Child bag ' + qrData + ' linked successfully!';
+                    
+                    // Update scanned count
+                    scannedCount++;
+                    progressText.textContent = scannedCount;
+                    
+                    // Reload scanned bags list
+                    loadScannedBags();
+                    
+                    // Reset processing state after a short delay
+                    setTimeout(() => {
+                        isProcessing = false;
+                        lastDetectedCode = null;
+                    }, 1500);
+                } else {
+                    // Show error
+                    resultContainer.className = 'alert alert-danger';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>' + (data.message || 'Failed to process child bag');
+                    
+                    // Reset processing state
+                    setTimeout(() => {
+                        isProcessing = false;
+                        lastDetectedCode = null;
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting child bag:', error);
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Network error. Please try again.';
+                
+                // Reset processing state
+                setTimeout(() => {
+                    isProcessing = false;
+                    lastDetectedCode = null;
+                }, 2000);
+            });
+        }
     });
 </script>
 {% endblock %}

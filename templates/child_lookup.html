@@ -365,20 +365,41 @@
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
                 const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "dontInvert",
+                // Multiple detection attempts for small QR codes
+                let code = null;
+                
+                // Attempt 1: Standard detection with both inversions
+                code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth",
                 });
                 
+                // Attempt 2: High contrast for small codes
+                if (!code) {
+                    const contrastData = enhanceContrast(imageData);
+                    code = jsQR(contrastData.data, contrastData.width, contrastData.height, {
+                        inversionAttempts: "attemptBoth",
+                    });
+                }
+                
+                // Attempt 3: Edge detection for very small codes
+                if (!code) {
+                    const edgeData = applyEdgeDetection(imageData);
+                    code = jsQR(edgeData.data, edgeData.width, edgeData.height, {
+                        inversionAttempts: "attemptBoth",
+                    });
+                }
+                
                 if (code && code.data) {
-                    // Draw red/orange circles at QR code corners for visual feedback
+                    // Draw orange corner brackets for visual feedback
                     drawQRCodeCorners(code);
                     
                     // To prevent multiple scans of the same code
                     if (lastDetectedCode !== code.data) {
                         lastDetectedCode = code.data;
                         
-                        // Use the QR code exactly as scanned - no formatting needed
-                        let qrCode = code.data;
+                        // Use the QR code exactly as scanned - preserve original format
+                        let qrCode = code.data.trim();
+                        console.log("Detected QR code:", qrCode);
                         
                         // Fill the form and submit it with proper CSRF token
                         document.getElementById('qr_code').value = qrCode;
@@ -392,31 +413,17 @@
         function drawQRCodeCorners(code) {
             console.log('Drawing QR code visual feedback');
             
-            // Draw a green rectangle around the QR code
-            canvasContext.strokeStyle = '#00FF00'; // Green color
-            canvasContext.lineWidth = 4;
-            canvasContext.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Semi-transparent green fill
-            
             // Get QR code bounds
             const topLeft = code.location.topLeftCorner;
             const topRight = code.location.topRightCorner;
             const bottomLeft = code.location.bottomLeftCorner;
             const bottomRight = code.location.bottomRightCorner;
             
-            // Draw filled rectangle
-            canvasContext.beginPath();
-            canvasContext.moveTo(topLeft.x, topLeft.y);
-            canvasContext.lineTo(topRight.x, topRight.y);
-            canvasContext.lineTo(bottomRight.x, bottomRight.y);
-            canvasContext.lineTo(bottomLeft.x, bottomLeft.y);
-            canvasContext.closePath();
-            canvasContext.fill();
-            canvasContext.stroke();
-            
-            // Draw corner brackets for better visibility
-            const cornerLength = 20;
-            canvasContext.strokeStyle = '#00FF00';
-            canvasContext.lineWidth = 6;
+            // Draw orange corner brackets for better visibility
+            const cornerLength = 25;
+            canvasContext.strokeStyle = '#FF8C00'; // Orange color
+            canvasContext.lineWidth = 8;
+            canvasContext.lineCap = 'round';
             
             // Top-left corner
             canvasContext.beginPath();
@@ -445,6 +452,46 @@
             canvasContext.lineTo(bottomRight.x, bottomRight.y);
             canvasContext.lineTo(bottomRight.x, bottomRight.y - cornerLength);
             canvasContext.stroke();
+        }
+        
+        // Enhanced contrast for small QR codes
+        function enhanceContrast(imageData) {
+            const data = new Uint8ClampedArray(imageData.data);
+            const contrast = 2.5; // Strong contrast for small codes
+            const intercept = 128 * (1 - contrast);
+            
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = Math.max(0, Math.min(255, data[i] * contrast + intercept));     // red
+                data[i + 1] = Math.max(0, Math.min(255, data[i + 1] * contrast + intercept)); // green
+                data[i + 2] = Math.max(0, Math.min(255, data[i + 2] * contrast + intercept)); // blue
+            }
+            
+            return new ImageData(data, imageData.width, imageData.height);
+        }
+        
+        // Edge detection for very small QR codes
+        function applyEdgeDetection(imageData) {
+            const data = new Uint8ClampedArray(imageData.data);
+            const width = imageData.width;
+            const height = imageData.height;
+            
+            // Convert to grayscale with strong edge enhancement
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    const idx = (y * width + x) * 4;
+                    
+                    // Calculate edge strength using sobel operator
+                    const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                    const threshold = 40; // Lower threshold for small codes
+                    const edge = Math.abs(gray - 128) > threshold ? 0 : 255; // Invert for better detection
+                    
+                    data[idx] = edge;     // red
+                    data[idx + 1] = edge; // green
+                    data[idx + 2] = edge; // blue
+                }
+            }
+            
+            return new ImageData(data, width, height);
         }
     });
 </script>

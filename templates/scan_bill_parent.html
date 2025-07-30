@@ -698,31 +698,17 @@
         function drawQRCodeCorners(code) {
             console.log('Drawing QR code visual feedback');
             
-            // Draw a green rectangle around the QR code
-            canvasContext.strokeStyle = '#00FF00'; // Green color
-            canvasContext.lineWidth = 4;
-            canvasContext.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Semi-transparent green fill
-            
             // Get QR code bounds
             const topLeft = code.location.topLeftCorner;
             const topRight = code.location.topRightCorner;
             const bottomLeft = code.location.bottomLeftCorner;
             const bottomRight = code.location.bottomRightCorner;
             
-            // Draw filled rectangle
-            canvasContext.beginPath();
-            canvasContext.moveTo(topLeft.x, topLeft.y);
-            canvasContext.lineTo(topRight.x, topRight.y);
-            canvasContext.lineTo(bottomRight.x, bottomRight.y);
-            canvasContext.lineTo(bottomLeft.x, bottomLeft.y);
-            canvasContext.closePath();
-            canvasContext.fill();
-            canvasContext.stroke();
-            
-            // Draw corner brackets for better visibility
-            const cornerLength = 20;
-            canvasContext.strokeStyle = '#00FF00';
-            canvasContext.lineWidth = 6;
+            // Draw orange corner brackets for better visibility
+            const cornerLength = 25;
+            canvasContext.strokeStyle = '#FF8C00'; // Orange color
+            canvasContext.lineWidth = 8;
+            canvasContext.lineCap = 'round';
             
             // Top-left corner
             canvasContext.beginPath();
