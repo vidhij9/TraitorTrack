@@ -476,13 +476,7 @@
         }
         
         function processQrCode(qrCode) {
-            // If it's not already in the format "P123-10", try to format it
-            if (!qrCode.match(/^P\d+-\d+$/)) {
-                const formattedQrCode = formatQrCode(qrCode);
-                if (formattedQrCode) {
-                    qrCode = formattedQrCode;
-                }
-            }
+            // Use QR code exactly as scanned - no formatting needed
             
             // Display the scanned QR code in the manual entry box for visibility
             const manualQrInput = document.getElementById('manual-qr-code');
@@ -692,18 +686,7 @@
             form.submit();
         }
 
-        function formatQrCode(rawCode) {
-            // Extract digits if present
-            const digits = rawCode.match(/\d+/g);
-            if (digits && digits.length >= 2) {
-                // Format as P[first number]-[second number]
-                return `P${digits[0]}-${digits[1]}`;
-            } else if (digits && digits.length === 1) {
-                // Only one number, assume 5 child bags as default
-                return `P${digits[0]}-5`;
-            }
-            return null;
-        }
+        // formatQrCode function removed - preserving original QR code format
     });
 </script>
 {% endblock %}

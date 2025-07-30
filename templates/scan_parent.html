@@ -820,18 +820,7 @@
             });
         }
         
-        function formatQrCode(rawCode) {
-            // Extract digits if present
-            const digits = rawCode.match(/\d+/g);
-            if (digits && digits.length >= 2) {
-                // Format as P[first number]-[second number]
-                return `P${digits[0]}-${digits[1]}`;
-            } else if (digits && digits.length === 1) {
-                // Only one number, assume 5 child bags as default
-                return `P${digits[0]}-5`;
-            }
-            return null;
-        }
+        // formatQrCode function removed - preserving original QR code format
         
         // Handle manual form submission
         manualEntryForm.addEventListener('submit', function(e) {

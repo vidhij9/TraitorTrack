@@ -1382,18 +1382,13 @@ def child_lookup():
     url_qr_id = request.args.get('qr_id', '').strip()
     
     if form.validate_on_submit():
-        raw_qr = form.qr_id.data
-        qr_id = sanitize_input(raw_qr).strip()
-        app.logger.info(f'Form submission - Raw QR: "{raw_qr}", Sanitized QR: "{qr_id}"')
+        qr_id = sanitize_input(form.qr_id.data).strip()
     elif url_qr_id:
         # If there's a QR ID in the URL, use it for lookup
         qr_id = sanitize_input(url_qr_id).strip()
-        app.logger.info(f'URL QR - Raw: "{url_qr_id}", Sanitized: "{qr_id}"')
     elif request.method == 'POST':
         # Handle direct form submission without WTForms validation
-        raw_qr = request.form.get('qr_id', '')
-        qr_id = sanitize_input(raw_qr).strip()
-        app.logger.info(f'Direct POST - Raw QR: "{raw_qr}", Sanitized QR: "{qr_id}"')
+        qr_id = sanitize_input(request.form.get('qr_id', '')).strip()
     else:
         qr_id = None
     
@@ -1714,7 +1709,7 @@ def create_bill():
     # Handle POST request
     if request.method == 'POST':
         try:
-            bill_id = sanitize_input(request.form.get('bill_id', '')).upper()
+            bill_id = sanitize_input(request.form.get('bill_id', '')).strip()
             parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
             
             if not bill_id:

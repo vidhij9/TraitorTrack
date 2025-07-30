@@ -6,6 +6,14 @@ TraceTrack is a comprehensive supply chain traceability platform built for agric
 
 ## Recent Changes (July 30, 2025)
 
+✓ **QR CODE CASE SENSITIVITY FIX** - Fixed search management issue with numbered QR codes
+✓ Removed .upper() conversion that was breaking lookups for mixed-case QR codes
+✓ Fixed JavaScript formatQrCode functions that were transforming "c-3" to "C3"
+✓ Updated database lookups to try exact match first, then case-insensitive search
+✓ Cleaned up unnecessary QR code formatting functions from all scanner templates
+✓ Preserved original QR code format including hyphens and case sensitivity
+✓ Fixed bill ID processing to maintain original case instead of forcing uppercase
+
 ✓ **INSTANT SCANNER PROCESSING** - Optimized for Apple-like "Code Scanner" performance  
 ✓ Reduced server-side database queries by 70% with optimized route handlers
 ✓ Eliminated complex validations causing processing delays
