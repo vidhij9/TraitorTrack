@@ -211,42 +211,7 @@
 
 </style>
 <script>
-    // QR Code validation and correction function
-    function validateAndCorrectQRCode(qrData) {
-        if (!qrData || typeof qrData !== 'string') return qrData;
-        
-        console.log('Validating QR code:', JSON.stringify(qrData));
-        
-        // Common QR code corrections for child bags
-        const corrections = [
-            // Pattern: C-# should be child-#  
-            { pattern: /^C-(\d+)$/i, replacement: 'child-$1', description: 'C-# to child-#' },
-            { pattern: /^C(\d+)$/i, replacement: 'child-$1', description: 'C# to child-#' },
-            
-            // Pattern: ch-# should be child-#
-            { pattern: /^ch-(\d+)$/i, replacement: 'child-$1', description: 'ch-# to child-#' },
-            { pattern: /^ch(\d+)$/i, replacement: 'child-$1', description: 'ch# to child-#' },
-            
-            // Pattern: child# should be child-#
-            { pattern: /^child(\d+)$/i, replacement: 'child-$1', description: 'child# to child-#' },
-            
-            // Pattern: parent corrections
-            { pattern: /^P-(\d+)$/i, replacement: 'parent-$1', description: 'P-# to parent-#' },
-            { pattern: /^P(\d+)$/i, replacement: 'parent-$1', description: 'P# to parent-#' },
-            { pattern: /^parent(\d+)$/i, replacement: 'parent-$1', description: 'parent# to parent-#' }
-        ];
-        
-        for (const correction of corrections) {
-            if (correction.pattern.test(qrData)) {
-                const corrected = qrData.replace(correction.pattern, correction.replacement);
-                console.log(`Applied correction: ${correction.description} - "${qrData}" → "${corrected}"`);
-                return corrected;
-            }
-        }
-        
-        console.log('No corrections needed for:', JSON.stringify(qrData));
-        return qrData;
-    }
+
 
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video');
@@ -581,13 +546,8 @@
                         console.log('Before cleaning:', JSON.stringify(qrData));
                         console.log('Before cleaning length:', qrData.length);
                         
-                        // ONLY remove truly problematic control characters, preserve normal text
-                        const beforeCleaning = qrData;
-                        qrData = qrData.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ''); // Keep tab (\x09), newline (\x0A), carriage return (\x0D)
-                        
-                        console.log('After cleaning:', JSON.stringify(qrData));
-                        console.log('Cleaning removed chars:', beforeCleaning !== qrData);
-                        console.log('Cleaned QR data chars:', qrData.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
+                        // Keep QR data exactly as detected - only basic trim
+                        console.log('Final QR data (no cleaning):', JSON.stringify(qrData));
                         
                         // Skip if data is too short
                         if (qrData.length < 2) {
@@ -595,13 +555,7 @@
                             return;
                         }
                         
-                        // CRITICAL FIX: QR code pattern validation and correction
-                        const originalQrData = qrData;
-                        qrData = validateAndCorrectQRCode(qrData);
-                        
-                        if (qrData !== originalQrData) {
-                            console.log('QR code corrected from:', JSON.stringify(originalQrData), 'to:', JSON.stringify(qrData));
-                        }
+                        // Process QR code exactly as detected - no alterations
                         
                         // Instant detection highlight
                         drawInstantChildDetectionHighlight(code, startX, startY);
@@ -792,17 +746,9 @@
                 return;
             }
             
-            // CRITICAL: Debug the exact QR code being processed
-            console.log('processQrCodeInstant input:', JSON.stringify(qrCode));
-            console.log('processQrCodeInstant input length:', qrCode.length);
-            console.log('processQrCodeInstant chars:', qrCode.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
-            
-            // Only trim whitespace, don't modify the core content
-            const originalCode = qrCode;
-            qrCode = qrCode.trim();
-            
-            console.log('After trim:', JSON.stringify(qrCode));
-            console.log('Trim removed chars:', originalCode !== qrCode);
+            // Process QR code exactly as received
+            console.log('Processing QR code as-is:', JSON.stringify(qrCode));
+            qrCode = qrCode.trim(); // Only remove leading/trailing whitespace
             
             if (!qrCode) {
                 resultContainer.className = 'alert alert-warning';

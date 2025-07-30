@@ -556,19 +556,9 @@
                         console.log('QR data length:', code.data.length);
                         console.log('QR data chars:', code.data.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
                         
-                        // Clean and validate QR code data - BE VERY CAREFUL HERE
+                        // Keep QR data exactly as detected - only basic trim
                         let qrData = code.data.trim();
-                        
-                        console.log('Before cleaning:', JSON.stringify(qrData));
-                        console.log('Before cleaning length:', qrData.length);
-                        
-                        // ONLY remove truly problematic control characters, preserve normal text
-                        const beforeCleaning = qrData;
-                        qrData = qrData.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ''); // Keep tab (\x09), newline (\x0A), carriage return (\x0D)
-                        
-                        console.log('After cleaning:', JSON.stringify(qrData));
-                        console.log('Cleaning removed chars:', beforeCleaning !== qrData);
-                        console.log('Cleaned QR data chars:', qrData.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
+                        console.log('Final QR data (no cleaning):', JSON.stringify(qrData));
                         
                         // Skip if data is too short
                         if (qrData.length < 2) {
