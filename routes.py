@@ -1067,13 +1067,13 @@ def scan_parent_bag():
             
             if existing_bag:
                 if existing_bag.type == BagType.PARENT.value:
-                    # Use existing parent bag - no additional validation needed
+                    # Use existing parent bag
                     parent_bag = existing_bag
                 else:
-                    # QR code exists as child bag
-                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already a child bag.'})
+                    # QR code exists as child bag - prevent cross-type usage
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag.'})
             else:
-                # Create new parent bag instantly - minimal validation
+                # Create new parent bag instantly
                 parent_bag = Bag(
                     qr_id=qr_id,
                     name=f"Bag {qr_id}",
@@ -1255,8 +1255,8 @@ def scan_child_bag():
             
             if existing_bag:
                 if existing_bag.type == BagType.PARENT.value:
-                    # QR code exists as parent bag
-                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already a parent bag.'})
+                    # QR code exists as parent bag - prevent cross-type usage
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag.'})
                 else:
                     # Use existing child bag
                     child_bag = existing_bag
@@ -1271,13 +1271,23 @@ def scan_child_bag():
                 db.session.add(child_bag)
                 db.session.flush() # Get ID without full commit
             
-            # FAST: Check for existing link (only if parent exists)
+            # FAST: Check for existing link and prevent duplicates
             if parent_bag:
+                # Check if this exact link already exists
                 existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
-                if not existing_link:
-                    # Create link
-                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
-                    db.session.add(link)
+                if existing_link:
+                    return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to this parent bag.'})
+                
+                # Check if child is linked to a different parent
+                other_parent_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+                if other_parent_link and other_parent_link.parent_bag_id != parent_bag.id:
+                    other_parent = Bag.query.get(other_parent_link.parent_bag_id)
+                    if other_parent:
+                        return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to parent bag {other_parent.qr_id}.'})
+                
+                # Create new link
+                link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+                db.session.add(link)
                 
                 # Update session
                 session['current_parent_qr'] = parent_bag.qr_id
