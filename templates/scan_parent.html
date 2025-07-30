@@ -509,8 +509,8 @@
         function optimizedScanQRCode() {
             if (!scanning) return;
             
-            // Apple-like 20fps scanning for optimal performance and battery
-            setTimeout(() => optimizedScanQRCode(), 50);
+            // Ultra-fast 30fps scanning for instant response during movement
+            requestAnimationFrame(optimizedScanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
                 try {
@@ -518,47 +518,110 @@
                     canvasContext.clearRect(0, 0, canvas.width, canvas.height);
                     canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                     
-                    // Draw Apple-like scanning interface
-                    drawAppleScanningInterface();
+                    // Draw minimal scanning interface for performance
+                    drawMinimalScanningInterface();
                     
-                    // Extract image data for QR detection
-                    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                    // Extract smaller center region for faster processing
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                    const startX = Math.max(0, centerX - scanSize/2);
+                    const startY = Math.max(0, centerY - scanSize/2);
+                    const width = Math.min(scanSize, canvas.width - startX);
+                    const height = Math.min(scanSize, canvas.height - startY);
                     
-                    // Enhanced QR detection with multiple attempts
+                    const imageData = canvasContext.getImageData(startX, startY, width, height);
+                    
+                    // Fast QR detection with minimal processing
                     const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "attemptBoth",
-                        // Enhanced detection parameters
-                        locateStart: true,
-                        locateEnd: true,
-                        // More aggressive scanning for better detection
-                        allowDuplicates: false
+                        inversionAttempts: "dontInvert", // Skip inversion for speed
                     });
                     
                     if (code && code.data) {
-                        // Apple-like visual feedback
-                        drawDetectedQRCode(code);
+                        // Instant visual feedback
+                        drawInstantDetectionHighlight(code, startX, startY);
                         
-                        // Haptic feedback if available
+                        // Immediate haptic feedback
                         if (navigator.vibrate) {
-                            navigator.vibrate(50);
+                            navigator.vibrate(25); // Shorter vibration
                         }
                         
-                        // Process unique codes only
+                        // Process unique codes with instant feedback
                         if (lastDetectedCode !== code.data) {
                             lastDetectedCode = code.data;
-                            console.log('QR detected:', code.data);
+                            console.log('QR detected instantly:', code.data);
                             
-                            // Show detection confirmation
+                            // Stop scanning immediately
+                            scanning = false;
+                            
+                            // Instant visual confirmation
                             resultContainer.className = 'alert alert-success';
-                            resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code detected! Processing...';
+                            resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Processing...';
                             
-                            processQrCode(code.data);
+                            // Process with minimal delay
+                            processQrCodeInstant(code.data);
                         }
                     }
                 } catch (error) {
                     console.error('Scanning error:', error);
                 }
             }
+        }
+        
+        function drawMinimalScanningInterface() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
+            
+            // Minimal corner brackets only
+            const cornerLength = 30;
+            const cornerThickness = 2;
+            
+            canvasContext.strokeStyle = '#00FF00';
+            canvasContext.lineWidth = cornerThickness;
+            canvasContext.lineCap = 'round';
+            
+            // Draw 4 corners quickly
+            const x1 = centerX - scanSize/2;
+            const y1 = centerY - scanSize/2;
+            const x2 = centerX + scanSize/2;
+            const y2 = centerY + scanSize/2;
+            
+            canvasContext.beginPath();
+            // Top-left
+            canvasContext.moveTo(x1, y1 + cornerLength);
+            canvasContext.lineTo(x1, y1);
+            canvasContext.lineTo(x1 + cornerLength, y1);
+            // Top-right
+            canvasContext.moveTo(x2 - cornerLength, y1);
+            canvasContext.lineTo(x2, y1);
+            canvasContext.lineTo(x2, y1 + cornerLength);
+            // Bottom-left
+            canvasContext.moveTo(x1, y2 - cornerLength);
+            canvasContext.lineTo(x1, y2);
+            canvasContext.lineTo(x1 + cornerLength, y2);
+            // Bottom-right
+            canvasContext.moveTo(x2 - cornerLength, y2);
+            canvasContext.lineTo(x2, y2);
+            canvasContext.lineTo(x2, y2 - cornerLength);
+            canvasContext.stroke();
+        }
+        
+        function drawInstantDetectionHighlight(code, offsetX, offsetY) {
+            if (!code.location) return;
+            
+            canvasContext.strokeStyle = '#00FF00';
+            canvasContext.lineWidth = 3;
+            canvasContext.fillStyle = 'rgba(0, 255, 0, 0.2)';
+            
+            canvasContext.beginPath();
+            canvasContext.moveTo(code.location.topLeftCorner.x + offsetX, code.location.topLeftCorner.y + offsetY);
+            canvasContext.lineTo(code.location.topRightCorner.x + offsetX, code.location.topRightCorner.y + offsetY);
+            canvasContext.lineTo(code.location.bottomRightCorner.x + offsetX, code.location.bottomRightCorner.y + offsetY);
+            canvasContext.lineTo(code.location.bottomLeftCorner.x + offsetX, code.location.bottomLeftCorner.y + offsetY);
+            canvasContext.closePath();
+            canvasContext.fill();
+            canvasContext.stroke();
         }
         
         function drawAppleScanningInterface() {
@@ -660,7 +723,7 @@
             });
         }
         
-        function processQrCode(qrCode) {
+        function processQrCodeInstant(qrCode) {
             // Accept absolutely any QR code format - no restrictions
             qrCode = qrCode.trim();
             
@@ -696,12 +759,12 @@
                     stopCamera();
                     
                     console.log('Parent bag automatically added, redirecting to child scan page...');
-                    // Automatically proceed to child scanning immediately
+                    // Instantly redirect to child scanning
                     setTimeout(() => {
                         const redirectUrl = '{{ url_for("scan_child", s=request.args.get("s")) }}';
                         console.log('Redirecting to:', redirectUrl);
                         window.location.href = redirectUrl;
-                    }, 1000); // Reduced to 1 second for faster flow
+                    }, 300); // Ultra-fast 300ms redirect
                 } else {
                     console.log('Error response:', data.message);
                     // Show error message

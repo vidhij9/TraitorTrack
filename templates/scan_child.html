@@ -455,8 +455,8 @@
         function optimizedChildScanQRCode() {
             if (!scanning) return;
             
-            // 20fps for optimal performance like Apple scanner
-            setTimeout(() => optimizedChildScanQRCode(), 50);
+            // Ultra-fast scanning for instant response
+            requestAnimationFrame(optimizedChildScanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
                 try {
@@ -464,39 +464,99 @@
                     canvasContext.clearRect(0, 0, canvas.width, canvas.height);
                     canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                     
-                    // Draw Apple-like interface for child scanning
-                    drawChildScanningInterface();
+                    // Draw minimal interface for performance
+                    drawMinimalChildScanningInterface();
                     
-                    // Extract image data
-                    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                    // Extract smaller center region for faster processing
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                    const startX = Math.max(0, centerX - scanSize/2);
+                    const startY = Math.max(0, centerY - scanSize/2);
+                    const width = Math.min(scanSize, canvas.width - startX);
+                    const height = Math.min(scanSize, canvas.height - startY);
                     
-                    // Enhanced QR detection
+                    const imageData = canvasContext.getImageData(startX, startY, width, height);
+                    
+                    // Fast QR detection
                     const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "attemptBoth",
-                        locateStart: true,
-                        locateEnd: true
+                        inversionAttempts: "dontInvert", // Skip inversion for speed
                     });
                     
                     if (code && code.data) {
-                        // Apple-like detection feedback
-                        drawDetectedChildQRCode(code);
+                        // Instant detection highlight
+                        drawInstantChildDetectionHighlight(code, startX, startY);
                         
-                        // Haptic feedback
+                        // Immediate haptic feedback
                         if (navigator.vibrate) {
-                            navigator.vibrate(50);
+                            navigator.vibrate(25);
                         }
                         
-                        // Process unique codes
+                        // Process unique codes instantly
                         if (lastDetectedCode !== code.data) {
                             lastDetectedCode = code.data;
-                            console.log('Child QR detected:', code.data);
-                            processQrCode(code.data);
+                            console.log('Child QR detected instantly:', code.data);
+                            processQrCodeInstant(code.data);
                         }
                     }
                 } catch (error) {
                     console.error('Child scanning error:', error);
                 }
             }
+        }
+        
+        function drawMinimalChildScanningInterface() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
+            
+            const cornerLength = 25;
+            const cornerThickness = 2;
+            
+            canvasContext.strokeStyle = '#FF9500';
+            canvasContext.lineWidth = cornerThickness;
+            canvasContext.lineCap = 'round';
+            
+            const x1 = centerX - scanSize/2;
+            const y1 = centerY - scanSize/2;
+            const x2 = centerX + scanSize/2;
+            const y2 = centerY + scanSize/2;
+            
+            canvasContext.beginPath();
+            // Top-left
+            canvasContext.moveTo(x1, y1 + cornerLength);
+            canvasContext.lineTo(x1, y1);
+            canvasContext.lineTo(x1 + cornerLength, y1);
+            // Top-right
+            canvasContext.moveTo(x2 - cornerLength, y1);
+            canvasContext.lineTo(x2, y1);
+            canvasContext.lineTo(x2, y1 + cornerLength);
+            // Bottom-left
+            canvasContext.moveTo(x1, y2 - cornerLength);
+            canvasContext.lineTo(x1, y2);
+            canvasContext.lineTo(x1 + cornerLength, y2);
+            // Bottom-right
+            canvasContext.moveTo(x2 - cornerLength, y2);
+            canvasContext.lineTo(x2, y2);
+            canvasContext.lineTo(x2, y2 - cornerLength);
+            canvasContext.stroke();
+        }
+        
+        function drawInstantChildDetectionHighlight(code, offsetX, offsetY) {
+            if (!code.location) return;
+            
+            canvasContext.strokeStyle = '#FF6B35';
+            canvasContext.lineWidth = 3;
+            canvasContext.fillStyle = 'rgba(255, 107, 53, 0.2)';
+            
+            canvasContext.beginPath();
+            canvasContext.moveTo(code.location.topLeftCorner.x + offsetX, code.location.topLeftCorner.y + offsetY);
+            canvasContext.lineTo(code.location.topRightCorner.x + offsetX, code.location.topRightCorner.y + offsetY);
+            canvasContext.lineTo(code.location.bottomRightCorner.x + offsetX, code.location.bottomRightCorner.y + offsetY);
+            canvasContext.lineTo(code.location.bottomLeftCorner.x + offsetX, code.location.bottomLeftCorner.y + offsetY);
+            canvasContext.closePath();
+            canvasContext.fill();
+            canvasContext.stroke();
         }
         
         function drawChildScanningInterface() {
@@ -604,7 +664,7 @@
             });
         }
         
-        function processQrCode(qrCode) {
+        function processQrCodeInstant(qrCode) {
             // Accept any QR code format - server will handle validation
             qrCode = qrCode.trim();
             
@@ -692,10 +752,10 @@
                     // Clear manual input
                     manualQrInput.value = '';
                     
-                    // Reset last detected code after a short delay to allow for new scans
+                    // Reset last detected code quickly for next scan
                     setTimeout(() => {
                         lastDetectedCode = null;
-                    }, 2000);
+                    }, 500);
                 } else {
                     // Show error message
                     resultContainer.className = 'alert alert-danger';

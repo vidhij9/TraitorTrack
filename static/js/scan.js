@@ -44,18 +44,18 @@ function initializeScanner() {
         try {
             html5QrCode = new Html5Qrcode("reader");
             
-            // Apple-like optimized scanning configuration
+            // Ultra-fast scanning configuration for instant response
             const config = { 
-                fps: 20, // Increased for better responsiveness like Apple scanner
-                qrbox: { width: 280, height: 280 }, // Larger scan area
-                aspectRatio: 1.0, // Square scanning area
-                disableFlip: false,
+                fps: 30, // Maximum fps for instant response
+                qrbox: { width: 250, height: 250 }, // Optimized scan area
+                aspectRatio: 1.0,
+                disableFlip: true, // Skip flip for speed
                 // Enhanced camera constraints
                 videoConstraints: {
                     facingMode: "environment",
                     width: { ideal: 1920, min: 640 },
                     height: { ideal: 1080, min: 480 },
-                    frameRate: { ideal: 30, min: 20 },
+                    frameRate: { ideal: 30, min: 25 },
                     focusMode: 'continuous',
                     exposureMode: 'continuous'
                 }
