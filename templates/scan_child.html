@@ -478,16 +478,39 @@
                     
                     const imageData = canvasContext.getImageData(startX, startY, width, height);
                     
-                    // Enhanced QR detection with better accuracy
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "attemptBoth", // Try both normal and inverted for accuracy
-                    });
+                    // Multi-attempt QR detection for maximum accuracy
+                    let code = null;
+                    
+                    // Try multiple detection approaches
+                    const detectionMethods = [
+                        { inversionAttempts: "attemptBoth" },
+                        { inversionAttempts: "onlyInvert" },
+                        { inversionAttempts: "dontInvert" }
+                    ];
+                    
+                    for (const method of detectionMethods) {
+                        code = jsQR(imageData.data, imageData.width, imageData.height, method);
+                        if (code && code.data && code.data.length >= 2) {
+                            console.log('QR detected with method:', method);
+                            break;
+                        }
+                    }
                     
                     if (code && code.data) {
-                        // Validate QR code data quality
-                        const qrData = code.data.trim();
+                        // Raw QR data debugging
+                        console.log('Raw QR data detected:', JSON.stringify(code.data));
+                        console.log('QR data length:', code.data.length);
+                        console.log('QR data chars:', code.data.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
                         
-                        // Skip if data is too short or contains suspicious patterns
+                        // Clean and validate QR code data
+                        let qrData = code.data.trim();
+                        
+                        // Remove any invisible/control characters
+                        qrData = qrData.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+                        
+                        console.log('Cleaned QR data:', JSON.stringify(qrData));
+                        
+                        // Skip if data is too short
                         if (qrData.length < 2) {
                             console.log('Skipping short QR code:', qrData);
                             return;
@@ -504,7 +527,7 @@
                         // Process unique codes instantly with validation
                         if (lastDetectedCode !== qrData) {
                             lastDetectedCode = qrData;
-                            console.log('Child QR detected instantly:', qrData);
+                            console.log('Child QR processed:', qrData);
                             processQrCodeInstant(qrData);
                         }
                     }
