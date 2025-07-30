@@ -365,6 +365,9 @@
                 });
                 
                 if (code && code.data) {
+                    // Draw red/orange circles at QR code corners for visual feedback
+                    drawQRCodeCorners(code);
+                    
                     // To prevent multiple scans of the same code
                     if (lastDetectedCode !== code.data) {
                         lastDetectedCode = code.data;
@@ -380,7 +383,22 @@
             }
         }
         
-        // formatQrCode function removed - we now preserve the original QR code format
+        // Draw visual feedback when QR code is detected
+        function drawQRCodeCorners(code) {
+            const corners = [
+                code.location.topLeftCorner,
+                code.location.topRightCorner,
+                code.location.bottomRightCorner,
+                code.location.bottomLeftCorner
+            ];
+            
+            canvasContext.fillStyle = '#FF6B35'; // Orange/red color for visual feedback
+            corners.forEach(corner => {
+                canvasContext.beginPath();
+                canvasContext.arc(corner.x, corner.y, 5, 0, 2 * Math.PI);
+                canvasContext.fill();
+            });
+        }
     });
 </script>
 {% endblock %}
