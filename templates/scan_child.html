@@ -78,6 +78,31 @@
         </div>
     </div>
     
+    <!-- Manual Entry Section -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-keyboard me-2"></i>Manual Entry</h6>
+                </div>
+                <div class="card-body p-2">
+                    <form id="manual-entry-form" class="d-flex gap-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="text" 
+                               id="manual-qr-input" 
+                               name="qr_code"
+                               class="form-control form-control-sm" 
+                               placeholder="Enter child bag QR code manually..."
+                               autocomplete="off">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i>Add
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Scanned bags list -->
     <div class="row">
         <div class="col-12">
@@ -170,10 +195,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function appleQualityScanning() {
         if (!scanning) return;
         
-        // Reduce frame rate to prevent lag - 15fps is smooth enough
-        setTimeout(() => {
-            requestAnimationFrame(appleQualityScanning);
-        }, 66); // ~15fps
+        // Use requestAnimationFrame with throttling for smooth performance
+        requestAnimationFrame(() => {
+            setTimeout(appleQualityScanning, 100); // ~10fps for smooth movement
+        });
         
         if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
             try {
@@ -527,6 +552,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         }
+    });
+    
+    // Manual entry form submission
+    document.getElementById('manual-entry-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const qrInput = document.getElementById('manual-qr-input');
+        const qrData = qrInput.value.trim();
+        
+        if (!qrData) {
+            resultContainer.className = 'alert alert-warning';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter a QR code.';
+            return;
+        }
+        
+        // Clear input and submit
+        qrInput.value = '';
+        autoSubmitChildBag(qrData);
     });
     
     // Button events

@@ -6,13 +6,13 @@ TraceTrack is a comprehensive supply chain traceability platform built for agric
 
 ## Recent Changes (July 30, 2025)
 
-✓ **APPLE-QUALITY CHILD SCANNER** - Completely rebuilt child bag scanner with professional-grade performance
-✓ Implemented Apple Code Scanner quality with 30fps real-time detection and instant auto-submission
-✓ Added professional camera constraints with continuous focus, exposure, and white balance
-✓ Created clean Apple-style interface with viewfinder and orange corner bracket highlighting
-✓ Applied 3-stage enhanced detection: standard, high-contrast, and edge detection for tiny QR codes
-✓ Fixed black screen issues with proper video-canvas positioning and 1:1 dimension mapping
-✓ Instant child bag linking without manual confirmation - matches Apple's seamless UX
+✓ **CONSISTENT SCANNER OPTIMIZATION** - Fixed camera lag and made all scanners follow same patterns
+✓ Reduced frame rate to 10fps (~100ms intervals) across all scanners for smooth camera movement
+✓ Added manual entry functionality to child bag scanner with form validation and auto-submission
+✓ Standardized QR detection, submission patterns, and error handling across parent, child, and bill scanners
+✓ Enhanced child scanner with comprehensive linking functionality, delete buttons, and haptic feedback
+✓ Applied consistent throttling and Apple-style visual feedback to prevent performance issues
+✓ Restored complete child bag management with progress tracking and scanned bag lists
 
 ✓ **QR CODE CASE SENSITIVITY FIX** - Fixed search management issue with numbered QR codes
 ✓ Removed .upper() conversion that was breaking lookups for mixed-case QR codes
