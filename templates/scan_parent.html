@@ -723,10 +723,16 @@
             });
         }
         
+        let processingRequest = false; // Prevent duplicate requests
+        
         function processQrCodeInstant(qrCode) {
-            // Accept absolutely any QR code format - no restrictions
-            qrCode = qrCode.trim();
+            // Prevent duplicate processing
+            if (processingRequest) {
+                console.log('Already processing a request, ignoring duplicate');
+                return;
+            }
             
+            qrCode = qrCode.trim();
             if (!qrCode) {
                 resultContainer.className = 'alert alert-warning';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Empty QR code detected.';
@@ -734,50 +740,55 @@
                 return;
             }
             
-            // Display the scanned QR code in the manual entry box for visibility
+            // Set processing flag immediately
+            processingRequest = true;
+            
+            // Display instant feedback
             const manualQrInput = document.getElementById('manual-qr-code');
             manualQrInput.value = qrCode;
             
-            // Send to server for processing
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing parent bag...';
+            resultContainer.style.display = 'block';
+            
+            // Send optimized request
             fetch('/scan/parent?s={{ request.args.get("s") }}', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest' // Mark as AJAX for faster processing
                 },
                 body: 'qr_id=' + encodeURIComponent(qrCode) + '&csrf_token={{ csrf_token() }}'
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
             .then(data => {
                 console.log('Server response:', data);
                 if (data.success) {
-                    // Show success message and auto-proceed immediately
+                    // Instant success feedback
                     resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = `<i class="fas fa-check-circle me-2"></i>Parent bag "${data.parent_qr}" added successfully! Redirecting to child scanning...`;
-                    resultContainer.style.display = 'block';
+                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Parent bag added! Redirecting...';
                     
-                    // Stop the camera since we've got a successful scan
+                    // Stop camera immediately
                     stopCamera();
                     
-                    console.log('Parent bag automatically added, redirecting to child scan page...');
-                    // Instantly redirect to child scanning
+                    // Ultra-fast redirect (100ms)
                     setTimeout(() => {
-                        const redirectUrl = '{{ url_for("scan_child", s=request.args.get("s")) }}';
-                        console.log('Redirecting to:', redirectUrl);
-                        window.location.href = redirectUrl;
-                    }, 300); // Ultra-fast 300ms redirect
+                        window.location.href = '{{ url_for("scan_child", s=request.args.get("s")) }}';
+                    }, 100);
                 } else {
-                    console.log('Error response:', data.message);
-                    // Show error message
+                    processingRequest = false; // Reset flag on error
                     resultContainer.className = 'alert alert-danger';
                     resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
-                    resultContainer.style.display = 'block';
                 }
             })
             .catch(error => {
+                processingRequest = false; // Reset flag on error
                 console.error('Error:', error);
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + 
-                    'An error occurred while processing the QR code. Please try again.';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Processing failed. Please try again.';
             });
         }
         

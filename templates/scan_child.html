@@ -664,65 +664,57 @@
             });
         }
         
+        let childProcessingRequest = false; // Prevent duplicate requests
+        
         function processQrCodeInstant(qrCode) {
-            // Accept any QR code format - server will handle validation
-            qrCode = qrCode.trim();
+            // Prevent duplicate processing
+            if (childProcessingRequest) {
+                console.log('Already processing child request, ignoring duplicate');
+                return;
+            }
             
+            qrCode = qrCode.trim();
             if (!qrCode) {
                 resultContainer.className = 'alert alert-warning';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please provide a valid QR code.';
                 return;
             }
             
-            // Display the scanned QR code in the manual entry box for visibility
+            // Set processing flag immediately
+            childProcessingRequest = true;
+            
+            // Display instant feedback
             const manualQrInput = document.getElementById('manual-qr-code');
             manualQrInput.value = qrCode;
             
-            // Show processing state
             resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                    <span>Processing QR code: ${qrCode}...</span>
-                </div>
-            `;
+            resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing child bag...';
             
-            // Send to server for processing
+            // Send optimized request
             fetch('/scan/child?s={{ request.args.get("s") }}', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest' // Mark as AJAX for faster processing
                 },
                 body: 'qr_code=' + encodeURIComponent(qrCode) + '&csrf_token={{ csrf_token() }}'
             })
             .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return response.json();
             })
             .then(data => {
                 if (data.success) {
-                    // Update UI for success with sound feedback
+                    // Instant success feedback
                     resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = `
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <div>
-                                <strong>Success!</strong> ${data.message}
-                                <br><small>Parent bag: ${data.parent_qr || 'None'}</small>
-                            </div>
-                        </div>
-                    `;
+                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Child bag linked!';
                     
-                    // Play success sound (if available)
-                    try {
-                        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmIdAzuBz/Pdg0YJFWuz4+OVUwt/9k/J5Xk6BhJYue7op1oTF1xNtpSuKe7B9VGfyzbtlbHF7bFsJyuW5u1KmPOkzuW9eCUFKYHI+91SoQIz8tD5u6BIXB/9uNJPl8r3qJuA=');
-                        audio.volume = 0.3;
-                        audio.play().catch(() => {}); // Ignore errors
-                    } catch (e) {}
+                    // Quick haptic feedback
+                    if (navigator.vibrate) {
+                        navigator.vibrate(30);
+                    }
                     
-                    // Add to the scanned list with delete option
+                    // Add to the scanned list instantly
                     const listItem = document.createElement('li');
                     listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
                     listItem.dataset.qrCode = data.child_qr;
@@ -730,13 +722,12 @@
                         <div>
                             <span class="badge bg-success me-2">Child</span>
                             <span class="fw-bold">${data.child_qr}</span>
-                            <br><small class="text-muted">Just scanned</small>
                         </div>
                         <div>
                             <span class="badge bg-primary rounded-pill me-2">
                                 <i class="fas fa-link me-1"></i>Linked
                             </span>
-                            <button class="btn btn-sm btn-outline-danger delete-bag" data-qr="${data.child_qr}" title="Delete this scan">
+                            <button class="btn btn-sm btn-outline-danger delete-bag" data-qr="${data.child_qr}" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -752,11 +743,13 @@
                     // Clear manual input
                     manualQrInput.value = '';
                     
-                    // Reset last detected code quickly for next scan
+                    // Reset flags for next scan
+                    childProcessingRequest = false;
                     setTimeout(() => {
                         lastDetectedCode = null;
-                    }, 500);
+                    }, 200); // Very quick reset
                 } else {
+                    childProcessingRequest = false; // Reset flag on error
                     // Show error message
                     resultContainer.className = 'alert alert-danger';
                     resultContainer.innerHTML = `
