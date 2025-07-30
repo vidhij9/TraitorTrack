@@ -800,7 +800,10 @@ def request_promotion():
             flash('User not found.', 'error')
             return redirect(url_for('login'))
         
-        if user.is_admin():
+        # Debug logging for admin check
+        app.logger.info(f'User {user.username} role: "{user.role}", UserRole.ADMIN.value: "{UserRole.ADMIN.value}", is_admin: {user.is_admin()}')
+        
+        if user.role == 'admin':  # Direct string comparison for now
             flash('You are already an admin.', 'info')
             return redirect(url_for('index'))
         
