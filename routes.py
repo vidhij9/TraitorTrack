@@ -1382,27 +1382,29 @@ def child_lookup():
     url_qr_id = request.args.get('qr_id', '').strip()
     
     if form.validate_on_submit():
-        qr_id = sanitize_input(form.qr_id.data).upper()
+        qr_id = sanitize_input(form.qr_id.data).strip()
     elif url_qr_id:
         # If there's a QR ID in the URL, use it for lookup
-        qr_id = sanitize_input(url_qr_id).upper()
+        qr_id = sanitize_input(url_qr_id).strip()
     elif request.method == 'POST':
         # Handle direct form submission without WTForms validation
-        qr_id = sanitize_input(request.form.get('qr_id', '')).upper()
+        qr_id = sanitize_input(request.form.get('qr_id', '')).strip()
     else:
         qr_id = None
     
     if qr_id:
         app.logger.info(f'Lookup request for QR ID: {qr_id}')
         
-        # Try case-insensitive lookup first, then exact match
-        bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_id.upper()).first()
+        # Try exact match first (most efficient)
+        bag = Bag.query.filter_by(qr_id=qr_id).first()
         if not bag:
-            # Try exact match
-            bag = Bag.query.filter_by(qr_id=qr_id).first()
+            # Try case-insensitive lookup using SQLAlchemy's func.lower
+            bag = Bag.query.filter(func.lower(Bag.qr_id) == qr_id.lower()).first()
         if not bag:
-            # Try original case
-            bag = Bag.query.filter_by(qr_id=request.form.get('qr_id', '')).first()
+            # Try with original form data (for backward compatibility)
+            original_qr = request.form.get('qr_id', '') if request.method == 'POST' else url_qr_id
+            if original_qr and original_qr != qr_id:
+                bag = Bag.query.filter_by(qr_id=original_qr).first()
         
         app.logger.info(f'Bag found: {bag.qr_id if bag else "None"}')
         app.logger.info(f'Total bags in database: {Bag.query.count()}')
@@ -2038,16 +2040,25 @@ def process_bill_parent_scan():
                 log_duplicate_attempt(qr_id, 'parent', 'bill', current_user.id)
                 return jsonify({'success': False, 'message': f'QR code {qr_id} is already used as a bill ID. Cannot use as parent bag.'})
             
-            # Try case-insensitive search for existing parent bag
+            # Try exact match for existing parent bag first
             parent_bag = Bag.query.filter(
-                func.upper(Bag.qr_id) == qr_id.upper(),
+                Bag.qr_id == qr_id,
                 Bag.type == BagType.PARENT.value
             ).first()
+            
+            # If no exact match, try case-insensitive search
+            if not parent_bag:
+                parent_bag = Bag.query.filter(
+                    func.lower(Bag.qr_id) == qr_id.lower(),
+                    Bag.type == BagType.PARENT.value
+                ).first()
         
         if not parent_bag:
             app.logger.warning(f'Parent bag not found: {qr_id}')
-            # Check if bag exists with different type (case-insensitive)
-            any_bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_id.upper()).first()
+            # Check if bag exists with different type (exact match first, then case-insensitive)
+            any_bag = Bag.query.filter(Bag.qr_id == qr_id).first()
+            if not any_bag:
+                any_bag = Bag.query.filter(func.lower(Bag.qr_id) == qr_id.lower()).first()
             if any_bag:
                 app.logger.info(f'Found bag with type: {any_bag.type} and QR: {any_bag.qr_id}')
                 return jsonify({'success': False, 'message': f'QR code {any_bag.qr_id} exists but is registered as a {any_bag.type} bag, not a parent bag.'})
