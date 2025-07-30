@@ -48,9 +48,9 @@
                             <p class="text-muted">Scan or enter any bag QR code to view details and relationships</p>
                         </div>
                         
-                        <div class="video-container mb-4">
-                            <video id="video" playsinline></video>
-                            <canvas id="canvas" class="d-none"></canvas>
+                        <div class="video-container mb-4" style="position: relative;">
+                            <video id="video" playsinline style="width: 100%; height: 300px; object-fit: cover;"></video>
+                            <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
                         </div>
                         
                         <div class="d-flex justify-content-center mb-3">
@@ -355,8 +355,13 @@
             requestAnimationFrame(scanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvas.height = video.videoHeight;
-                canvas.width = video.videoWidth;
+                // Set canvas dimensions to match video display
+                const rect = video.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                
+                // Clear canvas and draw video frame
+                canvasContext.clearRect(0, 0, canvas.width, canvas.height);
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
                 const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
@@ -385,6 +390,7 @@
         
         // Draw visual feedback when QR code is detected
         function drawQRCodeCorners(code) {
+            console.log('Drawing QR code corners for visual feedback');
             const corners = [
                 code.location.topLeftCorner,
                 code.location.topRightCorner,
@@ -392,11 +398,18 @@
                 code.location.bottomLeftCorner
             ];
             
+            console.log('Corner locations:', corners);
+            
             canvasContext.fillStyle = '#FF6B35'; // Orange/red color for visual feedback
-            corners.forEach(corner => {
+            canvasContext.strokeStyle = '#FF6B35';
+            canvasContext.lineWidth = 3;
+            
+            corners.forEach((corner, index) => {
+                console.log(`Drawing corner ${index} at (${corner.x}, ${corner.y})`);
                 canvasContext.beginPath();
-                canvasContext.arc(corner.x, corner.y, 5, 0, 2 * Math.PI);
+                canvasContext.arc(corner.x, corner.y, 8, 0, 2 * Math.PI);
                 canvasContext.fill();
+                canvasContext.stroke();
             });
         }
     });
