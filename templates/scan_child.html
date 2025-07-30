@@ -211,6 +211,43 @@
 
 </style>
 <script>
+    // QR Code validation and correction function
+    function validateAndCorrectQRCode(qrData) {
+        if (!qrData || typeof qrData !== 'string') return qrData;
+        
+        console.log('Validating QR code:', JSON.stringify(qrData));
+        
+        // Common QR code corrections for child bags
+        const corrections = [
+            // Pattern: C-# should be child-#  
+            { pattern: /^C-(\d+)$/i, replacement: 'child-$1', description: 'C-# to child-#' },
+            { pattern: /^C(\d+)$/i, replacement: 'child-$1', description: 'C# to child-#' },
+            
+            // Pattern: ch-# should be child-#
+            { pattern: /^ch-(\d+)$/i, replacement: 'child-$1', description: 'ch-# to child-#' },
+            { pattern: /^ch(\d+)$/i, replacement: 'child-$1', description: 'ch# to child-#' },
+            
+            // Pattern: child# should be child-#
+            { pattern: /^child(\d+)$/i, replacement: 'child-$1', description: 'child# to child-#' },
+            
+            // Pattern: parent corrections
+            { pattern: /^P-(\d+)$/i, replacement: 'parent-$1', description: 'P-# to parent-#' },
+            { pattern: /^P(\d+)$/i, replacement: 'parent-$1', description: 'P# to parent-#' },
+            { pattern: /^parent(\d+)$/i, replacement: 'parent-$1', description: 'parent# to parent-#' }
+        ];
+        
+        for (const correction of corrections) {
+            if (correction.pattern.test(qrData)) {
+                const corrected = qrData.replace(correction.pattern, correction.replacement);
+                console.log(`Applied correction: ${correction.description} - "${qrData}" → "${corrected}"`);
+                return corrected;
+            }
+        }
+        
+        console.log('No corrections needed for:', JSON.stringify(qrData));
+        return qrData;
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
@@ -478,22 +515,58 @@
                     
                     const imageData = canvasContext.getImageData(startX, startY, width, height);
                     
-                    // Multi-attempt QR detection for maximum accuracy
+                    // COMPREHENSIVE QR detection with multiple approaches and validation
                     let code = null;
+                    let bestDetection = null;
                     
-                    // Try multiple detection approaches
-                    const detectionMethods = [
-                        { inversionAttempts: "attemptBoth" },
-                        { inversionAttempts: "onlyInvert" },
-                        { inversionAttempts: "dontInvert" }
+                    // Try different detection methods and scan regions
+                    const detectionStrategies = [
+                        // Strategy 1: Full region with different inversions
+                        { data: imageData, method: { inversionAttempts: "attemptBoth" }, region: "full" },
+                        { data: imageData, method: { inversionAttempts: "onlyInvert" }, region: "full" },
+                        { data: imageData, method: { inversionAttempts: "dontInvert" }, region: "full" },
+                        
+                        // Strategy 2: Smaller center region (80% of original)
+                        { 
+                            data: canvasContext.getImageData(
+                                startX + width * 0.1, 
+                                startY + height * 0.1, 
+                                width * 0.8, 
+                                height * 0.8
+                            ), 
+                            method: { inversionAttempts: "attemptBoth" }, 
+                            region: "center80" 
+                        }
                     ];
                     
-                    for (const method of detectionMethods) {
-                        code = jsQR(imageData.data, imageData.width, imageData.height, method);
-                        if (code && code.data && code.data.length >= 2) {
-                            console.log('QR detected with method:', method);
-                            break;
+                    for (const strategy of detectionStrategies) {
+                        try {
+                            const detectedCode = jsQR(strategy.data.data, strategy.data.width, strategy.data.height, strategy.method);
+                            
+                            if (detectedCode && detectedCode.data) {
+                                console.log(`QR detected with ${strategy.region} region, method:`, strategy.method);
+                                console.log('Detection data:', JSON.stringify(detectedCode.data));
+                                
+                                // Select the detection with the longest valid data
+                                if (!bestDetection || detectedCode.data.length > bestDetection.data.length) {
+                                    bestDetection = detectedCode;
+                                }
+                                
+                                // If we get something that looks complete, use it immediately
+                                if (detectedCode.data.length >= 7) { // "child-2" is 7 characters
+                                    code = detectedCode;
+                                    break;
+                                }
+                            }
+                        } catch (error) {
+                            console.log(`Detection error with ${strategy.region}:`, error);
                         }
+                    }
+                    
+                    // Use the best detection if no perfect match was found
+                    if (!code && bestDetection) {
+                        code = bestDetection;
+                        console.log('Using best detection:', JSON.stringify(code.data));
                     }
                     
                     if (code && code.data) {
@@ -520,6 +593,14 @@
                         if (qrData.length < 2) {
                             console.log('Skipping short QR code:', qrData);
                             return;
+                        }
+                        
+                        // CRITICAL FIX: QR code pattern validation and correction
+                        const originalQrData = qrData;
+                        qrData = validateAndCorrectQRCode(qrData);
+                        
+                        if (qrData !== originalQrData) {
+                            console.log('QR code corrected from:', JSON.stringify(originalQrData), 'to:', JSON.stringify(qrData));
                         }
                         
                         // Instant detection highlight
