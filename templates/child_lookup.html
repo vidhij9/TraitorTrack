@@ -369,14 +369,8 @@
                     if (lastDetectedCode !== code.data) {
                         lastDetectedCode = code.data;
                         
-                        // If it's not already in the format "C123", try to format it
+                        // Use the QR code exactly as scanned - no formatting needed
                         let qrCode = code.data;
-                        if (!qrCode.match(/^C\d+$/)) {
-                            const formattedQrCode = formatQrCode(qrCode);
-                            if (formattedQrCode) {
-                                qrCode = formattedQrCode;
-                            }
-                        }
                         
                         // Fill the form and submit it with proper CSRF token
                         document.getElementById('qr_code').value = qrCode;
@@ -386,15 +380,7 @@
             }
         }
         
-        function formatQrCode(rawCode) {
-            // Extract digits if present
-            const digits = rawCode.match(/\d+/g);
-            if (digits && digits.length > 0) {
-                // Format as C[first number]
-                return `C${digits[0]}`;
-            }
-            return null;
-        }
+        // formatQrCode function removed - we now preserve the original QR code format
     });
 </script>
 {% endblock %}
