@@ -509,10 +509,8 @@
         function optimizedScanQRCode() {
             if (!scanning) return;
             
-            // Consistent throttling for smooth performance across all scanners
-            requestAnimationFrame(() => {
-                setTimeout(optimizedScanQRCode, 100); // ~10fps for smooth movement
-            });
+            // Ultra-fast scanning for instant response - no throttling
+            requestAnimationFrame(optimizedScanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
                 try {

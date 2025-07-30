@@ -1229,29 +1229,50 @@ def scan_child_bag():
     app.logger.info(f"Child scan request - AJAX: {is_ajax}, QR_CODE: {request.form.get('qr_code')}")
     
     if is_ajax:
-        # Handle AJAX QR scan request - OPTIMIZED FOR SPEED
+        # Handle AJAX QR scan request - ULTRA-OPTIMIZED FOR SUB-SECOND RESPONSE
         qr_id = request.form.get('qr_code', '').strip()
         
         if not qr_id:
-            return jsonify({'success': False, 'message': 'Please provide a QR code.'})
+            return jsonify({'success': False, 'message': 'QR code required'})
         
         try:
-            # FAST: Get parent bag from session first (most common case)
-            parent_bag = None
+            # ULTRA-FAST: Get parent bag from session (cached)
             parent_qr = session.get('current_parent_qr')
-            if parent_qr:
-                parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+            if not parent_qr:
+                return jsonify({'success': False, 'message': 'No parent bag selected'})
             
-            # If no session parent, get most recent from last_scan
+            # ULTRA-FAST: Single optimized query for both bags
+            bags = db.session.query(Bag).filter(
+                Bag.qr_id.in_([parent_qr, qr_id])
+            ).all()
+            
+            parent_bag = None
+            existing_child = None
+            
+            for bag in bags:
+                if bag.qr_id == parent_qr and bag.type == BagType.PARENT.value:
+                    parent_bag = bag
+                elif bag.qr_id == qr_id:
+                    existing_child = bag
+            
             if not parent_bag:
-                last_scan = session.get('last_scan')
-                if last_scan and last_scan.get('type') == 'parent':
-                    parent_qr_id = last_scan.get('qr_id')
-                    if parent_qr_id:
-                        parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
+                return jsonify({'success': False, 'message': 'Parent bag not found'})
             
-            # FAST: Single query to check existing child bag
-            existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
+            # ULTRA-FAST: Process child bag
+            if existing_child:
+                if existing_child.type != BagType.CHILD.value:
+                    return jsonify({'success': False, 'message': f'{qr_id} exists as parent bag'})
+                child_bag = existing_child
+            else:
+                # Create new child bag instantly
+                child_bag = Bag(
+                    qr_id=qr_id,
+                    name=f"Child {qr_id}",
+                    type=BagType.CHILD.value,
+                    dispatch_area=parent_bag.dispatch_area
+                )
+                db.session.add(child_bag)
+                db.session.flush()  # Get ID without full commit
             
             if existing_bag:
                 if existing_bag.type == BagType.PARENT.value:

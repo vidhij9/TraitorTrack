@@ -191,46 +191,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Optimized QR scanning without lag
+    // Ultra-fast QR scanning for instant detection
     function appleQualityScanning() {
         if (!scanning) return;
         
-        // Use requestAnimationFrame with throttling for smooth performance
-        requestAnimationFrame(() => {
-            setTimeout(appleQualityScanning, 100); // ~10fps for smooth movement
-        });
+        // High-speed scanning for instant response - no throttling
+        requestAnimationFrame(appleQualityScanning);
         
         if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
             try {
                 // Draw current frame using video's natural dimensions
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // Get image data for QR detection
-                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                // Ultra-fast center-focused scanning for instant detection
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const scanSize = Math.min(canvas.width, canvas.height) * 0.7;
+                const startX = Math.max(0, centerX - scanSize/2);
+                const startY = Math.max(0, centerY - scanSize/2);
+                const width = Math.min(scanSize, canvas.width - startX);
+                const height = Math.min(scanSize, canvas.height - startY);
                 
-                // Multi-stage detection for small QR codes
-                let detectedCode = null;
+                // Get center region for fastest processing
+                const imageData = canvasContext.getImageData(startX, startY, width, height);
                 
-                // Stage 1: Standard detection
-                detectedCode = jsQR(imageData.data, imageData.width, imageData.height, {
+                // Single ultra-fast detection for instant response
+                let detectedCode = jsQR(imageData.data, imageData.width, imageData.height, {
                     inversionAttempts: "attemptBoth"
                 });
-                
-                // Stage 2: Enhanced contrast for small codes
-                if (!detectedCode) {
-                    const enhancedData = enhanceForSmallQR(imageData);
-                    detectedCode = jsQR(enhancedData.data, enhancedData.width, enhancedData.height, {
-                        inversionAttempts: "attemptBoth"
-                    });
-                }
-                
-                // Stage 3: Edge detection for tiny codes
-                if (!detectedCode) {
-                    const edgeData = applyEdgeDetection(imageData);
-                    detectedCode = jsQR(edgeData.data, edgeData.width, edgeData.height, {
-                        inversionAttempts: "attemptBoth"
-                    });
-                }
                 
                 if (detectedCode && detectedCode.data) {
                     // Draw Apple-style orange corner highlights
@@ -334,28 +322,21 @@ document.addEventListener('DOMContentLoaded', function() {
         canvasContext.stroke();
     }
     
-    // Auto-submit child bag with comprehensive error handling
+    // Ultra-fast child bag submission for instant linking
     function autoSubmitChildBag(qrData) {
-        console.log('Auto-submitting child bag:', qrData);
+        console.log('Ultra-fast submitting child bag:', qrData);
         
         lastDetectedCode = qrData;
         isProcessing = true;
         
-        // Show processing with haptic feedback
+        // Instant haptic feedback
         if (navigator.vibrate) {
-            navigator.vibrate(50); // Brief vibration
+            navigator.vibrate(25); // Ultra-brief vibration
         }
         
+        // Minimal processing UI for speed
         resultContainer.className = 'alert alert-info';
-        resultContainer.innerHTML = `
-            <div class="d-flex align-items-center">
-                <div class="spinner-border spinner-border-sm me-2"></div>
-                <div>
-                    <strong>Processing:</strong> ${qrData}
-                    <br><small>Linking to parent bag...</small>
-                </div>
-            </div>
-        `;
+        resultContainer.innerHTML = `<i class="fas fa-bolt me-2"></i>Linking ${qrData}...`;
         
         // Submit with comprehensive error handling
         fetch('{{ url_for("scan_child", s=request.args.get("s")) }}', {
@@ -399,11 +380,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Add to scanned list
                 addBagToList(qrData);
                 
-                // Reset processing state
+                // Ultra-fast reset for immediate next scan
                 setTimeout(() => {
                     isProcessing = false;
                     lastDetectedCode = null;
-                }, 1500);
+                }, 500); // Reduced to 500ms for instant next scan
                 
             } else {
                 // Handle specific error cases
