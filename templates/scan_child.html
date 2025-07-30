@@ -96,9 +96,9 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="video-container">
-                        <video id="video" playsinline class="d-none"></video>
-                        <canvas id="canvas"></canvas>
+                    <div class="video-container" style="position: relative;">
+                        <video id="video" playsinline style="width: 100%; height: 300px; object-fit: cover;"></video>
+                        <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
                         
                         <!-- Camera status overlay -->
                         <div class="camera-status-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" id="camera-status" style="z-index: 4; background: rgba(0,0,0,0.8);">
@@ -441,16 +441,8 @@
                 // Hide scanning status
                 scanningStatus.classList.add('d-none');
                 
-                // Clear canvas and show a blank screen
+                // Clear canvas
                 canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-                canvasContext.fillStyle = '#000';
-                canvasContext.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Show "camera stopped" message on canvas
-                canvasContext.fillStyle = '#fff';
-                canvasContext.font = '16px Arial';
-                canvasContext.textAlign = 'center';
-                canvasContext.fillText('Camera stopped', canvas.width/2, canvas.height/2);
             }
         }
         
@@ -462,6 +454,11 @@
             
             if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
                 try {
+                    // Set canvas dimensions to match video display
+                    const rect = video.getBoundingClientRect();
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                    
                     // Clear and draw current frame
                     canvasContext.clearRect(0, 0, canvas.width, canvas.height);
                     canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -513,10 +510,6 @@
                             submitChildBag(qrData);
                         }
                     }
-                    const startX = Math.max(0, centerX - scanSize/2);
-                    const startY = Math.max(0, centerY - scanSize/2);
-                    const width = Math.min(scanSize, canvas.width - startX);
-                    const height = Math.min(scanSize, canvas.height - startY);
                     
                     const imageData = canvasContext.getImageData(startX, startY, width, height);
                     
