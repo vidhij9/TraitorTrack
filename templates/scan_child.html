@@ -502,13 +502,19 @@
                         console.log('QR data length:', code.data.length);
                         console.log('QR data chars:', code.data.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
                         
-                        // Clean and validate QR code data
+                        // Clean and validate QR code data - BE VERY CAREFUL HERE
                         let qrData = code.data.trim();
                         
-                        // Remove any invisible/control characters
-                        qrData = qrData.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+                        console.log('Before cleaning:', JSON.stringify(qrData));
+                        console.log('Before cleaning length:', qrData.length);
                         
-                        console.log('Cleaned QR data:', JSON.stringify(qrData));
+                        // ONLY remove truly problematic control characters, preserve normal text
+                        const beforeCleaning = qrData;
+                        qrData = qrData.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ''); // Keep tab (\x09), newline (\x0A), carriage return (\x0D)
+                        
+                        console.log('After cleaning:', JSON.stringify(qrData));
+                        console.log('Cleaning removed chars:', beforeCleaning !== qrData);
+                        console.log('Cleaned QR data chars:', qrData.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
                         
                         // Skip if data is too short
                         if (qrData.length < 2) {
@@ -705,7 +711,18 @@
                 return;
             }
             
+            // CRITICAL: Debug the exact QR code being processed
+            console.log('processQrCodeInstant input:', JSON.stringify(qrCode));
+            console.log('processQrCodeInstant input length:', qrCode.length);
+            console.log('processQrCodeInstant chars:', qrCode.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
+            
+            // Only trim whitespace, don't modify the core content
+            const originalCode = qrCode;
             qrCode = qrCode.trim();
+            
+            console.log('After trim:', JSON.stringify(qrCode));
+            console.log('Trim removed chars:', originalCode !== qrCode);
+            
             if (!qrCode) {
                 resultContainer.className = 'alert alert-warning';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please provide a valid QR code.';
