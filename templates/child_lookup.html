@@ -390,27 +390,61 @@
         
         // Draw visual feedback when QR code is detected
         function drawQRCodeCorners(code) {
-            console.log('Drawing QR code corners for visual feedback');
-            const corners = [
-                code.location.topLeftCorner,
-                code.location.topRightCorner,
-                code.location.bottomRightCorner,
-                code.location.bottomLeftCorner
-            ];
+            console.log('Drawing QR code visual feedback');
             
-            console.log('Corner locations:', corners);
+            // Draw a green rectangle around the QR code
+            canvasContext.strokeStyle = '#00FF00'; // Green color
+            canvasContext.lineWidth = 4;
+            canvasContext.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Semi-transparent green fill
             
-            canvasContext.fillStyle = '#FF6B35'; // Orange/red color for visual feedback
-            canvasContext.strokeStyle = '#FF6B35';
-            canvasContext.lineWidth = 3;
+            // Get QR code bounds
+            const topLeft = code.location.topLeftCorner;
+            const topRight = code.location.topRightCorner;
+            const bottomLeft = code.location.bottomLeftCorner;
+            const bottomRight = code.location.bottomRightCorner;
             
-            corners.forEach((corner, index) => {
-                console.log(`Drawing corner ${index} at (${corner.x}, ${corner.y})`);
-                canvasContext.beginPath();
-                canvasContext.arc(corner.x, corner.y, 8, 0, 2 * Math.PI);
-                canvasContext.fill();
-                canvasContext.stroke();
-            });
+            // Draw filled rectangle
+            canvasContext.beginPath();
+            canvasContext.moveTo(topLeft.x, topLeft.y);
+            canvasContext.lineTo(topRight.x, topRight.y);
+            canvasContext.lineTo(bottomRight.x, bottomRight.y);
+            canvasContext.lineTo(bottomLeft.x, bottomLeft.y);
+            canvasContext.closePath();
+            canvasContext.fill();
+            canvasContext.stroke();
+            
+            // Draw corner brackets for better visibility
+            const cornerLength = 20;
+            canvasContext.strokeStyle = '#00FF00';
+            canvasContext.lineWidth = 6;
+            
+            // Top-left corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(topLeft.x, topLeft.y + cornerLength);
+            canvasContext.lineTo(topLeft.x, topLeft.y);
+            canvasContext.lineTo(topLeft.x + cornerLength, topLeft.y);
+            canvasContext.stroke();
+            
+            // Top-right corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(topRight.x - cornerLength, topRight.y);
+            canvasContext.lineTo(topRight.x, topRight.y);
+            canvasContext.lineTo(topRight.x, topRight.y + cornerLength);
+            canvasContext.stroke();
+            
+            // Bottom-left corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(bottomLeft.x, bottomLeft.y - cornerLength);
+            canvasContext.lineTo(bottomLeft.x, bottomLeft.y);
+            canvasContext.lineTo(bottomLeft.x + cornerLength, bottomLeft.y);
+            canvasContext.stroke();
+            
+            // Bottom-right corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(bottomRight.x - cornerLength, bottomRight.y);
+            canvasContext.lineTo(bottomRight.x, bottomRight.y);
+            canvasContext.lineTo(bottomRight.x, bottomRight.y - cornerLength);
+            canvasContext.stroke();
         }
     });
 </script>

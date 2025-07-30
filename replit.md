@@ -6,11 +6,11 @@ TraceTrack is a comprehensive supply chain traceability platform built for agric
 
 ## Recent Changes (July 30, 2025)
 
-✓ **QR CODE VISUAL FEEDBACK ENHANCEMENT** - Added consistent visual feedback across all scanners
-✓ Implemented red/orange circle highlighting when QR codes are successfully detected
-✓ Applied visual feedback to search page scanner for better user experience
-✓ Added corner highlighting to bill scan page matching scan management behavior
-✓ Users now get instant visual confirmation when QR codes are detected in all scanners
+✓ **QR CODE VISUAL FEEDBACK ENHANCEMENT** - Added professional visual feedback across all scanners
+✓ Implemented green rectangle with corner brackets when QR codes are successfully detected
+✓ Applied modern scanner-style visual feedback to search and bill scan pages
+✓ Added semi-transparent green overlay and corner bracket highlighting for clear detection
+✓ Users now get instant visual confirmation similar to professional QR scanner apps
 
 ✓ **QR CODE CASE SENSITIVITY FIX** - Fixed search management issue with numbered QR codes
 ✓ Removed .upper() conversion that was breaking lookups for mixed-case QR codes
