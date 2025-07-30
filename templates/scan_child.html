@@ -166,12 +166,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Apple-quality QR scanning with instant detection
+    // Optimized QR scanning without lag
     function appleQualityScanning() {
         if (!scanning) return;
         
-        // 30fps scanning for instant response
-        requestAnimationFrame(appleQualityScanning);
+        // Reduce frame rate to prevent lag - 15fps is smooth enough
+        setTimeout(() => {
+            requestAnimationFrame(appleQualityScanning);
+        }, 66); // ~15fps
         
         if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
             try {
@@ -209,12 +211,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Draw Apple-style orange corner highlights
                     drawAppleStyleHighlight(detectedCode);
                     
-                    const qrData = detectedCode.data.trim();
-                    console.log('QR detected:', qrData);
+                    // Clean and validate QR code data
+                    let qrData = detectedCode.data.trim();
                     
-                    // Auto-submit for instant linking (Apple-like behavior)
-                    if (!isProcessing && lastDetectedCode !== qrData) {
-                        autoSubmitChildBag(qrData);
+                    // Remove any invisible characters that cause issues
+                    qrData = qrData.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+                    
+                    console.log('QR detected:', qrData);
+                    console.log('QR data length:', qrData.length);
+                    
+                    // Validate QR code format
+                    if (qrData && qrData.length > 0) {
+                        // Auto-submit for instant linking (Apple-like behavior)
+                        if (!isProcessing && lastDetectedCode !== qrData) {
+                            autoSubmitChildBag(qrData);
+                        }
                     }
                 }
                 
@@ -298,16 +309,30 @@ document.addEventListener('DOMContentLoaded', function() {
         canvasContext.stroke();
     }
     
-    // Auto-submit child bag (Apple instant behavior)
+    // Auto-submit child bag with comprehensive error handling
     function autoSubmitChildBag(qrData) {
+        console.log('Auto-submitting child bag:', qrData);
+        
         lastDetectedCode = qrData;
         isProcessing = true;
         
-        // Show processing
-        resultContainer.className = 'alert alert-info';
-        resultContainer.innerHTML = '<div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2"></div>Processing ' + qrData + '...</div>';
+        // Show processing with haptic feedback
+        if (navigator.vibrate) {
+            navigator.vibrate(50); // Brief vibration
+        }
         
-        // Submit instantly
+        resultContainer.className = 'alert alert-info';
+        resultContainer.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                <div>
+                    <strong>Processing:</strong> ${qrData}
+                    <br><small>Linking to parent bag...</small>
+                </div>
+            </div>
+        `;
+        
+        // Submit with comprehensive error handling
         fetch('{{ url_for("scan_child", s=request.args.get("s")) }}', {
             method: 'POST',
             headers: {
@@ -316,40 +341,98 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: 'qr_code=' + encodeURIComponent(qrData) + '&csrf_token=' + encodeURIComponent('{{ csrf_token() }}')
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Child bag submission response:', data);
+            
             if (data.success) {
-                resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-check me-2"></i>Child bag ' + qrData + ' linked successfully!';
+                // Success with haptic feedback
+                if (navigator.vibrate) {
+                    navigator.vibrate([50, 50, 50]); // Success pattern
+                }
                 
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <div>
+                            <strong>Success!</strong> Child bag ${qrData} linked successfully
+                            <br><small>Ready to scan next child bag</small>
+                        </div>
+                    </div>
+                `;
+                
+                // Update progress counter
                 scannedCount++;
                 progressText.textContent = scannedCount;
-                loadScannedBags();
                 
-                // Reset after delay
+                // Add to scanned list
+                addBagToList(qrData);
+                
+                // Reset processing state
                 setTimeout(() => {
                     isProcessing = false;
                     lastDetectedCode = null;
                 }, 1500);
-            } else {
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>' + (data.message || 'Failed to process');
                 
+            } else {
+                // Handle specific error cases
+                resultContainer.className = 'alert alert-warning';
+                let errorMessage = data.message || 'Unknown error occurred';
+                
+                if (errorMessage.includes('duplicate') || errorMessage.includes('already')) {
+                    resultContainer.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <div>
+                                <strong>Already Linked:</strong> ${qrData}
+                                <br><small>${errorMessage}</small>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultContainer.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <div>
+                                <strong>Error:</strong> ${errorMessage}
+                                <br><small>QR Code: ${qrData}</small>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Reset processing state
                 setTimeout(() => {
                     isProcessing = false;
                     lastDetectedCode = null;
-                }, 2000);
+                }, 3000);
             }
         })
         .catch(error => {
-            console.error('Submit error:', error);
-            resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Network error. Please try again.';
+            console.error('Error submitting child bag:', error);
             
+            resultContainer.className = 'alert alert-danger';
+            resultContainer.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <div>
+                        <strong>Network Error:</strong> Could not process QR code
+                        <br><small>Please check your connection and try again</small>
+                    </div>
+                </div>
+            `;
+            
+            // Reset processing state
             setTimeout(() => {
                 isProcessing = false;
                 lastDetectedCode = null;
-            }, 2000);
+            }, 3000);
         });
     }
     
@@ -378,19 +461,73 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => console.log('No existing bags to load'));
     }
     
-    // Add bag to list
+    // Add bag to list with delete functionality
     function addBagToList(qrCode) {
+        // Check if already exists
+        const existing = scannedList.querySelector(`[data-qr-code="${qrCode}"]`);
+        if (existing) return;
+        
         const listItem = document.createElement('li');
         listItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
+        listItem.dataset.qrCode = qrCode;
         listItem.innerHTML = `
             <div>
                 <span class="badge bg-success me-2">Child</span>
                 <span>${qrCode}</span>
             </div>
-            <span class="badge bg-primary">Linked</span>
+            <div>
+                <span class="badge bg-primary rounded-pill me-2">
+                    <i class="fas fa-link me-1"></i>Linked
+                </span>
+                <button class="btn btn-sm btn-outline-danger delete-bag" data-qr="${qrCode}" title="Delete this scan">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
         scannedList.prepend(listItem);
     }
+    
+    // Handle delete button clicks
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-bag') || e.target.parentElement.classList.contains('delete-bag')) {
+            const button = e.target.classList.contains('delete-bag') ? e.target : e.target.parentElement;
+            const qrCode = button.dataset.qr;
+            
+            if (confirm(`Are you sure you want to delete the scan for ${qrCode}?`)) {
+                // Send delete request to server
+                fetch('/api/delete-child-scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token={{ csrf_token() }}&s={{ request.args.get("s") }}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove from UI
+                        const listItem = document.querySelector(`[data-qr-code="${qrCode}"]`);
+                        if (listItem) {
+                            listItem.remove();
+                            scannedCount--;
+                            progressText.textContent = scannedCount;
+                        }
+                        
+                        resultContainer.className = 'alert alert-info';
+                        resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scan deleted successfully.';
+                    } else {
+                        resultContainer.className = 'alert alert-danger';
+                        resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Failed to delete scan.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Delete error:', error);
+                    resultContainer.className = 'alert alert-danger';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Network error while deleting.';
+                });
+            }
+        }
+    });
     
     // Button events
     document.getElementById('start-camera').addEventListener('click', startAppleQualityCamera);
