@@ -135,7 +135,55 @@ class CurrentUser:
             return session.get('dispatch_area') == area
         return False
 
-current_user = CurrentUser()
+# Create current_user object for routes using session data
+class RouteCurrentUser:
+    """Current user object for route handlers using session data"""
+    @property
+    def id(self):
+        return session.get('user_id')
+    
+    @property
+    def username(self):
+        return session.get('username')
+    
+    @property
+    def role(self):
+        return session.get('user_role')
+    
+    @property
+    def dispatch_area(self):
+        return session.get('dispatch_area')
+    
+    @property
+    def is_authenticated(self):
+        return (
+            session.get('logged_in', False) or 
+            session.get('authenticated', False)
+        ) and session.get('user_id') is not None
+    
+    def is_admin(self):
+        """Check if user is admin"""
+        return session.get('user_role') == 'admin'
+    
+    def is_biller(self):
+        """Check if user is a biller"""
+        return session.get('user_role') == 'biller'
+    
+    def is_dispatcher(self):
+        """Check if user is a dispatcher"""
+        return session.get('user_role') == 'dispatcher'
+    
+    def can_edit_bills(self):
+        """Check if user can edit bills"""
+        role = session.get('user_role')
+        return role in ['admin', 'biller']
+    
+    def can_manage_users(self):
+        """Check if user can manage other users"""
+        return session.get('user_role') == 'admin'
+
+current_user = RouteCurrentUser()
+
 from sqlalchemy import desc, func, and_, or_
 from datetime import datetime, timedelta
 

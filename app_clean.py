@@ -141,16 +141,20 @@ def before_request():
     from flask import session, request, redirect, url_for
     from simple_auth import is_authenticated
     
-    # Skip validation for login, register, static files, and debug endpoints
-    excluded_paths = ['/login', '/register', '/static', '/logout', '/setup', '/debug-deployment', '/test-login', '/session-test']
+    # Skip validation for login, register, static files, public pages, and debug endpoints
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/setup', '/debug-deployment', '/test-login', '/session-test', '/', '/bill/', '/bag/']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     
-    # For protected routes, validate authentication
-    if request.endpoint and request.endpoint not in ['login', 'register', 'logout', 'setup']:
+    # Allow public access to the root page
+    if request.path == '/':
+        return
+    
+    # For protected routes, validate authentication - but don't redirect admin routes
+    if request.endpoint and request.endpoint not in ['login', 'register', 'logout', 'setup', 'index']:
         if not is_authenticated():
-            # Redirect to login for protected routes
-            if request.path != '/' and not request.path.startswith('/api'):
+            # Only redirect to login for non-API protected routes
+            if not request.path.startswith('/api'):
                 return redirect('/login')
 
 @app.after_request
