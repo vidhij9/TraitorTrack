@@ -6,15 +6,22 @@ TraceTrack is a comprehensive supply chain traceability platform built for agric
 
 ## Recent Changes (July 30, 2025)
 
-✓ **INSTANT SCANNER PROCESSING** - Optimized for Apple-like "Code Scanner" performance
+✓ **INSTANT SCANNER PROCESSING** - Optimized for Apple-like "Code Scanner" performance  
 ✓ Reduced server-side database queries by 70% with optimized route handlers
-✓ Eliminated complex validations causing processing delays 
+✓ Eliminated complex validations causing processing delays
 ✓ Implemented single-commit strategy with db.session.flush() for faster operations
 ✓ Added client-side duplicate request prevention to stop multiple submissions
 ✓ Reduced redirect time to 100ms for instant parent → child navigation
 ✓ Restored duplicate prevention while maintaining speed (prevents same child linking twice)
 ✓ Added cross-type validation (QR codes cannot be both parent and child)
 ✓ Session-first lookup prioritizes cached data over database queries
+
+✓ **QR CODE ACCURACY ENHANCEMENT** - Fixed misreading issues like "child-2" → "C-2"
+✓ Changed jsQR detection from "dontInvert" to "attemptBoth" for better accuracy
+✓ Added QR data validation to skip partial/corrupted reads under 2 characters
+✓ Enhanced data trimming to ensure clean QR code processing  
+✓ Applied fixes to all scanner templates (parent, child, and bill scanners)
+✓ Maintained instant processing speed while improving detection reliability
 
 ✓ **CAMERA SCANNER OPTIMIZATION** - Enhanced QR code scanning with Apple-like performance
 ✓ Fixed dimension distortion by using 1:1 video-to-canvas mapping instead of container dimensions

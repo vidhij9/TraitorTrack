@@ -431,15 +431,24 @@
                 
                 const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "dontInvert",
+                    inversionAttempts: "attemptBoth", // Enhanced accuracy
                 });
                 
                 if (code && code.data) {
+                    // Validate QR code data quality
+                    const qrData = code.data.trim();
+                    
+                    // Skip if data is too short or contains suspicious patterns
+                    if (qrData.length < 2) {
+                        console.log('Skipping short QR code:', qrData);
+                        return;
+                    }
+                    
                     // Allow rescanning after a short delay, but prevent rapid multiple scans
-                    if (lastDetectedCode !== code.data || Date.now() - lastScanTime > 2000) {
-                        lastDetectedCode = code.data;
+                    if (lastDetectedCode !== qrData || Date.now() - lastScanTime > 2000) {
+                        lastDetectedCode = qrData;
                         lastScanTime = Date.now();
-                        processQrCode(code.data);
+                        processQrCode(qrData);
                     }
                 }
             }

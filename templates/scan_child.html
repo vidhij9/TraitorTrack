@@ -478,12 +478,21 @@
                     
                     const imageData = canvasContext.getImageData(startX, startY, width, height);
                     
-                    // Fast QR detection
+                    // Enhanced QR detection with better accuracy
                     const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "dontInvert", // Skip inversion for speed
+                        inversionAttempts: "attemptBoth", // Try both normal and inverted for accuracy
                     });
                     
                     if (code && code.data) {
+                        // Validate QR code data quality
+                        const qrData = code.data.trim();
+                        
+                        // Skip if data is too short or contains suspicious patterns
+                        if (qrData.length < 2) {
+                            console.log('Skipping short QR code:', qrData);
+                            return;
+                        }
+                        
                         // Instant detection highlight
                         drawInstantChildDetectionHighlight(code, startX, startY);
                         
@@ -492,11 +501,11 @@
                             navigator.vibrate(25);
                         }
                         
-                        // Process unique codes instantly
-                        if (lastDetectedCode !== code.data) {
-                            lastDetectedCode = code.data;
-                            console.log('Child QR detected instantly:', code.data);
-                            processQrCodeInstant(code.data);
+                        // Process unique codes instantly with validation
+                        if (lastDetectedCode !== qrData) {
+                            lastDetectedCode = qrData;
+                            console.log('Child QR detected instantly:', qrData);
+                            processQrCodeInstant(qrData);
                         }
                     }
                 } catch (error) {

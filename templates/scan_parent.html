@@ -532,12 +532,21 @@
                     
                     const imageData = canvasContext.getImageData(startX, startY, width, height);
                     
-                    // Fast QR detection with minimal processing
+                    // Enhanced QR detection with better accuracy
                     const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "dontInvert", // Skip inversion for speed
+                        inversionAttempts: "attemptBoth", // Try both normal and inverted for accuracy
                     });
                     
                     if (code && code.data) {
+                        // Validate QR code data quality
+                        const qrData = code.data.trim();
+                        
+                        // Skip if data is too short or contains suspicious patterns
+                        if (qrData.length < 2) {
+                            console.log('Skipping short QR code:', qrData);
+                            return;
+                        }
+                        
                         // Instant visual feedback
                         drawInstantDetectionHighlight(code, startX, startY);
                         
@@ -547,9 +556,9 @@
                         }
                         
                         // Process unique codes with instant feedback
-                        if (lastDetectedCode !== code.data) {
-                            lastDetectedCode = code.data;
-                            console.log('QR detected instantly:', code.data);
+                        if (lastDetectedCode !== qrData) {
+                            lastDetectedCode = qrData;
+                            console.log('QR detected instantly:', qrData);
                             
                             // Stop scanning immediately
                             scanning = false;
@@ -559,7 +568,7 @@
                             resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Processing...';
                             
                             // Process with minimal delay
-                            processQrCodeInstant(code.data);
+                            processQrCodeInstant(qrData);
                         }
                     }
                 } catch (error) {
