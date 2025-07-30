@@ -20,7 +20,8 @@ def create_auth_session(user):
         session['authenticated'] = True
         session['user_id'] = user.id
         session['username'] = user.username
-        session['user_role'] = getattr(user.role, 'value', user.role) if hasattr(user, 'role') else 'user'
+        # Handle role correctly - it's stored as a string in the database
+        session['user_role'] = user.role if user.role else 'dispatcher'
         session['dispatch_area'] = getattr(user, 'dispatch_area', None)  # Store dispatch area for area-based access control
         session['auth_time'] = datetime.now().timestamp()
         

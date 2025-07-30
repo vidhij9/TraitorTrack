@@ -163,7 +163,11 @@ class RouteCurrentUser:
     
     def is_admin(self):
         """Check if user is admin"""
-        return session.get('user_role') == 'admin'
+        role = session.get('user_role')
+        # Debug logging
+        import logging
+        logging.info(f"Admin check - User role from session: '{role}', type: {type(role)}")
+        return role == 'admin'
     
     def is_biller(self):
         """Check if user is a biller"""
@@ -217,6 +221,10 @@ import logging
 def user_management():
     """User management dashboard for admins"""
     try:
+        # Debug logging for admin check
+        import logging
+        logging.info(f"User management route - User ID: {current_user.id}, Role: {current_user.role}, Is Admin: {current_user.is_admin()}")
+        
         if not current_user.is_admin():
             flash('Admin access required.', 'error')
             return redirect(url_for('index'))
@@ -635,6 +643,31 @@ def logout():
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
 
+@app.route('/fix-session')
+@login_required
+def fix_session():
+    """Fix session data for existing users - temporary debug route"""
+    try:
+        from models import User
+        user_id = session.get('user_id')
+        if user_id:
+            user = User.query.get(user_id)
+            if user:
+                # Re-create session with correct data
+                from simple_auth import create_auth_session
+                create_auth_session(user)
+                flash(f'Session refreshed for user {user.username} with role {user.role}', 'success')
+                import logging
+                logging.info(f"Session fixed for user {user.username}, role: {user.role}")
+                return redirect(url_for('index'))
+        
+        flash('Could not fix session - user not found', 'error')
+        return redirect(url_for('index'))
+        
+    except Exception as e:
+        flash(f'Error fixing session: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
 @app.route('/auth-test')
 def auth_test():
     """Authentication test page to debug session issues"""
@@ -900,6 +933,10 @@ def request_promotion():
 @login_required
 def admin_promotions():
     """Admin view of all promotion requests"""
+    # Debug logging for admin check
+    import logging
+    logging.info(f"Admin promotions route - User ID: {current_user.id}, Role: {current_user.role}, Is Admin: {current_user.is_admin()}")
+    
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('index'))
