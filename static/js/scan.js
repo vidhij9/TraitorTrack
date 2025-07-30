@@ -31,7 +31,7 @@ function initializeScanner() {
         startScanner();
     }, 500); // Small delay to ensure DOM is fully ready
     
-    function startScanner() {
+    async function startScanner() {
         if (typeof Html5Qrcode === 'undefined') {
             alert('QR Scanner library not loaded. Please refresh the page.');
             return;
@@ -41,24 +41,76 @@ function initializeScanner() {
         startScannerBtn.style.display = 'none';
         stopScannerBtn.style.display = 'inline-block';
         
-        html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-        
-        html5QrCode.start(
-            { facingMode: "environment" }, // Use rear camera if available
-            config,
-            onScanSuccess,
-            onScanFailure
-        ).catch(function (err) {
+        try {
+            html5QrCode = new Html5Qrcode("reader");
+            
+            // Apple-like optimized scanning configuration
+            const config = { 
+                fps: 20, // Increased for better responsiveness like Apple scanner
+                qrbox: { width: 280, height: 280 }, // Larger scan area
+                aspectRatio: 1.0, // Square scanning area
+                disableFlip: false,
+                // Enhanced camera constraints
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { ideal: 1920, min: 640 },
+                    height: { ideal: 1080, min: 480 },
+                    frameRate: { ideal: 30, min: 20 },
+                    focusMode: 'continuous',
+                    exposureMode: 'continuous'
+                }
+            };
+            
+            await html5QrCode.start(
+                { 
+                    facingMode: "environment",
+                    advanced: [
+                        { focusMode: 'continuous' },
+                        { exposureMode: 'continuous' },
+                        { whiteBalanceMode: 'continuous' }
+                    ]
+                },
+                config,
+                onScanSuccess,
+                onScanFailure
+            );
+            
+            console.log('Apple-like scanner started successfully');
+            
+        } catch (err) {
             console.error(`Unable to start scanning: ${err}`);
-            console.log("Could not access the camera: ", err);
             
             // Reset button states on error
             startScannerBtn.style.display = 'inline-block';
             stopScannerBtn.style.display = 'none';
             
-            alert(`Camera error: ${err}. Please make sure you've granted camera permissions.`);
-        });
+            let errorMessage = 'Camera error: ';
+            if (err.name === 'NotAllowedError' || err.includes('Permission')) {
+                errorMessage += 'Please allow camera permissions and refresh the page.';
+            } else if (err.name === 'NotFoundError' || err.includes('NotFound')) {
+                errorMessage += 'No camera found on this device.';
+            } else if (err.name === 'OverconstrainedError') {
+                errorMessage += 'Camera settings not supported. Trying basic mode...';
+                // Fallback to basic settings
+                try {
+                    const basicConfig = { fps: 15, qrbox: { width: 250, height: 250 } };
+                    await html5QrCode.start(
+                        { facingMode: "environment" },
+                        basicConfig,
+                        onScanSuccess,
+                        onScanFailure
+                    );
+                    console.log('Scanner started in basic mode');
+                    return;
+                } catch (fallbackError) {
+                    errorMessage = 'Camera completely failed to initialize.';
+                }
+            } else {
+                errorMessage += 'Please check camera permissions and try again.';
+            }
+            
+            alert(errorMessage);
+        }
     }
     
     function stopScanner() {

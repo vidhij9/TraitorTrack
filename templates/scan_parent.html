@@ -342,114 +342,165 @@
         // Stop camera when button is clicked
         stopCameraBtn.addEventListener('click', stopCamera);
         
-        function startCamera() {
-            console.log('Starting camera...');
+        async function startCamera() {
+            console.log('Starting Apple-like camera scanner...');
             
             // Clear any previous error messages
             resultContainer.className = 'alert alert-info';
             resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting camera...';
             resultContainer.style.display = 'block';
             
-            // Request access to the webcam
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                console.log('getUserMedia is supported');
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera not supported on this device.';
+                return;
+            }
+            
+            try {
+                // Get available video devices for optimal selection
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                console.log('Available cameras:', videoDevices.length);
                 
-                // Try different camera configurations
-                const constraints = [
-                    { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
-                    { video: { facingMode: 'environment' } },
-                    { video: { width: { ideal: 1280 }, height: { ideal: 720 } } },
-                    { video: true }
-                ];
+                // Apple-like camera constraints for optimal QR scanning
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1920, min: 640 },
+                        height: { ideal: 1080, min: 480 },
+                        frameRate: { ideal: 30, min: 15 },
+                        // Enhanced focus and exposure for QR codes
+                        focusMode: 'continuous',
+                        exposureMode: 'continuous',
+                        whiteBalanceMode: 'continuous',
+                        // Advanced constraints for better QR detection
+                        advanced: [
+                            { focusMode: 'macro' },
+                            { exposureCompensation: 0 },
+                            { iso: 200 }
+                        ]
+                    }
+                };
                 
-                async function tryCamera(constraintIndex = 0) {
-                    if (constraintIndex >= constraints.length) {
-                        throw new Error('All camera configurations failed');
+                console.log('Requesting camera with optimal constraints...');
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Apply additional track constraints for better focus
+                const videoTrack = stream.getVideoTracks()[0];
+                if (videoTrack) {
+                    const capabilities = videoTrack.getCapabilities();
+                    console.log('Camera capabilities:', capabilities);
+                    
+                    // Apply advanced settings if supported
+                    const settings = {};
+                    if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+                        settings.focusMode = 'continuous';
+                    }
+                    if (capabilities.exposureMode && capabilities.exposureMode.includes('continuous')) {
+                        settings.exposureMode = 'continuous';
+                    }
+                    if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes('continuous')) {
+                        settings.whiteBalanceMode = 'continuous';
                     }
                     
-                    try {
-                        console.log(`Trying camera configuration ${constraintIndex + 1}:`, constraints[constraintIndex]);
-                        const mediaStream = await navigator.mediaDevices.getUserMedia(constraints[constraintIndex]);
-                        
-                        stream = mediaStream;
-                        video.srcObject = stream;
-                        video.setAttribute('playsinline', true); // Required for iOS Safari
-                        video.muted = true; // Prevent audio feedback
-                        
-                        return new Promise((resolve, reject) => {
-                            video.onloadedmetadata = function() {
-                                console.log('Video metadata loaded:', {
-                                    videoWidth: video.videoWidth,
-                                    videoHeight: video.videoHeight,
-                                    readyState: video.readyState
-                                });
-                                
-                                // Initialize canvas dimensions to match container
-                                const containerRect = canvas.getBoundingClientRect();
-                                canvas.width = Math.max(containerRect.width, 480);
-                                canvas.height = Math.max(containerRect.height, 360);
-                                
-                                console.log('Canvas dimensions set:', {
-                                    width: canvas.width,
-                                    height: canvas.height
-                                });
-                                
-                                startCameraBtn.disabled = true;
-                                stopCameraBtn.disabled = false;
-                                
-                                scanning = true;
-                                
-                                // Show scanner overlay
-                                if (scannerOverlay) {
-                                    scannerOverlay.style.display = 'flex';
-                                }
-                                
-                                resultContainer.className = 'alert alert-success';
-                                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active! Point at a QR code to scan.';
-                                resultContainer.style.display = 'block';
-                                
-                                scanQRCode();
-                                resolve();
-                            };
-                            
-                            video.onerror = function(error) {
-                                console.error('Video element error:', error);
-                                reject(error);
-                            };
-                            
-                            video.play().catch(reject);
-                        });
-                        
-                    } catch (error) {
-                        console.log(`Camera configuration ${constraintIndex + 1} failed:`, error);
-                        return tryCamera(constraintIndex + 1);
+                    if (Object.keys(settings).length > 0) {
+                        await videoTrack.applyConstraints({ advanced: [settings] });
+                        console.log('Applied advanced camera settings:', settings);
                     }
                 }
                 
-                tryCamera().catch(function(error) {
-                    console.error('Could not access the camera:', error);
-                    resultContainer.className = 'alert alert-danger';
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true);
+                video.setAttribute('autoplay', true);
+                video.muted = true;
+                
+                await new Promise((resolve, reject) => {
+                    video.onloadedmetadata = () => {
+                        console.log('Video metadata loaded:', {
+                            videoWidth: video.videoWidth,
+                            videoHeight: video.videoHeight,
+                            aspectRatio: (video.videoWidth / video.videoHeight).toFixed(2)
+                        });
+                        
+                        // Set canvas dimensions to match video aspect ratio perfectly
+                        const containerRect = canvas.getBoundingClientRect();
+                        const videoAspectRatio = video.videoWidth / video.videoHeight;
+                        const containerAspectRatio = containerRect.width / containerRect.height;
+                        
+                        if (videoAspectRatio > containerAspectRatio) {
+                            // Video is wider than container
+                            canvas.width = containerRect.width;
+                            canvas.height = containerRect.width / videoAspectRatio;
+                        } else {
+                            // Video is taller than container
+                            canvas.height = containerRect.height;
+                            canvas.width = containerRect.height * videoAspectRatio;
+                        }
+                        
+                        // Ensure minimum resolution for QR detection
+                        canvas.width = Math.max(canvas.width, 640);
+                        canvas.height = Math.max(canvas.height, 480);
+                        
+                        console.log('Optimized canvas dimensions:', {
+                            width: canvas.width,
+                            height: canvas.height,
+                            aspectRatio: (canvas.width / canvas.height).toFixed(2)
+                        });
+                        
+                        resolve();
+                    };
                     
-                    let errorMessage = 'Could not access the camera. ';
-                    if (error.name === 'NotAllowedError') {
-                        errorMessage += 'Camera access was denied. Please allow camera permissions and refresh the page.';
-                    } else if (error.name === 'NotFoundError') {
-                        errorMessage += 'No camera device found. Please connect a camera.';
-                    } else if (error.name === 'NotSupportedError') {
-                        errorMessage += 'Camera is not supported on this device.';
-                    } else {
-                        errorMessage += 'Please check your camera permissions or use manual entry below.';
-                    }
-                    
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + errorMessage;
-                    resultContainer.style.display = 'block';
+                    video.onerror = reject;
+                    video.play().catch(reject);
                 });
-            } else {
-                console.error('getUserMedia not supported');
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                    'Your browser does not support camera access. Please use a modern browser or use manual entry below.';
+                
+                startCameraBtn.disabled = true;
+                stopCameraBtn.disabled = false;
+                scanning = true;
+                
+                // Show scanner overlay
+                if (scannerOverlay) {
+                    scannerOverlay.style.display = 'flex';
+                }
+                
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active - Position QR code in scanning area';
                 resultContainer.style.display = 'block';
+                
+                // Start optimized scanning loop
+                optimizedScanQRCode();
+                
+            } catch (error) {
+                console.error('Camera initialization failed:', error);
+                resultContainer.className = 'alert alert-danger';
+                
+                let errorMessage = 'Camera access failed. ';
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += 'Please allow camera permissions and refresh the page.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += 'No camera found. Please check your device.';
+                } else if (error.name === 'OverconstrainedError') {
+                    errorMessage += 'Camera settings not supported. Trying basic mode...';
+                    // Fallback to basic constraints
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        video.srcObject = stream;
+                        await video.play();
+                        startCameraBtn.disabled = true;
+                        stopCameraBtn.disabled = false;
+                        scanning = true;
+                        optimizedScanQRCode();
+                        resultContainer.className = 'alert alert-success';
+                        resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active (basic mode)';
+                        return;
+                    } catch (fallbackError) {
+                        errorMessage = 'Camera initialization completely failed.';
+                    }
+                } else {
+                    errorMessage += 'Please check permissions or try refreshing.';
+                }
+                
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + errorMessage;
             }
         }
         
@@ -469,142 +520,171 @@
             }
         }
         
-        function scanQRCode() {
+        function optimizedScanQRCode() {
             if (!scanning) return;
             
-            requestAnimationFrame(scanQRCode);
+            // Apple-like 20fps scanning for optimal performance and battery
+            setTimeout(() => optimizedScanQRCode(), 50);
             
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
                 try {
-                    // Ensure canvas dimensions are properly set
-                    if (canvas.width === 0 || canvas.height === 0) {
-                        const containerRect = canvas.getBoundingClientRect();
-                        canvas.width = Math.max(containerRect.width, 480);
-                        canvas.height = Math.max(containerRect.height, 360);
-                    }
-                    
-                    // Clear canvas before drawing
+                    // Clear canvas and draw current video frame
                     canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Draw the video feed to canvas, maintaining aspect ratio
                     canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                     
-                    // Add scanning overlay for user feedback
-                    const centerX = canvas.width / 2;
-                    const centerY = canvas.height / 2;
-                    const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                    // Draw Apple-like scanning interface
+                    drawAppleScanningInterface();
                     
-                    // Draw scanning frame
-                    canvasContext.strokeStyle = '#00FF00';
-                    canvasContext.lineWidth = 3;
-                    canvasContext.beginPath();
-                    canvasContext.rect(
-                        centerX - scanSize/2,
-                        centerY - scanSize/2,
-                        scanSize,
-                        scanSize
-                    );
-                    canvasContext.stroke();
-                    
-                    // Add corner markers
-                    const cornerSize = scanSize * 0.1;
-                    canvasContext.fillStyle = '#00FF00';
-                    
-                    // Top-left corner
-                    canvasContext.fillRect(
-                        centerX - scanSize/2,
-                        centerY - scanSize/2,
-                        cornerSize,
-                        3
-                    );
-                    canvasContext.fillRect(
-                        centerX - scanSize/2,
-                        centerY - scanSize/2,
-                        3,
-                        cornerSize
-                    );
-                    
-                    // Top-right corner
-                    canvasContext.fillRect(
-                        centerX + scanSize/2 - cornerSize,
-                        centerY - scanSize/2,
-                        cornerSize,
-                        3
-                    );
-                    canvasContext.fillRect(
-                        centerX + scanSize/2 - 3,
-                        centerY - scanSize/2,
-                        3,
-                        cornerSize
-                    );
-                    
-                    // Bottom-left corner
-                    canvasContext.fillRect(
-                        centerX - scanSize/2,
-                        centerY + scanSize/2 - 3,
-                        cornerSize,
-                        3
-                    );
-                    canvasContext.fillRect(
-                        centerX - scanSize/2,
-                        centerY + scanSize/2 - cornerSize,
-                        3,
-                        cornerSize
-                    );
-                    
-                    // Bottom-right corner
-                    canvasContext.fillRect(
-                        centerX + scanSize/2 - cornerSize,
-                        centerY + scanSize/2 - 3,
-                        cornerSize,
-                        3
-                    );
-                    canvasContext.fillRect(
-                        centerX + scanSize/2 - 3,
-                        centerY + scanSize/2 - cornerSize,
-                        3,
-                        cornerSize
-                    );
-                    
-                    // Process the image for QR code detection with enhanced options
+                    // Extract image data for QR detection
                     const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
                     
-                    if (typeof jsQR === 'undefined') {
-                        console.error('jsQR library not available during scanning');
-                        return;
-                    }
-                    
+                    // Enhanced QR detection with multiple attempts
                     const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "attemptBoth", // Try both normal and inverted
+                        inversionAttempts: "attemptBoth",
+                        // Enhanced detection parameters
+                        locateStart: true,
+                        locateEnd: true,
+                        // More aggressive scanning for better detection
+                        allowDuplicates: false
                     });
                     
                     if (code && code.data) {
-                        console.log('QR code detected:', code.data);
+                        // Apple-like visual feedback
+                        drawDetectedQRCode(code);
                         
-                        // Highlight the detected QR code
-                        if (code.location) {
-                            canvasContext.beginPath();
-                            canvasContext.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
-                            canvasContext.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
-                            canvasContext.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
-                            canvasContext.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
-                            canvasContext.lineTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
-                            canvasContext.lineWidth = 4;
-                            canvasContext.strokeStyle = "#FF0000";
-                            canvasContext.stroke();
+                        // Haptic feedback if available
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
                         }
                         
-                        // To prevent multiple scans of the same code
+                        // Process unique codes only
                         if (lastDetectedCode !== code.data) {
                             lastDetectedCode = code.data;
-                            console.log('Processing new QR code:', code.data);
+                            console.log('QR detected:', code.data);
+                            
+                            // Show detection confirmation
+                            resultContainer.className = 'alert alert-success';
+                            resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code detected! Processing...';
+                            
                             processQrCode(code.data);
                         }
                     }
                 } catch (error) {
-                    console.error('Error during QR scanning:', error);
+                    console.error('Scanning error:', error);
                 }
             }
+        }
+        
+        function drawAppleScanningInterface() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scanSize = Math.min(canvas.width, canvas.height) * 0.7;
+            
+            // Semi-transparent overlay
+            canvasContext.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Clear scanning area
+            canvasContext.globalCompositeOperation = 'destination-out';
+            canvasContext.fillStyle = 'rgba(0, 0, 0, 1)';
+            canvasContext.fillRect(
+                centerX - scanSize/2,
+                centerY - scanSize/2,
+                scanSize,
+                scanSize
+            );
+            canvasContext.globalCompositeOperation = 'source-over';
+            
+            // Apple-style corner brackets
+            const cornerLength = scanSize * 0.15;
+            const cornerThickness = 4;
+            const cornerOffset = 8;
+            
+            canvasContext.strokeStyle = '#007AFF'; // Apple blue
+            canvasContext.lineWidth = cornerThickness;
+            canvasContext.lineCap = 'round';
+            
+            // Top-left corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(centerX - scanSize/2 - cornerOffset, centerY - scanSize/2 + cornerLength);
+            canvasContext.lineTo(centerX - scanSize/2 - cornerOffset, centerY - scanSize/2 - cornerOffset);
+            canvasContext.lineTo(centerX - scanSize/2 + cornerLength, centerY - scanSize/2 - cornerOffset);
+            canvasContext.stroke();
+            
+            // Top-right corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(centerX + scanSize/2 - cornerLength, centerY - scanSize/2 - cornerOffset);
+            canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY - scanSize/2 - cornerOffset);
+            canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY - scanSize/2 + cornerLength);
+            canvasContext.stroke();
+            
+            // Bottom-left corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(centerX - scanSize/2 - cornerOffset, centerY + scanSize/2 - cornerLength);
+            canvasContext.lineTo(centerX - scanSize/2 - cornerOffset, centerY + scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX - scanSize/2 + cornerLength, centerY + scanSize/2 + cornerOffset);
+            canvasContext.stroke();
+            
+            // Bottom-right corner
+            canvasContext.beginPath();
+            canvasContext.moveTo(centerX + scanSize/2 - cornerLength, centerY + scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY + scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY + scanSize/2 - cornerLength);
+            canvasContext.stroke();
+            
+            // Animated scanning line
+            const time = Date.now();
+            const lineY = centerY - scanSize/2 + ((time % 2000) / 2000) * scanSize;
+            
+            const gradient = canvasContext.createLinearGradient(
+                centerX - scanSize/2, lineY,
+                centerX + scanSize/2, lineY
+            );
+            gradient.addColorStop(0, 'rgba(0, 122, 255, 0)');
+            gradient.addColorStop(0.5, 'rgba(0, 122, 255, 0.8)');
+            gradient.addColorStop(1, 'rgba(0, 122, 255, 0)');
+            
+            canvasContext.fillStyle = gradient;
+            canvasContext.fillRect(
+                centerX - scanSize/2,
+                lineY - 1,
+                scanSize,
+                2
+            );
+        }
+        
+        function drawDetectedQRCode(code) {
+            if (!code.location) return;
+            
+            // Apple-style detection highlight
+            canvasContext.strokeStyle = '#34C759'; // Apple green
+            canvasContext.lineWidth = 3;
+            canvasContext.lineCap = 'round';
+            canvasContext.lineJoin = 'round';
+            
+            // Draw detection border
+            canvasContext.beginPath();
+            canvasContext.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
+            canvasContext.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
+            canvasContext.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
+            canvasContext.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
+            canvasContext.closePath();
+            canvasContext.stroke();
+            
+            // Add corner highlights
+            const corners = [
+                code.location.topLeftCorner,
+                code.location.topRightCorner,
+                code.location.bottomRightCorner,
+                code.location.bottomLeftCorner
+            ];
+            
+            canvasContext.fillStyle = '#34C759';
+            corners.forEach(corner => {
+                canvasContext.beginPath();
+                canvasContext.arc(corner.x, corner.y, 6, 0, 2 * Math.PI);
+                canvasContext.fill();
+            });
         }
         
         function processQrCode(qrCode) {
