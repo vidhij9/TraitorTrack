@@ -789,50 +789,63 @@ def register():
 @login_required
 def request_promotion():
     """Employee can request admin promotion"""
-    user_id = session.get('user_id')
-    if not user_id:
-        flash('Authentication error.', 'error')
-        return redirect(url_for('login'))
-    
-    user = User.query.get(user_id)
-    if not user:
-        flash('User not found.', 'error')
-        return redirect(url_for('login'))
-    
-    if user.is_admin():
-        flash('You are already an admin.', 'info')
-        return redirect(url_for('index'))
-    
-    # Check if user already has a pending request
-    existing_request = PromotionRequest.query.filter_by(
-        user_id=user_id, 
-        status=PromotionRequestStatus.PENDING.value
-    ).first()
-    
-    if existing_request:
-        flash('You already have a pending promotion request.', 'warning')
-        return render_template('promotion_status.html', request=existing_request)
-    
-    form = PromotionRequestForm()
-    
-    if form.validate_on_submit():
-        try:
-            promotion_request = PromotionRequest()
-            promotion_request.user_id = user_id
-            promotion_request.reason = form.reason.data
-            db.session.add(promotion_request)
-            db.session.commit()
-            
-            app.logger.info(f'Promotion request created by {user.username}')
-            flash('Your promotion request has been submitted for admin review.', 'success')
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            flash('Authentication error.', 'error')
+            return redirect(url_for('login'))
+        
+        user = User.query.get(user_id)
+        if not user:
+            flash('User not found.', 'error')
+            return redirect(url_for('login'))
+        
+        if user.is_admin():
+            flash('You are already an admin.', 'info')
             return redirect(url_for('index'))
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f'Promotion request error: {str(e)}')
-            flash('Failed to submit promotion request. Please try again.', 'error')
-    
-    return render_template('request_promotion.html', form=form)
+        
+        # Check if user already has a pending request
+        existing_request = PromotionRequest.query.filter_by(
+            user_id=user_id, 
+            status=PromotionRequestStatus.PENDING.value
+        ).first()
+        
+        if existing_request:
+            app.logger.info(f'User {user.username} trying to access promotion page with existing request')
+            flash('You already have a pending promotion request.', 'warning')
+            return render_template('promotion_status.html', request=existing_request)
+        
+        # Check for any processed requests (approved/rejected) to show different message
+        processed_request = PromotionRequest.query.filter_by(user_id=user_id).first()
+        
+        form = PromotionRequestForm()
+        
+        if form.validate_on_submit():
+            try:
+                promotion_request = PromotionRequest()
+                promotion_request.user_id = user_id
+                promotion_request.reason = form.reason.data
+                promotion_request.status = PromotionRequestStatus.PENDING.value
+                db.session.add(promotion_request)
+                db.session.commit()
+                
+                app.logger.info(f'Promotion request created by {user.username}')
+                flash('Your promotion request has been submitted for admin review.', 'success')
+                return redirect(url_for('index'))
+                
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f'Promotion request submission error: {str(e)}')
+                flash('Failed to submit promotion request. Please try again.', 'error')
+        
+        return render_template('request_promotion.html', form=form, processed_request=processed_request)
+        
+    except Exception as e:
+        app.logger.error(f'Request promotion page error: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        flash('An error occurred loading the promotion page. Please try again.', 'error')
+        return redirect(url_for('index'))
 
 @app.route('/admin/promotions')
 @login_required
