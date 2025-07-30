@@ -6,6 +6,17 @@ TraceTrack is a comprehensive supply chain traceability platform built for agric
 
 ## Recent Changes (July 30, 2025)
 
+✓ **CAMERA SCANNER OPTIMIZATION** - Enhanced QR code scanning with Apple-like performance
+✓ Fixed dimension distortion by using 1:1 video-to-canvas mapping instead of container dimensions
+✓ Removed black overlay that was blocking camera view and interfering with QR detection
+✓ Implemented continuous focus, exposure, and white balance modes for sharp scanning
+✓ Added 20fps optimized scanning rate for seamless performance without delays
+✓ Created clean corner-bracket interface without visual interference
+✓ Enhanced camera constraints with high-resolution support (1920x1080 ideal)
+✓ Added haptic feedback and visual detection confirmation
+✓ Improved error handling with fallback to basic camera modes
+✓ Applied optimizations to both parent and child bag scanners
+
 ✓ **ADMIN ACCESS AUTHENTICATION FIX** - Fixed admin access issue for existing users in production
 ✓ Resolved session authentication conflicts between routes and template contexts
 ✓ Fixed role storage logic in simple_auth.py to correctly handle string roles from database  

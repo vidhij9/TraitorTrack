@@ -145,7 +145,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain; /* Changed from cover to contain to prevent distortion */
 }
 
 /* QR Scanner Overlay */
@@ -422,29 +422,15 @@
                             aspectRatio: (video.videoWidth / video.videoHeight).toFixed(2)
                         });
                         
-                        // Set canvas dimensions to match video aspect ratio perfectly
-                        const containerRect = canvas.getBoundingClientRect();
-                        const videoAspectRatio = video.videoWidth / video.videoHeight;
-                        const containerAspectRatio = containerRect.width / containerRect.height;
+                        // Set canvas to actual video dimensions for 1:1 reality mapping
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
                         
-                        if (videoAspectRatio > containerAspectRatio) {
-                            // Video is wider than container
-                            canvas.width = containerRect.width;
-                            canvas.height = containerRect.width / videoAspectRatio;
-                        } else {
-                            // Video is taller than container
-                            canvas.height = containerRect.height;
-                            canvas.width = containerRect.height * videoAspectRatio;
-                        }
-                        
-                        // Ensure minimum resolution for QR detection
-                        canvas.width = Math.max(canvas.width, 640);
-                        canvas.height = Math.max(canvas.height, 480);
-                        
-                        console.log('Optimized canvas dimensions:', {
-                            width: canvas.width,
-                            height: canvas.height,
-                            aspectRatio: (canvas.width / canvas.height).toFixed(2)
+                        console.log('Canvas set to actual video dimensions:', {
+                            canvasWidth: canvas.width,
+                            canvasHeight: canvas.height,
+                            videoWidth: video.videoWidth,
+                            videoHeight: video.videoHeight
                         });
                         
                         resolve();
@@ -578,31 +564,21 @@
         function drawAppleScanningInterface() {
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            const scanSize = Math.min(canvas.width, canvas.height) * 0.7;
+            const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
             
-            // Semi-transparent overlay
-            canvasContext.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+            // REMOVED: Semi-transparent overlay that was blocking camera view
+            // Only draw scanning guides without blocking the camera feed
             
-            // Clear scanning area
-            canvasContext.globalCompositeOperation = 'destination-out';
-            canvasContext.fillStyle = 'rgba(0, 0, 0, 1)';
-            canvasContext.fillRect(
-                centerX - scanSize/2,
-                centerY - scanSize/2,
-                scanSize,
-                scanSize
-            );
-            canvasContext.globalCompositeOperation = 'source-over';
-            
-            // Apple-style corner brackets
+            // Simple corner brackets without overlay blocking
             const cornerLength = scanSize * 0.15;
-            const cornerThickness = 4;
+            const cornerThickness = 3;
             const cornerOffset = 8;
             
-            canvasContext.strokeStyle = '#007AFF'; // Apple blue
+            canvasContext.strokeStyle = '#00FF00'; // Green for better visibility
             canvasContext.lineWidth = cornerThickness;
             canvasContext.lineCap = 'round';
+            canvasContext.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            canvasContext.shadowBlur = 4;
             
             // Top-left corner
             canvasContext.beginPath();
@@ -632,25 +608,22 @@
             canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY + scanSize/2 - cornerLength);
             canvasContext.stroke();
             
-            // Animated scanning line
+            // Reset shadow
+            canvasContext.shadowColor = 'transparent';
+            canvasContext.shadowBlur = 0;
+            
+            // Simple animated scanning line
             const time = Date.now();
             const lineY = centerY - scanSize/2 + ((time % 2000) / 2000) * scanSize;
             
-            const gradient = canvasContext.createLinearGradient(
-                centerX - scanSize/2, lineY,
-                centerX + scanSize/2, lineY
-            );
-            gradient.addColorStop(0, 'rgba(0, 122, 255, 0)');
-            gradient.addColorStop(0.5, 'rgba(0, 122, 255, 0.8)');
-            gradient.addColorStop(1, 'rgba(0, 122, 255, 0)');
-            
-            canvasContext.fillStyle = gradient;
-            canvasContext.fillRect(
-                centerX - scanSize/2,
-                lineY - 1,
-                scanSize,
-                2
-            );
+            canvasContext.strokeStyle = '#00FF00';
+            canvasContext.lineWidth = 2;
+            canvasContext.globalAlpha = 0.8;
+            canvasContext.beginPath();
+            canvasContext.moveTo(centerX - scanSize/2, lineY);
+            canvasContext.lineTo(centerX + scanSize/2, lineY);
+            canvasContext.stroke();
+            canvasContext.globalAlpha = 1.0;
         }
         
         function drawDetectedQRCode(code) {

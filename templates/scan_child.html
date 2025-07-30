@@ -349,26 +349,15 @@
                             aspectRatio: (video.videoWidth / video.videoHeight).toFixed(2)
                         });
                         
-                        // Perfect aspect ratio matching
-                        const containerRect = canvas.getBoundingClientRect();
-                        const videoAspectRatio = video.videoWidth / video.videoHeight;
-                        const containerAspectRatio = containerRect.width / containerRect.height;
+                        // Set canvas to actual video dimensions for 1:1 reality mapping
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
                         
-                        if (videoAspectRatio > containerAspectRatio) {
-                            canvas.width = containerRect.width;
-                            canvas.height = containerRect.width / videoAspectRatio;
-                        } else {
-                            canvas.height = containerRect.height;
-                            canvas.width = containerRect.height * videoAspectRatio;
-                        }
-                        
-                        // Minimum resolution for QR detection
-                        canvas.width = Math.max(canvas.width, 640);
-                        canvas.height = Math.max(canvas.height, 480);
-                        
-                        console.log('Canvas optimized:', {
-                            width: canvas.width,
-                            height: canvas.height
+                        console.log('Canvas set to video dimensions:', {
+                            canvasWidth: canvas.width,
+                            canvasHeight: canvas.height,
+                            videoWidth: video.videoWidth,
+                            videoHeight: video.videoHeight
                         });
                         
                         resolve();
@@ -513,33 +502,22 @@
         function drawChildScanningInterface() {
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            const scanSize = Math.min(canvas.width, canvas.height) * 0.65;
+            const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
             
-            // Semi-transparent overlay
-            canvasContext.fillStyle = 'rgba(0, 0, 0, 0.4)';
-            canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+            // REMOVED: Black overlay that was blocking camera view
+            // Only draw corner guides without interfering with camera feed
             
-            // Clear scanning area
-            canvasContext.globalCompositeOperation = 'destination-out';
-            canvasContext.fillStyle = 'rgba(0, 0, 0, 1)';
-            canvasContext.fillRect(
-                centerX - scanSize/2,
-                centerY - scanSize/2,
-                scanSize,
-                scanSize
-            );
-            canvasContext.globalCompositeOperation = 'source-over';
-            
-            // Apple-style corner brackets (child scanner in orange)
             const cornerLength = scanSize * 0.12;
             const cornerThickness = 3;
             const cornerOffset = 6;
             
-            canvasContext.strokeStyle = '#FF9500'; // Apple orange for child bags
+            canvasContext.strokeStyle = '#FF9500'; // Orange for child bags
             canvasContext.lineWidth = cornerThickness;
             canvasContext.lineCap = 'round';
+            canvasContext.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            canvasContext.shadowBlur = 3;
             
-            // Draw corners
+            // Draw corner brackets only
             const corners = [
                 [centerX - scanSize/2 - cornerOffset, centerY - scanSize/2 - cornerOffset], // top-left
                 [centerX + scanSize/2 + cornerOffset, centerY - scanSize/2 - cornerOffset], // top-right
@@ -574,25 +552,22 @@
                 canvasContext.stroke();
             });
             
-            // Animated scanning line (faster for child bags)
+            // Reset shadow
+            canvasContext.shadowColor = 'transparent';
+            canvasContext.shadowBlur = 0;
+            
+            // Simple scanning line
             const time = Date.now();
             const lineY = centerY - scanSize/2 + ((time % 1500) / 1500) * scanSize;
             
-            const gradient = canvasContext.createLinearGradient(
-                centerX - scanSize/2, lineY,
-                centerX + scanSize/2, lineY
-            );
-            gradient.addColorStop(0, 'rgba(255, 149, 0, 0)');
-            gradient.addColorStop(0.5, 'rgba(255, 149, 0, 0.9)');
-            gradient.addColorStop(1, 'rgba(255, 149, 0, 0)');
-            
-            canvasContext.fillStyle = gradient;
-            canvasContext.fillRect(
-                centerX - scanSize/2,
-                lineY - 1,
-                scanSize,
-                2
-            );
+            canvasContext.strokeStyle = '#FF9500';
+            canvasContext.lineWidth = 2;
+            canvasContext.globalAlpha = 0.8;
+            canvasContext.beginPath();
+            canvasContext.moveTo(centerX - scanSize/2, lineY);
+            canvasContext.lineTo(centerX + scanSize/2, lineY);
+            canvasContext.stroke();
+            canvasContext.globalAlpha = 1.0;
         }
         
         function drawDetectedChildQRCode(code) {
