@@ -221,8 +221,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 if (detectedCode && detectedCode.data) {
-                    // Draw Apple-style orange corner highlights
-                    drawAppleStyleHighlight(detectedCode);
+                    // Draw Apple-style orange corner highlights with offset correction
+                    drawAppleStyleHighlight(detectedCode, startX, startY);
                     
                     // Clean and validate QR code data
                     let qrData = detectedCode.data.trim();
@@ -284,8 +284,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return new ImageData(data, width, height);
     }
     
-    // Apple-style orange corner highlighting
-    function drawAppleStyleHighlight(code) {
+    // Apple-style orange corner highlighting with proper offset positioning
+    function drawAppleStyleHighlight(code, offsetX = 0, offsetY = 0) {
         const corners = code.location;
         canvasContext.strokeStyle = '#FF8C00'; // Apple orange
         canvasContext.lineWidth = 8;
@@ -293,32 +293,32 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const size = 35;
         
-        // Top-left
+        // Top-left (adjusted for center scanning offset)
         canvasContext.beginPath();
-        canvasContext.moveTo(corners.topLeftCorner.x, corners.topLeftCorner.y + size);
-        canvasContext.lineTo(corners.topLeftCorner.x, corners.topLeftCorner.y);
-        canvasContext.lineTo(corners.topLeftCorner.x + size, corners.topLeftCorner.y);
+        canvasContext.moveTo(corners.topLeftCorner.x + offsetX, corners.topLeftCorner.y + offsetY + size);
+        canvasContext.lineTo(corners.topLeftCorner.x + offsetX, corners.topLeftCorner.y + offsetY);
+        canvasContext.lineTo(corners.topLeftCorner.x + offsetX + size, corners.topLeftCorner.y + offsetY);
         canvasContext.stroke();
         
         // Top-right
         canvasContext.beginPath();
-        canvasContext.moveTo(corners.topRightCorner.x - size, corners.topRightCorner.y);
-        canvasContext.lineTo(corners.topRightCorner.x, corners.topRightCorner.y);
-        canvasContext.lineTo(corners.topRightCorner.x, corners.topRightCorner.y + size);
+        canvasContext.moveTo(corners.topRightCorner.x + offsetX - size, corners.topRightCorner.y + offsetY);
+        canvasContext.lineTo(corners.topRightCorner.x + offsetX, corners.topRightCorner.y + offsetY);
+        canvasContext.lineTo(corners.topRightCorner.x + offsetX, corners.topRightCorner.y + offsetY + size);
         canvasContext.stroke();
         
         // Bottom-left
         canvasContext.beginPath();
-        canvasContext.moveTo(corners.bottomLeftCorner.x, corners.bottomLeftCorner.y - size);
-        canvasContext.lineTo(corners.bottomLeftCorner.x, corners.bottomLeftCorner.y);
-        canvasContext.lineTo(corners.bottomLeftCorner.x + size, corners.bottomLeftCorner.y);
+        canvasContext.moveTo(corners.bottomLeftCorner.x + offsetX, corners.bottomLeftCorner.y + offsetY - size);
+        canvasContext.lineTo(corners.bottomLeftCorner.x + offsetX, corners.bottomLeftCorner.y + offsetY);
+        canvasContext.lineTo(corners.bottomLeftCorner.x + offsetX + size, corners.bottomLeftCorner.y + offsetY);
         canvasContext.stroke();
         
         // Bottom-right
         canvasContext.beginPath();
-        canvasContext.moveTo(corners.bottomRightCorner.x - size, corners.bottomRightCorner.y);
-        canvasContext.lineTo(corners.bottomRightCorner.x, corners.bottomRightCorner.y);
-        canvasContext.lineTo(corners.bottomRightCorner.x, corners.bottomRightCorner.y - size);
+        canvasContext.moveTo(corners.bottomRightCorner.x + offsetX - size, corners.bottomRightCorner.y + offsetY);
+        canvasContext.lineTo(corners.bottomRightCorner.x + offsetX, corners.bottomRightCorner.y + offsetY);
+        canvasContext.lineTo(corners.bottomRightCorner.x + offsetX, corners.bottomRightCorner.y + offsetY - size);
         canvasContext.stroke();
     }
     

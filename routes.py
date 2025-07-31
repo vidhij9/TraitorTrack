@@ -1274,72 +1274,41 @@ def scan_child_bag():
                 db.session.add(child_bag)
                 db.session.flush()  # Get ID without full commit
             
-            if existing_bag:
-                if existing_bag.type == BagType.PARENT.value:
-                    # QR code exists as parent bag - prevent cross-type usage
-                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag.'})
-                else:
-                    # Use existing child bag
-                    child_bag = existing_bag
-            else:
-                # Create new child bag instantly
-                child_bag = Bag(
-                    qr_id=qr_id,
-                    name=f"Bag {qr_id}",
-                    type=BagType.CHILD.value,
-                    dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
-                )
-                db.session.add(child_bag)
-                db.session.flush() # Get ID without full commit
+            # ULTRA-FAST: Check for existing link
+            existing_link = Link.query.filter_by(
+                parent_bag_id=parent_bag.id, 
+                child_bag_id=child_bag.id
+            ).first()
             
-            # FAST: Check for existing link and prevent duplicates
-            if parent_bag:
-                # Check if this exact link already exists
-                existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
-                if existing_link:
-                    return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to this parent bag.'})
-                
-                # Check if child is linked to a different parent
-                other_parent_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
-                if other_parent_link and other_parent_link.parent_bag_id != parent_bag.id:
-                    other_parent = Bag.query.get(other_parent_link.parent_bag_id)
-                    if other_parent:
-                        return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to parent bag {other_parent.qr_id}.'})
-                
-                # Create new link
-                link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
-                db.session.add(link)
-                
-                # Update session
-                session['current_parent_qr'] = parent_bag.qr_id
+            if existing_link:
+                return jsonify({'success': False, 'message': f'{qr_id} already linked'})
             
-            # FAST: Create scan record
-            scan = Scan(
-                child_bag_id=child_bag.id,
-                user_id=current_user.id,
-                timestamp=datetime.utcnow()
-            )
+            # ULTRA-FAST: Create link and scan instantly
+            link = Link()
+            link.parent_bag_id = parent_bag.id
+            link.child_bag_id = child_bag.id
+            db.session.add(link)
+            
+            scan = Scan()
+            scan.child_bag_id = child_bag.id
+            scan.user_id = current_user.id
+            scan.timestamp = datetime.utcnow()
             db.session.add(scan)
             
-            # Single commit for all operations
+            # Single ultra-fast commit
             db.session.commit()
             
-            # FAST: Get count (only if parent exists)
-            scanned_count = 0
-            if parent_bag:
-                scanned_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+            # ULTRA-FAST: Get count
+            scanned_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
             
-            # Instant response
+            # Instant JSON response
             return jsonify({
                 'success': True,
                 'child_qr': qr_id,
-                'parent_qr': parent_bag.qr_id if parent_bag else None,
+                'parent_qr': parent_bag.qr_id,
                 'scanned_count': scanned_count,
-                'message': f'Child bag {qr_id} scanned and linked successfully!'
+                'message': f'{qr_id} linked instantly!'
             })
-            app.logger.info(f"Sending child scan JSON response: {response_data}")
-            app.logger.info(f"Child bag {qr_id} saved successfully, linked to parent: {parent_bag.qr_id if parent_bag else 'None'}")
-            return jsonify(response_data)
             
         except Exception as e:
             db.session.rollback()
