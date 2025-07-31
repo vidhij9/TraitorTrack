@@ -103,6 +103,31 @@
         </div>
     </div>
     
+    <!-- Action buttons section -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-tasks me-2"></i>Actions</h6>
+                </div>
+                <div class="card-body p-2">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button type="button" id="changeParentBtn" class="btn btn-outline-warning w-100 btn-sm" onclick="changeParent()">
+                                <i class="fas fa-exchange-alt me-1"></i>Change Parent
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" id="completeBtn" class="btn btn-success w-100 btn-sm" onclick="completeScan()">
+                                <i class="fas fa-check me-1"></i>Complete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Scanned bags list -->
     <div class="row">
         <div class="col-12">
@@ -566,6 +591,26 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load existing scanned bags
     loadScannedBags();
+    
+    // Change parent button functionality
+    window.changeParent = function() {
+        if (confirm('Are you sure you want to change the parent bag? This will redirect you to scan a new parent.')) {
+            window.location.href = "{{ url_for('scan_parent') }}";
+        }
+    }
+    
+    // Complete scan functionality
+    window.completeScan = function() {
+        if (confirm('Are you sure you want to complete this scanning session?')) {
+            // Get the parent QR from session or current context
+            const parentQr = "{{ session.get('current_parent_qr', '') }}";
+            if (parentQr) {
+                window.location.href = "{{ url_for('scan_complete') }}?parent=" + encodeURIComponent(parentQr);
+            } else {
+                window.location.href = "{{ url_for('dashboard') }}";
+            }
+        }
+    }
 });
 </script>
 {% endblock %}
