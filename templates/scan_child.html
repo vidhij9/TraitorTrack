@@ -164,64 +164,105 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const hasParentBag = {{ 'true' if parent_bag else 'false' }};
     
-    // Apple-quality camera setup
+    // Apple-quality camera setup with fallback
     async function startAppleQualityCamera() {
         try {
             scanning = true;
+            
+            // Stop any existing stream first
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
             
             // Professional camera constraints for Apple-like quality
             const constraints = {
                 video: {
                     facingMode: 'environment', // Back camera
-                    width: { ideal: 1920, min: 1280 },
-                    height: { ideal: 1080, min: 720 },
-                    frameRate: { ideal: 30 },
-                    // Advanced camera settings for quality
-                    advanced: [
-                        { focusMode: 'continuous' },
-                        { exposureMode: 'continuous' },
-                        { whiteBalanceMode: 'continuous' }
-                    ]
+                    width: { ideal: 1920, min: 640 },
+                    height: { ideal: 1080, min: 480 },
+                    frameRate: { ideal: 30, min: 15 }
                 }
             };
             
             try {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log('Camera stream obtained successfully');
             } catch (error) {
-                // Fallback to basic high-quality constraints
+                console.log('High-quality camera failed, trying basic:', error);
+                // Fallback to basic camera
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
+                    video: { facingMode: 'environment' }
                 });
             }
             
+            // Set video source and ensure it loads
             video.srcObject = stream;
+            video.style.display = 'block';
             
-            video.onloadedmetadata = () => {
-                // Use video's natural dimensions to preserve aspect ratio
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+            // Wait for video to be ready
+            await new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded');
+                    resolve();
+                };
+                // Fallback timeout
+                setTimeout(resolve, 3000);
+            });
+            
+            // Start video playback
+            try {
+                await video.play();
+                console.log('Video playback started');
+                initializeScanning();
+            } catch (playError) {
+                console.error('Video play error:', playError);
+                resultContainer.className = 'alert alert-warning';
+                resultContainer.innerHTML = '<i class="fas fa-play me-2"></i>Tap video to start camera';
                 
-                video.play();
-                appleQualityScanning();
-            };
+                // Add click to play functionality
+                video.addEventListener('click', async () => {
+                    try {
+                        await video.play();
+                        console.log('Video started after user interaction');
+                        initializeScanning();
+                    } catch (e) {
+                        console.error('Manual play failed:', e);
+                    }
+                });
+                return;
+            }
+            
+            // Initialize scanning after successful play
+            initializeScanning();
             
         } catch (error) {
-            console.error('Camera error:', error);
+            console.error('Camera setup failed:', error);
             resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Camera access denied. Please allow camera permissions.';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Camera access failed. Please allow camera permissions.';
+            scanning = false;
         }
     }
     
+    function initializeScanning() {
+        // Set canvas dimensions to match video
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        
+        console.log(`Canvas size: ${canvas.width}x${canvas.height}, Video size: ${video.videoWidth}x${video.videoHeight}`);
+        
+        // Start ultra-fast scanning loop
+        requestAnimationFrame(scanForQRCode);
+        
+        resultContainer.className = 'alert alert-info';
+        resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera ready - Point at QR code to scan';
+    }
+    
     // Ultra-fast QR scanning for instant detection
-    function appleQualityScanning() {
+    function scanForQRCode() {
         if (!scanning) return;
         
         // High-speed scanning for instant response - no throttling
-        requestAnimationFrame(appleQualityScanning);
+        requestAnimationFrame(scanForQRCode);
         
         if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
             try {
