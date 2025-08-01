@@ -1936,7 +1936,8 @@ def remove_bag_from_bill():
 @login_required
 def scan_bill_parent(bill_id):
     """Scan parent bags to add to bill - admin and employee access"""
-    if not (current_user.is_admin() or current_user.role == 'employee'):
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
+            hasattr(current_user, 'role') and current_user.role in ['admin', 'biller', 'dispatcher']):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
     
@@ -1958,7 +1959,8 @@ def scan_bill_parent(bill_id):
 @login_required
 def process_bill_parent_scan():
     """Process a parent bag scan for bill linking - admin and employee access"""
-    if not (current_user.is_admin() or current_user.role == 'employee'):
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
+            hasattr(current_user, 'role') and current_user.role in ['admin', 'biller', 'dispatcher']):
         return jsonify({'success': False, 'message': 'Access restricted to admin and employee users.'})
     
     bill_id = request.form.get('bill_id')

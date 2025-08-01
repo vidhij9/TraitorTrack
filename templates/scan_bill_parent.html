@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: new URLSearchParams({
                 'csrf_token': '{{ csrf_token() }}',
-                'parent_qr': qrCode,
+                'qr_code': qrCode,
                 'bill_id': '{{ bill.id }}'
             })
         })
