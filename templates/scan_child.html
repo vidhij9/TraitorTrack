@@ -1,82 +1,160 @@
 {% extends "layout.html" %}
 
-{% block title %}Scan Child Bags{% endblock %}
+{% block title %}Scan Child Bags - traitor track{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-2 py-2">
-    <!-- Header with parent bag info -->
-    <div class="row mb-2">
+<div class="container">
+    <div class="row mb-4">
         <div class="col-12">
-            <div class="card border-success">
-                <div class="card-header bg-success text-white py-2">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-qrcode me-2"></i>
-                            <div>
-                                <h6 class="mb-0">Child Bag Scanner</h6>
-                                {% if parent_bag %}
-                                <small class="text-light">Parent: {{ parent_bag.qr_id }}</small>
-                                {% endif %}
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-qrcode me-2"></i>Scan Child Bags
+                    </h2>
+                    
+                    <div class="progress-container">
+                        <div class="progress-indicator">
+                            <div class="progress-step completed">
+                                <div class="progress-step-circle">1</div>
+                                <div class="progress-step-label">Scan Parent Bag</div>
                             </div>
-                        </div>
-                        <div class="d-flex gap-1 flex-shrink-0">
-                            <span class="badge bg-light text-success">
-                                <span id="progress-text">{{ scanned_child_count }}</span> Linked
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <!-- Apple-quality camera container -->
-                    <div class="video-container" style="position: relative; height: 350px; overflow: hidden;">
-                        <video id="video" playsinline autoplay muted 
-                               style="width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
-                        <canvas id="canvas" 
-                                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
-                        
-                        <!-- Apple-style scanning interface -->
-                        <div class="scanning-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
-                            <!-- Center viewfinder -->
-                            <div style="position: absolute; 
-                                        top: 50%; left: 50%; 
-                                        transform: translate(-50%, -50%);
-                                        width: 250px; height: 250px;
-                                        border: 2px solid rgba(255, 255, 255, 0.8);
-                                        border-radius: 20px;">
+                            <div class="progress-line"></div>
+                            <div class="progress-step active">
+                                <div class="progress-step-circle">2</div>
+                                <div class="progress-step-label">Scan Child Bags</div>
                             </div>
-                            
-                            <!-- Instructions -->
-                            <div style="position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
-                                        background: rgba(0,0,0,0.7); color: white; padding: 12px 20px;
-                                        border-radius: 25px; text-align: center; font-size: 14px;">
-                                Position QR code within the frame
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">3</div>
+                                <div class="progress-step-label">Complete</div>
                             </div>
-                        </div>
-                        
-                        <!-- Camera controls -->
-                        <div class="camera-controls" style="position: absolute; bottom: 20px; right: 20px;">
-                            <button id="start-camera" class="btn btn-success btn-sm">
-                                <i class="fas fa-camera"></i> Start
-                            </button>
-                            <button id="stop-camera" class="btn btn-danger btn-sm ms-1">
-                                <i class="fas fa-stop"></i> Stop
-                            </button>
                         </div>
                     </div>
                     
-                    <!-- Result display -->
-                    <div id="result-container" class="alert alert-info m-2">
+                    {% if parent_bag %}
+                    <p class="card-text">Please scan the QR codes on child bags to link them to parent bag: <strong>{{ parent_bag.qr_id }}</strong></p>
+                    <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        {% if parent_bag %}
-                            Ready to scan child bags for parent: <strong>{{ parent_bag.qr_id }}</strong>
-                        {% else %}
-                            Please scan a parent bag first.
-                        {% endif %}
+                        Scanned <span id="progress-text">{{ scanned_child_count }}</span> child bags so far.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No parent bag selected. <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-sm btn-primary ms-2">Scan Parent</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card">
+                <div class="card-header bg-success bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="video-container">
+                        <video id="video" playsinline class="d-none"></video>
+                        <canvas id="canvas"></canvas>
+                        <!-- Green scanning overlay -->
+                        <div class="qr-scanner-overlay" id="scanner-overlay">
+                            <div class="qr-scanner-target">
+                                <div class="corner-tl"></div>
+                                <div class="corner-tr"></div>
+                                <div class="corner-bl"></div>
+                                <div class="corner-br"></div>
+                                <div class="scanning-line" id="scanning-line"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <button id="start-camera" class="btn btn-success">
+                        <i class="fas fa-play me-2"></i>Start Camera
+                    </button>
+                    <button id="stop-camera" class="btn btn-secondary" disabled>
+                        <i class="fas fa-stop me-2"></i>Stop Camera
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-primary bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Result</h4>
+                </div>
+                <div class="card-body">
+                    <div id="result-container" class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The result of the scan will appear here.
+                    </div>
+                    
+                    <form id="manual-entry-form" class="mt-4">
+                        <div class="mb-3">
+                            <label for="manual-qr-input" class="form-label">Manual QR Code Entry</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-keyboard"></i>
+                                </span>
+                                <input type="text" class="form-control" id="manual-qr-input" name="qr_code" placeholder="e.g., C123-10">
+                                <button type="submit" class="btn btn-success">Submit</button>
+                            </div>
+                            <div class="form-text">If scanning doesn't work, you can manually enter the child bag QR code here.</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action buttons section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-tasks me-2"></i>Actions</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <button type="button" id="changeParentBtn" class="btn btn-outline-warning w-100" onclick="changeParent()">
+                                <i class="fas fa-exchange-alt me-2"></i>Change Parent Bag
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" id="completeBtn" class="btn btn-success w-100" onclick="completeScan()">
+                                <i class="fas fa-check me-2"></i>Complete Scanning
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Scanned bags list -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-list me-2"></i>Scanned Child Bags</h4>
+                </div>
+                <div class="card-body">
+                    <div id="scanned-list" class="list-group list-group-flush">
+                        <!-- Dynamically populated -->
+                        <div class="list-group-item text-muted text-center py-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Scanned child bags will appear here
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
     
     <!-- Manual Entry Section -->
     <div class="row mb-2">
@@ -144,7 +222,141 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block head %}
+<style>
+/* Enhanced QR Scanner Styles */
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 75%;
+    overflow: hidden;
+    background-color: #000000;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.video-container video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Changed from cover to contain to prevent distortion */
+}
+
+/* QR Scanner Overlay */
+.qr-scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.qr-scanner-target {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    border: none;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+/* Simpler approach with individual corner elements */
+.corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 4px solid #00FF00;
+}
+
+.corner-tl {
+    top: -4px;
+    left: -4px;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 15px;
+}
+
+.corner-tr {
+    top: -4px;
+    right: -4px;
+    border-left: none;
+    border-bottom: none;
+    border-top-right-radius: 15px;
+}
+
+.corner-bl {
+    bottom: -4px;
+    left: -4px;
+    border-right: none;
+    border-top: none;
+    border-bottom-left-radius: 15px;
+}
+
+.corner-br {
+    bottom: -4px;
+    right: -4px;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 15px;
+}
+
+/* Scanning animation line */
+.scanning-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00FF00, transparent);
+    animation: scanning 2s linear infinite;
+}
+
+@keyframes scanning {
+    0% {
+        top: -2px;
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        top: 198px;
+        opacity: 0;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .qr-scanner-target {
+        width: 150px;
+        height: 150px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Unified scanner variables (same as parent scanner)
@@ -311,7 +523,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             resultContainer.className = 'alert alert-success';
             resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active - Position QR code in scanning area';
-            resultContainer.style.display = 'block';
+            
+            // Show scanning overlay
+            const scannerOverlay = document.getElementById('scanner-overlay');
+            if (scannerOverlay) {
+                scannerOverlay.style.display = 'flex';
+            }
             
             // Start optimized scanning loop
             optimizedScanQRCode();
