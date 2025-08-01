@@ -1101,6 +1101,8 @@ def scan_parent_bag():
                 'bag_name': parent_bag.name,
                 'timestamp': scan.timestamp.isoformat()
             }
+            # Also store the current parent QR for child scanner
+            session['current_parent_qr'] = qr_id
             
             # Instant response
             return jsonify({
@@ -1169,6 +1171,8 @@ def scan_parent_bag():
                     'bag_name': parent_bag.name,
                     'timestamp': scan.timestamp.isoformat()
                 }
+                # Also store the current parent QR for child scanner
+                session['current_parent_qr'] = qr_id
                 
                 flash('Parent bag scanned successfully!', 'success')
                 return redirect(url_for('scan_complete', s=request.args.get('s')))
@@ -1298,7 +1302,28 @@ def scan_child():
                 flash('Error processing scan. Please try again.', 'error')
                 app.logger.error(f'Child scan error: {str(e)}')
         
-        return render_template('scan_child.html', form=form)
+        # Get parent bag from session for display
+        parent_bag = None
+        scanned_child_count = 0
+        
+        # Get parent QR from session
+        parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            # Try from last_scan as backup
+            last_scan = session.get('last_scan')
+            if last_scan and last_scan.get('type') == 'parent':
+                parent_qr = last_scan.get('qr_id')
+        
+        if parent_qr:
+            parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+            if parent_bag:
+                # Get count of linked child bags
+                scanned_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        
+        return render_template('scan_child.html', 
+                             form=form, 
+                             parent_bag=parent_bag, 
+                             scanned_child_count=scanned_child_count)
 
 @app.route('/scan/complete')
 @login_required
