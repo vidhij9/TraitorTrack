@@ -1980,97 +1980,44 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
-        # First validate that it's not a URL
-        is_qr_valid, qr_error = validate_qr_code(qr_id)
-        if not is_qr_valid:
-            app.logger.warning(f'Invalid QR code: {qr_id} - {qr_error}')
-            return jsonify({'success': False, 'message': qr_error})
+        # Quick validation - only check length and basic format
+        if len(qr_id) < 2 or qr_id.startswith('http'):
+            return jsonify({'success': False, 'message': 'Invalid QR code format'})
         
-        is_valid, error_message, child_count = validate_parent_qr_id(qr_id)
-        if not is_valid:
-            app.logger.warning(f'Invalid parent QR format: {qr_id} - {error_message}')
-            return jsonify({'success': False, 'message': f'Invalid parent bag QR code format: {error_message}'})
-        
-        # Check if this QR code exists and validate it can be used as parent bag
-        existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
-        
-        if existing_bag:
-            if existing_bag.type == BagType.CHILD.value:
-                log_duplicate_attempt(qr_id, 'parent', 'child', current_user.id)
-                return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag. Cannot use as parent bag for bills.'})
-            elif existing_bag.type == BagType.PARENT.value:
-                parent_bag = existing_bag
-            else:
-                return jsonify({'success': False, 'message': f'Invalid bag type for QR code {qr_id}.'})
-        else:
-            # Check if QR code conflicts with bill IDs
-            is_unique, conflict_type, conflict_details = check_qr_code_uniqueness(qr_id)
-            if not is_unique and conflict_type == 'bill':
-                log_duplicate_attempt(qr_id, 'parent', 'bill', current_user.id)
-                return jsonify({'success': False, 'message': f'QR code {qr_id} is already used as a bill ID. Cannot use as parent bag.'})
-            
-            # Try exact match for existing parent bag first
-            parent_bag = Bag.query.filter(
-                Bag.qr_id == qr_id,
-                Bag.type == BagType.PARENT.value
-            ).first()
-            
-            # If no exact match, try case-insensitive search
-            if not parent_bag:
-                parent_bag = Bag.query.filter(
-                    func.lower(Bag.qr_id) == qr_id.lower(),
-                    Bag.type == BagType.PARENT.value
-                ).first()
+        # Direct parent bag lookup - optimized for speed
+        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
         
         if not parent_bag:
-            app.logger.warning(f'Parent bag not found: {qr_id}')
-            # Check if bag exists with different type (exact match first, then case-insensitive)
-            any_bag = Bag.query.filter(Bag.qr_id == qr_id).first()
-            if not any_bag:
-                any_bag = Bag.query.filter(func.lower(Bag.qr_id) == qr_id.lower()).first()
-            if any_bag:
-                app.logger.info(f'Found bag with type: {any_bag.type} and QR: {any_bag.qr_id}')
-                return jsonify({'success': False, 'message': f'QR code {any_bag.qr_id} exists but is registered as a {any_bag.type} bag, not a parent bag.'})
-            
-            # List available parent bags for reference
-            available_parents = Bag.query.filter(Bag.type == BagType.PARENT.value).limit(5).all()
-            available_qrs = [bag.qr_id for bag in available_parents]
-            
-            if available_qrs:
-                return jsonify({'success': False, 'message': f'Parent bag with QR code "{qr_id}" not found. Available parent bags: {", ".join(available_qrs)}'})
-            else:
-                return jsonify({'success': False, 'message': f'Parent bag with QR code "{qr_id}" not found. No parent bags exist in the system yet.'})
+            return jsonify({'success': False, 'message': f'Parent bag "{qr_id}" not found. Please verify the QR code.'})
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id}')
         
-        # Check if already linked to this bill
-        existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
-        if existing_link:
-            app.logger.warning(f'Bag already linked to bill: {qr_id}')
+        # Quick duplicate and capacity checks in single query
+        existing_links = BillBag.query.filter(
+            (BillBag.bill_id == bill.id) | (BillBag.bag_id == parent_bag.id)
+        ).all()
+        
+        # Check for duplicates and capacity in one pass
+        bill_bag_count = 0
+        already_linked_to_bill = False
+        linked_to_other_bill = None
+        
+        for link in existing_links:
+            if link.bill_id == bill.id:
+                bill_bag_count += 1
+                if link.bag_id == parent_bag.id:
+                    already_linked_to_bill = True
+            elif link.bag_id == parent_bag.id:
+                linked_to_other_bill = link.bill_id
+        
+        if already_linked_to_bill:
             return jsonify({'success': False, 'message': 'This parent bag is already linked to this bill.'})
         
-        # Check if parent bag is already linked to any other bill
-        existing_bill_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
-        if existing_bill_link:
-            linked_bill = Bill.query.get(existing_bill_link.bill_id)
-            if linked_bill:
-                app.logger.warning(f'Parent bag {qr_id} already linked to bill {linked_bill.bill_id}')
-                return jsonify({
-                    'success': False, 
-                    'message': f'This parent bag is already linked to bill {linked_bill.bill_id}. Each parent bag can only be attached to one bill.'
-                })
-            else:
-                app.logger.warning(f'Parent bag {qr_id} has invalid bill link, cleaning up')
-                # Clean up invalid link
-                db.session.delete(existing_bill_link)
-                db.session.commit()
+        if linked_to_other_bill:
+            return jsonify({'success': False, 'message': f'This parent bag is already linked to bill ID {linked_to_other_bill}.'})
         
-        # Check if bill already has the maximum number of bags
-        current_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
-        app.logger.info(f'Current bag count: {current_bag_count}, max: {bill.parent_bag_count}')
-        
-        if current_bag_count >= bill.parent_bag_count:
-            return jsonify({'success': False, 'message': f'Bill already has the maximum number of parent bags ({bill.parent_bag_count}). Cannot add more bags.'})
+        if bill_bag_count >= bill.parent_bag_count:
+            return jsonify({'success': False, 'message': f'Bill already has maximum {bill.parent_bag_count} parent bags.'})
         
         # Create bill-bag link
         bill_bag = BillBag()
@@ -2082,17 +2029,15 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Successfully linked parent bag {qr_id} to bill {bill.bill_id}')
         
-        # Get updated count after adding the bag
-        updated_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
-        
-        app.logger.info(f'Response data - linked_count: {updated_bag_count}, expected_count: {bill.parent_bag_count}')
+        # Use incremented count instead of database query
+        updated_bag_count = bill_bag_count + 1
         
         response_data = {
             'success': True, 
-            'message': f'Parent bag {qr_id} linked to bill successfully!',
+            'message': f'Parent bag {qr_id} linked successfully!',
             'parent_qr': qr_id,
             'linked_count': updated_bag_count,
-            'expected_count': bill.parent_bag_count or 10,  # Ensure expected_count is always set
+            'expected_count': bill.parent_bag_count or 10,
             'remaining_bags': (bill.parent_bag_count or 10) - updated_bag_count
         }
         

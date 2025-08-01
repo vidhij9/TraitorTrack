@@ -516,14 +516,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Unified scanning function
+    // Lightning-fast scanning function optimized for bill management
     let lastScanTime = 0;
+    let processingQR = false;
     function optimizedScanQRCode() {
-        if (!scanning) return;
+        if (!scanning || processingQR) return;
         
-        // Apple-like smooth scanning at 10fps for lag-free camera movement
+        // High-speed scanning at 15fps for instant response
         const now = Date.now();
-        if (now - lastScanTime < 100) { // 100ms = 10fps
+        if (now - lastScanTime < 67) { // 67ms = 15fps
             requestAnimationFrame(optimizedScanQRCode);
             return;
         }
@@ -537,13 +538,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 canvasContext.clearRect(0, 0, canvas.width, canvas.height);
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // Draw minimal scanning interface for performance
-                drawMinimalScanningInterface();
-                
-                // Extract smaller center region for faster processing
+                // Extract center region only for faster processing
                 const centerX = canvas.width / 2;
                 const centerY = canvas.height / 2;
-                const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
                 const startX = Math.max(0, centerX - scanSize/2);
                 const startY = Math.max(0, centerY - scanSize/2);
                 const width = Math.min(scanSize, canvas.width - startX);
@@ -551,56 +549,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const imageData = canvasContext.getImageData(startX, startY, width, height);
                 
-                // Multi-attempt QR detection for maximum accuracy
-                let code = null;
+                // Single fast detection attempt - optimized for speed
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth"
+                });
                 
-                // Try multiple detection approaches
-                const detectionMethods = [
-                    { inversionAttempts: "attemptBoth" },
-                    { inversionAttempts: "onlyInvert" },
-                    { inversionAttempts: "dontInvert" }
-                ];
-                
-                for (const method of detectionMethods) {
-                    code = jsQR(imageData.data, imageData.width, imageData.height, method);
-                    if (code && code.data && code.data.length >= 2) {
-                        console.log('QR detected with method:', method);
-                        break;
-                    }
-                }
-                
-                if (code && code.data) {
-                    // Keep QR data exactly as detected - only basic trim
+                if (code && code.data && code.data.length >= 2) {
                     let qrData = code.data.trim();
-                    console.log('Final QR data:', JSON.stringify(qrData));
                     
-                    // Skip if data is too short
-                    if (qrData.length < 2) {
-                        console.log('Skipping short QR code:', qrData);
-                        return;
-                    }
-                    
-                    // Instant visual feedback
-                    drawInstantDetectionHighlight(code, startX, startY);
-                    
-                    // Immediate haptic feedback
-                    if (navigator.vibrate) {
-                        navigator.vibrate(25);
-                    }
-                    
-                    // Process unique codes with instant feedback
+                    // Process unique codes instantly
                     if (lastDetectedCode !== qrData) {
                         lastDetectedCode = qrData;
-                        console.log('QR processed:', qrData);
+                        processingQR = true;
                         
-                        // Process the scanned QR code
+                        // Instant visual feedback
+                        drawInstantDetectionHighlight(code, startX, startY);
+                        
+                        // Immediate haptic feedback
+                        if (navigator.vibrate) {
+                            navigator.vibrate(25);
+                        }
+                        
+                        console.log('QR detected:', qrData);
+                        
+                        // Process immediately
                         processQrCode(qrData);
                         
-                        // Reset for next scan after delay
+                        // Reset for next scan after shorter delay
                         setTimeout(() => {
                             lastDetectedCode = null;
-                            requestAnimationFrame(optimizedScanQRCode);
-                        }, 2000);
+                            processingQR = false;
+                        }, 1500);
                     }
                 }
             } catch (error) {
@@ -625,44 +604,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Drawing functions
+    // Minimal drawing function for maximum performance
     function drawMinimalScanningInterface() {
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
-        
-        // Minimal corner brackets only
-        const cornerLength = 30;
-        const cornerThickness = 2;
-        
-        canvasContext.strokeStyle = '#00FF00';
-        canvasContext.lineWidth = cornerThickness;
-        canvasContext.lineCap = 'round';
-        
-        // Draw 4 corners quickly
-        const x1 = centerX - scanSize/2;
-        const y1 = centerY - scanSize/2;
-        const x2 = centerX + scanSize/2;
-        const y2 = centerY + scanSize/2;
-        
-        canvasContext.beginPath();
-        // Top-left
-        canvasContext.moveTo(x1, y1 + cornerLength);
-        canvasContext.lineTo(x1, y1);
-        canvasContext.lineTo(x1 + cornerLength, y1);
-        // Top-right
-        canvasContext.moveTo(x2 - cornerLength, y1);
-        canvasContext.lineTo(x2, y1);
-        canvasContext.lineTo(x2, y1 + cornerLength);
-        // Bottom-left
-        canvasContext.moveTo(x1, y2 - cornerLength);
-        canvasContext.lineTo(x1, y2);
-        canvasContext.lineTo(x1 + cornerLength, y2);
-        // Bottom-right
-        canvasContext.moveTo(x2 - cornerLength, y2);
-        canvasContext.lineTo(x2, y2);
-        canvasContext.lineTo(x2, y2 - cornerLength);
-        canvasContext.stroke();
+        // Skip drawing interface during scanning for better performance
+        // Only show visual feedback when QR is detected
     }
     
     function drawInstantDetectionHighlight(code, offsetX, offsetY) {
@@ -682,32 +627,24 @@ document.addEventListener('DOMContentLoaded', function() {
         canvasContext.stroke();
     }
     
-    // Process QR code function
+    // Lightning-fast QR processing function
     function processQrCode(qrCode) {
-        console.log('Processing QR code:', qrCode);
-        
-        // Show processing message
+        // Instant UI feedback
         resultContainer.className = 'alert alert-info';
-        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing QR code: ' + qrCode;
+        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adding bag...';
         
-        // Send QR code to server for processing
+        // Optimized fetch with minimal data
         fetch('{{ url_for("process_bill_parent_scan") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: new URLSearchParams({
-                'csrf_token': '{{ csrf_token() }}',
-                'qr_code': qrCode,
-                'bill_id': '{{ bill.id }}'
-            })
+            body: `csrf_token={{ csrf_token() }}&qr_code=${encodeURIComponent(qrCode)}&bill_id={{ bill.id }}`
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Server response:', data);
-            
             if (data.success) {
-                // Add the new item to the scanned list
+                // Instantly add to list with optimized HTML
                 const newItem = document.createElement('li');
                 newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
                 newItem.innerHTML = `
@@ -716,14 +653,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span>${qrCode}</span>
                     </div>
                     <div>
-                        <form method="POST" action="{{ url_for('remove_bag_from_bill') }}" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <input type="hidden" name="parent_qr" value="${qrCode}">
-                            <input type="hidden" name="bill_id" value="{{ bill.id }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger me-1 edit-btn" onclick="return confirm('Remove ${qrCode}?')">
-                                <i class="fas fa-times me-1"></i>Remove
-                            </button>
-                        </form>
                         <span class="badge bg-success rounded-pill">
                             <i class="fas fa-check me-1"></i>Added
                         </span>
@@ -731,30 +660,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 scannedList.appendChild(newItem);
                 
-                // Update progress text
-                const linkedCount = data.linked_count || 0;
-                const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
-                progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
+                // Instant progress update
+                progressText.textContent = `${data.linked_count} of ${data.expected_count} parent bags scanned`;
                 
-                // Show success message
+                // Success feedback
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Parent bag added successfully!';
+                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Bag linked successfully!';
                 
-                // Check if we've added enough parent bags
-                if (linkedCount >= expectedCount) {
-                    resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>All required parent bags added! You can now complete the bill.';
+                // Auto-complete check
+                if (data.linked_count >= data.expected_count) {
+                    resultContainer.innerHTML = '<i class="fas fa-trophy me-2"></i>All bags added! Bill ready to complete.';
                 }
             } else {
-                // Show error message
+                // Quick error display
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (data.message || 'Error processing QR code');
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
             }
         })
         .catch(error => {
-            console.error('Error processing QR code:', error);
             resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Error processing QR code. Please try again.';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Network error. Please try again.';
         });
     }
 });
