@@ -1,498 +1,744 @@
 {% extends "layout.html" %}
 
-{% block title %} - Search Bags{% endblock %}
+{% block title %}Search Bags - traitor track{% endblock %}
 
 {% block head %}
-<!-- jsQR library for QR code detection -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
-    #video {
-        width: 100%;
-        max-width: 600px;
-        margin: 0 auto;
-        border-radius: 8px;
-        overflow: hidden;
+/* Enhanced QR Scanner Styles */
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 75%;
+    overflow: hidden;
+    background-color: #000000;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.video-container video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* QR Scanner Overlay */
+.qr-scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.qr-scanner-target {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    border: none;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+/* Corner elements */
+.corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 4px solid #00FF00;
+}
+
+.corner-tl {
+    top: -4px;
+    left: -4px;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 15px;
+}
+
+.corner-tr {
+    top: -4px;
+    right: -4px;
+    border-left: none;
+    border-bottom: none;
+    border-top-right-radius: 15px;
+}
+
+.corner-bl {
+    bottom: -4px;
+    left: -4px;
+    border-right: none;
+    border-top: none;
+    border-bottom-left-radius: 15px;
+}
+
+.corner-br {
+    bottom: -4px;
+    right: -4px;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 15px;
+}
+
+/* Scanning animation line */
+.scanning-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00FF00, transparent);
+    animation: scanning 2s linear infinite;
+}
+
+@keyframes scanning {
+    0% {
+        top: -2px;
+        opacity: 0;
     }
-    #search-result {
-        display: none;
+    10% {
+        opacity: 1;
     }
-    .search-icon {
-        font-size: 50px;
-        margin-bottom: 20px;
+    90% {
+        opacity: 1;
     }
-    .video-container {
-        width: 100%;
-        max-width: 600px;
-        margin: 0 auto;
-        border-radius: 8px;
-        overflow: hidden;
+    100% {
+        top: 198px;
+        opacity: 0;
     }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .qr-scanner-target {
+        width: 150px;
+        height: 150px;
+    }
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
-        <div class="card bg-light mb-4">
-            <div class="card-header">
-                <h3 class="mb-0"><i class="fas fa-search me-2"></i>Search Bags</h3>
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-search me-2"></i>Search Bags
+                    </h2>
+                    
+                    <p class="card-text">Scan or enter any bag QR code to view details and relationships</p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Works with both parent and child bags - shows complete relationships and history.
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6 mb-4">
-                        <div class="text-center mb-4">
-                            <div class="search-icon text-primary">
-                                <i class="fas fa-search"></i>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card">
+                <div class="card-header bg-primary bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="video-container">
+                        <video id="video" playsinline class="d-none"></video>
+                        <canvas id="canvas"></canvas>
+                        <!-- Green scanning overlay -->
+                        <div class="qr-scanner-overlay" id="scanner-overlay">
+                            <div class="qr-scanner-target">
+                                <div class="corner-tl"></div>
+                                <div class="corner-tr"></div>
+                                <div class="corner-bl"></div>
+                                <div class="corner-br"></div>
+                                <div class="scanning-line" id="scanning-line"></div>
                             </div>
-                            <h4>Find Any Bag</h4>
-                            <p class="text-muted">Scan or enter any bag QR code to view details and relationships</p>
                         </div>
-                        
-                        <div class="video-container mb-4" style="position: relative;">
-                            <video id="video" playsinline style="width: 100%; height: 300px; object-fit: cover;"></video>
-                            <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
-                        </div>
-                        
-                        <div class="d-flex justify-content-center mb-3">
-                            <button class="btn btn-primary me-2" id="start-camera">
-                                <i class="fas fa-play me-2"></i>Start Scanner
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <button id="start-camera" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Start Camera
+                    </button>
+                    <button id="stop-camera" class="btn btn-secondary" disabled>
+                        <i class="fas fa-stop me-2"></i>Stop Camera
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-success bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Search Result</h4>
+                </div>
+                <div class="card-body">
+                    <div id="result-container" class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The result of the scan will appear here.
+                    </div>
+                    
+                    <div id="search-success" class="scan-result alert alert-success d-none">
+                        <h5><i class="fas fa-check-circle me-2"></i>QR Code Detected</h5>
+                        <p class="mb-3">QR Code: <span id="detected-qr-value" class="fw-bold"></span></p>
+                        <div class="d-grid">
+                            <button id="search-detected-btn" class="btn btn-success">
+                                <i class="fas fa-search me-2"></i>Search This Bag
                             </button>
-                            <button class="btn btn-secondary" id="stop-camera" disabled>
-                                <i class="fas fa-stop me-2"></i>Stop Scanner
-                            </button>
                         </div>
-                        
-                        <div class="alert alert-info">
-                            <div class="d-flex">
-                                <div class="me-3">
-                                    <i class="fas fa-info-circle fa-lg"></i>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('child_lookup') }}" id="manual-entry-form" class="mt-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-keyboard"></i>
+                                </span>
+                                <input type="text" class="form-control" id="manual-qr-code" name="qr_id" placeholder="e.g., P123-10 or C456-78">
+                                <button type="submit" class="btn btn-primary">Search</button>
+                            </div>
+                            <div class="form-text">If scanning doesn't work, you can manually enter the bag QR code here.</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Flash Messages for errors -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% if category == 'error' %}
+                <div class="card bg-light border-danger mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Bag Not Found</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-danger mb-3">
+                            <h5 class="alert-heading"><i class="fas fa-times-circle me-2"></i>Search Failed</h5>
+                            <p class="mb-2">{{ message }}</p>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <p class="mb-1"><strong>Possible reasons:</strong></p>
+                                    <ul class="small">
+                                        <li>QR code doesn't exist in the system</li>
+                                        <li>Bag hasn't been created yet</li>
+                                        <li>Check spelling/format of QR code</li>
+                                    </ul>
                                 </div>
-                                <div>
-                                    <h5 class="alert-heading">Search Tips</h5>
-                                    <ul class="mb-0">
-                                        <li>Works with both parent and child bags</li>
-                                        <li>Shows bag relationships and bills</li>
-                                        <li>Displays complete scan history</li>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>What to do:</strong></p>
+                                    <ul class="small">
+                                        <li>Double-check the QR code</li>
+                                        <li>Create the bag first if needed</li>
+                                        <li>Try scanning again</li>
                                     </ul>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="col-md-6">
-                        <div id="search-form">
-                            <h4 class="mb-3">Manual Search</h4>
-                            <p class="text-muted">Enter a bag QR code to find information</p>
-                            
-                            <form method="POST" action="{{ url_for('child_lookup') }}" id="lookupForm">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <div class="mb-3">
-                                    <label for="qr_code" class="form-label">Bag QR Code</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">
-                                            <i class="fas fa-search"></i>
-                                        </span>
-                                        <input type="text" class="form-control" id="qr_code" name="qr_id" placeholder="e.g., P3-1 or C123" required>
-                                    </div>
-                                    <div class="form-text">Enter any bag QR code (parent or child)</div>
-                                </div>
-                                
-                                <div class="d-grid gap-2">
-                                    <button type="submit" class="btn btn-primary" id="lookupBtn">
-                                        <i class="fas fa-search me-2"></i>Search Bag
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                        
-                        <div id="search-result">
-                            <div class="alert alert-success mb-4">
-                                <h4 class="alert-heading"><i class="fas fa-check-circle me-2"></i>QR Code Detected!</h4>
-                                <p>QR Code ID: <strong id="result-qrid"></strong></p>
-                                <p class="mb-0">Click Search to find bag information.</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-            </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <!-- Search Results Section -->
+    {% if bag_info %}
+    <div class="card bg-light">
+        <div class="card-header">
+            <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>Search Results</h4>
         </div>
-        
-        <!-- Flash Messages for errors -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    {% if category == 'error' %}
-                    <div class="card bg-light border-danger mb-4">
-                        <div class="card-header bg-danger text-white">
-                            <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Bag Not Found</h4>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-success bg-opacity-25 text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-{% if bag_info.type == 'parent' %}box{% else %}tag{% endif %} me-2"></i>
+                                {{ bag_info.type|title }} Bag Details
+                            </h5>
                         </div>
                         <div class="card-body">
-                            <div class="alert alert-danger mb-3">
-                                <h5 class="alert-heading"><i class="fas fa-times-circle me-2"></i>Search Failed</h5>
-                                <p class="mb-2">{{ message }}</p>
-                                <hr>
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <p class="mb-1"><strong>Possible reasons:</strong></p>
-                                        <ul class="small">
-                                            <li>QR code doesn't exist in the system</li>
-                                            <li>Bag hasn't been created yet</li>
-                                            <li>Check spelling/format of QR code</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p class="mb-1"><strong>What to do:</strong></p>
-                                        <ul class="small">
-                                            <li>Double-check the QR code</li>
-                                            <li>Create the bag first if needed</li>
-                                            <li>Try scanning again</li>
-                                        </ul>
-                                    </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-muted mb-1">QR Code</p>
+                                    <p class="fw-bold fs-5">{{ bag_info.bag.qr_id }}</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-muted mb-1">Type</p>
+                                    <p class="fw-bold fs-5">{{ bag_info.type|title }} Bag</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-muted mb-1">Created Date</p>
+                                    <p class="fw-bold">{{ bag_info.bag.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-muted mb-1">Total Scans</p>
+                                    <p class="fw-bold">{{ bag_info.scans|length }}</p>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        <!-- Search Results Section -->
-        {% if bag_info %}
-        <div class="card bg-light">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>Search Results</h4>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header bg-success bg-opacity-25 text-dark">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-{% if bag_info.type == 'parent' %}box{% else %}tag{% endif %} me-2"></i>
-                                    {{ bag_info.type|title }} Bag Details
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <p class="text-muted mb-1">QR Code</p>
-                                        <p class="fw-bold fs-5">{{ bag_info.bag.qr_id }}</p>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <p class="text-muted mb-1">Type</p>
-                                        <p class="fw-bold fs-5">{{ bag_info.type|title }} Bag</p>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <p class="text-muted mb-1">Created Date</p>
-                                        <p class="fw-bold">{{ bag_info.bag.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <p class="text-muted mb-1">Total Scans</p>
-                                        <p class="fw-bold">{{ bag_info.scans|length }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                        {% if bag_info.type == 'child' and bag_info.parent_bag %}
-                        <div class="card">
-                            <div class="card-header bg-info bg-opacity-25 text-dark">
-                                <h5 class="mb-0"><i class="fas fa-box me-2"></i>Parent Bag</h5>
-                            </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-1">Parent QR Code</p>
-                                <p class="fw-bold fs-5">{{ bag_info.parent_bag.qr_id }}</p>
-                                <a href="{{ url_for('child_lookup') }}?qr_id={{ bag_info.parent_bag.qr_id }}" class="btn btn-outline-info btn-sm">
-                                    <i class="fas fa-eye me-2"></i>View Parent
-                                </a>
-                            </div>
-                        </div>
-                        {% elif bag_info.type == 'parent' and bag_info.child_bags %}
-                        <div class="card">
-                            <div class="card-header bg-info bg-opacity-25 text-dark">
-                                <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Child Bags ({{ bag_info.child_bags|length }})</h5>
-                            </div>
-                            <div class="card-body">
-                                {% for child in bag_info.child_bags[:3] %}
-                                <p><code>{{ child.qr_id }}</code> - {{ child.created_at.strftime('%Y-%m-%d') }}</p>
-                                {% endfor %}
-                                {% if bag_info.child_bags|length > 3 %}
-                                <p class="text-muted">... and {{ bag_info.child_bags|length - 3 }} more</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="card">
-                            <div class="card-header bg-secondary bg-opacity-25 text-dark">
-                                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Additional Info</h5>
-                            </div>
-                            <div class="card-body">
-                                <p class="text-muted">No additional relationships found.</p>
-                            </div>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
                 
-                <!-- Bills and Scans Summary -->
-                <div class="row mt-4">
-                    {% if bag_info.bills %}
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header bg-warning bg-opacity-25 text-dark">
-                                <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Bills ({{ bag_info.bills|length }})</h5>
-                            </div>
-                            <div class="card-body">
-                                {% for bill in bag_info.bills[:2] %}
-                                <p><strong>{{ bill.bill_id }}</strong> - {{ bill.created_at.strftime('%Y-%m-%d') }}</p>
-                                {% endfor %}
-                                {% if bag_info.bills|length > 2 %}
-                                <p class="text-muted">... and {{ bag_info.bills|length - 2 }} more</p>
-                                {% endif %}
-                            </div>
+                <div class="col-md-6 mb-4">
+                    {% if bag_info.type == 'child' and bag_info.parent_bag %}
+                    <div class="card">
+                        <div class="card-header bg-info bg-opacity-25 text-dark">
+                            <h5 class="mb-0"><i class="fas fa-box me-2"></i>Parent Bag</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-1">Parent QR Code</p>
+                            <p class="fw-bold fs-5">{{ bag_info.parent_bag.qr_id }}</p>
+                            <a href="{{ url_for('child_lookup') }}?qr_id={{ bag_info.parent_bag.qr_id }}" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-eye me-2"></i>View Parent
+                            </a>
                         </div>
                     </div>
-                    {% endif %}
-                    
-                    {% if bag_info.scans %}
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header bg-secondary bg-opacity-25 text-dark">
-                                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Scans ({{ bag_info.scans|length }})</h5>
-                            </div>
-                            <div class="card-body">
-                                {% for scan in bag_info.scans[:3] %}
-                                <p>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') }} - {{ scan.user.username if scan.user else 'Unknown' }}</p>
-                                {% endfor %}
-                                {% if bag_info.scans|length > 3 %}
-                                <p class="text-muted">... and {{ bag_info.scans|length - 3 }} more</p>
-                                {% endif %}
-                            </div>
+                    {% elif bag_info.type == 'parent' and bag_info.child_bags %}
+                    <div class="card">
+                        <div class="card-header bg-info bg-opacity-25 text-dark">
+                            <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Child Bags ({{ bag_info.child_bags|length }})</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for child in bag_info.child_bags[:3] %}
+                            <p><code>{{ child.qr_id }}</code> - {{ child.created_at.strftime('%Y-%m-%d') }}</p>
+                            {% endfor %}
+                            {% if bag_info.child_bags|length > 3 %}
+                            <p class="text-muted">... and {{ bag_info.child_bags|length - 3 }} more</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="card">
+                        <div class="card-header bg-secondary bg-opacity-25 text-dark">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Additional Info</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">No additional relationships found.</p>
                         </div>
                     </div>
                     {% endif %}
                 </div>
             </div>
+            
+            <!-- Bills and Scans Summary -->
+            <div class="row mt-4">
+                {% if bag_info.bills %}
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-warning bg-opacity-25 text-dark">
+                            <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Bills ({{ bag_info.bills|length }})</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for bill in bag_info.bills[:2] %}
+                            <p><strong>{{ bill.bill_id }}</strong> - {{ bill.created_at.strftime('%Y-%m-%d') }}</p>
+                            {% endfor %}
+                            {% if bag_info.bills|length > 2 %}
+                            <p class="text-muted">... and {{ bag_info.bills|length - 2 }} more</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if bag_info.scans %}
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-secondary bg-opacity-25 text-dark">
+                            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Scans ({{ bag_info.scans|length }})</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for scan in bag_info.scans[:3] %}
+                            <p>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') }} - {{ scan.user.username if scan.user else 'Unknown' }}</p>
+                            {% endfor %}
+                            {% if bag_info.scans|length > 3 %}
+                            <p class="text-muted">... and {{ bag_info.scans|length - 3 }} more</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
         </div>
-        {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const startCameraBtn = document.getElementById('start-camera');
-        const stopCameraBtn = document.getElementById('stop-camera');
-        const searchResult = document.getElementById('search-result');
-        const resultQRId = document.getElementById('result-qrid');
-        const qrCodeInput = document.getElementById('qr_code');
-        const lookupForm = document.getElementById('lookupForm');
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const startCameraBtn = document.getElementById('start-camera');
+    const stopCameraBtn = document.getElementById('stop-camera');
+    const resultContainer = document.getElementById('result-container');
+    const searchSuccess = document.getElementById('search-success');
+    const detectedQrValue = document.getElementById('detected-qr-value');
+    const searchDetectedBtn = document.getElementById('search-detected-btn');
+    const manualQrCode = document.getElementById('manual-qr-code');
+    const manualEntryForm = document.getElementById('manual-entry-form');
+    const scannerOverlay = document.getElementById('scanner-overlay');
+    
+    let stream = null;
+    let scanning = false;
+    let canvasContext = canvas.getContext('2d');
+    let lastDetectedCode = null;
+    
+    // Start camera when button is clicked  
+    startCameraBtn.addEventListener('click', startCamera);
+    
+    // Enhanced library check and camera initialization
+    function checkLibraryAndStartCamera() {
+        console.log('Checking jsQR library availability...');
         
-        let stream = null;
-        let scanning = false;
-        let canvasContext = canvas.getContext('2d');
-        let lastDetectedCode = null;
-        
-        // Start camera when button is clicked  
-        startCameraBtn.addEventListener('click', startCamera);
-        
-        // Stop camera when button is clicked
-        stopCameraBtn.addEventListener('click', stopCamera);
-        
-        // Automatically start camera when page loads (after jsQR is loaded)
-        setTimeout(() => {
-            if (typeof jsQR !== 'undefined') {
+        if (typeof jsQR !== 'undefined') {
+            console.log('jsQR library loaded successfully');
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Camera ready. Click "Start Camera" or scanner will start automatically...';
+            resultContainer.style.display = 'block';
+            
+            // Auto-start camera
+            setTimeout(() => {
                 startCamera();
-            } else {
-                console.error('jsQR library not loaded');
-            }
-        }, 1000);
+            }, 500);
+        } else {
+            console.error('jsQR library not loaded, attempting reload...');
+            resultContainer.className = 'alert alert-warning';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library is loading. Please wait or use manual entry below.';
+            resultContainer.style.display = 'block';
+        }
+    }
+    
+    // Check library availability with multiple attempts
+    setTimeout(checkLibraryAndStartCamera, 1000);
+    
+    // Handle manual entry form submission
+    manualEntryForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const qrCode = manualQrCode.value.trim();
         
-        function startCamera() {
-            // Request access to the webcam
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                    .then(function(mediaStream) {
-                        stream = mediaStream;
-                        video.srcObject = stream;
-                        video.setAttribute('playsinline', true); // Required for iOS Safari
-                        video.play();
-                        
-                        startCameraBtn.disabled = true;
-                        stopCameraBtn.disabled = false;
-                        
-                        scanning = true;
-                        scanQRCode();
-                    })
-                    .catch(function(error) {
-                        console.error('Could not access the camera: ', error);
-                        alert('Could not access the camera. Please check your camera permissions or use manual entry.');
+        if (qrCode) {
+            // Submit the form
+            manualEntryForm.submit();
+        }
+    });
+    
+    // Handle search detected button
+    searchDetectedBtn.addEventListener('click', function() {
+        if (lastDetectedCode) {
+            manualQrCode.value = lastDetectedCode;
+            manualEntryForm.submit();
+        }
+    });
+    
+    // Stop camera when button is clicked
+    stopCameraBtn.addEventListener('click', stopCamera);
+    
+    async function startCamera() {
+        console.log('Starting Apple-like camera scanner...');
+        
+        // Clear any previous error messages
+        resultContainer.className = 'alert alert-info';
+        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting camera...';
+        resultContainer.style.display = 'block';
+        
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            resultContainer.className = 'alert alert-danger';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera not supported on this device.';
+            return;
+        }
+        
+        try {
+            // Apple-like camera constraints for optimal QR scanning
+            const constraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1920, min: 640 },
+                    height: { ideal: 1080, min: 480 },
+                    frameRate: { ideal: 30, min: 15 },
+                    focusMode: 'continuous',
+                    exposureMode: 'continuous',
+                    whiteBalanceMode: 'continuous'
+                }
+            };
+            
+            console.log('Requesting camera with optimal constraints...');
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            video.srcObject = stream;
+            video.setAttribute('playsinline', true);
+            video.setAttribute('autoplay', true);
+            video.muted = true;
+            
+            await new Promise((resolve, reject) => {
+                video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded:', {
+                        videoWidth: video.videoWidth,
+                        videoHeight: video.videoHeight
                     });
+                    
+                    // Set canvas to actual video dimensions for 1:1 reality mapping
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    resolve();
+                };
+                
+                video.onerror = reject;
+                video.play().catch(reject);
+            });
+            
+            startCameraBtn.disabled = true;
+            stopCameraBtn.disabled = false;
+            scanning = true;
+            
+            resultContainer.className = 'alert alert-success';
+            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active - Position QR code in scanning area';
+            
+            // Show scanning overlay
+            if (scannerOverlay) {
+                scannerOverlay.style.display = 'flex';
+            }
+            
+            // Start optimized scanning loop
+            optimizedScanQRCode();
+            
+        } catch (error) {
+            console.error('Camera initialization failed:', error);
+            resultContainer.className = 'alert alert-danger';
+            
+            let errorMessage = 'Camera access failed. ';
+            if (error.name === 'NotAllowedError') {
+                errorMessage += 'Please allow camera permissions and refresh the page.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage += 'No camera found. Please check your device.';
+            } else if (error.name === 'OverconstrainedError') {
+                errorMessage += 'Camera settings not supported. Trying basic mode...';
+                // Fallback to basic constraints
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    video.srcObject = stream;
+                    await video.play();
+                    startCameraBtn.disabled = true;
+                    stopCameraBtn.disabled = false;
+                    scanning = true;
+                    optimizedScanQRCode();
+                    resultContainer.className = 'alert alert-success';
+                    resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active (basic mode)';
+                    return;
+                } catch (fallbackError) {
+                    errorMessage = 'Camera initialization completely failed.';
+                }
             } else {
-                alert('Your browser does not support camera access. Please use a modern browser or use manual entry.');
+                errorMessage += 'Please check permissions or try refreshing.';
             }
-        }
-        
-        function stopCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                video.srcObject = null;
-                scanning = false;
-                
-                startCameraBtn.disabled = false;
-                stopCameraBtn.disabled = true;
-            }
-        }
-        
-        function scanQRCode() {
-            if (!scanning) return;
             
-            requestAnimationFrame(scanQRCode);
-            
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Set canvas dimensions to match video display
-                const rect = video.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
-                
-                // Clear canvas and draw video frame
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + errorMessage;
+        }
+    }
+    
+    // Unified scanning function
+    let lastScanTime = 0;
+    function optimizedScanQRCode() {
+        if (!scanning) return;
+        
+        // Apple-like smooth scanning at 10fps for lag-free camera movement
+        const now = Date.now();
+        if (now - lastScanTime < 100) { // 100ms = 10fps
+            requestAnimationFrame(optimizedScanQRCode);
+            return;
+        }
+        lastScanTime = now;
+        
+        requestAnimationFrame(optimizedScanQRCode);
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
+            try {
+                // Clear canvas and draw current video frame
                 canvasContext.clearRect(0, 0, canvas.width, canvas.height);
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
-                // Multiple detection attempts for small QR codes
+                // Draw minimal scanning interface for performance
+                drawMinimalScanningInterface();
+                
+                // Extract smaller center region for faster processing
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                const startX = Math.max(0, centerX - scanSize/2);
+                const startY = Math.max(0, centerY - scanSize/2);
+                const width = Math.min(scanSize, canvas.width - startX);
+                const height = Math.min(scanSize, canvas.height - startY);
+                
+                const imageData = canvasContext.getImageData(startX, startY, width, height);
+                
+                // Multi-attempt QR detection for maximum accuracy
                 let code = null;
                 
-                // Attempt 1: Standard detection with both inversions
-                code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "attemptBoth",
-                });
+                // Try multiple detection approaches
+                const detectionMethods = [
+                    { inversionAttempts: "attemptBoth" },
+                    { inversionAttempts: "onlyInvert" },
+                    { inversionAttempts: "dontInvert" }
+                ];
                 
-                // Attempt 2: High contrast for small codes
-                if (!code) {
-                    const contrastData = enhanceContrast(imageData);
-                    code = jsQR(contrastData.data, contrastData.width, contrastData.height, {
-                        inversionAttempts: "attemptBoth",
-                    });
-                }
-                
-                // Attempt 3: Edge detection for very small codes
-                if (!code) {
-                    const edgeData = applyEdgeDetection(imageData);
-                    code = jsQR(edgeData.data, edgeData.width, edgeData.height, {
-                        inversionAttempts: "attemptBoth",
-                    });
+                for (const method of detectionMethods) {
+                    code = jsQR(imageData.data, imageData.width, imageData.height, method);
+                    if (code && code.data && code.data.length >= 2) {
+                        console.log('QR detected with method:', method);
+                        break;
+                    }
                 }
                 
                 if (code && code.data) {
-                    // Draw orange corner brackets for visual feedback
-                    drawQRCodeCorners(code);
+                    // Keep QR data exactly as detected - only basic trim
+                    let qrData = code.data.trim();
+                    console.log('Final QR data:', JSON.stringify(qrData));
                     
-                    // To prevent multiple scans of the same code
-                    if (lastDetectedCode !== code.data) {
-                        lastDetectedCode = code.data;
+                    // Skip if data is too short
+                    if (qrData.length < 2) {
+                        console.log('Skipping short QR code:', qrData);
+                        return;
+                    }
+                    
+                    // Instant visual feedback
+                    drawInstantDetectionHighlight(code, startX, startY);
+                    
+                    // Immediate haptic feedback
+                    if (navigator.vibrate) {
+                        navigator.vibrate(25);
+                    }
+                    
+                    // Process unique codes with instant feedback
+                    if (lastDetectedCode !== qrData) {
+                        lastDetectedCode = qrData;
+                        console.log('QR processed:', qrData);
                         
-                        // Use the QR code exactly as scanned - preserve original format
-                        let qrCode = code.data.trim();
-                        console.log("Detected QR code:", qrCode);
+                        // Stop scanning to avoid multiple detections
+                        scanning = false;
                         
-                        // Fill the form and submit it with proper CSRF token
-                        document.getElementById('qr_code').value = qrCode;
-                        document.getElementById('lookupForm').submit();
+                        // Show detected QR code
+                        detectedQrValue.textContent = qrData;
+                        manualQrCode.value = qrData;
+                        searchSuccess.classList.remove('d-none');
+                        
+                        // Instant visual confirmation
+                        resultContainer.className = 'alert alert-success';
+                        resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code detected! Review and click Search.';
+                        
+                        // Reset for next scan after delay
+                        setTimeout(() => {
+                            scanning = true;
+                            requestAnimationFrame(optimizedScanQRCode);
+                        }, 2000);
                     }
                 }
+            } catch (error) {
+                console.error('Scanning error:', error);
             }
         }
-        
-        // Draw visual feedback when QR code is detected
-        function drawQRCodeCorners(code) {
-            console.log('Drawing QR code visual feedback');
+    }
+    
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+            scanning = false;
             
-            // Get QR code bounds
-            const topLeft = code.location.topLeftCorner;
-            const topRight = code.location.topRightCorner;
-            const bottomLeft = code.location.bottomLeftCorner;
-            const bottomRight = code.location.bottomRightCorner;
+            startCameraBtn.disabled = false;
+            stopCameraBtn.disabled = true;
             
-            // Draw orange corner brackets for better visibility
-            const cornerLength = 25;
-            canvasContext.strokeStyle = '#FF8C00'; // Orange color
-            canvasContext.lineWidth = 8;
-            canvasContext.lineCap = 'round';
-            
-            // Top-left corner
-            canvasContext.beginPath();
-            canvasContext.moveTo(topLeft.x, topLeft.y + cornerLength);
-            canvasContext.lineTo(topLeft.x, topLeft.y);
-            canvasContext.lineTo(topLeft.x + cornerLength, topLeft.y);
-            canvasContext.stroke();
-            
-            // Top-right corner
-            canvasContext.beginPath();
-            canvasContext.moveTo(topRight.x - cornerLength, topRight.y);
-            canvasContext.lineTo(topRight.x, topRight.y);
-            canvasContext.lineTo(topRight.x, topRight.y + cornerLength);
-            canvasContext.stroke();
-            
-            // Bottom-left corner
-            canvasContext.beginPath();
-            canvasContext.moveTo(bottomLeft.x, bottomLeft.y - cornerLength);
-            canvasContext.lineTo(bottomLeft.x, bottomLeft.y);
-            canvasContext.lineTo(bottomLeft.x + cornerLength, bottomLeft.y);
-            canvasContext.stroke();
-            
-            // Bottom-right corner
-            canvasContext.beginPath();
-            canvasContext.moveTo(bottomRight.x - cornerLength, bottomRight.y);
-            canvasContext.lineTo(bottomRight.x, bottomRight.y);
-            canvasContext.lineTo(bottomRight.x, bottomRight.y - cornerLength);
-            canvasContext.stroke();
-        }
-        
-        // Enhanced contrast for small QR codes
-        function enhanceContrast(imageData) {
-            const data = new Uint8ClampedArray(imageData.data);
-            const contrast = 2.5; // Strong contrast for small codes
-            const intercept = 128 * (1 - contrast);
-            
-            for (let i = 0; i < data.length; i += 4) {
-                data[i] = Math.max(0, Math.min(255, data[i] * contrast + intercept));     // red
-                data[i + 1] = Math.max(0, Math.min(255, data[i + 1] * contrast + intercept)); // green
-                data[i + 2] = Math.max(0, Math.min(255, data[i + 2] * contrast + intercept)); // blue
+            // Hide scanning overlay
+            if (scannerOverlay) {
+                scannerOverlay.style.display = 'none';
             }
-            
-            return new ImageData(data, imageData.width, imageData.height);
         }
+    }
+    
+    // Drawing functions
+    function drawMinimalScanningInterface() {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
         
-        // Edge detection for very small QR codes
-        function applyEdgeDetection(imageData) {
-            const data = new Uint8ClampedArray(imageData.data);
-            const width = imageData.width;
-            const height = imageData.height;
-            
-            // Convert to grayscale with strong edge enhancement
-            for (let y = 1; y < height - 1; y++) {
-                for (let x = 1; x < width - 1; x++) {
-                    const idx = (y * width + x) * 4;
-                    
-                    // Calculate edge strength using sobel operator
-                    const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-                    const threshold = 40; // Lower threshold for small codes
-                    const edge = Math.abs(gray - 128) > threshold ? 0 : 255; // Invert for better detection
-                    
-                    data[idx] = edge;     // red
-                    data[idx + 1] = edge; // green
-                    data[idx + 2] = edge; // blue
-                }
-            }
-            
-            return new ImageData(data, width, height);
-        }
-    });
+        // Minimal corner brackets only
+        const cornerLength = 30;
+        const cornerThickness = 2;
+        
+        canvasContext.strokeStyle = '#00FF00';
+        canvasContext.lineWidth = cornerThickness;
+        canvasContext.lineCap = 'round';
+        
+        // Draw 4 corners quickly
+        const x1 = centerX - scanSize/2;
+        const y1 = centerY - scanSize/2;
+        const x2 = centerX + scanSize/2;
+        const y2 = centerY + scanSize/2;
+        
+        canvasContext.beginPath();
+        // Top-left
+        canvasContext.moveTo(x1, y1 + cornerLength);
+        canvasContext.lineTo(x1, y1);
+        canvasContext.lineTo(x1 + cornerLength, y1);
+        // Top-right
+        canvasContext.moveTo(x2 - cornerLength, y1);
+        canvasContext.lineTo(x2, y1);
+        canvasContext.lineTo(x2, y1 + cornerLength);
+        // Bottom-left
+        canvasContext.moveTo(x1, y2 - cornerLength);
+        canvasContext.lineTo(x1, y2);
+        canvasContext.lineTo(x1 + cornerLength, y2);
+        // Bottom-right
+        canvasContext.moveTo(x2 - cornerLength, y2);
+        canvasContext.lineTo(x2, y2);
+        canvasContext.lineTo(x2, y2 - cornerLength);
+        canvasContext.stroke();
+    }
+    
+    function drawInstantDetectionHighlight(code, offsetX, offsetY) {
+        if (!code.location) return;
+        
+        canvasContext.strokeStyle = '#00FF00';
+        canvasContext.lineWidth = 3;
+        canvasContext.fillStyle = 'rgba(0, 255, 0, 0.2)';
+        
+        canvasContext.beginPath();
+        canvasContext.moveTo(code.location.topLeftCorner.x + offsetX, code.location.topLeftCorner.y + offsetY);
+        canvasContext.lineTo(code.location.topRightCorner.x + offsetX, code.location.topRightCorner.y + offsetY);
+        canvasContext.lineTo(code.location.bottomRightCorner.x + offsetX, code.location.bottomRightCorner.y + offsetY);
+        canvasContext.lineTo(code.location.bottomLeftCorner.x + offsetX, code.location.bottomLeftCorner.y + offsetY);
+        canvasContext.closePath();
+        canvasContext.fill();
+        canvasContext.stroke();
+    }
+});
 </script>
 {% endblock %}
