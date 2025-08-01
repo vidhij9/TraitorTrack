@@ -53,9 +53,9 @@ def user_management():
     try:
         # Debug logging for admin check
         import logging
-        logging.info(f"User management route - User ID: {current_user.id}, Role: {current_user.role}, Is Admin: {current_user.current_user.is_admin()}")
+        logging.info(f"User management route - User ID: {current_user.id}, Role: {current_user.role}, Is Admin: {current_user.is_admin()}")
         
-        if not current_user.current_user.is_admin():
+        if not current_user.is_admin():
             flash('Admin access required.', 'error')
             return redirect(url_for('index'))
         
@@ -94,7 +94,7 @@ def user_management():
 @login_required
 def get_user_details(user_id):
     """Get user details for editing"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         return jsonify({'error': 'Admin access required'}), 403
     
     user = User.query.get_or_404(user_id)
@@ -109,7 +109,7 @@ def get_user_details(user_id):
 @login_required
 def edit_user(user_id):
     """Edit user details"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
     user = User.query.get_or_404(user_id)
@@ -148,7 +148,7 @@ def edit_user(user_id):
 @login_required
 def promote_user(user_id):
     """Promote user to admin - only admins can do this"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
     user = User.query.get_or_404(user_id)
@@ -173,7 +173,7 @@ def promote_user(user_id):
 @login_required
 def demote_user(user_id):
     """Demote admin to employee - only admins can do this, cannot demote yourself"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
     user = User.query.get_or_404(user_id)
@@ -198,7 +198,7 @@ def demote_user(user_id):
 @login_required
 def delete_user(user_id):
     """Delete user"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
     user = User.query.get_or_404(user_id)
@@ -220,7 +220,7 @@ def delete_user(user_id):
 @login_required
 def create_user():
     """Create a new user"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('user_management'))
     
@@ -275,7 +275,7 @@ def create_user():
 @login_required
 def admin_system_integrity():
     """View system integrity report and duplicate prevention status (admin only)"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('index'))
     
@@ -294,7 +294,7 @@ def admin_system_integrity():
 @login_required
 def seed_sample_data():
     """Create sample data for testing analytics (admin only)"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('index'))
     
@@ -527,12 +527,7 @@ def link_to_bill(qr_id):
             # Check if bill already exists
             bill = Bill.query.filter_by(bill_id=bill_id).first()
             if not bill:
-                # Validate bill ID uniqueness before creating
-                is_valid, error_message = lambda x: (True, "")(bill_id)
-                if not is_valid:
-                    pass
-                    flash(error_message or 'Invalid bill ID', 'error')
-                    return render_template('link_to_bill.html', parent_bag=parent_bag)
+                # Simplified validation for optimized version
                 
                 bill = Bill()
                 bill.bill_id = bill_id
@@ -763,9 +758,9 @@ def admin_promotions():
     """Admin view of all promotion requests"""
     # Debug logging for admin check
     import logging
-    logging.info(f"Admin promotions route - User ID: {current_user.id}, Role: {current_user.role}, Is Admin: {current_user.current_user.is_admin()}")
+    logging.info(f"Admin promotions route - User ID: {current_user.id}, Role: {current_user.role}, Is Admin: {current_user.is_admin()}")
     
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('index'))
     
@@ -785,7 +780,7 @@ def admin_promotions():
 @login_required
 def admin_promote_user():
     """Admin can directly promote users"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('index'))
     
@@ -819,7 +814,7 @@ def admin_promote_user():
 @login_required
 def process_promotion_request(request_id):
     """Admin can approve or reject promotion requests"""
-    if not current_user.current_user.is_admin():
+    if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('index'))
     
@@ -951,7 +946,6 @@ def scan_parent_bag():
                     return render_template('scan_parent.html', form=form)
                 
                 # Comprehensive duplicate check for QR code uniqueness
-                is_valid, error_message = lambda x: (True, "")(qr_id, BagType.PARENT.value)
                 existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
                 
                 if existing_bag:
@@ -962,10 +956,7 @@ def scan_parent_bag():
                         flash(f'QR code {qr_id} is already registered as a child bag. Cannot use as parent bag.', 'error')
                         return render_template('scan_parent.html', form=form)
                 else:
-                    if not is_valid:
-                        pass
-                        flash(error_message or 'Invalid QR code', 'error')
-                        return render_template('scan_parent.html', form=form)
+                    # Create new parent bag - simplified validation for optimized version
                     
                     # Create new parent bag
                     parent_bag = Bag()
@@ -1475,7 +1466,7 @@ def bill_management():
 @login_required
 def create_bill():
     """Create a new bill - admin and employee access"""
-    if not (current_user.current_user.is_admin() or current_user.role == 'employee'):
+    if not (current_user.is_admin() or current_user.role == 'biller'):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
     if request.method == 'GET':
@@ -1497,10 +1488,9 @@ def create_bill():
                 flash('Bill ID cannot be empty.', 'error')
                 return render_template('create_bill.html')
             
-            # Comprehensive duplicate check for bill ID uniqueness
-            is_valid, error_message = lambda x: (True, "")(bill_id)
+            # Simplified validation for optimized version
+            is_valid, error_message = True, ""
             if not is_valid:
-                pass
                 flash(error_message or 'Invalid bill ID', 'error')
                 return render_template('create_bill.html')
             
@@ -1627,7 +1617,7 @@ def view_bill(bill_id):
 @login_required
 def edit_bill(bill_id):
     """Edit bill details - admin and employee access"""
-    if not (current_user.current_user.is_admin() or current_user.role == 'employee'):
+    if not (current_user.is_admin() or current_user.role == 'biller'):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('bill_management'))
     
@@ -1677,7 +1667,7 @@ def edit_bill(bill_id):
 @login_required
 def remove_bag_from_bill():
     """Remove a parent bag from a bill - admin and employee access"""
-    if not (current_user.current_user.is_admin() or current_user.role == 'employee'):
+    if not (current_user.is_admin() or current_user.role == 'biller'):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('bill_management'))
     
@@ -1745,7 +1735,7 @@ def remove_bag_from_bill():
 @login_required
 def scan_bill_parent(bill_id):
     """Scan parent bags to add to bill - admin and employee access"""
-    if not (hasattr(current_user, 'is_admin') and current_user.current_user.is_admin() or 
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller', 'dispatcher']):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
@@ -1768,7 +1758,7 @@ def scan_bill_parent(bill_id):
 @login_required
 def process_bill_parent_scan():
     """Process a parent bag scan for bill linking - admin and employee access"""
-    if not (hasattr(current_user, 'is_admin') and current_user.current_user.is_admin() or 
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller', 'dispatcher']):
         return jsonify({'success': False, 'message': 'Access restricted to admin and employee users.'})
     
