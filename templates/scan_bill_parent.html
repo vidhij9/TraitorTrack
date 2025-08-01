@@ -3,6 +3,7 @@
 {% block title %}Scan Parent Bags for Bill - traitor track{% endblock %}
 
 {% block head %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
 /* Enhanced QR Scanner Styles */
 .video-container {
@@ -31,7 +32,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 /* QR Scanner Overlay */
@@ -56,7 +57,7 @@
     box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
 }
 
-/* Corner markers */
+/* Corner elements */
 .corner-tl, .corner-tr, .corner-bl, .corner-br {
     position: absolute;
     width: 30px;
@@ -124,55 +125,81 @@
     }
 }
 
-/* Desktop adjustments */
-@media (min-width: 769px) {
-    .qr-scanner-target {
-        width: 250px;
-        height: 250px;
-    }
-    
-    .video-container {
-        padding-bottom: 60%;
-    }
-    
-    .corner-tl, .corner-tr, .corner-bl, .corner-br {
-        width: 40px;
-        height: 40px;
-        border: 5px solid #00FF00;
-    }
-    
-    @keyframes scanning {
-        0% {
-            top: -2px;
-            opacity: 0;
-        }
-        10% {
-            opacity: 1;
-        }
-        90% {
-            opacity: 1;
-        }
-        100% {
-            top: 248px;
-            opacity: 0;
-        }
-    }
-}
-
-/* Mobile adjustments */
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .qr-scanner-target {
         width: 150px;
         height: 150px;
     }
-    
-    .video-container {
-        padding-bottom: 75%;
-    }
-    
-    .card-footer small {
-        display: none;
-    }
+}
+
+/* Progress Indicator Styles */
+.progress-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.progress-indicator {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.progress-step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    background: #e9ecef;
+    color: #6c757d;
+}
+
+.progress-step.completed .progress-step-circle {
+    background: #28a745;
+    color: white;
+}
+
+.progress-step.active .progress-step-circle {
+    background: #007bff;
+    color: white;
+}
+
+.progress-step-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.progress-step.completed .progress-step-label,
+.progress-step.active .progress-step-label {
+    color: #212529;
+    font-weight: 500;
+}
+
+.progress-line {
+    width: 60px;
+    height: 2px;
+    background: #e9ecef;
+    margin: 0 1rem;
+    margin-top: -1rem;
+}
+
+.progress-line-completed {
+    background: #28a745;
 }
 </style>
 {% endblock %}
@@ -181,7 +208,7 @@
 <div class="container">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card bg-light">
+            <div class="card">
                 <div class="card-body">
                     <h2 class="card-title mb-3">
                         <i class="fas fa-qrcode me-2"></i>Scan Parent Bags for Bill
@@ -246,8 +273,8 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="video-container">
-                        <video id="video" playsinline></video>
-                        <canvas id="canvas" class="d-none"></canvas>
+                        <video id="video" playsinline class="d-none"></video>
+                        <canvas id="canvas"></canvas>
                         <!-- Green scanning overlay -->
                         <div class="qr-scanner-overlay" id="scanner-overlay">
                             <div class="qr-scanner-target">
@@ -260,16 +287,13 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-footer d-flex justify-content-between align-items-center">
-                    <div class="btn-group">
-                        <button id="start-camera" class="btn btn-primary">
-                            <i class="fas fa-play me-2"></i>Start Camera
-                        </button>
-                        <button id="stop-camera" class="btn btn-secondary" disabled>
-                            <i class="fas fa-stop me-2"></i>Stop Camera
-                        </button>
-                    </div>
-                    <small class="text-muted">Point camera at QR code to scan</small>
+                <div class="card-footer d-flex justify-content-between">
+                    <button id="start-camera" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Start Camera
+                    </button>
+                    <button id="stop-camera" class="btn btn-secondary" disabled>
+                        <i class="fas fa-stop me-2"></i>Stop Camera
+                    </button>
                 </div>
             </div>
         </div>
@@ -330,111 +354,202 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const startCameraBtn = document.getElementById('start-camera');
-        const stopCameraBtn = document.getElementById('stop-camera');
-        const resultContainer = document.getElementById('result-container');
-        const scannedList = document.getElementById('scanned-list');
-        const manualEntryForm = document.getElementById('manual-entry-form');
-        const progressText = document.getElementById('progress-text');
-        const scannerOverlay = document.getElementById('scanner-overlay');
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const startCameraBtn = document.getElementById('start-camera');
+    const stopCameraBtn = document.getElementById('stop-camera');
+    const resultContainer = document.getElementById('result-container');
+    const scannedList = document.getElementById('scanned-list');
+    const manualEntryForm = document.getElementById('manual-entry-form');
+    const progressText = document.getElementById('progress-text');
+    const scannerOverlay = document.getElementById('scanner-overlay');
+    
+    let stream = null;
+    let scanning = false;
+    let canvasContext = canvas.getContext('2d');
+    let lastDetectedCode = null;
+    
+    // Start camera when button is clicked  
+    startCameraBtn.addEventListener('click', startCamera);
+    
+    // Enhanced library check and camera initialization
+    function checkLibraryAndStartCamera() {
+        console.log('Checking jsQR library availability...');
         
-        let stream = null;
-        let scanning = false;
-        let canvasContext = canvas.getContext('2d');
-        let lastDetectedCode = null;
-        let lastScanTime = 0;
-        
-        // Start camera automatically when page loads
-        startCamera();
-        
-        // Also keep the button functionality as backup
-        startCameraBtn.addEventListener('click', startCamera);
-        
-        // Stop camera when button is clicked
-        stopCameraBtn.addEventListener('click', stopCamera);
-        
-        // Handle manual entry form submission
-        manualEntryForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const manualQrCode = document.getElementById('manual-qr-code').value.trim();
+        if (typeof jsQR !== 'undefined') {
+            console.log('jsQR library loaded successfully');
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Camera ready. Click "Start Camera" or scanner will start automatically...';
+            resultContainer.style.display = 'block';
             
-            if (manualQrCode) {
-                processQrCode(manualQrCode);
-                document.getElementById('manual-qr-code').value = '';
-            }
-        });
+            // Auto-start camera
+            setTimeout(() => {
+                startCamera();
+            }, 500);
+        } else {
+            console.error('jsQR library not loaded, attempting reload...');
+            resultContainer.className = 'alert alert-warning';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library is loading. Please wait or use manual entry below.';
+            resultContainer.style.display = 'block';
+        }
+    }
+    
+    // Check library availability with multiple attempts
+    setTimeout(checkLibraryAndStartCamera, 1000);
+    
+    // Handle manual entry form submission
+    manualEntryForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const qrCode = document.getElementById('manual-qr-code').value.trim();
         
-        function startCamera() {
-            // Request access to the webcam
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                    .then(function(mediaStream) {
-                        stream = mediaStream;
-                        video.srcObject = stream;
-                        video.setAttribute('playsinline', true); // Required for iOS Safari
-                        video.play();
-                        
-                        startCameraBtn.disabled = true;
-                        stopCameraBtn.disabled = false;
-                        
-                        // Show scanner overlay
-                        if (scannerOverlay) {
-                            scannerOverlay.style.display = 'flex';
-                        }
-                        
-                        scanning = true;
-                        scanQRCode();
-                    })
-                    .catch(function(error) {
-                        console.error('Could not access the camera: ', error);
-                        resultContainer.className = 'alert alert-danger';
-                        resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                            'Could not access the camera. Please check your camera permissions or use manual entry.';
-                    });
-            } else {
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' +
-                    'Your browser does not support camera access. Please use a modern browser or use manual entry.';
-            }
+        if (qrCode) {
+            processQrCode(qrCode);
+            document.getElementById('manual-qr-code').value = '';
+        }
+    });
+    
+    // Stop camera when button is clicked
+    stopCameraBtn.addEventListener('click', stopCamera);
+    
+    async function startCamera() {
+        console.log('Starting Apple-like camera scanner...');
+        
+        // Clear any previous error messages
+        resultContainer.className = 'alert alert-info';
+        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting camera...';
+        resultContainer.style.display = 'block';
+        
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            resultContainer.className = 'alert alert-danger';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera not supported on this device.';
+            return;
         }
         
-        function stopCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                video.srcObject = null;
-                scanning = false;
-                
-                // Hide scanner overlay
-                if (scannerOverlay) {
-                    scannerOverlay.style.display = 'none';
+        try {
+            // Apple-like camera constraints for optimal QR scanning
+            const constraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1920, min: 640 },
+                    height: { ideal: 1080, min: 480 },
+                    frameRate: { ideal: 30, min: 15 },
+                    focusMode: 'continuous',
+                    exposureMode: 'continuous',
+                    whiteBalanceMode: 'continuous'
                 }
+            };
+            
+            console.log('Requesting camera with optimal constraints...');
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            video.srcObject = stream;
+            video.setAttribute('playsinline', true);
+            video.setAttribute('autoplay', true);
+            video.muted = true;
+            
+            await new Promise((resolve, reject) => {
+                video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded:', {
+                        videoWidth: video.videoWidth,
+                        videoHeight: video.videoHeight
+                    });
+                    
+                    // Set canvas to actual video dimensions for 1:1 reality mapping
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    resolve();
+                };
                 
-                startCameraBtn.disabled = false;
-                stopCameraBtn.disabled = true;
+                video.onerror = reject;
+                video.play().catch(reject);
+            });
+            
+            startCameraBtn.disabled = true;
+            stopCameraBtn.disabled = false;
+            scanning = true;
+            
+            resultContainer.className = 'alert alert-success';
+            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active - Position QR code in scanning area';
+            
+            // Show scanning overlay
+            if (scannerOverlay) {
+                scannerOverlay.style.display = 'flex';
             }
+            
+            // Start optimized scanning loop
+            optimizedScanQRCode();
+            
+        } catch (error) {
+            console.error('Camera initialization failed:', error);
+            resultContainer.className = 'alert alert-danger';
+            
+            let errorMessage = 'Camera access failed. ';
+            if (error.name === 'NotAllowedError') {
+                errorMessage += 'Please allow camera permissions and refresh the page.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage += 'No camera found. Please check your device.';
+            } else if (error.name === 'OverconstrainedError') {
+                errorMessage += 'Camera settings not supported. Trying basic mode...';
+                // Fallback to basic constraints
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    video.srcObject = stream;
+                    await video.play();
+                    startCameraBtn.disabled = true;
+                    stopCameraBtn.disabled = false;
+                    scanning = true;
+                    optimizedScanQRCode();
+                    resultContainer.className = 'alert alert-success';
+                    resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active (basic mode)';
+                    return;
+                } catch (fallbackError) {
+                    errorMessage = 'Camera initialization completely failed.';
+                }
+            } else {
+                errorMessage += 'Please check permissions or try refreshing.';
+            }
+            
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + errorMessage;
         }
+    }
+    
+    // Unified scanning function
+    let lastScanTime = 0;
+    function optimizedScanQRCode() {
+        if (!scanning) return;
         
-        function scanQRCode() {
-            if (!scanning) return;
-            
-            requestAnimationFrame(scanQRCode);
-            
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Set canvas dimensions to match video display
-                const rect = video.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
-                
-                // Clear canvas and draw video frame
+        // Apple-like smooth scanning at 10fps for lag-free camera movement
+        const now = Date.now();
+        if (now - lastScanTime < 100) { // 100ms = 10fps
+            requestAnimationFrame(optimizedScanQRCode);
+            return;
+        }
+        lastScanTime = now;
+        
+        requestAnimationFrame(optimizedScanQRCode);
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
+            try {
+                // Clear canvas and draw current video frame
                 canvasContext.clearRect(0, 0, canvas.width, canvas.height);
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                // Draw minimal scanning interface for performance
+                drawMinimalScanningInterface();
+                
+                // Extract smaller center region for faster processing
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                const startX = Math.max(0, centerX - scanSize/2);
+                const startY = Math.max(0, centerY - scanSize/2);
+                const width = Math.min(scanSize, canvas.width - startX);
+                const height = Math.min(scanSize, canvas.height - startY);
+                
+                const imageData = canvasContext.getImageData(startX, startY, width, height);
                 
                 // Multi-attempt QR detection for maximum accuracy
                 let code = null;
@@ -449,23 +564,15 @@
                 for (const method of detectionMethods) {
                     code = jsQR(imageData.data, imageData.width, imageData.height, method);
                     if (code && code.data && code.data.length >= 2) {
-                        console.log('Bill QR detected with method:', method);
+                        console.log('QR detected with method:', method);
                         break;
                     }
                 }
                 
                 if (code && code.data) {
-                    // Draw red/orange circles at QR code corners for visual feedback
-                    drawQRCodeCorners(code);
-                    
-                    // Raw QR data debugging
-                    console.log('Raw bill QR data detected:', JSON.stringify(code.data));
-                    console.log('QR data length:', code.data.length);
-                    console.log('QR data chars:', code.data.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
-                    
-                    // Keep QR data exactly as detected - only basic trim  
+                    // Keep QR data exactly as detected - only basic trim
                     let qrData = code.data.trim();
-                    console.log('Final bill QR data (no cleaning):', JSON.stringify(qrData));
+                    console.log('Final QR data:', JSON.stringify(qrData));
                     
                     // Skip if data is too short
                     if (qrData.length < 2) {
@@ -473,271 +580,183 @@
                         return;
                     }
                     
-                    // Allow rescanning after a short delay, but prevent rapid multiple scans
-                    if (lastDetectedCode !== qrData || Date.now() - lastScanTime > 2000) {
+                    // Instant visual feedback
+                    drawInstantDetectionHighlight(code, startX, startY);
+                    
+                    // Immediate haptic feedback
+                    if (navigator.vibrate) {
+                        navigator.vibrate(25);
+                    }
+                    
+                    // Process unique codes with instant feedback
+                    if (lastDetectedCode !== qrData) {
                         lastDetectedCode = qrData;
-                        lastScanTime = Date.now();
+                        console.log('QR processed:', qrData);
+                        
+                        // Process the scanned QR code
                         processQrCode(qrData);
+                        
+                        // Reset for next scan after delay
+                        setTimeout(() => {
+                            lastDetectedCode = null;
+                            requestAnimationFrame(optimizedScanQRCode);
+                        }, 2000);
                     }
                 }
+            } catch (error) {
+                console.error('Scanning error:', error);
             }
         }
+    }
+    
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+            scanning = false;
+            
+            startCameraBtn.disabled = false;
+            stopCameraBtn.disabled = true;
+            
+            // Hide scanning overlay
+            if (scannerOverlay) {
+                scannerOverlay.style.display = 'none';
+            }
+        }
+    }
+    
+    // Drawing functions
+    function drawMinimalScanningInterface() {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
         
-        function processQrCode(qrCode) {
-            // Use QR code exactly as scanned - no formatting needed
-            
-            // Display the scanned QR code in the manual entry box for visibility
-            const manualQrInput = document.getElementById('manual-qr-code');
-            manualQrInput.value = qrCode;
-            
-            // Send to server for processing
-            fetch('/process_bill_parent_scan', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'qr_code=' + encodeURIComponent(qrCode) + '&bill_id={{ bill.id }}' + '&csrf_token={{ csrf_token() }}'
+        // Minimal corner brackets only
+        const cornerLength = 30;
+        const cornerThickness = 2;
+        
+        canvasContext.strokeStyle = '#00FF00';
+        canvasContext.lineWidth = cornerThickness;
+        canvasContext.lineCap = 'round';
+        
+        // Draw 4 corners quickly
+        const x1 = centerX - scanSize/2;
+        const y1 = centerY - scanSize/2;
+        const x2 = centerX + scanSize/2;
+        const y2 = centerY + scanSize/2;
+        
+        canvasContext.beginPath();
+        // Top-left
+        canvasContext.moveTo(x1, y1 + cornerLength);
+        canvasContext.lineTo(x1, y1);
+        canvasContext.lineTo(x1 + cornerLength, y1);
+        // Top-right
+        canvasContext.moveTo(x2 - cornerLength, y1);
+        canvasContext.lineTo(x2, y1);
+        canvasContext.lineTo(x2, y1 + cornerLength);
+        // Bottom-left
+        canvasContext.moveTo(x1, y2 - cornerLength);
+        canvasContext.lineTo(x1, y2);
+        canvasContext.lineTo(x1 + cornerLength, y2);
+        // Bottom-right
+        canvasContext.moveTo(x2 - cornerLength, y2);
+        canvasContext.lineTo(x2, y2);
+        canvasContext.lineTo(x2, y2 - cornerLength);
+        canvasContext.stroke();
+    }
+    
+    function drawInstantDetectionHighlight(code, offsetX, offsetY) {
+        if (!code.location) return;
+        
+        canvasContext.strokeStyle = '#00FF00';
+        canvasContext.lineWidth = 3;
+        canvasContext.fillStyle = 'rgba(0, 255, 0, 0.2)';
+        
+        canvasContext.beginPath();
+        canvasContext.moveTo(code.location.topLeftCorner.x + offsetX, code.location.topLeftCorner.y + offsetY);
+        canvasContext.lineTo(code.location.topRightCorner.x + offsetX, code.location.topRightCorner.y + offsetY);
+        canvasContext.lineTo(code.location.bottomRightCorner.x + offsetX, code.location.bottomRightCorner.y + offsetY);
+        canvasContext.lineTo(code.location.bottomLeftCorner.x + offsetX, code.location.bottomLeftCorner.y + offsetY);
+        canvasContext.closePath();
+        canvasContext.fill();
+        canvasContext.stroke();
+    }
+    
+    // Process QR code function
+    function processQrCode(qrCode) {
+        console.log('Processing QR code:', qrCode);
+        
+        // Show processing message
+        resultContainer.className = 'alert alert-info';
+        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing QR code: ' + qrCode;
+        
+        // Send QR code to server for processing
+        fetch('{{ url_for("process_bill_parent_scan") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'csrf_token': '{{ csrf_token() }}',
+                'parent_qr': qrCode,
+                'bill_id': '{{ bill.id }}'
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Server response:', data); // Debug log
-                if (data.success) {
-                    // Update UI for success
-                    resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + data.message;
-                    
-                    // Add to the scanned list
-                    const listItem = document.createElement('li');
-                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    listItem.innerHTML = `
-                        <div>
-                            <span class="badge bg-primary me-2">Parent</span>
-                            <span>${data.parent_qr}</span>
-                        </div>
-                        <div>
-                            <button class="btn btn-sm btn-outline-warning me-1 edit-btn">
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Server response:', data);
+            
+            if (data.success) {
+                // Add the new item to the scanned list
+                const newItem = document.createElement('li');
+                newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                newItem.innerHTML = `
+                    <div>
+                        <span class="badge bg-primary me-2">Parent</span>
+                        <span>${qrCode}</span>
+                    </div>
+                    <div>
+                        <form method="POST" action="{{ url_for('remove_bag_from_bill') }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="parent_qr" value="${qrCode}">
+                            <input type="hidden" name="bill_id" value="{{ bill.id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger me-1 edit-btn" onclick="return confirm('Remove ${qrCode}?')">
                                 <i class="fas fa-times me-1"></i>Remove
                             </button>
-                            <span class="badge bg-warning rounded-pill">
-                                <i class="fas fa-link me-1"></i>Added
-                            </span>
-                        </div>
-                    `;
-                    scannedList.prepend(listItem);
-                    
-                    // Add event listener to the edit button
-                    const editBtn = listItem.querySelector('.edit-btn');
-                    editBtn.addEventListener('click', function() {
-                        // Remove this bag from the bill via AJAX
-                        fetch('/remove_bag_from_bill', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json'
-                            },
-                            body: 'parent_qr=' + encodeURIComponent(data.parent_qr) + '&bill_id={{ bill.id }}' + '&csrf_token={{ csrf_token() }}'
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Remove from UI
-                                listItem.remove();
-                                
-                                // Update count using server response
-                                const linkedCount = data.linked_count || 0;
-                                const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
-                                progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
-                                
-                                // Show success message
-                                resultContainer.className = 'alert alert-info';
-                                resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Parent bag removed successfully.';
-                            } else {
-                                // Show error message
-                                resultContainer.className = 'alert alert-danger';
-                                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (data.message || 'Error removing bag');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error removing bag:', error);
-                            resultContainer.className = 'alert alert-danger';
-                            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Error removing bag. Please try again.';
-                        });
-                    });
-                    
-                    // Update progress text - use server data
-                    const linkedCount = data.linked_count || 0;
-                    const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
-                    console.log('Progress update - linked:', linkedCount, 'expected:', expectedCount);
-                    progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
-                    
-                    // Check if we've added enough parent bags to complete the bill
-                    if (linkedCount >= expectedCount) {
-                        // Show completion message
-                        resultContainer.className = 'alert alert-success';
-                        resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Enough parent bags added! You can complete the bill now.';
-                        
-                        // Show a popup for auto-navigation
-                        const completeDiv = document.createElement('div');
-                        completeDiv.className = 'alert alert-primary mt-3';
-                        completeDiv.innerHTML = `
-                            <h5><i class="fas fa-check-double me-2"></i>Bill Update Complete!</h5>
-                            <p>You've added enough parent bags to this bill. Redirecting to bill management...</p>
-                            <div class="progress mb-2">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="redirect-progress"></div>
-                            </div>
-                        `;
-                        resultContainer.parentNode.appendChild(completeDiv);
-                        
-                        // Start progress bar animation
-                        const progressBar = document.getElementById('redirect-progress');
-                        let progress = 0;
-                        const progressInterval = setInterval(() => {
-                            progress += 10;
-                            progressBar.style.width = progress + '%';
-                            if (progress >= 100) {
-                                clearInterval(progressInterval);
-                                window.location.href = '{{ url_for("finish_bill_scan", bill_id=bill.id) }}';
-                            }
-                        }, 300);
-                    }
-                    
-                    // Reset last detected code after a short delay to allow for new scans
-                    setTimeout(() => {
-                        lastDetectedCode = null;
-                        lastScanTime = 0;
-                    }, 2000);
-                } else {
-                    // Show error message with more emphasis
-                    resultContainer.className = 'alert alert-danger border-danger';
-                    resultContainer.style.border = '2px solid #dc3545';
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i><strong>Error:</strong> ' + data.message;
-                    
-                    // Clear the manual input field to show what was scanned
-                    const manualQrInput = document.getElementById('manual-qr-code');
-                    manualQrInput.value = qrCode;
-                    manualQrInput.style.borderColor = '#dc3545';
-                    
-                    // Reset styling after a delay, but keep lastDetectedCode for a shorter time
-                    setTimeout(() => {
-                        manualQrInput.style.borderColor = '';
-                        resultContainer.style.border = '';
-                    }, 5000);
-                    
-                    // Reset detection after shorter delay to allow retry
-                    setTimeout(() => {
-                        lastDetectedCode = null;
-                        lastScanTime = 0;
-                    }, 3000);
+                        </form>
+                        <span class="badge bg-success rounded-pill">
+                            <i class="fas fa-check me-1"></i>Added
+                        </span>
+                    </div>
+                `;
+                scannedList.appendChild(newItem);
+                
+                // Update progress text
+                const linkedCount = data.linked_count || 0;
+                const expectedCount = data.expected_count || {{ bill.parent_bag_count }};
+                progressText.textContent = linkedCount + ' of ' + expectedCount + ' parent bags scanned';
+                
+                // Show success message
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Parent bag added successfully!';
+                
+                // Check if we've added enough parent bags
+                if (linkedCount >= expectedCount) {
+                    resultContainer.className = 'alert alert-success';
+                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>All required parent bags added! You can now complete the bill.';
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                resultContainer.className = 'alert alert-danger border-danger';
-                resultContainer.style.border = '2px solid #dc3545';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i><strong>Network Error:</strong> ' + 
-                    'An error occurred while processing the QR code. Please check your connection and try again.';
-                
-                // Show the scanned code in manual entry for reference
-                const manualQrInput = document.getElementById('manual-qr-code');
-                manualQrInput.value = qrCode;
-                manualQrInput.style.borderColor = '#dc3545';
-                
-                // Reset styling after a delay
-                setTimeout(() => {
-                    manualQrInput.style.borderColor = '';
-                    resultContainer.style.border = '';
-                }, 5000);
-                
-                // Reset detection after shorter delay to allow retry
-                setTimeout(() => {
-                    lastDetectedCode = null;
-                    lastScanTime = 0;
-                }, 3000);
-            });
-        }
-        
-        function removeBagFromBill(parentQr, billId) {
-            // Create a form and submit it to avoid CSRF issues
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/remove_bag_from_bill';
-            
-            const parentQrInput = document.createElement('input');
-            parentQrInput.type = 'hidden';
-            parentQrInput.name = 'parent_qr';
-            parentQrInput.value = parentQr;
-            form.appendChild(parentQrInput);
-            
-            const billIdInput = document.createElement('input');
-            billIdInput.type = 'hidden';
-            billIdInput.name = 'bill_id';
-            billIdInput.value = billId;
-            form.appendChild(billIdInput);
-            
-            // Add CSRF token from existing form
-            const existingCsrfInput = document.querySelector('input[name="csrf_token"]');
-            if (existingCsrfInput) {
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = 'csrf_token';
-                csrfInput.value = existingCsrfInput.value;
-                form.appendChild(csrfInput);
+            } else {
+                // Show error message
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (data.message || 'Error processing QR code');
             }
-            
-            document.body.appendChild(form);
-            form.submit();
-        }
-
-        // Draw visual feedback when QR code is detected
-        function drawQRCodeCorners(code) {
-            console.log('Drawing QR code visual feedback');
-            
-            // Get QR code bounds
-            const topLeft = code.location.topLeftCorner;
-            const topRight = code.location.topRightCorner;
-            const bottomLeft = code.location.bottomLeftCorner;
-            const bottomRight = code.location.bottomRightCorner;
-            
-            // Draw orange corner brackets for better visibility
-            const cornerLength = 25;
-            canvasContext.strokeStyle = '#FF8C00'; // Orange color
-            canvasContext.lineWidth = 8;
-            canvasContext.lineCap = 'round';
-            
-            // Top-left corner
-            canvasContext.beginPath();
-            canvasContext.moveTo(topLeft.x, topLeft.y + cornerLength);
-            canvasContext.lineTo(topLeft.x, topLeft.y);
-            canvasContext.lineTo(topLeft.x + cornerLength, topLeft.y);
-            canvasContext.stroke();
-            
-            // Top-right corner
-            canvasContext.beginPath();
-            canvasContext.moveTo(topRight.x - cornerLength, topRight.y);
-            canvasContext.lineTo(topRight.x, topRight.y);
-            canvasContext.lineTo(topRight.x, topRight.y + cornerLength);
-            canvasContext.stroke();
-            
-            // Bottom-left corner
-            canvasContext.beginPath();
-            canvasContext.moveTo(bottomLeft.x, bottomLeft.y - cornerLength);
-            canvasContext.lineTo(bottomLeft.x, bottomLeft.y);
-            canvasContext.lineTo(bottomLeft.x + cornerLength, bottomLeft.y);
-            canvasContext.stroke();
-            
-            // Bottom-right corner
-            canvasContext.beginPath();
-            canvasContext.moveTo(bottomRight.x - cornerLength, bottomRight.y);
-            canvasContext.lineTo(bottomRight.x, bottomRight.y);
-            canvasContext.lineTo(bottomRight.x, bottomRight.y - cornerLength);
-            canvasContext.stroke();
-        }
-    });
+        })
+        .catch(error => {
+            console.error('Error processing QR code:', error);
+            resultContainer.className = 'alert alert-danger';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Error processing QR code. Please try again.';
+        });
+    }
+});
 </script>
 {% endblock %}
