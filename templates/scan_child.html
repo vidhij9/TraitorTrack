@@ -590,13 +590,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reload scanned bags list
                 loadScannedBags();
                 
-                // Reset processing state and resume scanning after a short delay
+                // ULTRA-FAST: Reset processing immediately for next scan
                 setTimeout(() => {
                     processingRequest = false;
                     lastDetectedCode = null;
                     scanning = true;
                     requestAnimationFrame(optimizedScanQRCode);
-                }, 1500);
+                }, 300); // Reduced from 1500ms to 300ms for instant next scan
             } else {
                 processingRequest = false; // Reset flag on error
                 resultContainer.className = 'alert alert-danger';
@@ -745,13 +745,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function changeParent() {
+    // Global action button functions (accessible to onclick handlers)
+    window.changeParent = function() {
         if (confirm('Switch to a different parent bag? This will end the current scanning session.')) {
             window.location.href = '{{ url_for("scan_parent", s=request.args.get("s")) }}';
         }
     }
     
-    function completeScan() {
+    window.completeScan = function() {
         if (confirm('Complete scanning session?')) {
             window.location.href = '{{ url_for("index") }}';
         }

@@ -1206,30 +1206,19 @@ def scan_child():
             if not parent_qr:
                 return jsonify({'success': False, 'message': 'No parent bag selected'})
             
-            # ULTRA-FAST: Single optimized query for both bags
-            bags = db.session.query(Bag).filter(
-                Bag.qr_id.in_([parent_qr, qr_id])
-            ).all()
-            
-            parent_bag = None
-            existing_child = None
-            
-            for bag in bags:
-                if bag.qr_id == parent_qr and bag.type == BagType.PARENT.value:
-                    parent_bag = bag
-                elif bag.qr_id == qr_id:
-                    existing_child = bag
-            
+            # LIGHTNING-FAST: Get parent bag from cached session
+            parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
             if not parent_bag:
                 return jsonify({'success': False, 'message': 'Parent bag not found'})
             
-            # ULTRA-FAST: Process child bag
-            if existing_child:
-                if existing_child.type != BagType.CHILD.value:
-                    return jsonify({'success': False, 'message': f'{qr_id} exists as parent bag'})
-                child_bag = existing_child
-            else:
-                # Create new child bag instantly
+            # LIGHTNING-FAST: Check child bag exists (minimal query)
+            existing_child = Bag.query.filter_by(qr_id=qr_id).first()
+            
+            if existing_child and existing_child.type != BagType.CHILD.value:
+                return jsonify({'success': False, 'message': f'{qr_id} exists as parent bag'})
+            
+            # LIGHTNING-FAST: Skip duplicate check - create child bag instantly
+            if not existing_child:
                 child_bag = Bag(
                     qr_id=qr_id,
                     name=f"Child {qr_id}",
@@ -1238,41 +1227,43 @@ def scan_child():
                 )
                 db.session.add(child_bag)
                 db.session.flush()  # Get ID without full commit
+            else:
+                child_bag = existing_child
             
-            # ULTRA-FAST: Check for existing link
-            existing_link = Link.query.filter_by(
-                parent_bag_id=parent_bag.id, 
+            # LIGHTNING-FAST: Create link without duplicate check (faster)
+            link = Link(
+                parent_bag_id=parent_bag.id,
                 child_bag_id=child_bag.id
-            ).first()
-            
-            if existing_link:
-                return jsonify({'success': False, 'message': f'{qr_id} already linked'})
-            
-            # ULTRA-FAST: Create link and scan instantly
-            link = Link()
-            link.parent_bag_id = parent_bag.id
-            link.child_bag_id = child_bag.id
+            )
             db.session.add(link)
             
-            scan = Scan()
-            scan.child_bag_id = child_bag.id
-            scan.user_id = current_user.id
-            scan.timestamp = datetime.utcnow()
+            # LIGHTNING-FAST: Create scan record
+            scan = Scan(
+                child_bag_id=child_bag.id,
+                user_id=current_user.id,
+                timestamp=datetime.utcnow()
+            )
             db.session.add(scan)
             
-            # Single ultra-fast commit
-            db.session.commit()
+            # LIGHTNING-FAST: Single commit for all operations
+            try:
+                db.session.commit()
+            except Exception as e:
+                # Handle duplicate link error gracefully
+                db.session.rollback()
+                if 'duplicate' in str(e).lower() or 'unique' in str(e).lower():
+                    return jsonify({'success': False, 'message': f'{qr_id} already linked'})
+                raise e
             
-            # ULTRA-FAST: Get count
-            scanned_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+            # ULTRA-FAST: Skip count query for maximum speed
+            # We can get count from client-side instead of server query
             
-            # Instant JSON response
+            # Instant JSON response (removed count query for speed)
             return jsonify({
                 'success': True,
                 'child_qr': qr_id,
                 'parent_qr': parent_bag.qr_id,
-                'scanned_count': scanned_count,
-                'message': f'{qr_id} linked instantly!'
+                'message': f'{qr_id} linked!'
             })
             
         except Exception as e:

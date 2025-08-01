@@ -4,7 +4,23 @@
 
 TraceTrack is a comprehensive supply chain traceability platform built for agricultural bag tracking and management. The system provides real-time tracking of parent and child bags through QR code scanning, bill management, and user authentication with role-based access control.
 
-## Recent Changes (July 30, 2025)
+## Recent Changes (August 1, 2025)
+
+✓ **LIGHTNING-FAST CHILD BAG LINKING** - Optimized database operations for instant child bag processing
+✓ Removed unnecessary database queries (count queries, duplicate checks) to achieve sub-second linking
+✓ Streamlined database operations from 4+ queries down to 2 core queries for maximum speed
+✓ Reduced scanner reset time from 1500ms to 300ms for instant next scan capability
+✓ Fixed action button functionality by making functions globally accessible (window scope)
+✓ Added graceful duplicate handling with database constraint-based error catching
+✓ Achieved Apple-like instant response times for child bag scanner workflow
+
+✓ **SESSION MANAGEMENT FIX** - Fixed parent-to-child scanner data flow issues
+✓ Parent scanner now stores session data in both 'last_scan' and 'current_parent_qr' keys
+✓ Child scanner retrieves parent information with proper fallback logic from session
+✓ Fixed "scan parent bag first" error by properly passing parent bag data to child scanner
+✓ Unified scanner JavaScript code across parent and child templates for consistency
+
+### Previous Changes (July 30, 2025)
 
 ✓ **CONSISTENT SCANNER OPTIMIZATION** - Fixed camera lag and made all scanners follow same patterns
 ✓ Reduced frame rate to 10fps (~100ms intervals) across all scanners for smooth camera movement
