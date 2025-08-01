@@ -607,7 +607,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (parentQr) {
                 window.location.href = "{{ url_for('scan_complete') }}?parent=" + encodeURIComponent(parentQr);
             } else {
-                window.location.href = "{{ url_for('dashboard') }}";
+                window.location.href = "{{ url_for('index') }}";
             }
         }
     }

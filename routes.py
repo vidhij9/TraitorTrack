@@ -1180,55 +1180,16 @@ def scan_parent_bag():
         
         return render_template('scan_parent.html', form=form)
 
-@app.route('/scan/child')
+@app.route('/scan/child', methods=['GET', 'POST'])
 @login_required
 def scan_child():
-    """Scan child bag QR code"""
-    form = ScanChildForm()
-    
-    # Get parent bag info from session or find most recent
-    last_scan = session.get('last_scan')
-    parent_bag = None
-    
-    if last_scan and last_scan.get('type') == 'parent':
-        parent_qr_id = last_scan.get('qr_id')
-        if parent_qr_id:
-            parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
-    
-    # If no parent bag in session, find the most recent parent bag for this user
-    if not parent_bag:
-        recent_parent_scan = Scan.query.filter_by(user_id=current_user.id).filter(
-            Scan.parent_bag_id.isnot(None)
-        ).order_by(desc(Scan.timestamp)).first()
-        
-        if recent_parent_scan and recent_parent_scan.parent_bag_id:
-            parent_bag = Bag.query.get(recent_parent_scan.parent_bag_id)
-            app.logger.info(f'Using most recent parent bag for child scanning: {parent_bag.qr_id if parent_bag else "None"}')
-    
-    # Calculate child bag counts for the parent
-    scanned_child_count = 0
-    
-    if parent_bag:
-        # Set the current parent in session for API endpoints
-        session['current_parent_qr'] = parent_bag.qr_id
-        # Count how many child bags are already linked to this parent
-        scanned_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-    
-    return render_template('scan_child.html', 
-                         form=form, 
-                         parent_bag=parent_bag,
-                         scanned_child_count=scanned_child_count)
-
-@app.route('/scan/child', methods=['POST'])
-@login_required
-def scan_child_bag():
-    """Process the child bag QR code scan"""
+    """Scan child bag QR code - unified GET/POST handler"""
     # Check if it's an AJAX request (simpler detection)
     is_ajax = 'qr_code' in request.form and request.method == 'POST'
     
     app.logger.info(f"Child scan request - AJAX: {is_ajax}, QR_CODE: {request.form.get('qr_code')}")
     
-    if is_ajax:
+    if request.method == 'POST' and is_ajax:
         # Handle AJAX QR scan request - ULTRA-OPTIMIZED FOR SUB-SECOND RESPONSE
         qr_id = request.form.get('qr_code', '').strip()
         
