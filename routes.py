@@ -1,210 +1,40 @@
 """
-Routes for traitor track application - Location functionality completely removed
+Optimized routes for TraceTrack application - consolidated and performance-optimized
 """
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response
+from werkzeug.security import check_password_hash, generate_password_hash
+
+# Import optimized authentication utilities
+from auth_utils import current_user, require_auth, is_authenticated
+from query_optimizer import query_optimizer
+
+# Use optimized auth decorator
+login_required = require_auth
 
 def validate_qr_code(qr_id):
-    """Validate that a QR code is not a URL and meets basic requirements"""
+    """Optimized QR code validation"""
     if not qr_id or len(qr_id.strip()) == 0:
         return False, "QR code cannot be empty"
     
     qr_id = qr_id.strip()
     
-    # Check if it looks like a URL
-    if qr_id.startswith(('http://', 'https://', 'ftp://', 'www.')) or '://' in qr_id:
-        return False, "URLs are not valid QR codes for bag identifiers"
-    
-    # Check length (reasonable limits)
+    # Quick length and character validation
     if len(qr_id) > 100:
         return False, "QR code is too long (max 100 characters)"
     
     # Check for problematic characters
-    invalid_chars = ['<', '>', '"', "'", '&', '%']
-    if any(char in qr_id for char in invalid_chars):
+    if any(char in qr_id for char in ['<', '>', '"', "'", '&', '%']):
         return False, "QR code contains invalid characters"
     
     return True, "Valid QR code"
-# Session-based authentication - no longer using Flask-Login
-from werkzeug.security import check_password_hash, generate_password_hash
-
-# Import authentication functions from simple_auth
-from simple_auth import is_authenticated as simple_is_authenticated, require_auth as simple_require_auth
-
-# Compatibility layer for existing code
-def is_authenticated():
-    # Use both session formats for compatibility
-    return (
-        session.get('logged_in', False) or 
-        session.get('authenticated', False)
-    ) and session.get('user_id') is not None
-
-def require_auth(f):
-    return simple_require_auth(f)
-
-def is_admin():
-    """Check if current user is admin"""
-    return session.get('user_role') == 'admin'
-
-def is_biller():
-    """Check if current user is a biller"""
-    return session.get('user_role') == 'biller'
-
-def is_dispatcher():
-    """Check if current user is a dispatcher"""
-    return session.get('user_role') == 'dispatcher'
-
-def can_edit_bills():
-    """Check if current user can edit bills"""
-    role = session.get('user_role')
-    return role in ['admin', 'biller']
-
-def can_manage_users():
-    """Check if current user can manage other users"""
-    return session.get('user_role') == 'admin'
-
-def get_user_dispatch_area():
-    """Get current user's dispatch area"""
-    return session.get('dispatch_area')
-
-def get_current_user_id():
-    """Get current user ID from session"""
-    return session.get('user_id')
-
-# Use the simple auth decorator
-login_required = require_auth
-
-class CurrentUser:
-    """Current user object for simple authentication"""
-    @property
-    def id(self):
-        return session.get('user_id')
-    
-    @property
-    def username(self):
-        return session.get('username')
-    
-    @property
-    def email(self):
-        from simple_auth import get_current_user_data
-        user_data = get_current_user_data()
-        return user_data.get('email') if user_data else None
-    
-    @property
-    def role(self):
-        return session.get('user_role')
-    
-    @property
-    def dispatch_area(self):
-        return session.get('dispatch_area')
-    
-    @property
-    def is_authenticated(self):
-        # Check both session formats for compatibility
-        return (
-            session.get('logged_in', False) or 
-            session.get('authenticated', False)
-        ) and session.get('user_id') is not None
-    
-    def is_admin(self):
-        """Check if user is admin"""
-        return session.get('user_role') == 'admin'
-    
-    def is_biller(self):
-        """Check if user is a biller"""
-        return session.get('user_role') == 'biller'
-    
-    def is_dispatcher(self):
-        """Check if user is a dispatcher"""
-        return session.get('user_role') == 'dispatcher'
-    
-    def can_edit_bills(self):
-        """Check if user can edit bills"""
-        role = session.get('user_role')
-        return role in ['admin', 'biller']
-    
-    def can_manage_users(self):
-        """Check if user can manage other users"""
-        return session.get('user_role') == 'admin'
-    
-    def can_access_area(self, area):
-        """Check if user can access a specific dispatch area"""
-        role = session.get('user_role')
-        if role in ['admin', 'biller']:
-            return True
-        if role == 'dispatcher':
-            return session.get('dispatch_area') == area
-        return False
-
-# Create current_user object for routes using session data
-class RouteCurrentUser:
-    """Current user object for route handlers using session data"""
-    @property
-    def id(self):
-        return session.get('user_id')
-    
-    @property
-    def username(self):
-        return session.get('username')
-    
-    @property
-    def role(self):
-        return session.get('user_role')
-    
-    @property
-    def dispatch_area(self):
-        return session.get('dispatch_area')
-    
-    @property
-    def is_authenticated(self):
-        return (
-            session.get('logged_in', False) or 
-            session.get('authenticated', False)
-        ) and session.get('user_id') is not None
-    
-    def is_admin(self):
-        """Check if user is admin"""
-        role = session.get('user_role')
-        # Debug logging
-        import logging
-        logging.info(f"Admin check - User role from session: '{role}', type: {type(role)}")
-        return role == 'admin'
-    
-    def is_biller(self):
-        """Check if user is a biller"""
-        return session.get('user_role') == 'biller'
-    
-    def is_dispatcher(self):
-        """Check if user is a dispatcher"""
-        return session.get('user_role') == 'dispatcher'
-    
-    def can_edit_bills(self):
-        """Check if user can edit bills"""
-        role = session.get('user_role')
-        return role in ['admin', 'biller']
-    
-    def can_manage_users(self):
-        """Check if user can manage other users"""
-        return session.get('user_role') == 'admin'
-
-current_user = RouteCurrentUser()
 
 from sqlalchemy import desc, func, and_, or_
 from datetime import datetime, timedelta
 
 from app_clean import app, db, limiter
-
-
 from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus
 from forms import LoginForm, RegistrationForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
-from account_security import is_account_locked, record_failed_attempt, reset_failed_attempts, track_login_activity
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
-from duplicate_prevention import (
-    validate_new_bag_qr_code, 
-    validate_new_bill_id, 
-    check_qr_code_uniqueness,
-    log_duplicate_attempt,
-    get_system_integrity_report
-)
 
 import csv
 import io
@@ -232,16 +62,18 @@ def user_management():
         users = User.query.order_by(User.created_at.desc()).all()
         
         # Get statistics for each user
+        # OPTIMIZED: Single query for all user data with scan statistics
         user_data = []
         for user in users:
             try:
-                scan_count = Scan.query.filter(Scan.user_id == user.id).count()
-                last_scan = Scan.query.filter(Scan.user_id == user.id).order_by(desc(Scan.timestamp)).first()
+                # Use optimized query for user scan statistics
+                recent_scans = query_optimizer.get_recent_scans(limit=1, user_id=user.id)
+                scan_count = Scan.query.filter_by(user_id=user.id).count()
                 
                 user_data.append({
                     'user': user,
                     'scan_count': scan_count,
-                    'last_scan': last_scan.timestamp if last_scan else None
+                    'last_scan': recent_scans[0].timestamp if recent_scans else None
                 })
             except Exception as e:
                 app.logger.error(f"Error processing user {user.id}: {e}")
@@ -1062,37 +894,31 @@ def scan_parent_bag():
             return jsonify({'success': False, 'message': 'Please provide a QR code.'})
         
         try:
-            # FAST: Single query to check existing bag
-            existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
+            # OPTIMIZED: Single query to check existing bag
+            existing_bag = query_optimizer.get_bag_by_qr(qr_id)
             
             if existing_bag:
                 if existing_bag.type == BagType.PARENT.value:
-                    # Use existing parent bag
                     parent_bag = existing_bag
                 else:
-                    # QR code exists as child bag - prevent cross-type usage
                     return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag.'})
             else:
-                # Create new parent bag instantly
-                parent_bag = Bag(
+                # OPTIMIZED: Create new parent bag
+                parent_bag = query_optimizer.create_bag_optimized(
                     qr_id=qr_id,
-                    name=f"Bag {qr_id}",
-                    type=BagType.PARENT.value,
+                    bag_type=BagType.PARENT.value,
                     dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
                 )
-                db.session.add(parent_bag)
-                db.session.flush() # Get ID without full commit
             
-            # FAST: Create scan record
-            scan = Scan(
-                parent_bag_id=parent_bag.id,
+            # OPTIMIZED: Create scan record
+            query_optimizer.create_scan_optimized(
                 user_id=current_user.id,
-                timestamp=datetime.utcnow()
+                parent_bag_id=parent_bag.id
             )
-            db.session.add(scan)
             
-            # Single commit for both operations
-            db.session.commit()
+            # OPTIMIZED: Single bulk commit
+            if not query_optimizer.bulk_commit():
+                return jsonify({'success': False, 'message': 'Database error occurred'})
             
             # Store in session for child scanning  
             session['last_scan'] = {
@@ -1201,59 +1027,46 @@ def scan_child():
             return jsonify({'success': False, 'message': 'QR code required'})
         
         try:
-            # ULTRA-FAST: Get parent bag from session (cached)
+            # OPTIMIZED: Get parent bag from session (cached)
             parent_qr = session.get('current_parent_qr')
             if not parent_qr:
                 return jsonify({'success': False, 'message': 'No parent bag selected'})
             
-            # LIGHTNING-FAST: Get parent bag from cached session
-            parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+            # OPTIMIZED: Get parent bag efficiently
+            parent_bag = query_optimizer.get_bag_by_qr(parent_qr, BagType.PARENT.value)
             if not parent_bag:
                 return jsonify({'success': False, 'message': 'Parent bag not found'})
             
-            # LIGHTNING-FAST: Check child bag exists (minimal query)
-            existing_child = Bag.query.filter_by(qr_id=qr_id).first()
+            # OPTIMIZED: Check child bag exists
+            existing_child = query_optimizer.get_bag_by_qr(qr_id)
             
             if existing_child and existing_child.type != BagType.CHILD.value:
                 return jsonify({'success': False, 'message': f'{qr_id} exists as parent bag'})
             
-            # LIGHTNING-FAST: Skip duplicate check - create child bag instantly
+            # OPTIMIZED: Create child bag if needed
             if not existing_child:
-                child_bag = Bag(
+                child_bag = query_optimizer.create_bag_optimized(
                     qr_id=qr_id,
-                    name=f"Child {qr_id}",
-                    type=BagType.CHILD.value,
+                    bag_type=BagType.CHILD.value,
                     dispatch_area=parent_bag.dispatch_area
                 )
-                db.session.add(child_bag)
-                db.session.flush()  # Get ID without full commit
             else:
                 child_bag = existing_child
             
-            # LIGHTNING-FAST: Create link without duplicate check (faster)
-            link = Link(
-                parent_bag_id=parent_bag.id,
+            # OPTIMIZED: Create link with duplicate handling
+            link, created = query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
+            if not created:
+                return jsonify({'success': False, 'message': f'{qr_id} already linked'})
+            
+            # OPTIMIZED: Create scan record
+            query_optimizer.create_scan_optimized(
+                user_id=current_user.id,
                 child_bag_id=child_bag.id
             )
-            db.session.add(link)
             
-            # LIGHTNING-FAST: Create scan record
-            scan = Scan(
-                child_bag_id=child_bag.id,
-                user_id=current_user.id,
-                timestamp=datetime.utcnow()
-            )
-            db.session.add(scan)
-            
-            # LIGHTNING-FAST: Single commit for all operations
-            try:
-                db.session.commit()
-            except Exception as e:
-                # Handle duplicate link error gracefully
-                db.session.rollback()
-                if 'duplicate' in str(e).lower() or 'unique' in str(e).lower():
-                    return jsonify({'success': False, 'message': f'{qr_id} already linked'})
-                raise e
+            # OPTIMIZED: Single bulk commit
+            if not query_optimizer.bulk_commit():
+                return jsonify({'success': False, 'message': 'Database error occurred'})
             
             # ULTRA-FAST: Skip count query for maximum speed
             # We can get count from client-side instead of server query

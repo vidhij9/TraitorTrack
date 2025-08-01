@@ -139,7 +139,7 @@ setup_health_monitoring(app)
 def before_request():
     """Validate authentication and session before each request"""
     from flask import session, request, redirect, url_for
-    from simple_auth import is_authenticated
+    from auth_utils import is_authenticated
     
     # Skip validation for login, register, static files, public pages, and debug endpoints
     excluded_paths = ['/login', '/register', '/static', '/logout', '/setup', '/debug-deployment', '/test-login', '/session-test', '/', '/bill/', '/bag/']
@@ -224,7 +224,12 @@ def handle_csrf_error(e):
     return e
 
 # Configure login
-login_manager.login_view = 'login'
+# Flask-Login configuration
+try:
+    login_manager.login_view = 'login'
+except Exception:
+    # Handle potential Flask-Login configuration issues
+    pass
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 
@@ -252,7 +257,7 @@ def load_user(user_id):
 def inject_current_user():
     """Make current_user available in all templates"""
     from flask import session
-    from simple_auth import is_authenticated
+    from auth_utils import is_authenticated
     
     # Create a user object that matches template expectations
     class ProductionUser:

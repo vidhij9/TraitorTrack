@@ -1,0 +1,137 @@
+"""
+Database query optimization utilities
+Consolidates and optimizes all database queries for maximum performance
+"""
+from sqlalchemy import func, and_, or_, desc
+from sqlalchemy.orm import joinedload, selectinload
+from app_clean import db
+from models import User, Bag, BagType, Link, Scan, Bill, BillBag
+import logging
+
+logger = logging.getLogger(__name__)
+
+class QueryOptimizer:
+    """Centralized query optimization for high-performance database operations"""
+    
+    @staticmethod
+    def get_bag_by_qr(qr_id, bag_type=None):
+        """Optimized single bag lookup with optional type filter"""
+        query = Bag.query.filter_by(qr_id=qr_id)
+        if bag_type:
+            query = query.filter_by(type=bag_type)
+        return query.first()
+    
+    @staticmethod
+    def get_parent_bags_paginated(page=1, per_page=50, search=None):
+        """Optimized paginated parent bags with search"""
+        query = Bag.query.filter_by(type=BagType.PARENT.value)
+        
+        if search:
+            query = query.filter(
+                or_(
+                    Bag.qr_id.ilike(f'%{search}%'),
+                    Bag.name.ilike(f'%{search}%')
+                )
+            )
+        
+        return query.order_by(desc(Bag.created_at)).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+    
+    @staticmethod
+    def get_child_bags_for_parent(parent_id):
+        """Optimized query to get all child bags for a parent"""
+        return db.session.query(Bag).join(
+            Link, Link.child_bag_id == Bag.id
+        ).filter(Link.parent_bag_id == parent_id).all()
+    
+    @staticmethod
+    def get_recent_scans(limit=10, user_id=None):
+        """Optimized recent scans query with optional user filter"""
+        query = Scan.query.options(
+            joinedload(Scan.scanned_by),
+            joinedload(Scan.parent_bag),
+            joinedload(Scan.child_bag)
+        )
+        
+        if user_id:
+            query = query.filter_by(user_id=user_id)
+        
+        return query.order_by(desc(Scan.timestamp)).limit(limit).all()
+    
+    @staticmethod
+    def get_dashboard_stats():
+        """Single optimized query for dashboard statistics"""
+        stats = db.session.query(
+            func.count().filter(Bag.type == BagType.PARENT.value).label('parent_count'),
+            func.count().filter(Bag.type == BagType.CHILD.value).label('child_count'),
+            func.count(Bag.id).label('total_bags'),
+            func.count(Scan.id).label('total_scans')
+        ).outerjoin(Scan).first()
+        
+        return {
+            'parent_count': stats.parent_count or 0,
+            'child_count': stats.child_count or 0,
+            'total_bags': stats.total_bags or 0,
+            'total_scans': stats.total_scans or 0
+        }
+    
+    @staticmethod
+    def create_bag_optimized(qr_id, bag_type, name=None, dispatch_area=None):
+        """Optimized bag creation with minimal database operations"""
+        bag = Bag()
+        bag.qr_id = qr_id
+        bag.type = bag_type
+        bag.name = name or f"{bag_type.title()} {qr_id}"
+        bag.dispatch_area = dispatch_area
+        
+        db.session.add(bag)
+        db.session.flush()  # Get ID without full commit
+        return bag
+    
+    @staticmethod
+    def create_scan_optimized(user_id, parent_bag_id=None, child_bag_id=None):
+        """Optimized scan creation"""
+        from datetime import datetime
+        
+        scan = Scan()
+        scan.user_id = user_id
+        scan.parent_bag_id = parent_bag_id
+        scan.child_bag_id = child_bag_id
+        scan.timestamp = datetime.utcnow()
+        
+        db.session.add(scan)
+        return scan
+    
+    @staticmethod
+    def create_link_optimized(parent_id, child_id):
+        """Optimized link creation with duplicate handling"""
+        # Check if link already exists
+        existing = Link.query.filter_by(
+            parent_bag_id=parent_id, 
+            child_bag_id=child_id
+        ).first()
+        
+        if existing:
+            return existing, False  # Return existing link, not created
+        
+        link = Link()
+        link.parent_bag_id = parent_id
+        link.child_bag_id = child_id
+        
+        db.session.add(link)
+        return link, True  # Return new link, created
+    
+    @staticmethod
+    def bulk_commit():
+        """Optimized bulk commit with error handling"""
+        try:
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Bulk commit failed: {str(e)}")
+            return False
+
+# Global instance for easy access
+query_optimizer = QueryOptimizer()
