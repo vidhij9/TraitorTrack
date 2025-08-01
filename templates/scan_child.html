@@ -145,7 +145,6 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Apple-quality scanner variables
@@ -195,45 +194,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             
-            // Set video source and ensure it loads
+            // Set video source and ensure proper loading
             video.srcObject = stream;
-            video.style.display = 'block';
+            video.setAttribute('playsinline', true);
+            video.setAttribute('autoplay', true);
+            video.muted = true;
             
-            // Wait for video to be ready
-            await new Promise((resolve) => {
+            // Wait for video metadata to load and start playing
+            await new Promise((resolve, reject) => {
                 video.onloadedmetadata = () => {
-                    console.log('Video metadata loaded');
+                    console.log('Video metadata loaded:', {
+                        videoWidth: video.videoWidth,
+                        videoHeight: video.videoHeight
+                    });
+                    
+                    // Set canvas to actual video dimensions
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
                     resolve();
                 };
-                // Fallback timeout
-                setTimeout(resolve, 3000);
+                
+                video.onerror = reject;
+                video.play().catch(reject);
             });
             
-            // Start video playback
-            try {
-                await video.play();
-                console.log('Video playback started');
-                initializeScanning();
-            } catch (playError) {
-                console.error('Video play error:', playError);
-                resultContainer.className = 'alert alert-warning';
-                resultContainer.innerHTML = '<i class="fas fa-play me-2"></i>Tap video to start camera';
-                
-                // Add click to play functionality
-                video.addEventListener('click', async () => {
-                    try {
-                        await video.play();
-                        console.log('Video started after user interaction');
-                        initializeScanning();
-                    } catch (e) {
-                        console.error('Manual play failed:', e);
-                    }
-                });
-                return;
-            }
+            // Update UI and start scanning
+            resultContainer.className = 'alert alert-success';
+            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active - Position QR code in frame';
             
-            // Initialize scanning after successful play
-            initializeScanning();
+            // Start scanning immediately
+            requestAnimationFrame(scanForQRCode);
             
         } catch (error) {
             console.error('Camera setup failed:', error);
@@ -243,25 +234,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function initializeScanning() {
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-        
-        console.log(`Canvas size: ${canvas.width}x${canvas.height}, Video size: ${video.videoWidth}x${video.videoHeight}`);
-        
-        // Start ultra-fast scanning loop
-        requestAnimationFrame(scanForQRCode);
-        
-        resultContainer.className = 'alert alert-info';
-        resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera ready - Point at QR code to scan';
-    }
-    
-    // Ultra-fast QR scanning for instant detection
+    // Apple-like smooth QR scanning for lag-free camera movement
+    let lastScanTime = 0;
     function scanForQRCode() {
         if (!scanning) return;
         
-        // High-speed scanning for instant response - no throttling
+        // Apple-like smooth scanning at 10fps for lag-free camera movement
+        const now = Date.now();
+        if (now - lastScanTime < 100) { // 100ms = 10fps
+            requestAnimationFrame(scanForQRCode);
+            return;
+        }
+        lastScanTime = now;
+        
         requestAnimationFrame(scanForQRCode);
         
         if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {

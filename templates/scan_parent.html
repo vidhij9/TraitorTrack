@@ -506,10 +506,18 @@
             }
         }
         
+        let lastScanTime = 0;
         function optimizedScanQRCode() {
             if (!scanning) return;
             
-            // Ultra-fast scanning for instant response - no throttling
+            // Apple-like smooth scanning at 10fps for lag-free camera movement
+            const now = Date.now();
+            if (now - lastScanTime < 100) { // 100ms = 10fps
+                requestAnimationFrame(optimizedScanQRCode);
+                return;
+            }
+            lastScanTime = now;
+            
             requestAnimationFrame(optimizedScanQRCode);
             
             if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
@@ -829,7 +837,7 @@
             const qrCode = manualQrInput.value.trim();
             
             if (qrCode) {
-                processQrCode(qrCode);
+                processQrCodeInstant(qrCode);
             } else {
                 resultContainer.className = 'alert alert-warning';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter a QR code value.';
