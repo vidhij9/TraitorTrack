@@ -1799,10 +1799,15 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id}')
         
+        # Log bill details for debugging
+        app.logger.info(f'Bill ID: {bill.id}, Bill parent_bag_count: {bill.parent_bag_count}')
+        
         # Quick duplicate and capacity checks in single query
         existing_links = BillBag.query.filter(
             (BillBag.bill_id == bill.id) | (BillBag.bag_id == parent_bag.id)
         ).all()
+        
+        app.logger.info(f'Found {len(existing_links)} existing links')
         
         # Check for duplicates and capacity in one pass
         bill_bag_count = 0
@@ -1822,6 +1827,8 @@ def process_bill_parent_scan():
         
         if linked_to_other_bill:
             return jsonify({'success': False, 'message': f'This parent bag is already linked to bill ID {linked_to_other_bill}.'})
+        
+        app.logger.info(f'Bill bag count: {bill_bag_count}, Already linked: {already_linked_to_bill}, Other bill: {linked_to_other_bill}')
         
         if bill_bag_count >= bill.parent_bag_count:
             return jsonify({'success': False, 'message': f'Bill already has maximum {bill.parent_bag_count} parent bags.'})
