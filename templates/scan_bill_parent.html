@@ -576,11 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Process immediately
                         processQrCode(qrData);
                         
-                        // Reset for next scan after shorter delay
-                        setTimeout(() => {
-                            lastDetectedCode = null;
-                            processingQR = false;
-                        }, 1500);
+                        // Don't reset here - let the fetch response handler manage the flags
                     }
                 }
             } catch (error) {
