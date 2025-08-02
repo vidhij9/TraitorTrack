@@ -644,6 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Scan response:', data); // Debug log
             if (data.success) {
                 // Instantly add to list with optimized HTML
                 const newItem = document.createElement('li');
@@ -676,11 +677,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     // Automatically restart scanning for next bag
                     setTimeout(() => {
+                        console.log('Auto-restarting after success...'); // Debug log
                         resultContainer.className = 'alert alert-info';
                         resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
                         // Restart scanning if camera is still active
                         if (video.srcObject && !scanning) {
-                            startScanning();
+                            console.log('Restarting scanning after success...'); // Debug log
+                            scanning = true; // Set flag before starting
+                            requestAnimationFrame(scanFrame);
+                        } else {
+                            console.log('Cannot restart - video:', !!video.srcObject, 'scanning:', scanning); // Debug log
                         }
                     }, 1500); // Brief pause to show success message
                 }
@@ -688,21 +694,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Quick error display
                 resultContainer.className = 'alert alert-danger';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                console.log('Error message displayed:', data.message); // Debug log
                 
                 // Automatically restart scanning after error
                 setTimeout(() => {
+                    console.log('Auto-restarting after error...'); // Debug log
                     resultContainer.className = 'alert alert-info';
                     resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
                     // Restart scanning if camera is still active
                     if (video.srcObject && !scanning) {
-                        startScanning();
+                        console.log('Restarting scanning...'); // Debug log
+                        scanning = true; // Set flag before starting
+                        requestAnimationFrame(scanFrame);
+                    } else {
+                        console.log('Cannot restart - video:', !!video.srcObject, 'scanning:', scanning); // Debug log
                     }
                 }, 2000); // Longer pause for error messages
             }
         })
         .catch(error => {
+            console.error('Network error:', error); // Debug log
             resultContainer.className = 'alert alert-danger';
             resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Network error. Please try again.';
+            
+            // Auto-restart after network error too
+            setTimeout(() => {
+                console.log('Auto-restarting after network error...'); // Debug log
+                resultContainer.className = 'alert alert-info';
+                resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
+                if (video.srcObject && !scanning) {
+                    scanning = true;
+                    requestAnimationFrame(scanFrame);
+                }
+            }, 3000);
         });
     }
 });
