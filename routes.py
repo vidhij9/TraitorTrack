@@ -1798,7 +1798,7 @@ def process_bill_parent_scan():
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
             return jsonify({'success': False, 'message': f'Parent bag "{qr_id}" is not registered in the system. Please verify the QR code or register this bag first.'})
         
-        app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})'}
+        app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
         
         # Log bill details for debugging
         app.logger.info(f'Bill ID: {bill.id}, Bill parent_bag_count: {bill.parent_bag_count}')
