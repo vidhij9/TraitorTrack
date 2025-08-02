@@ -317,8 +317,8 @@
                                     <span>{{ bill_bag.bag.qr_id }}</span>
                                 </div>
                                 <div>
-                                    <form method="POST" action="{{ url_for('remove_bag_from_bill') }}" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <form method="POST" action="{{ url_for('remove_bag_from_bill') }}" style="display: inline;" class="remove-bag-form">
+                                        {{ form.csrf_token }}
                                         <input type="hidden" name="parent_qr" value="{{ bill_bag.bag.qr_id }}">
                                         <input type="hidden" name="bill_id" value="{{ bill.id }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger me-1 edit-btn" onclick="return confirm('Remove {{ bill_bag.bag.qr_id }}?')">
@@ -333,6 +333,7 @@
                         {% endfor %}
                     </ul>
                     
+                    {{ form.hidden_tag() }}
                     <form id="manual-entry-form" class="mt-4">
                         <div class="mb-3">
                             <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
@@ -633,13 +634,13 @@ document.addEventListener('DOMContentLoaded', function() {
         resultContainer.className = 'alert alert-info';
         resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adding bag...';
         
-        // Optimized fetch with minimal data
+        // Optimized fetch with minimal data (CSRF exempt for this endpoint)
         fetch('{{ url_for("process_bill_parent_scan") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: `csrf_token={{ csrf_token() }}&qr_code=${encodeURIComponent(qrCode)}&bill_id={{ bill.id }}`
+            body: `qr_code=${encodeURIComponent(qrCode)}&bill_id={{ bill.id }}`
         })
         .then(response => response.json())
         .then(data => {

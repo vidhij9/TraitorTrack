@@ -113,6 +113,9 @@ app.config.update(
 db.init_app(app)
 login_manager.init_app(app)
 csrf.init_app(app)
+
+# Make CSRF available for route decorators
+# CSRF exemption will be handled in routes.py for specific endpoints
 limiter.init_app(app)
 
 # Create tables after app initialization

@@ -1667,6 +1667,9 @@ def edit_bill(bill_id):
 @login_required
 def remove_bag_from_bill():
     """Remove a parent bag from a bill - admin and employee access"""
+    app.logger.info(f'Remove bag from bill - CSRF token present: {request.form.get("csrf_token") is not None}')
+    app.logger.info(f'Form data: {dict(request.form)}')
+    
     if not (current_user.is_admin() or current_user.role == 'biller'):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('bill_management'))
@@ -1754,10 +1757,15 @@ def scan_bill_parent(bill_id):
     
     return render_template('scan_bill_parent.html', form=form, bill=bill, linked_bags=linked_bags)
 
+from app_clean import csrf
+
 @app.route('/process_bill_parent_scan', methods=['POST'])
+@csrf.exempt
 @login_required
 def process_bill_parent_scan():
     """Process a parent bag scan for bill linking - admin and employee access"""
+    app.logger.info(f'Process bill parent scan - CSRF token present: {request.form.get("csrf_token") is not None}')
+    
     if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller', 'dispatcher']):
         return jsonify({'success': False, 'message': 'Access restricted to admin and employee users.'})
