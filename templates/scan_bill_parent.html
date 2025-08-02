@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (video.srcObject && !scanning) {
                             console.log('Restarting scanning after success...'); // Debug log
                             scanning = true; // Set flag before starting
-                            requestAnimationFrame(scanFrame);
+                            optimizedScanQRCode();
                         } else {
                             console.log('Cannot restart - video:', !!video.srcObject, 'scanning:', scanning); // Debug log
                         }
@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (video.srcObject && !scanning) {
                         console.log('Restarting scanning...'); // Debug log
                         scanning = true; // Set flag before starting
-                        requestAnimationFrame(scanFrame);
+                        optimizedScanQRCode();
                     } else {
                         console.log('Cannot restart - video:', !!video.srcObject, 'scanning:', scanning); // Debug log
                     }
@@ -724,7 +724,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
                 if (video.srcObject && !scanning) {
                     scanning = true;
-                    requestAnimationFrame(scanFrame);
+                    optimizedScanQRCode();
                 }
             }, 500); // Super fast restart after network error
         });
