@@ -1827,24 +1827,31 @@ def process_bill_parent_scan():
                 linked_to_other_bill = link.bill_id
                 app.logger.info(f'Link {i}: Already linked to different bill {linked_to_other_bill}!')
         
+        app.logger.info(f'About to check conditions...')
+        
         if already_linked_to_bill:
+            app.logger.info(f'Returning error: already linked to this bill')
             return jsonify({'success': False, 'message': 'This parent bag is already linked to this bill.'})
         
         if linked_to_other_bill:
+            app.logger.info(f'Returning error: already linked to bill {linked_to_other_bill}')
             return jsonify({'success': False, 'message': f'This parent bag is already linked to bill ID {linked_to_other_bill}.'})
         
         app.logger.info(f'Final results - Bill bag count: {bill_bag_count}, Already linked: {already_linked_to_bill}, Other bill: {linked_to_other_bill}')
         
         if bill_bag_count >= bill.parent_bag_count:
+            app.logger.info(f'Returning error: bill capacity exceeded {bill_bag_count} >= {bill.parent_bag_count}')
             return jsonify({'success': False, 'message': f'Bill already has maximum {bill.parent_bag_count} parent bags.'})
         
         # Create bill-bag link
+        app.logger.info(f'Creating new bill-bag link...')
         bill_bag = BillBag()
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
         db.session.add(bill_bag)
         db.session.commit()
+        app.logger.info(f'Database commit successful')
         
         app.logger.info(f'Successfully linked parent bag {qr_id} to bill {bill.bill_id}')
         
