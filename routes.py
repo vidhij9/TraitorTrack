@@ -1814,13 +1814,18 @@ def process_bill_parent_scan():
         already_linked_to_bill = False
         linked_to_other_bill = None
         
-        for link in existing_links:
+        app.logger.info(f'Processing {len(existing_links)} existing links...')
+        for i, link in enumerate(existing_links):
+            app.logger.info(f'Link {i}: bill_id={link.bill_id}, bag_id={link.bag_id}, target_bill={bill.id}, target_bag={parent_bag.id}')
             if link.bill_id == bill.id:
                 bill_bag_count += 1
+                app.logger.info(f'Link {i}: Counting towards bill {bill.id}, new count: {bill_bag_count}')
                 if link.bag_id == parent_bag.id:
                     already_linked_to_bill = True
+                    app.logger.info(f'Link {i}: Already linked to this bill!')
             elif link.bag_id == parent_bag.id:
                 linked_to_other_bill = link.bill_id
+                app.logger.info(f'Link {i}: Already linked to different bill {linked_to_other_bill}!')
         
         if already_linked_to_bill:
             return jsonify({'success': False, 'message': 'This parent bag is already linked to this bill.'})
@@ -1828,7 +1833,7 @@ def process_bill_parent_scan():
         if linked_to_other_bill:
             return jsonify({'success': False, 'message': f'This parent bag is already linked to bill ID {linked_to_other_bill}.'})
         
-        app.logger.info(f'Bill bag count: {bill_bag_count}, Already linked: {already_linked_to_bill}, Other bill: {linked_to_other_bill}')
+        app.logger.info(f'Final results - Bill bag count: {bill_bag_count}, Already linked: {already_linked_to_bill}, Other bill: {linked_to_other_bill}')
         
         if bill_bag_count >= bill.parent_bag_count:
             return jsonify({'success': False, 'message': f'Bill already has maximum {bill.parent_bag_count} parent bags.'})
