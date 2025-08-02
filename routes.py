@@ -31,7 +31,7 @@ def validate_qr_code(qr_id):
 from sqlalchemy import desc, func, and_, or_
 from datetime import datetime, timedelta
 
-from app_clean import app, db, limiter
+from app_clean import app, db, limiter, csrf
 from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus
 from forms import LoginForm, RegistrationForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
@@ -1664,6 +1664,7 @@ def edit_bill(bill_id):
     return render_template('edit_bill.html', bill=bill)
 
 @app.route('/remove_bag_from_bill', methods=['POST'])
+@csrf.exempt
 @login_required
 def remove_bag_from_bill():
     """Remove a parent bag from a bill - admin and employee access"""
@@ -1757,7 +1758,6 @@ def scan_bill_parent(bill_id):
     
     return render_template('scan_bill_parent.html', form=form, bill=bill, linked_bags=linked_bags)
 
-from app_clean import csrf
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
 @csrf.exempt
