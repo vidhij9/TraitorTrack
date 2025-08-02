@@ -671,11 +671,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Auto-complete check
                 if (data.linked_count >= data.expected_count) {
                     resultContainer.innerHTML = '<i class="fas fa-trophy me-2"></i>All bags added! Bill ready to complete.';
+                    // Stop scanning when all bags are complete
+                    stopCamera();
+                } else {
+                    // Automatically restart scanning for next bag
+                    setTimeout(() => {
+                        resultContainer.className = 'alert alert-info';
+                        resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
+                        // Restart scanning if camera is still active
+                        if (video.srcObject && !scanning) {
+                            startScanning();
+                        }
+                    }, 1500); // Brief pause to show success message
                 }
             } else {
                 // Quick error display
                 resultContainer.className = 'alert alert-danger';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                
+                // Automatically restart scanning after error
+                setTimeout(() => {
+                    resultContainer.className = 'alert alert-info';
+                    resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
+                    // Restart scanning if camera is still active
+                    if (video.srcObject && !scanning) {
+                        startScanning();
+                    }
+                }, 2000); // Longer pause for error messages
             }
         })
         .catch(error => {
