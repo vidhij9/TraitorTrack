@@ -675,6 +675,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Stop scanning when all bags are complete
                     stopCamera();
                 } else {
+                    // Reset processing flag immediately on success
+                    processingQR = false;
+                    lastDetectedCode = null;
+                    
                     // Automatically restart scanning for next bag
                     setTimeout(() => {
                         console.log('Auto-restarting after success...'); // Debug log
@@ -691,6 +695,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 300); // Super fast restart after success
                 }
             } else {
+                // Reset processing flag immediately on error
+                processingQR = false;
+                lastDetectedCode = null;
+                
                 // Quick error display
                 resultContainer.className = 'alert alert-danger';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
@@ -714,6 +722,11 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Network error:', error); // Debug log
+            
+            // Reset processing flag immediately on network error
+            processingQR = false;
+            lastDetectedCode = null;
+            
             resultContainer.className = 'alert alert-danger';
             resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Network error. Please try again.';
             
