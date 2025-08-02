@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else {
                             console.log('Cannot restart - video:', !!video.srcObject, 'scanning:', scanning); // Debug log
                         }
-                    }, 1500); // Brief pause to show success message
+                    }, 300); // Super fast restart after success
                 }
             } else {
                 // Quick error display
@@ -709,7 +709,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         console.log('Cannot restart - video:', !!video.srcObject, 'scanning:', scanning); // Debug log
                     }
-                }, 2000); // Longer pause for error messages
+                }, 400); // Super fast restart after error
             }
         })
         .catch(error => {
@@ -726,7 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     scanning = true;
                     requestAnimationFrame(scanFrame);
                 }
-            }, 3000);
+            }, 500); // Super fast restart after network error
         });
     }
 });
