@@ -201,6 +201,12 @@
 .progress-line-completed {
     background: #28a745;
 }
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
 </style>
 {% endblock %}
 
@@ -583,8 +589,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (code && code.data && code.data.length >= 2) {
                     let qrData = code.data.trim();
                     
-                    // Process unique codes with cooldown to prevent duplicates
-                    if (lastDetectedCode !== qrData && (now - lastProcessTime > 1000)) {
+                    // Process unique codes with short cooldown to prevent duplicates
+                    if (lastDetectedCode !== qrData && (now - lastProcessTime > 300)) {
                         lastDetectedCode = qrData;
                         lastProcessTime = now;
                         
@@ -721,42 +727,48 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Stop scanning when all bags are complete
                     stopCamera();
                 } else {
-                    // Automatically restart scanning for next bag
+                    // Show success message longer, then restart scanning
                     setTimeout(() => {
                         console.log('Ready for next scan after success...'); // Debug log
                         resultContainer.className = 'alert alert-info';
                         resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
                         lastDetectedCode = null; // Clear last detected to allow new scans
-                    }, 300); // Super fast restart after success
+                    }, 2000); // Show success for 2 seconds before restart
                 }
             } else {
-                // Quick error display
+                // Clear error display with highlighting
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+                resultContainer.innerHTML = '<div style="font-weight: bold; font-size: 1.1em;"><i class="fas fa-exclamation-circle me-2"></i>' + data.message + '</div>';
                 console.log('Error message displayed:', data.message); // Debug log
                 
-                // Automatically restart scanning after error
+                // Add visual pulse to draw attention
+                resultContainer.style.animation = 'pulse 0.5s ease-in-out';
+                
+                // Keep error message visible longer, then restart scanning
                 setTimeout(() => {
                     console.log('Ready for next scan after error...'); // Debug log
                     resultContainer.className = 'alert alert-info';
                     resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
                     lastDetectedCode = null; // Clear last detected to allow new scans
-                }, 400); // Super fast restart after error
+                }, 3000); // Show error for 3 seconds before restart
             }
         })
         .catch(error => {
             console.error('Network error:', error); // Debug log
             
             resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Network error. Please try again.';
+            resultContainer.innerHTML = '<div style="font-weight: bold; font-size: 1.1em;"><i class="fas fa-exclamation-circle me-2"></i>Network error. Please try again.</div>';
             
-            // Auto-restart after network error too
+            // Add visual pulse to draw attention
+            resultContainer.style.animation = 'pulse 0.5s ease-in-out';
+            
+            // Keep network error visible longer, then restart scanning
             setTimeout(() => {
                 console.log('Ready for next scan after network error...'); // Debug log
                 resultContainer.className = 'alert alert-info';
                 resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
                 lastDetectedCode = null; // Clear last detected to allow new scans
-            }, 500); // Super fast restart after network error
+            }, 3000); // Show error for 3 seconds before restart
         });
     }
 });
