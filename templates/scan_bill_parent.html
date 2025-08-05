@@ -519,9 +519,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Lightning-fast scanning function optimized for bill management
     let lastScanTime = 0;
-    let processingQR = false;
+    let lastProcessTime = 0;
     function optimizedScanQRCode() {
-        if (!scanning || processingQR) return;
+        if (!scanning) return;
         
         // High-speed scanning at 15fps for instant response
         const now = Date.now();
@@ -558,10 +558,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (code && code.data && code.data.length >= 2) {
                     let qrData = code.data.trim();
                     
-                    // Process unique codes instantly
-                    if (lastDetectedCode !== qrData) {
+                    // Process unique codes with cooldown to prevent duplicates
+                    if (lastDetectedCode !== qrData && (now - lastProcessTime > 1000)) {
                         lastDetectedCode = qrData;
-                        processingQR = true;
+                        lastProcessTime = now;
                         
                         // Instant visual feedback
                         drawInstantDetectionHighlight(code, startX, startY);
@@ -575,8 +575,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Process immediately
                         processQrCode(qrData);
-                        
-                        // Don't reset here - let the fetch response handler manage the flags
                     }
                 }
             } catch (error) {
@@ -671,30 +669,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Stop scanning when all bags are complete
                     stopCamera();
                 } else {
-                    // Reset processing flag immediately on success
-                    processingQR = false;
-                    lastDetectedCode = null;
-                    
                     // Automatically restart scanning for next bag
                     setTimeout(() => {
-                        console.log('Auto-restarting after success...'); // Debug log
+                        console.log('Ready for next scan after success...'); // Debug log
                         resultContainer.className = 'alert alert-info';
                         resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
-                        // Restart scanning if camera is still active
-                        if (video.srcObject && !scanning) {
-                            console.log('Restarting scanning after success...'); // Debug log
-                            scanning = true; // Set flag before starting
-                            optimizedScanQRCode();
-                        } else {
-                            console.log('Cannot restart - video:', !!video.srcObject, 'scanning:', scanning); // Debug log
-                        }
+                        lastDetectedCode = null; // Clear last detected to allow new scans
                     }, 300); // Super fast restart after success
                 }
             } else {
-                // Reset processing flag immediately on error
-                processingQR = false;
-                lastDetectedCode = null;
-                
                 // Quick error display
                 resultContainer.className = 'alert alert-danger';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
@@ -702,39 +685,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Automatically restart scanning after error
                 setTimeout(() => {
-                    console.log('Auto-restarting after error...'); // Debug log
+                    console.log('Ready for next scan after error...'); // Debug log
                     resultContainer.className = 'alert alert-info';
                     resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
-                    // Restart scanning if camera is still active
-                    if (video.srcObject && !scanning) {
-                        console.log('Restarting scanning...'); // Debug log
-                        scanning = true; // Set flag before starting
-                        optimizedScanQRCode();
-                    } else {
-                        console.log('Cannot restart - video:', !!video.srcObject, 'scanning:', scanning); // Debug log
-                    }
+                    lastDetectedCode = null; // Clear last detected to allow new scans
                 }, 400); // Super fast restart after error
             }
         })
         .catch(error => {
             console.error('Network error:', error); // Debug log
             
-            // Reset processing flag immediately on network error
-            processingQR = false;
-            lastDetectedCode = null;
-            
             resultContainer.className = 'alert alert-danger';
             resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Network error. Please try again.';
             
             // Auto-restart after network error too
             setTimeout(() => {
-                console.log('Auto-restarting after network error...'); // Debug log
+                console.log('Ready for next scan after network error...'); // Debug log
                 resultContainer.className = 'alert alert-info';
                 resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Ready to scan next bag...';
-                if (video.srcObject && !scanning) {
-                    scanning = true;
-                    optimizedScanQRCode();
-                }
+                lastDetectedCode = null; // Clear last detected to allow new scans
             }, 500); // Super fast restart after network error
         });
     }
