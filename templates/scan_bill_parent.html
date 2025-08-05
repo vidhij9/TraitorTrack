@@ -429,16 +429,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            // Apple-like camera constraints for optimal QR scanning
+            // Optimized camera constraints for dim lights and poor quality cameras
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 1920, min: 640 },
-                    height: { ideal: 1080, min: 480 },
-                    frameRate: { ideal: 30, min: 15 },
+                    width: { ideal: 1920, min: 480 },
+                    height: { ideal: 1080, min: 320 },
+                    frameRate: { ideal: 30, min: 10 },
                     focusMode: 'continuous',
                     exposureMode: 'continuous',
-                    whiteBalanceMode: 'continuous'
+                    whiteBalanceMode: 'continuous',
+                    // Enhanced for low-light conditions
+                    brightness: { ideal: 0.8 },
+                    contrast: { ideal: 1.2 },
+                    saturation: { ideal: 0.8 }
                 }
             };
             
@@ -550,10 +554,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const imageData = canvasContext.getImageData(startX, startY, width, height);
                 
-                // Single fast detection attempt - optimized for speed
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                // Multi-pass detection optimized for poor conditions
+                let code = null;
+                
+                // First attempt: Standard detection
+                code = jsQR(imageData.data, imageData.width, imageData.height, {
                     inversionAttempts: "attemptBoth"
                 });
+                
+                // Second attempt: Enhanced for low light (if first failed)
+                if (!code) {
+                    // Enhance image contrast and brightness for better detection
+                    const enhancedData = enhanceImageForQR(imageData);
+                    code = jsQR(enhancedData.data, enhancedData.width, enhancedData.height, {
+                        inversionAttempts: "attemptBoth"
+                    });
+                }
+                
+                // Third attempt: Full scan area (if still no detection)
+                if (!code && now - lastProcessTime > 200) { // Only do full scan every 200ms
+                    const fullImageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+                    const enhancedFullData = enhanceImageForQR(fullImageData);
+                    code = jsQR(enhancedFullData.data, enhancedFullData.width, enhancedFullData.height, {
+                        inversionAttempts: "attemptBoth"
+                    });
+                }
                 
                 if (code && code.data && code.data.length >= 2) {
                     let qrData = code.data.trim();
@@ -603,6 +628,33 @@ document.addEventListener('DOMContentLoaded', function() {
     function drawMinimalScanningInterface() {
         // Skip drawing interface during scanning for better performance
         // Only show visual feedback when QR is detected
+    }
+    
+    // Image enhancement function for poor lighting conditions
+    function enhanceImageForQR(imageData) {
+        const data = new Uint8ClampedArray(imageData.data);
+        const len = data.length;
+        
+        // Enhanced contrast and brightness for QR detection
+        for (let i = 0; i < len; i += 4) {
+            // Get grayscale value
+            const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+            
+            // Apply contrast and brightness enhancement
+            let enhanced = ((gray / 255 - 0.5) * 1.8 + 0.5) * 255; // Increase contrast
+            enhanced = Math.min(255, Math.max(0, enhanced + 30)); // Add brightness
+            
+            // Apply threshold for better black/white separation
+            enhanced = enhanced > 120 ? 255 : 0;
+            
+            // Set RGB channels to enhanced value
+            data[i] = enhanced;     // R
+            data[i + 1] = enhanced; // G
+            data[i + 2] = enhanced; // B
+            // Keep alpha unchanged
+        }
+        
+        return new ImageData(data, imageData.width, imageData.height);
     }
     
     function drawInstantDetectionHighlight(code, offsetX, offsetY) {

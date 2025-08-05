@@ -1796,7 +1796,7 @@ def process_bill_parent_scan():
         
         if not parent_bag:
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
-            return jsonify({'success': False, 'message': f'Parent bag "{qr_id}" is not registered in the system. Please verify the QR code or register this bag first.'})
+            return jsonify({'success': False, 'message': f'❌ Parent bag "{qr_id}" is not registered yet. Please register this bag first or verify the QR code is correct.'})
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
         
@@ -1832,11 +1832,13 @@ def process_bill_parent_scan():
         
         if already_linked_to_bill:
             app.logger.info(f'Returning error: already linked to this bill')
-            return jsonify({'success': False, 'message': 'This parent bag is already linked to this bill.'})
+            return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill. It was scanned before.'})
         
         if linked_to_other_bill:
+            other_bill = Bill.query.get(linked_to_other_bill)
+            other_bill_id = other_bill.bill_id if other_bill else linked_to_other_bill
             app.logger.info(f'Returning error: already linked to bill {linked_to_other_bill}')
-            return jsonify({'success': False, 'message': f'This parent bag is already linked to bill ID {linked_to_other_bill}.'})
+            return jsonify({'success': False, 'message': f'⚠️ Parent bag "{qr_id}" is already linked to different bill "{other_bill_id}". Remove it from that bill first.'})
         
         app.logger.info(f'Final results - Bill bag count: {bill_bag_count}, Already linked: {already_linked_to_bill}, Other bill: {linked_to_other_bill}')
         
