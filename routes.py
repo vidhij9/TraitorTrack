@@ -916,16 +916,17 @@ def scan_parent_bag():
                 'type': 'parent',
                 'qr_id': qr_id,
                 'bag_name': parent_bag.name,
-                'timestamp': scan.timestamp.isoformat()
+                'timestamp': datetime.utcnow().isoformat()
             }
             # Also store the current parent QR for child scanner
             session['current_parent_qr'] = qr_id
             
-            # Instant response
+            # Instant response with redirect to child scanning
             return jsonify({
                 'success': True,
                 'parent_qr': qr_id,
-                'message': f'Parent bag {qr_id} scanned successfully!'
+                'message': f'Parent bag {qr_id} scanned successfully! Now scan child bags.',
+                'redirect': url_for('scan_child', s=request.args.get('s'))
             })
             
         except Exception as e:
@@ -987,8 +988,8 @@ def scan_parent_bag():
                 # Also store the current parent QR for child scanner
                 session['current_parent_qr'] = qr_id
                 
-                flash('Parent bag scanned successfully!', 'success')
-                return redirect(url_for('scan_complete', s=request.args.get('s')))
+                flash('Parent bag scanned successfully! Now scan child bags to link them.', 'success')
+                return redirect(url_for('scan_child', s=request.args.get('s')))
                 
             except Exception as e:
                 db.session.rollback()

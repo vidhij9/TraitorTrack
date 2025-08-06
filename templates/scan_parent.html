@@ -805,14 +805,19 @@
                 if (data.success) {
                     // Instant success feedback
                     resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Parent bag added! Redirecting...';
+                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Parent bag added! Redirecting to child scanning...';
                     
                     // Stop camera immediately
                     stopCamera();
                     
-                    // Ultra-fast redirect (100ms)
+                    // Ultra-fast redirect using server's redirect URL (100ms)
                     setTimeout(() => {
-                        window.location.href = '{{ url_for("scan_child", s=request.args.get("s")) }}';
+                        if (data.redirect) {
+                            window.location.href = data.redirect;
+                        } else {
+                            // Fallback if no redirect provided
+                            window.location.href = '{{ url_for("scan_child", s=request.args.get("s")) }}';
+                        }
                     }, 100);
                 } else {
                     processingRequest = false; // Reset flag on error
