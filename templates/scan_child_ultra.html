@@ -284,7 +284,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/ultra-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/basic-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let ultraScanner = null;
@@ -426,7 +426,7 @@
         startCameraBtn.addEventListener('click', async function() {
             try {
                 if (!ultraScanner) {
-                    initializeUltraScanner();
+                    initializeScanner();
                 }
                 
                 await ultraScanner.start();
@@ -495,24 +495,24 @@
         });
         
         // Initialize scanner function
-        function initializeUltraScanner() {
+        function initializeScanner() {
             if (!ultraScanner) {
-                ultraScanner = new UltraQRScanner('ultra-child-scanner-container', {
-                    fps: 60,
-                    qrbox: { width: 400, height: 400 },
-                    aspectRatio: 1.0
-                });
+                console.log('Creating BasicQRScanner for child scanning...');
+                ultraScanner = new BasicQRScanner('ultra-child-scanner-container');
                 ultraScanner.setSuccessCallback(handleChildScanSuccess);
+                console.log('Child scanner initialized');
             }
         }
         
         // Check scanner availability and auto-start
         function initializeScannerInterface() {
-            if (typeof UltraQRScanner !== 'undefined') {
-                console.log('UltraQRScanner loaded, initializing child scanner...');
+            console.log('Checking for BasicQRScanner (child)...');
+            
+            if (typeof BasicQRScanner !== 'undefined' && typeof Html5Qrcode !== 'undefined') {
+                console.log('BasicQRScanner loaded, initializing child scanner...');
                 
                 // Initialize scanner
-                initializeUltraScanner();
+                initializeScanner();
                 
                 showMessage('info', 'Scanner ready. Starting camera automatically...');
                 
@@ -521,17 +521,21 @@
                 
                 // Auto-start camera after a brief delay
                 setTimeout(() => {
+                    console.log('Auto-starting child scanner camera...');
                     startCameraBtn.click();
-                }, 1000);
+                }, 1500);
                 
             } else {
-                console.log('UltraQRScanner not yet loaded for child scanner, retrying...');
+                console.log('Libraries not yet loaded for child scanner, retrying...');
                 setTimeout(initializeScannerInterface, 500);
             }
         }
         
         // Initialize scanner interface
-        initializeScannerInterface();
+        setTimeout(() => {
+            console.log('Starting child scanner interface initialization...');
+            initializeScannerInterface();
+        }, 1000);
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};

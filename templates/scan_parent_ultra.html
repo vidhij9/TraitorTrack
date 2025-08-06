@@ -218,7 +218,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/simple-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/basic-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -290,13 +290,10 @@
         // Initialize scanner function
         function initializeScanner() {
             if (!scanner) {
-                console.log('Creating SimpleQRScanner...');
-                scanner = new SimpleQRScanner('ultra-scanner-container', {
-                    fps: 30,
-                    qrbox: { width: 300, height: 300 }
-                });
+                console.log('Creating BasicQRScanner...');
+                scanner = new BasicQRScanner('ultra-scanner-container');
                 scanner.setSuccessCallback(handleScanSuccess);
-                console.log('Scanner initialized');
+                console.log('BasicQRScanner initialized');
             }
         }
         
@@ -358,8 +355,10 @@
         
         // Check scanner availability and auto-start
         function initializeScannerInterface() {
-            if (typeof SimpleQRScanner !== 'undefined') {
-                console.log('SimpleQRScanner loaded, initializing...');
+            console.log('Checking for BasicQRScanner...');
+            
+            if (typeof BasicQRScanner !== 'undefined' && typeof Html5Qrcode !== 'undefined') {
+                console.log('BasicQRScanner and Html5Qrcode loaded, initializing...');
                 
                 // Initialize scanner
                 initializeScanner();
@@ -375,16 +374,19 @@
                 setTimeout(() => {
                     console.log('Auto-starting camera...');
                     startCameraBtn.click();
-                }, 1000);
+                }, 1500);
                 
             } else {
-                console.log('SimpleQRScanner not yet loaded, retrying...');
+                console.log('Libraries not yet loaded, retrying in 500ms...');
                 setTimeout(initializeScannerInterface, 500);
             }
         }
         
-        // Initialize scanner interface
-        setTimeout(initializeScannerInterface, 500);
+        // Initialize scanner interface with delay to ensure DOM is ready
+        setTimeout(() => {
+            console.log('Starting scanner interface initialization...');
+            initializeScannerInterface();
+        }, 1000);
         
         // Add enhancement indicator
         setTimeout(() => {
