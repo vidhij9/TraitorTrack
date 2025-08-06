@@ -409,9 +409,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Start camera function (same as parent scanner with child-specific processing)
+    // Start camera function with persistent permission management
     async function startCamera() {
-        console.log('Starting Apple-like camera scanner...');
+        console.log('Starting camera with persistent permissions for child scanning...');
         
         // Clear any previous error messages
         resultContainer.className = 'alert alert-info';
@@ -425,12 +425,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            // Get available video devices for optimal selection
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            console.log('Available cameras:', videoDevices.length);
+            // Initialize camera permission manager
+            const cameraManager = new window.CameraPermissionManager();
             
-            // Apple-like camera constraints for optimal QR scanning
+            // Start permission monitoring
+            cameraManager.startPermissionMonitoring();
+            
+            // Enhanced camera constraints for QR scanning
             const constraints = {
                 video: {
                     facingMode: 'environment',
@@ -450,8 +451,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             };
             
-            console.log('Requesting camera with optimal constraints...');
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log('Requesting camera with persistent permission handling...');
+            stream = await cameraManager.requestCameraAccess(constraints);
             
             // Apply additional track constraints for better focus
             const videoTrack = stream.getVideoTracks()[0];
@@ -528,30 +529,14 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Camera initialization failed:', error);
             resultContainer.className = 'alert alert-danger';
             
-            let errorMessage = 'Camera access failed. ';
-            if (error.name === 'NotAllowedError') {
-                errorMessage += 'Please allow camera permissions and refresh the page.';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage += 'No camera found. Please check your device.';
-            } else if (error.name === 'OverconstrainedError') {
-                errorMessage += 'Camera settings not supported. Trying basic mode...';
-                // Fallback to basic constraints
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    video.srcObject = stream;
-                    await video.play();
-                    startCameraBtn.disabled = true;
-                    stopCameraBtn.disabled = false;
-                    scanning = true;
-                    optimizedScanQRCode();
-                    resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active (basic mode)';
-                    return;
-                } catch (fallbackError) {
-                    errorMessage = 'Camera initialization completely failed.';
-                }
-            } else {
-                errorMessage += 'Please check permissions or try refreshing.';
+            // Use camera manager for user-friendly error messages
+            const cameraManager = new window.CameraPermissionManager();
+            let errorMessage = cameraManager.getErrorMessage(error);
+            
+            // Add mobile-specific instructions if needed
+            if (error.message === 'PERMISSION_DENIED' || error.name === 'NotAllowedError') {
+                const mobileInstructions = cameraManager.showMobileInstructions();
+                errorMessage += `<br><small class="text-muted mt-2 d-block">${mobileInstructions}</small>`;
             }
             
             resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + errorMessage;

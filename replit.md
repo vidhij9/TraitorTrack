@@ -5,6 +5,7 @@ TraceTrack is a comprehensive supply chain traceability platform designed for ag
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
+Camera permissions: Once granted on mobile devices, never ask again - implement persistent permission handling.
 
 ## System Architecture
 
@@ -20,7 +21,7 @@ Preferred communication style: Simple, everyday language.
 - **UI Framework**: Bootstrap 5 with a responsive, mobile-first design.
 - **QR Code Scanning**: HTML5-QRCode library for client-side scanning.
 - **Theming**: Agricultural-themed CSS with dark mode support.
-- **UI/UX Decisions**: Consistent design across all scanning interfaces (Apple-like camera initialization, unified QR scanner overlay, standardized card structures, buttons, and manual entry forms). Optimized camera performance with continuous focus, exposure, and white balance, 30fps scanning, and haptic feedback. Unified mobile and desktop UI for compact design across all screen sizes.
+- **UI/UX Decisions**: Consistent design across all scanning interfaces (Apple-like camera initialization, unified QR scanner overlay, standardized card structures, buttons, and manual entry forms). Optimized camera performance with continuous focus, exposure, and white balance, 30fps scanning, and haptic feedback. Unified mobile and desktop UI for compact design across all screen sizes. Persistent camera permissions - once granted on mobile devices, users are never prompted again.
 
 ### Database Schema
 - **Users**: Authentication with hierarchical roles (admin, biller, dispatcher).
