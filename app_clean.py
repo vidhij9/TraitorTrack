@@ -228,11 +228,7 @@ def handle_csrf_error(e):
 
 # Configure login
 # Flask-Login configuration
-try:
-    login_manager.login_view = 'login'
-except Exception:
-    # Handle potential Flask-Login configuration issues
-    pass
+login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 
