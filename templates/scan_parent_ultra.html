@@ -288,6 +288,18 @@
             form.submit();
         }
         
+        // Initialize scanner function
+        function initializeUltraScanner() {
+            if (!ultraScanner) {
+                ultraScanner = new UltraQRScanner('ultra-scanner-container', {
+                    fps: 60,
+                    qrbox: { width: 400, height: 400 },
+                    aspectRatio: 1.0
+                });
+                ultraScanner.setSuccessCallback(handleScanSuccess);
+            }
+        }
+        
         // Start camera event
         startCameraBtn.addEventListener('click', async function() {
             try {
@@ -295,6 +307,7 @@
                     initializeUltraScanner();
                 }
                 
+                console.log('Starting ultra scanner...');
                 await ultraScanner.start();
                 
                 // Update button states
@@ -343,16 +356,28 @@
             }
         });
         
-        // Check scanner availability and show ready state
+        // Check scanner availability and auto-start
         function initializeScannerInterface() {
             if (typeof UltraQRScanner !== 'undefined') {
+                console.log('UltraQRScanner loaded, initializing...');
+                
+                // Initialize scanner
+                initializeUltraScanner();
+                
                 resultContainer.className = 'alert alert-info';
-                resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scanner ready. Click "Start Camera" to begin scanning.';
+                resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scanner ready. Starting camera automatically...';
                 resultContainer.style.display = 'block';
                 
                 // Enable the start button
                 startCameraBtn.disabled = false;
+                
+                // Auto-start camera after a brief delay
+                setTimeout(() => {
+                    startCameraBtn.click();
+                }, 1000);
+                
             } else {
+                console.log('UltraQRScanner not yet loaded, retrying...');
                 setTimeout(initializeScannerInterface, 500);
             }
         }

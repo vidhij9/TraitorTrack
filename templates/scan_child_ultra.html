@@ -495,14 +495,38 @@
             }
         });
         
-        // Check scanner availability and show ready state
+        // Initialize scanner function
+        function initializeUltraScanner() {
+            if (!ultraScanner) {
+                ultraScanner = new UltraQRScanner('ultra-child-scanner-container', {
+                    fps: 60,
+                    qrbox: { width: 400, height: 400 },
+                    aspectRatio: 1.0
+                });
+                ultraScanner.setSuccessCallback(handleChildScanSuccess);
+            }
+        }
+        
+        // Check scanner availability and auto-start
         function initializeScannerInterface() {
             if (typeof UltraQRScanner !== 'undefined') {
-                showMessage('info', 'Scanner ready. Click "Start Camera" to begin scanning.');
+                console.log('UltraQRScanner loaded, initializing child scanner...');
+                
+                // Initialize scanner
+                initializeUltraScanner();
+                
+                showMessage('info', 'Scanner ready. Starting camera automatically...');
                 
                 // Enable the start button
                 startCameraBtn.disabled = false;
+                
+                // Auto-start camera after a brief delay
+                setTimeout(() => {
+                    startCameraBtn.click();
+                }, 1000);
+                
             } else {
+                console.log('UltraQRScanner not yet loaded for child scanner, retrying...');
                 setTimeout(initializeScannerInterface, 500);
             }
         }
