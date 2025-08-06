@@ -2122,11 +2122,21 @@ def api_scanned_children():
 
 @app.route('/api/remove-child-link', methods=['POST'])
 @login_required
+@csrf.exempt  # Exempt from CSRF protection for API endpoint
 def api_remove_child_link():
     """Remove child bag from parent (unlink only, don't delete bag)"""
     try:
         # Skip CSRF validation for API endpoints (using session validation instead)
-        child_bag_id = request.form.get('child_bag_id') or request.json.get('child_bag_id') if request.is_json else request.form.get('child_bag_id')
+        if request.is_json:
+            child_bag_id = request.json.get('child_bag_id') if request.json else None
+        else:
+            child_bag_id = request.form.get('child_bag_id')
+        
+        if not child_bag_id:
+            return jsonify({
+                'success': False,
+                'message': 'Child bag ID is required'
+            }), 400
         
         try:
             child_bag_id = int(child_bag_id)
