@@ -121,6 +121,13 @@
                             <i class="fas fa-plus me-1"></i>Add
                         </button>
                     </form>
+                    
+                    <div class="mt-2">
+                        <label class="form-check">
+                            <input type="checkbox" class="form-check-input" id="auto-add-checkbox" checked>
+                            <span class="form-check-label small">Auto-add child bags (faster scanning)</span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -574,20 +581,43 @@ document.addEventListener('DOMContentLoaded', function() {
                         navigator.vibrate(25); // Shorter vibration
                     }
                     
-                    // Process unique codes with instant feedback
+                    // Process unique codes with auto-add or manual mode
                     if (lastDetectedCode !== qrData) {
                         lastDetectedCode = qrData;
-                        console.log('Child QR processed:', qrData);
+                        console.log('Child QR detected:', qrData);
                         
-                        // Stop scanning immediately
-                        scanning = false;
+                        // Check auto-add setting
+                        const autoAddCheckbox = document.getElementById('auto-add-checkbox');
+                        const autoAddEnabled = autoAddCheckbox ? autoAddCheckbox.checked : true; // Default to auto-add
                         
-                        // Instant visual confirmation
-                        resultContainer.className = 'alert alert-success';
-                        resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Processing...';
-                        
-                        // Process with minimal delay
-                        processChildQrCodeInstant(qrData);
+                        if (autoAddEnabled) {
+                            // AUTOMATIC MODE - Process immediately
+                            console.log('Auto-adding child bag:', qrData);
+                            
+                            // Stop scanning temporarily
+                            scanning = false;
+                            
+                            resultContainer.className = 'alert alert-success';
+                            resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Auto-adding child bag...';
+                            
+                            // Process immediately
+                            processChildQrCodeInstant(qrData);
+                        } else {
+                            // MANUAL MODE - Fill form and wait for user
+                            console.log('Manual mode - filling form for:', qrData);
+                            
+                            const manualInput = document.getElementById('manual-qr-input');
+                            if (manualInput) {
+                                manualInput.value = qrData;
+                                manualInput.focus();
+                            }
+                            
+                            resultContainer.className = 'alert alert-warning';
+                            resultContainer.innerHTML = '<i class="fas fa-hand-pointer me-2"></i>QR code detected! Click "Add" to confirm.';
+                            
+                            // Continue scanning for more codes
+                            lastDetectedCode = null; // Allow same code to be detected again
+                        }
                     }
                 }
             } catch (error) {
@@ -868,18 +898,33 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function removeBag(qrId, bagId) {
         if (confirm(`Remove ${qrId} from this parent bag?`)) {
+            // Get fresh CSRF token from the form
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            
             fetch('/api/remove-child-link', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `child_bag_id=${bagId}&csrf_token={{ csrf_token() }}`
+                headers: { 
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `child_bag_id=${bagId}&csrf_token=${encodeURIComponent(csrfToken)}`
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    console.log('Child bag removed successfully');
                     loadScannedBags();
+                    // Update count immediately
+                    scannedCount--;
+                    progressText.textContent = scannedCount;
                 } else {
+                    console.error('Remove failed:', data.message);
                     alert('Failed to remove: ' + data.message);
                 }
+            })
+            .catch(error => {
+                console.error('Remove error:', error);
+                alert('Failed to remove child bag. Please try again.');
             });
         }
     }
