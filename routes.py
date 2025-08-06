@@ -2120,6 +2120,59 @@ def api_scanned_children():
             'message': 'Error retrieving scanned children'
         }), 500
 
+@app.route('/api/remove-child-link', methods=['POST'])
+@login_required
+def api_remove_child_link():
+    """Remove child bag from parent (unlink only, don't delete bag)"""
+    try:
+        child_bag_id = request.form.get('child_bag_id', type=int)
+        if not child_bag_id:
+            return jsonify({
+                'success': False,
+                'message': 'Child bag ID is required'
+            })
+
+        # Find the child bag
+        child_bag = Bag.query.get(child_bag_id)
+        if not child_bag:
+            return jsonify({
+                'success': False,
+                'message': 'Child bag not found'
+            })
+
+        # Find and remove the link
+        link = Link.query.filter_by(child_bag_id=child_bag_id).first()
+        if not link:
+            return jsonify({
+                'success': False,
+                'message': 'Link not found'
+            })
+
+        # Remove the link but keep the child bag
+        db.session.delete(link)
+        
+        # Remove associated scans for this specific link
+        scans = Scan.query.filter_by(child_bag_id=child_bag_id).all()
+        for scan in scans:
+            db.session.delete(scan)
+        
+        db.session.commit()
+        
+        app.logger.info(f"Removed link for child bag {child_bag.qr_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Child bag {child_bag.qr_id} unlinked successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error removing child link: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': 'Error removing child bag link'
+        })
+
 @app.route('/api/delete-child-scan', methods=['POST'])
 @login_required
 def api_delete_child_scan():

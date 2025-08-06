@@ -497,14 +497,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Unified scanning function (same as parent scanner)
+    // Ultra-optimized scanning function for lightning-fast response
     let lastScanTime = 0;
     function optimizedScanQRCode() {
         if (!scanning) return;
         
-        // Apple-like smooth scanning at 10fps for lag-free camera movement
+        // High-performance scanning at 20fps for instant response
         const now = Date.now();
-        if (now - lastScanTime < 100) { // 100ms = 10fps
+        if (now - lastScanTime < 50) { // 50ms = 20fps for ultra-fast detection
             requestAnimationFrame(optimizedScanQRCode);
             return;
         }
@@ -710,7 +710,8 @@ document.addEventListener('DOMContentLoaded', function() {
         resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Linking child bag...';
         resultContainer.style.display = 'block';
         
-        // Send optimized request
+        // Send ultra-optimized request with minimal payload
+        const startTime = performance.now();
         fetch('{{ url_for("scan_child", s=request.args.get("s")) }}', {
             method: 'POST',
             headers: {
@@ -724,26 +725,27 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            console.log('Server response:', data);
+            const endTime = performance.now();
+            console.log(`Server response in ${(endTime - startTime).toFixed(0)}ms:`, data);
             if (data.success) {
-                // Instant success feedback
+                // Lightning-fast success feedback
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Child bag linked! Continuing scan...';
+                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Child bag linked! Ready for next...';
                 
-                // Update count
+                // Update count instantly
                 scannedCount++;
                 progressText.textContent = scannedCount;
                 
-                // Reload scanned bags list
-                loadScannedBags();
+                // Async reload to not block next scan
+                setTimeout(() => loadScannedBags(), 50);
                 
-                // ULTRA-FAST: Reset processing immediately for next scan
+                // LIGHTNING-FAST: Reset processing immediately for next scan
                 setTimeout(() => {
                     processingRequest = false;
                     lastDetectedCode = null;
                     scanning = true;
                     requestAnimationFrame(optimizedScanQRCode);
-                }, 300); // Reduced from 1500ms to 300ms for instant next scan
+                }, 100); // Ultra-fast 100ms reset for continuous scanning
             } else {
                 processingRequest = false; // Reset flag on error
                 resultContainer.className = 'alert alert-danger';
