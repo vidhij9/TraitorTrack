@@ -864,9 +864,136 @@ def process_promotion_request(request_id):
 @app.route('/scan/parent')
 @login_required
 def scan_parent():
-    """Scan parent bag QR code - Direct scan without location selection"""
+    """Scan parent bag QR code - Ultra scanner enabled"""
+    form = ScanParentForm()
+    # Use ultra scanner template for enhanced scanning
+    return render_template('scan_parent_ultra.html', form=form)
+
+@app.route('/scan/parent/standard')
+@login_required  
+def scan_parent_standard():
+    """Standard parent bag scanning (fallback)"""
     form = ScanParentForm()
     return render_template('scan_parent.html', form=form)
+
+@app.route('/process_parent_scan', methods=['POST'])
+@login_required
+def process_parent_scan():
+    """Process parent bag scan from ultra scanner"""
+    try:
+        qr_code = request.form.get('qr_code', '').strip()
+        
+        if not qr_code:
+            flash('No QR code provided.', 'error')
+            return redirect(url_for('scan_parent'))
+        
+        # Create or get parent bag
+        parent_bag = Bag.query.filter_by(qr_id=qr_code).first()
+        
+        if not parent_bag:
+            # Create new parent bag
+            parent_bag = Bag(
+                qr_id=qr_code,
+                type=BagType.PARENT.value,
+                dispatch_area='Ultra Scanner Area',
+                created_by_user_id=current_user.id
+            )
+            db.session.add(parent_bag)
+        else:
+            # Update to parent type if needed
+            if parent_bag.type != BagType.PARENT.value:
+                parent_bag.type = BagType.PARENT.value
+        
+        db.session.commit()
+        
+        # Store in session for child scanning
+        session['current_parent_qr'] = qr_code
+        session['last_scan'] = {
+            'type': 'parent',
+            'qr_id': qr_code,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        flash(f'Parent bag {qr_code} processed successfully!', 'success')
+        return redirect(url_for('scan_child'))
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Process parent scan error: {str(e)}')
+        flash('Error processing parent scan. Please try again.', 'error')
+        return redirect(url_for('scan_parent'))
+
+@app.route('/process_child_scan', methods=['POST'])
+@login_required
+def process_child_scan():
+    """Process child bag scan from ultra scanner"""
+    try:
+        qr_code = request.form.get('qr_code', '').strip()
+        
+        if not qr_code:
+            return jsonify({'success': False, 'message': 'No QR code provided'})
+        
+        # Get parent from session
+        parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            return jsonify({'success': False, 'message': 'No parent bag selected'})
+        
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+        if not parent_bag:
+            return jsonify({'success': False, 'message': 'Parent bag not found'})
+        
+        # Check if child already exists
+        child_bag = Bag.query.filter_by(qr_id=qr_code).first()
+        
+        if not child_bag:
+            # Create new child bag
+            child_bag = Bag(
+                qr_id=qr_code,
+                type=BagType.CHILD.value,
+                dispatch_area=parent_bag.dispatch_area,
+                created_by_user_id=current_user.id
+            )
+            db.session.add(child_bag)
+            db.session.flush()  # Get the ID
+        
+        # Check if link already exists
+        existing_link = Link.query.filter_by(
+            parent_bag_id=parent_bag.id,
+            child_bag_id=child_bag.id
+        ).first()
+        
+        if existing_link:
+            return jsonify({'success': False, 'message': f'{qr_code} already linked to parent'})
+        
+        # Create link
+        link = Link(
+            parent_bag_id=parent_bag.id,
+            child_bag_id=child_bag.id,
+            created_by_user_id=current_user.id
+        )
+        db.session.add(link)
+        
+        # Create scan record
+        scan = Scan(
+            user_id=current_user.id,
+            bag_id=child_bag.id,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(scan)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Child bag {qr_code} linked successfully!',
+            'child_qr': qr_code,
+            'parent_qr': parent_qr
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Process child scan error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error processing scan'})
 
 @app.route('/scan/parent', methods=['POST'])
 @login_required
@@ -1112,7 +1239,8 @@ def scan_child():
                 # Get count of linked child bags
                 scanned_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
         
-        return render_template('scan_child.html', 
+        # Use ultra scanner template for enhanced child scanning
+        return render_template('scan_child_ultra.html', 
                              form=form, 
                              parent_bag=parent_bag, 
                              scanned_child_count=scanned_child_count)

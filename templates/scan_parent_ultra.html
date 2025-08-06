@@ -1,0 +1,372 @@
+{% extends "layout.html" %}
+
+{% block title %}Scan Parent Bag - Ultra Scanner{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-qrcode me-2"></i>Ultra QR Scanner
+                    </h2>
+                    
+                    <div class="progress-container">
+                        <div class="progress-indicator">
+                            <div class="progress-step active">
+                                <div class="progress-step-circle">1</div>
+                                <div class="progress-step-label">Scan Parent Bag</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">2</div>
+                                <div class="progress-step-label">Scan Child Bags</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">3</div>
+                                <div class="progress-step-label">Complete</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="card-text">Position QR code in the scanning area. Enhanced for tiny QR codes.</p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-magic me-2"></i>
+                        Ultra scanner with AI enhancement, auto-focus, and zoom detection.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card">
+                <div class="card-header bg-primary bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Ultra QR Scanner</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div id="ultra-scanner-container" class="ultra-scanner-main">
+                        <!-- Ultra QR Scanner will be initialized here -->
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div class="scanner-controls">
+                        <button id="start-camera" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i>Start Ultra Scanner
+                        </button>
+                        <button id="stop-camera" class="btn btn-secondary" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop Scanner
+                        </button>
+                    </div>
+                    <div class="scanner-info">
+                        <small class="text-success">
+                            <i class="fas fa-rocket me-1"></i>Enhanced for tiny QR codes
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-success bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Result</h4>
+                </div>
+                <div class="card-body">
+                    <div id="result-container" class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Ready to scan QR codes. Ultra scanner will start automatically.
+                    </div>
+                    
+                    <div id="scan-success" class="scan-result alert alert-success d-none">
+                        <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully</h5>
+                        <p class="mb-3">QR Code: <span id="parent-qr-value" class="fw-bold"></span></p>
+                        <div class="d-grid">
+                            <a id="scan-child-link" href="#" class="btn btn-success">
+                                <i class="fas fa-arrow-right me-2"></i>Continue to Scan Child Bags
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <form id="manual-entry-form" class="mt-4">
+                        <div class="mb-3">
+                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-keyboard"></i>
+                                </span>
+                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., P123-10">
+                                <button type="submit" class="btn btn-primary">Submit</button>
+                            </div>
+                            <div class="form-text">If scanning doesn't work, manually enter the QR code value here.</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<!-- Load QR scanning libraries -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<style>
+/* Ultra QR Scanner Styles */
+.ultra-scanner-main {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Scanner responsiveness */
+@media (max-width: 768px) {
+    .ultra-scanner-main {
+        min-height: 300px;
+    }
+}
+
+.scanner-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.scanner-info {
+    font-size: 0.85rem;
+}
+
+/* Progress indicator styles */
+.progress-container {
+    margin: 20px 0;
+}
+
+.progress-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.progress-step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    border: 2px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #6c757d;
+    margin-bottom: 8px;
+}
+
+.progress-step.active .progress-step-circle {
+    background-color: #198754;
+    border-color: #198754;
+    color: white;
+}
+
+.progress-step-label {
+    font-size: 0.875rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+.progress-step.active .progress-step-label {
+    color: #198754;
+    font-weight: 600;
+}
+
+.progress-line {
+    width: 60px;
+    height: 2px;
+    background-color: #dee2e6;
+    margin: 0 10px;
+    margin-top: -20px;
+}
+
+/* Enhancement indicators */
+.enhancement-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 255, 0, 0.9);
+    color: black;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    z-index: 100;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/ultra-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cameraManager = new CameraPermissionManager();
+        let ultraScanner = null;
+        
+        // Get UI elements
+        const startCameraBtn = document.getElementById('start-camera');
+        const stopCameraBtn = document.getElementById('stop-camera');
+        const scanSuccess = document.getElementById('scan-success');
+        const parentQrValue = document.getElementById('parent-qr-value');
+        const scanChildLink = document.getElementById('scan-child-link');
+        const manualEntryForm = document.getElementById('manual-entry-form');
+        const resultContainer = document.getElementById('result-container');
+        
+        // Initialize Ultra Scanner
+        function initializeUltraScanner() {
+            ultraScanner = new UltraQRScanner('ultra-scanner-container', {
+                fps: 60,
+                qrbox: { width: 300, height: 300 }
+            });
+            
+            ultraScanner.setSuccessCallback((decodedText, decodedResult) => {
+                handleScanSuccess(decodedText);
+            });
+        }
+        
+        // Handle successful scan
+        function handleScanSuccess(qrCode) {
+            console.log('Parent bag scanned:', qrCode);
+            
+            // Update UI
+            parentQrValue.textContent = qrCode;
+            scanChildLink.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
+            
+            // Hide result container and show success
+            resultContainer.style.display = 'none';
+            scanSuccess.classList.remove('d-none');
+            
+            // Submit the form automatically
+            submitParentScan(qrCode);
+        }
+        
+        // Submit parent scan
+        function submitParentScan(qrCode) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/process_parent_scan';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'qr_code';
+            input.value = qrCode;
+            
+            form.appendChild(input);
+            document.body.appendChild(form);
+            
+            // Add CSRF token if available
+            const csrfToken = document.querySelector('meta[name=csrf-token]');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = csrfToken.getAttribute('content');
+                form.appendChild(csrfInput);
+            }
+            
+            form.submit();
+        }
+        
+        // Start camera event
+        startCameraBtn.addEventListener('click', async function() {
+            try {
+                if (!ultraScanner) {
+                    initializeUltraScanner();
+                }
+                
+                await ultraScanner.start();
+                
+                // Update button states
+                startCameraBtn.disabled = true;
+                stopCameraBtn.disabled = false;
+                startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Scanner Active';
+                
+                // Update result container
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Ultra scanner active! Focus on QR codes for instant detection.';
+                resultContainer.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Failed to start scanner:', error);
+                
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera access failed. Please allow camera permissions and try again.';
+                resultContainer.style.display = 'block';
+            }
+        });
+        
+        // Stop camera event
+        stopCameraBtn.addEventListener('click', async function() {
+            if (ultraScanner) {
+                await ultraScanner.stop();
+                
+                // Update button states
+                startCameraBtn.disabled = false;
+                stopCameraBtn.disabled = true;
+                startCameraBtn.innerHTML = '<i class="fas fa-play me-2"></i>Start Ultra Scanner';
+                
+                // Update result container
+                resultContainer.className = 'alert alert-info';
+                resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scanner stopped. Click "Start Ultra Scanner" to begin scanning.';
+                resultContainer.style.display = 'block';
+            }
+        });
+        
+        // Manual entry form
+        manualEntryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const manualQrCode = document.getElementById('manual-qr-code').value.trim();
+            if (manualQrCode) {
+                handleScanSuccess(manualQrCode);
+            }
+        });
+        
+        // Auto-start scanner after initial setup
+        setTimeout(() => {
+            if (typeof UltraQRScanner !== 'undefined') {
+                startCameraBtn.click();
+            } else {
+                console.warn('Ultra scanner not loaded, retrying...');
+                setTimeout(() => {
+                    if (typeof UltraQRScanner !== 'undefined') {
+                        startCameraBtn.click();
+                    }
+                }, 1000);
+            }
+        }, 1500);
+        
+        // Add enhancement indicator
+        setTimeout(() => {
+            const container = document.getElementById('ultra-scanner-container');
+            if (container) {
+                const badge = document.createElement('div');
+                badge.className = 'enhancement-badge';
+                badge.innerHTML = 'AI Enhanced';
+                container.appendChild(badge);
+            }
+        }, 2000);
+    });
+</script>
+{% endblock %}

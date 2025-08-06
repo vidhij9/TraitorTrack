@@ -1,0 +1,520 @@
+{% extends "layout.html" %}
+
+{% block title %}Scan Child Bags - Ultra Scanner{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-qrcode me-2"></i>Ultra Child Scanner
+                    </h2>
+                    
+                    <div class="progress-container">
+                        <div class="progress-indicator">
+                            <div class="progress-step completed">
+                                <div class="progress-step-circle">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <div class="progress-step-label">Scan Parent Bag</div>
+                            </div>
+                            <div class="progress-line completed-line"></div>
+                            <div class="progress-step active">
+                                <div class="progress-step-circle">2</div>
+                                <div class="progress-step-label">Scan Child Bags</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">3</div>
+                                <div class="progress-step-label">Complete</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if parent_bag %}
+                    <p class="card-text">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Scanned <span id="progress-text" class="fw-bold text-success">{{ scanned_child_count }}</span> child bags. Ultra scanner optimized for rapid sequential scanning.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No parent bag selected. <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-sm btn-primary ms-2">Scan Parent First</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card">
+                <div class="card-header bg-success bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Ultra Child Scanner</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div id="ultra-child-scanner-container" class="ultra-scanner-main">
+                        <!-- Ultra Child QR Scanner will be initialized here -->
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div class="scanner-controls">
+                        <button id="start-camera" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i>Start Ultra Scanner
+                        </button>
+                        <button id="stop-camera" class="btn btn-secondary" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop Scanner
+                        </button>
+                        <button id="continuous-mode" class="btn btn-outline-primary">
+                            <i class="fas fa-sync me-2"></i>Continuous Mode
+                        </button>
+                    </div>
+                    <div class="scanner-info">
+                        <small class="text-success">
+                            <i class="fas fa-lightning-bolt me-1"></i>Rapid sequential scanning
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-primary bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Results</h4>
+                </div>
+                <div class="card-body">
+                    <div id="result-container" class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Ready to scan child bags. Ultra scanner will start automatically.
+                    </div>
+                    
+                    <div id="scan-success" class="scan-result alert alert-success d-none">
+                        <h5><i class="fas fa-check-circle me-2"></i>Child Bag Linked Successfully</h5>
+                        <p class="mb-3">Child QR: <span id="child-qr-value" class="fw-bold"></span></p>
+                        <p class="mb-3">Parent QR: <span id="parent-qr-display" class="fw-bold text-primary">{{ parent_bag.qr_id if parent_bag else 'None' }}</span></p>
+                        <div class="d-grid gap-2">
+                            <button id="scan-another" class="btn btn-success">
+                                <i class="fas fa-plus me-2"></i>Scan Another Child Bag
+                            </button>
+                            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                                <i class="fas fa-home me-2"></i>Return to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Scanned children list -->
+                    <div id="scanned-children-list" class="mt-3">
+                        <h6><i class="fas fa-list me-2"></i>Scanned Child Bags</h6>
+                        <div id="children-list" class="list-group">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+                    
+                    <form id="manual-entry-form" class="mt-4">
+                        <div class="mb-3">
+                            <label for="manual-qr-code" class="form-label">Manual Child QR Entry</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-keyboard"></i>
+                                </span>
+                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., C123-10">
+                                <button type="submit" class="btn btn-primary">Add Child</button>
+                            </div>
+                            <div class="form-text">Manually enter child QR code if scanning fails.</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<!-- Load QR scanning libraries -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<style>
+/* Ultra Child Scanner Styles */
+.ultra-scanner-main {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Scanner responsiveness */
+@media (max-width: 768px) {
+    .ultra-scanner-main {
+        min-height: 300px;
+    }
+}
+
+.scanner-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.scanner-info {
+    font-size: 0.85rem;
+}
+
+/* Progress indicator styles */
+.progress-container {
+    margin: 20px 0;
+}
+
+.progress-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.progress-step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    border: 2px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #6c757d;
+    margin-bottom: 8px;
+}
+
+.progress-step.active .progress-step-circle {
+    background-color: #198754;
+    border-color: #198754;
+    color: white;
+}
+
+.progress-step.completed .progress-step-circle {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.progress-step-label {
+    font-size: 0.875rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+.progress-step.active .progress-step-label,
+.progress-step.completed .progress-step-label {
+    color: #198754;
+    font-weight: 600;
+}
+
+.progress-line {
+    width: 60px;
+    height: 2px;
+    background-color: #dee2e6;
+    margin: 0 10px;
+    margin-top: -20px;
+}
+
+.completed-line {
+    background-color: #0d6efd;
+}
+
+/* Child list styles */
+.list-group-item {
+    border: 1px solid #dee2e6;
+    margin-bottom: 2px;
+    border-radius: 4px;
+}
+
+.list-group-item.newly-added {
+    animation: highlightNew 0.8s ease-out;
+}
+
+@keyframes highlightNew {
+    0% {
+        background-color: #d1ecf1;
+        transform: scale(1.02);
+    }
+    100% {
+        background-color: white;
+        transform: scale(1);
+    }
+}
+
+/* Continuous mode indicator */
+.continuous-mode-active {
+    background-color: #fd7e14 !important;
+    border-color: #fd7e14 !important;
+}
+
+.pulse {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/ultra-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cameraManager = new CameraPermissionManager();
+        let ultraScanner = null;
+        let continuousMode = false;
+        let scannedChildren = [];
+        
+        // Get UI elements
+        const startCameraBtn = document.getElementById('start-camera');
+        const stopCameraBtn = document.getElementById('stop-camera');
+        const continuousModeBtn = document.getElementById('continuous-mode');
+        const scanSuccess = document.getElementById('scan-success');
+        const childQrValue = document.getElementById('child-qr-value');
+        const scanAnotherBtn = document.getElementById('scan-another');
+        const manualEntryForm = document.getElementById('manual-entry-form');
+        const resultContainer = document.getElementById('result-container');
+        const childrenList = document.getElementById('children-list');
+        const progressText = document.getElementById('progress-text');
+        
+        // Initialize Ultra Scanner for child scanning
+        function initializeUltraScanner() {
+            ultraScanner = new UltraQRScanner('ultra-child-scanner-container', {
+                fps: 60,
+                qrbox: { width: 280, height: 280 }
+            });
+            
+            ultraScanner.setSuccessCallback((decodedText, decodedResult) => {
+                handleChildScanSuccess(decodedText);
+            });
+        }
+        
+        // Handle successful child scan
+        function handleChildScanSuccess(qrCode) {
+            console.log('Child bag scanned:', qrCode);
+            
+            // Check if already scanned
+            if (scannedChildren.includes(qrCode)) {
+                showMessage('warning', `Child bag ${qrCode} already scanned!`);
+                return;
+            }
+            
+            // Update UI
+            childQrValue.textContent = qrCode;
+            
+            // Add to scanned list
+            scannedChildren.push(qrCode);
+            updateChildrenList(qrCode);
+            
+            // Submit the scan
+            submitChildScan(qrCode);
+            
+            if (continuousMode) {
+                // In continuous mode, just show brief success and continue
+                showMessage('success', `Child ${qrCode} linked! Continuing...`, 1500);
+                // Scanner continues automatically
+            } else {
+                // Show success dialog
+                resultContainer.style.display = 'none';
+                scanSuccess.classList.remove('d-none');
+            }
+        }
+        
+        // Update children list
+        function updateChildrenList(newChild) {
+            const item = document.createElement('div');
+            item.className = 'list-group-item newly-added d-flex justify-content-between align-items-center';
+            item.innerHTML = `
+                <div>
+                    <i class="fas fa-cube me-2 text-success"></i>
+                    <strong>${newChild}</strong>
+                    <small class="text-muted ms-2">${new Date().toLocaleTimeString()}</small>
+                </div>
+                <span class="badge bg-success">Linked</span>
+            `;
+            
+            childrenList.insertBefore(item, childrenList.firstChild);
+            
+            // Update progress counter
+            if (progressText) {
+                progressText.textContent = scannedChildren.length;
+            }
+        }
+        
+        // Submit child scan
+        function submitChildScan(qrCode) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/process_child_scan';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'qr_code';
+            input.value = qrCode;
+            
+            form.appendChild(input);
+            
+            // Add CSRF token if available
+            const csrfToken = document.querySelector('meta[name=csrf-token]');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = csrfToken.getAttribute('content');
+                form.appendChild(csrfInput);
+            }
+            
+            // Submit via fetch to avoid page refresh
+            const formData = new FormData(form);
+            fetch('/process_child_scan', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    console.log('Child scan submitted successfully');
+                } else {
+                    console.warn('Failed to submit child scan');
+                }
+            }).catch(error => {
+                console.error('Error submitting child scan:', error);
+            });
+        }
+        
+        // Show message helper
+        function showMessage(type, message, duration = 3000) {
+            const alertClass = type === 'success' ? 'alert-success' : 
+                             type === 'warning' ? 'alert-warning' : 'alert-info';
+            
+            resultContainer.className = `alert ${alertClass}`;
+            resultContainer.innerHTML = `<i class="fas fa-info-circle me-2"></i>${message}`;
+            resultContainer.style.display = 'block';
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    resultContainer.style.display = 'none';
+                }, duration);
+            }
+        }
+        
+        // Start camera event
+        startCameraBtn.addEventListener('click', async function() {
+            try {
+                if (!ultraScanner) {
+                    initializeUltraScanner();
+                }
+                
+                await ultraScanner.start();
+                
+                // Update button states
+                startCameraBtn.disabled = true;
+                stopCameraBtn.disabled = false;
+                startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Scanner Active';
+                startCameraBtn.classList.add('pulse');
+                
+                showMessage('success', 'Ultra child scanner active! Position child QR codes in the scanning area.');
+                
+            } catch (error) {
+                console.error('Failed to start scanner:', error);
+                showMessage('danger', 'Camera access failed. Please allow camera permissions and try again.');
+            }
+        });
+        
+        // Stop camera event
+        stopCameraBtn.addEventListener('click', async function() {
+            if (ultraScanner) {
+                await ultraScanner.stop();
+                
+                // Update button states
+                startCameraBtn.disabled = false;
+                stopCameraBtn.disabled = true;
+                startCameraBtn.innerHTML = '<i class="fas fa-play me-2"></i>Start Ultra Scanner';
+                startCameraBtn.classList.remove('pulse');
+                
+                showMessage('info', 'Scanner stopped. Click "Start Ultra Scanner" to resume scanning.');
+            }
+        });
+        
+        // Continuous mode toggle
+        continuousModeBtn.addEventListener('click', function() {
+            continuousMode = !continuousMode;
+            
+            if (continuousMode) {
+                continuousModeBtn.classList.add('continuous-mode-active');
+                continuousModeBtn.innerHTML = '<i class="fas fa-sync fa-spin me-2"></i>Continuous ON';
+                showMessage('info', 'Continuous mode enabled. Scanner will not stop after each scan.');
+            } else {
+                continuousModeBtn.classList.remove('continuous-mode-active');
+                continuousModeBtn.innerHTML = '<i class="fas fa-sync me-2"></i>Continuous Mode';
+                showMessage('info', 'Continuous mode disabled.');
+            }
+        });
+        
+        // Scan another button
+        scanAnotherBtn.addEventListener('click', function() {
+            scanSuccess.classList.add('d-none');
+            if (ultraScanner && !ultraScanner.isScanning) {
+                startCameraBtn.click();
+            }
+        });
+        
+        // Manual entry form
+        manualEntryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const manualQrCode = document.getElementById('manual-qr-code').value.trim();
+            if (manualQrCode) {
+                handleChildScanSuccess(manualQrCode);
+                document.getElementById('manual-qr-code').value = '';
+            }
+        });
+        
+        // Auto-start scanner
+        setTimeout(() => {
+            if (typeof UltraQRScanner !== 'undefined') {
+                startCameraBtn.click();
+            } else {
+                console.warn('Ultra scanner not loaded, retrying...');
+                setTimeout(() => {
+                    if (typeof UltraQRScanner !== 'undefined') {
+                        startCameraBtn.click();
+                    }
+                }, 1000);
+            }
+        }, 1500);
+        
+        // Load existing scanned children
+        const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};
+        scannedChildren = existingChildren;
+        existingChildren.forEach(child => {
+            updateChildrenList(child);
+        });
+    });
+</script>
+{% endblock %}
