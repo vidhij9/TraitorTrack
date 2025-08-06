@@ -881,9 +881,6 @@ document.addEventListener('DOMContentLoaded', function() {
             item.className = 'list-group-item d-flex justify-content-between align-items-center';
             item.innerHTML = `
                 <span>${child.qr_id}</span>
-                <button class="btn btn-sm btn-outline-danger" onclick="removeBag('${child.qr_id}', ${child.id})">
-                    <i class="fas fa-trash"></i>
-                </button>
             `;
             bagsList.appendChild(item);
         });
@@ -896,64 +893,7 @@ document.addEventListener('DOMContentLoaded', function() {
         progressText.textContent = scannedCount;
     }
     
-    function removeBag(qrId, bagId) {
-        if (confirm(`Remove ${qrId} from this parent bag?`)) {
-            console.log(`Removing bag: ${qrId} (ID: ${bagId})`);
-            
-            // Show immediate feedback
-            const resultContainer = document.getElementById('result-container');
-            resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Removing child bag...';
-            resultContainer.style.display = 'block';
-            
-            fetch('/api/remove-child-link', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: `child_bag_id=${encodeURIComponent(bagId)}`
-            })
-            .then(response => {
-                console.log('Response status:', response.status);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Remove response:', data);
-                if (data.success) {
-                    // Success feedback
-                    resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = `<i class="fas fa-check-circle me-2"></i>Child bag ${data.child_qr} removed successfully!`;
-                    
-                    // Update count immediately
-                    scannedCount--;
-                    progressText.textContent = scannedCount;
-                    
-                    // Reload the list
-                    loadScannedBags();
-                    
-                    // Clear success message after delay
-                    setTimeout(() => {
-                        resultContainer.className = 'alert alert-info';
-                        resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Ready to scan more child bags...';
-                    }, 2000);
-                    
-                } else {
-                    console.error('Remove failed:', data.message);
-                    resultContainer.className = 'alert alert-danger';
-                    resultContainer.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>Failed to remove: ${data.message}`;
-                }
-            })
-            .catch(error => {
-                console.error('Remove error:', error);
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>Error removing child bag: ${error.message}`;
-            });
-        }
-    }
+
     
     function submitManualCode() {
         const manualInput = document.getElementById('manual-qr-input');

@@ -32,11 +32,11 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 
 ### Key Features and Implementations
 - **Authentication**: Centralized authentication utilities with unified session management, role-based access control (admin, biller, dispatcher), area-based access for dispatchers.
-- **Bag Management**: Lightning-fast QR code scanning with sub-second response times, unlimited parent-child bag linking, optimized database operations with bulk commits.
+- **Bag Management**: Lightning-fast QR code scanning with sub-second response times, unlimited parent-child bag linking, optimized database operations with bulk commits, auto-add functionality for seamless scanning.
 - **Bill Management**: Streamlined bill creation and management with optimized queries and caching.
 - **Security**: Input validation (Bleach), CSRF protection, rate limiting on all API endpoints, secure session management.
 - **Performance**: Comprehensive optimization with 80% improvement in scan response times, consolidated database queries, optimized connection pooling, intelligent caching with TTL.
-- **QR Scanning**: Ultra-optimized scanning operations achieving 200-500ms response times, bulk scanning capabilities, enhanced error handling.
+- **QR Scanning**: Ultra-optimized scanning operations achieving 200-500ms response times, auto-add mode enabled by default, 20fps detection rate for instant response, enhanced error handling.
 - **API Layer**: Clean, optimized API endpoints with proper rate limiting, response caching, and unified search functionality.
 - **Code Quality**: Removed 25% of codebase while maintaining functionality, eliminated 90% of duplicate code, centralized utilities for better maintainability.
 - **User Hierarchy**: Three-tier system with optimized permission checking:
