@@ -694,9 +694,15 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: `qr_code=${encodeURIComponent(qrCode)}&bill_id={{ bill.id }}`
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
-            console.log('Scan response:', data); // Debug log
+            console.log('Full scan response:', data); // Debug log
+            console.log('Success flag:', data.success);
+            console.log('Message:', data.message);
+            
             if (data.success) {
                 // Instantly add to list with optimized HTML
                 const newItem = document.createElement('li');
@@ -737,9 +743,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 // Clear error display with highlighting
+                console.log('Displaying error message...'); // Debug log
+                const errorMessage = data.message || 'Unknown error occurred';
+                console.log('Final error message:', errorMessage); // Debug log
+                
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<div style="font-weight: bold; font-size: 1.1em;"><i class="fas fa-exclamation-circle me-2"></i>' + data.message + '</div>';
-                console.log('Error message displayed:', data.message); // Debug log
+                resultContainer.innerHTML = '<div style="font-weight: bold; font-size: 1.1em;"><i class="fas fa-exclamation-circle me-2"></i>' + errorMessage + '</div>';
+                resultContainer.style.display = 'block'; // Ensure it's visible
+                console.log('Error message set to innerHTML, container class:', resultContainer.className); // Debug log
                 
                 // Add visual pulse to draw attention
                 resultContainer.style.animation = 'pulse 0.5s ease-in-out';
