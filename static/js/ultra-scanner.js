@@ -322,6 +322,9 @@ class UltraQRScanner {
         if (this.isScanning) return;
         
         try {
+            // First ensure camera permissions
+            await this.ensureCameraPermissions();
+            
             this.html5QrCode = new Html5Qrcode(`${this.containerId}-reader`);
             
             // Get available cameras
@@ -632,6 +635,38 @@ class UltraQRScanner {
             
         } catch (error) {
             console.error('Error stopping scanner:', error);
+        }
+    }
+    
+    async ensureCameraPermissions() {
+        try {
+            // Check current permission status
+            const permissionResult = await navigator.permissions.query({ name: 'camera' });
+            
+            if (permissionResult.state === 'granted') {
+                console.log('Camera permission already granted');
+                return true;
+            }
+            
+            if (permissionResult.state === 'denied') {
+                throw new Error('Camera permission denied. Please enable camera access in browser settings.');
+            }
+            
+            // Request camera access
+            console.log('Requesting camera permissions...');
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            });
+            
+            // Stop the stream immediately, we just needed permission
+            stream.getTracks().forEach(track => track.stop());
+            
+            console.log('Camera permission granted');
+            return true;
+            
+        } catch (error) {
+            console.error('Camera permission error:', error);
+            throw new Error('Camera access required. Please allow camera permissions.');
         }
     }
     

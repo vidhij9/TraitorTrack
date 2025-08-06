@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %}Scan Child Bags - Ultra Scanner{% endblock %}
+{% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -9,7 +9,7 @@
             <div class="card">
                 <div class="card-body">
                     <h2 class="card-title mb-3">
-                        <i class="fas fa-qrcode me-2"></i>Ultra Child Scanner
+                        <i class="fas fa-qrcode me-2"></i>Scan Child Bags
                     </h2>
                     
                     <div class="progress-container">
@@ -37,7 +37,7 @@
                     <p class="card-text">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        Scanned <span id="progress-text" class="fw-bold text-success">{{ scanned_child_count }}</span> child bags. Ultra scanner optimized for rapid sequential scanning.
+                        Scanned <span id="progress-text" class="fw-bold text-success">{{ scanned_child_count }}</span> child bags. Scanner optimized for rapid sequential scanning.
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -54,7 +54,7 @@
         <div class="col-lg-6 mb-4 mb-lg-0">
             <div class="card">
                 <div class="card-header bg-success bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Ultra Child Scanner</h4>
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
                 <div class="card-body p-0">
                     <div id="ultra-child-scanner-container" class="ultra-scanner-main">
@@ -64,18 +64,18 @@
                 <div class="card-footer d-flex justify-content-between align-items-center">
                     <div class="scanner-controls">
                         <button id="start-camera" class="btn btn-success">
-                            <i class="fas fa-play me-2"></i>Start Ultra Scanner
+                            <i class="fas fa-play me-2"></i>Start Camera
                         </button>
                         <button id="stop-camera" class="btn btn-secondary" disabled>
-                            <i class="fas fa-stop me-2"></i>Stop Scanner
+                            <i class="fas fa-stop me-2"></i>Stop Camera
                         </button>
                         <button id="continuous-mode" class="btn btn-outline-primary">
                             <i class="fas fa-sync me-2"></i>Continuous Mode
                         </button>
                     </div>
                     <div class="scanner-info">
-                        <small class="text-success">
-                            <i class="fas fa-lightning-bolt me-1"></i>Rapid sequential scanning
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>Rapid sequential scanning
                         </small>
                     </div>
                 </div>
@@ -90,7 +90,7 @@
                 <div class="card-body">
                     <div id="result-container" class="alert alert-info mb-3">
                         <i class="fas fa-info-circle me-2"></i>
-                        Ready to scan child bags. Ultra scanner will start automatically.
+                        Ready to scan child bags. Camera will start automatically.
                     </div>
                     
                     <div id="scan-success" class="scan-result alert alert-success d-none">
@@ -435,10 +435,10 @@
                 // Update button states
                 startCameraBtn.disabled = true;
                 stopCameraBtn.disabled = false;
-                startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Scanner Active';
+                startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Camera Active';
                 startCameraBtn.classList.add('pulse');
                 
-                showMessage('success', 'Ultra child scanner active! Position child QR codes in the scanning area.');
+                showMessage('success', 'Camera active! Position child QR codes in the scanning area.');
                 
             } catch (error) {
                 console.error('Failed to start scanner:', error);
@@ -454,10 +454,10 @@
                 // Update button states
                 startCameraBtn.disabled = false;
                 stopCameraBtn.disabled = true;
-                startCameraBtn.innerHTML = '<i class="fas fa-play me-2"></i>Start Ultra Scanner';
+                startCameraBtn.innerHTML = '<i class="fas fa-play me-2"></i>Start Camera';
                 startCameraBtn.classList.remove('pulse');
                 
-                showMessage('info', 'Scanner stopped. Click "Start Ultra Scanner" to resume scanning.');
+                showMessage('info', 'Camera stopped. Click "Start Camera" to resume scanning.');
             }
         });
         
@@ -495,19 +495,49 @@
             }
         });
         
-        // Auto-start scanner
+        // Auto-request camera permissions and start scanner
+        async function requestCameraPermissions() {
+            try {
+                // First, check if camera permission is already granted
+                const permissionResult = await navigator.permissions.query({ name: 'camera' });
+                
+                if (permissionResult.state === 'granted') {
+                    console.log('Camera permission already granted');
+                    setTimeout(() => startCameraBtn.click(), 500);
+                    return;
+                }
+                
+                // Request camera access to trigger permission dialog
+                console.log('Requesting camera permissions...');
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                
+                // Stop the stream immediately, we just needed permission
+                stream.getTracks().forEach(track => track.stop());
+                
+                // Now start the scanner
+                setTimeout(() => startCameraBtn.click(), 500);
+                
+            } catch (error) {
+                console.warn('Camera permission request failed:', error);
+                showMessage('warning', 'Camera access required. Please allow camera permissions and click "Start Camera".');
+            }
+        }
+        
+        // Start permission request after scanner loads
         setTimeout(() => {
             if (typeof UltraQRScanner !== 'undefined') {
-                startCameraBtn.click();
+                requestCameraPermissions();
             } else {
-                console.warn('Ultra scanner not loaded, retrying...');
+                console.warn('Scanner not loaded, retrying...');
                 setTimeout(() => {
                     if (typeof UltraQRScanner !== 'undefined') {
-                        startCameraBtn.click();
+                        requestCameraPermissions();
                     }
                 }, 1000);
             }
-        }, 1500);
+        }, 1000);
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};
