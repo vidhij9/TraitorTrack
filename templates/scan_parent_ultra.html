@@ -218,7 +218,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/basic-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/direct-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -290,10 +290,10 @@
         // Initialize scanner function
         function initializeScanner() {
             if (!scanner) {
-                console.log('Creating BasicQRScanner...');
-                scanner = new BasicQRScanner('ultra-scanner-container');
+                console.log('Creating DirectQRScanner...');
+                scanner = new DirectQRScanner('ultra-scanner-container');
                 scanner.setSuccessCallback(handleScanSuccess);
-                console.log('BasicQRScanner initialized');
+                console.log('DirectQRScanner initialized');
             }
         }
         
@@ -353,40 +353,32 @@
             }
         });
         
-        // Check scanner availability and auto-start
-        function initializeScannerInterface() {
-            console.log('Checking for BasicQRScanner...');
+        // Auto-initialize scanner when DOM and libraries are ready
+        function checkAndInitialize() {
+            console.log('Checking for DirectQRScanner and Html5Qrcode...');
             
-            if (typeof BasicQRScanner !== 'undefined' && typeof Html5Qrcode !== 'undefined') {
-                console.log('BasicQRScanner and Html5Qrcode loaded, initializing...');
+            if (typeof DirectQRScanner !== 'undefined' && typeof Html5Qrcode !== 'undefined') {
+                console.log('All libraries loaded - initializing DirectQRScanner');
                 
-                // Initialize scanner
-                initializeScanner();
+                // Hide the manual start buttons since DirectQRScanner auto-starts
+                startCameraBtn.style.display = 'none';
+                stopCameraBtn.style.display = 'none';
                 
                 resultContainer.className = 'alert alert-info';
-                resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scanner ready. Starting camera automatically...';
+                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Starting camera automatically...';
                 resultContainer.style.display = 'block';
                 
-                // Enable the start button
-                startCameraBtn.disabled = false;
-                
-                // Auto-start camera after a brief delay
-                setTimeout(() => {
-                    console.log('Auto-starting camera...');
-                    startCameraBtn.click();
-                }, 1500);
+                // Initialize scanner (it will auto-start)
+                initializeScanner();
                 
             } else {
-                console.log('Libraries not yet loaded, retrying in 500ms...');
-                setTimeout(initializeScannerInterface, 500);
+                console.log('Libraries not loaded yet, retrying...');
+                setTimeout(checkAndInitialize, 300);
             }
         }
         
-        // Initialize scanner interface with delay to ensure DOM is ready
-        setTimeout(() => {
-            console.log('Starting scanner interface initialization...');
-            initializeScannerInterface();
-        }, 1000);
+        // Start checking immediately
+        checkAndInitialize();
         
         // Add enhancement indicator
         setTimeout(() => {

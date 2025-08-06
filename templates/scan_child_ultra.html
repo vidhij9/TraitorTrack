@@ -284,7 +284,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/basic-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/direct-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let ultraScanner = null;
@@ -497,45 +497,37 @@
         // Initialize scanner function
         function initializeScanner() {
             if (!ultraScanner) {
-                console.log('Creating BasicQRScanner for child scanning...');
-                ultraScanner = new BasicQRScanner('ultra-child-scanner-container');
+                console.log('Creating DirectQRScanner for child scanning...');
+                ultraScanner = new DirectQRScanner('ultra-child-scanner-container');
                 ultraScanner.setSuccessCallback(handleChildScanSuccess);
-                console.log('Child scanner initialized');
+                console.log('DirectQRScanner for child scanning initialized');
             }
         }
         
-        // Check scanner availability and auto-start
-        function initializeScannerInterface() {
-            console.log('Checking for BasicQRScanner (child)...');
+        // Auto-initialize child scanner
+        function checkAndInitializeChild() {
+            console.log('Checking for DirectQRScanner (child scanner)...');
             
-            if (typeof BasicQRScanner !== 'undefined' && typeof Html5Qrcode !== 'undefined') {
-                console.log('BasicQRScanner loaded, initializing child scanner...');
+            if (typeof DirectQRScanner !== 'undefined' && typeof Html5Qrcode !== 'undefined') {
+                console.log('All libraries loaded - initializing DirectQRScanner for child scanning');
                 
-                // Initialize scanner
+                // Hide manual start buttons since DirectQRScanner auto-starts
+                startCameraBtn.style.display = 'none';
+                stopCameraBtn.style.display = 'none';
+                
+                showMessage('info', 'Starting camera automatically for child scanning...');
+                
+                // Initialize scanner (it will auto-start)
                 initializeScanner();
                 
-                showMessage('info', 'Scanner ready. Starting camera automatically...');
-                
-                // Enable the start button
-                startCameraBtn.disabled = false;
-                
-                // Auto-start camera after a brief delay
-                setTimeout(() => {
-                    console.log('Auto-starting child scanner camera...');
-                    startCameraBtn.click();
-                }, 1500);
-                
             } else {
-                console.log('Libraries not yet loaded for child scanner, retrying...');
-                setTimeout(initializeScannerInterface, 500);
+                console.log('Libraries not loaded yet for child scanner, retrying...');
+                setTimeout(checkAndInitializeChild, 300);
             }
         }
         
-        // Initialize scanner interface
-        setTimeout(() => {
-            console.log('Starting child scanner interface initialization...');
-            initializeScannerInterface();
-        }, 1000);
+        // Start checking immediately
+        checkAndInitializeChild();
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};
