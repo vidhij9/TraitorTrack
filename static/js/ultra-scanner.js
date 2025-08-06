@@ -640,33 +640,40 @@ class UltraQRScanner {
     
     async ensureCameraPermissions() {
         try {
-            // Check current permission status
-            const permissionResult = await navigator.permissions.query({ name: 'camera' });
+            // For better browser compatibility, just try to access the camera directly
+            // The browser will handle permission prompts automatically
+            console.log('Checking camera access...');
             
-            if (permissionResult.state === 'granted') {
-                console.log('Camera permission already granted');
-                return true;
-            }
-            
-            if (permissionResult.state === 'denied') {
-                throw new Error('Camera permission denied. Please enable camera access in browser settings.');
-            }
-            
-            // Request camera access
-            console.log('Requesting camera permissions...');
+            // Test camera access with minimal constraints
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' } 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
             });
             
-            // Stop the stream immediately, we just needed permission
+            // Stop the test stream
             stream.getTracks().forEach(track => track.stop());
             
-            console.log('Camera permission granted');
+            console.log('Camera access confirmed');
             return true;
             
         } catch (error) {
-            console.error('Camera permission error:', error);
-            throw new Error('Camera access required. Please allow camera permissions.');
+            console.error('Camera access error:', error);
+            
+            let errorMessage = 'Camera access failed. ';
+            if (error.name === 'NotAllowedError') {
+                errorMessage += 'Please allow camera permissions in your browser.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage += 'No camera found on this device.';
+            } else if (error.name === 'NotSupportedError') {
+                errorMessage += 'Camera not supported by this browser.';
+            } else {
+                errorMessage += 'Please check camera permissions and try again.';
+            }
+            
+            throw new Error(errorMessage);
         }
     }
     
