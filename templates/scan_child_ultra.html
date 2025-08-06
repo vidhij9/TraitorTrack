@@ -283,11 +283,10 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
 <script src="{{ url_for('static', filename='js/ultra-scanner.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const cameraManager = new CameraPermissionManager();
         let ultraScanner = null;
         let continuousMode = false;
         let scannedChildren = [];

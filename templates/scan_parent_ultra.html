@@ -217,12 +217,11 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/ultra-scanner.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/simple-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const cameraManager = new CameraPermissionManager();
-        let ultraScanner = null;
+        let scanner = null;
         
         // Get UI elements
         const startCameraBtn = document.getElementById('start-camera');
@@ -289,26 +288,27 @@
         }
         
         // Initialize scanner function
-        function initializeUltraScanner() {
-            if (!ultraScanner) {
-                ultraScanner = new UltraQRScanner('ultra-scanner-container', {
-                    fps: 60,
-                    qrbox: { width: 400, height: 400 },
-                    aspectRatio: 1.0
+        function initializeScanner() {
+            if (!scanner) {
+                console.log('Creating SimpleQRScanner...');
+                scanner = new SimpleQRScanner('ultra-scanner-container', {
+                    fps: 30,
+                    qrbox: { width: 300, height: 300 }
                 });
-                ultraScanner.setSuccessCallback(handleScanSuccess);
+                scanner.setSuccessCallback(handleScanSuccess);
+                console.log('Scanner initialized');
             }
         }
         
         // Start camera event
         startCameraBtn.addEventListener('click', async function() {
             try {
-                if (!ultraScanner) {
-                    initializeUltraScanner();
+                if (!scanner) {
+                    initializeScanner();
                 }
                 
-                console.log('Starting ultra scanner...');
-                await ultraScanner.start();
+                console.log('Starting scanner...');
+                await scanner.start();
                 
                 // Update button states
                 startCameraBtn.disabled = true;
@@ -331,8 +331,8 @@
         
         // Stop camera event
         stopCameraBtn.addEventListener('click', async function() {
-            if (ultraScanner) {
-                await ultraScanner.stop();
+            if (scanner) {
+                await scanner.stop();
                 
                 // Update button states
                 startCameraBtn.disabled = false;
@@ -358,11 +358,11 @@
         
         // Check scanner availability and auto-start
         function initializeScannerInterface() {
-            if (typeof UltraQRScanner !== 'undefined') {
-                console.log('UltraQRScanner loaded, initializing...');
+            if (typeof SimpleQRScanner !== 'undefined') {
+                console.log('SimpleQRScanner loaded, initializing...');
                 
                 // Initialize scanner
-                initializeUltraScanner();
+                initializeScanner();
                 
                 resultContainer.className = 'alert alert-info';
                 resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scanner ready. Starting camera automatically...';
@@ -373,17 +373,18 @@
                 
                 // Auto-start camera after a brief delay
                 setTimeout(() => {
+                    console.log('Auto-starting camera...');
                     startCameraBtn.click();
                 }, 1000);
                 
             } else {
-                console.log('UltraQRScanner not yet loaded, retrying...');
+                console.log('SimpleQRScanner not yet loaded, retrying...');
                 setTimeout(initializeScannerInterface, 500);
             }
         }
         
         // Initialize scanner interface
-        initializeScannerInterface();
+        setTimeout(initializeScannerInterface, 500);
         
         // Add enhancement indicator
         setTimeout(() => {

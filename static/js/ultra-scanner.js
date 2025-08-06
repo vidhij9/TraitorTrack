@@ -14,7 +14,7 @@ class UltraQRScanner {
             fps: 60,
             qrbox: { width: 300, height: 300 },
             aspectRatio: 1.0,
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+            supportedScanTypes: [Html5QrcodeScanType?.SCAN_TYPE_CAMERA || 0],
             ...options
         };
         
