@@ -389,58 +389,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            // Initialize camera permission manager
-            const cameraManager = new window.CameraPermissionManager();
-            
-            // Start permission monitoring
-            cameraManager.startPermissionMonitoring();
-            
-            // Enhanced camera constraints for QR scanning
+            // Simple camera constraints for QR scanning
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 1920, min: 640 },
-                    height: { ideal: 1080, min: 480 },
-                    frameRate: { ideal: 30, min: 15 },
-                    // Enhanced focus and exposure for QR codes
-                    focusMode: 'continuous',
-                    exposureMode: 'continuous',
-                    whiteBalanceMode: 'continuous',
-                    // Advanced constraints for better QR detection
-                    advanced: [
-                        { focusMode: 'macro' },
-                        { exposureCompensation: 0 },
-                        { iso: 200 }
-                    ]
+                    width: { ideal: 640, min: 320 },
+                    height: { ideal: 480, min: 240 }
                 }
             };
             
-            console.log('Requesting camera with persistent permission handling...');
-            stream = await cameraManager.requestCameraAccess(constraints);
+            console.log('Requesting camera access...');
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
             
-            // Apply additional track constraints for better focus
-            const videoTrack = stream.getVideoTracks()[0];
-            if (videoTrack) {
-                const capabilities = videoTrack.getCapabilities();
-                console.log('Camera capabilities:', capabilities);
-                
-                // Apply advanced settings if supported
-                const settings = {};
-                if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-                    settings.focusMode = 'continuous';
-                }
-                if (capabilities.exposureMode && capabilities.exposureMode.includes('continuous')) {
-                    settings.exposureMode = 'continuous';
-                }
-                if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes('continuous')) {
-                    settings.whiteBalanceMode = 'continuous';
-                }
-                
-                if (Object.keys(settings).length > 0) {
-                    await videoTrack.applyConstraints({ advanced: [settings] });
-                    console.log('Applied advanced camera settings:', settings);
-                }
-            }
+
             
             video.srcObject = stream;
             video.setAttribute('playsinline', true);
@@ -449,26 +410,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             await new Promise((resolve, reject) => {
                 video.onloadedmetadata = () => {
-                    console.log('Video metadata loaded:', {
-                        videoWidth: video.videoWidth,
-                        videoHeight: video.videoHeight,
-                        aspectRatio: (video.videoWidth / video.videoHeight).toFixed(2)
-                    });
-                    
-                    // Set canvas to actual video dimensions for 1:1 reality mapping
+                    console.log('Video loaded successfully');
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    
-                    console.log('Canvas set to actual video dimensions:', {
-                        canvasWidth: canvas.width,
-                        canvasHeight: canvas.height,
-                        videoWidth: video.videoWidth,
-                        videoHeight: video.videoHeight
-                    });
-                    
                     resolve();
                 };
-                
                 video.onerror = reject;
                 video.play().catch(reject);
             });
@@ -486,143 +432,76 @@ document.addEventListener('DOMContentLoaded', function() {
                 scannerOverlay.style.display = 'flex';
             }
             
-            // Start optimized scanning loop
-            optimizedScanQRCode();
+            // Start simple scanning loop
+            scanForChildQrCode();
             
         } catch (error) {
-            console.error('Camera initialization failed:', error);
+            console.error('Camera error:', error);
             resultContainer.className = 'alert alert-danger';
             
-            // Use camera manager for user-friendly error messages
-            const cameraManager = new window.CameraPermissionManager();
-            let errorMessage = cameraManager.getErrorMessage(error);
-            
-            // Add mobile-specific instructions if needed
-            if (error.message === 'PERMISSION_DENIED' || error.name === 'NotAllowedError') {
-                const mobileInstructions = cameraManager.showMobileInstructions();
-                errorMessage += `<br><small class="text-muted mt-2 d-block">${mobileInstructions}</small>`;
+            let errorMessage = 'Camera access failed. ';
+            if (error.name === 'NotAllowedError') {
+                errorMessage += 'Please allow camera permission.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage += 'No camera found on device.';
+            } else {
+                errorMessage += 'Please check camera settings.';
             }
             
             resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + errorMessage;
         }
     }
     
-    // Ultra-optimized scanning function for lightning-fast response
-    let lastScanTime = 0;
-    function optimizedScanQRCode() {
+    // Simple QR scanning function
+    function scanForChildQrCode() {
         if (!scanning) return;
         
-        // High-performance scanning at 20fps for instant response
-        const now = Date.now();
-        if (now - lastScanTime < 50) { // 50ms = 20fps for ultra-fast detection
-            requestAnimationFrame(optimizedScanQRCode);
-            return;
-        }
-        lastScanTime = now;
-        
-        requestAnimationFrame(optimizedScanQRCode);
+        requestAnimationFrame(scanForChildQrCode);
         
         if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
             try {
-                // Clear canvas and draw current video frame
+                // Draw video frame to canvas
                 canvasContext.clearRect(0, 0, canvas.width, canvas.height);
                 canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // Draw minimal scanning interface for performance
+                // Draw scanning interface
                 drawMinimalScanningInterface();
                 
-                // Extract smaller center region for faster processing
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-                const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
-                const startX = Math.max(0, centerX - scanSize/2);
-                const startY = Math.max(0, centerY - scanSize/2);
-                const width = Math.min(scanSize, canvas.width - startX);
-                const height = Math.min(scanSize, canvas.height - startY);
+                // Get image data for QR detection
+                const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
                 
-                const imageData = canvasContext.getImageData(startX, startY, width, height);
-                
-                // Multi-attempt QR detection for maximum accuracy
-                let code = null;
-                
-                // Try multiple detection approaches
-                const detectionMethods = [
-                    { inversionAttempts: "attemptBoth" },
-                    { inversionAttempts: "onlyInvert" },
-                    { inversionAttempts: "dontInvert" }
-                ];
-                
-                for (const method of detectionMethods) {
-                    code = jsQR(imageData.data, imageData.width, imageData.height, method);
-                    if (code && code.data && code.data.length >= 2) {
-                        console.log('QR detected with method:', method);
-                        break;
-                    }
-                }
+                // Try QR detection
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
                 
                 if (code && code.data) {
-                    // Raw QR data debugging
-                    console.log('Raw QR data detected:', JSON.stringify(code.data));
-                    console.log('QR data length:', code.data.length);
-                    console.log('QR data chars:', code.data.split('').map(c => `'${c}' (${c.charCodeAt(0)})`));
+                    const qrData = code.data.trim();
                     
-                    // Keep QR data exactly as detected - only basic trim
-                    let qrData = code.data.trim();
-                    console.log('Final QR data (no cleaning):', JSON.stringify(qrData));
-                    
-                    // Skip if data is too short
-                    if (qrData.length < 2) {
-                        console.log('Skipping short QR code:', qrData);
+                    // Skip very short codes
+                    if (qrData.length < 3) {
                         return;
                     }
                     
-                    // Instant visual feedback
-                    drawInstantDetectionHighlight(code, startX, startY);
+                    // Visual feedback
+                    drawInstantDetectionHighlight(code, 0, 0);
                     
-                    // Immediate haptic feedback
+                    // Haptic feedback
                     if (navigator.vibrate) {
-                        navigator.vibrate(25); // Shorter vibration
+                        navigator.vibrate(25);
                     }
                     
-                    // Process unique codes with auto-add or manual mode
+                    // Process QR code
                     if (lastDetectedCode !== qrData) {
                         lastDetectedCode = qrData;
                         console.log('Child QR detected:', qrData);
                         
-                        // Check auto-add setting
-                        const autoAddCheckbox = document.getElementById('auto-add-checkbox');
-                        const autoAddEnabled = autoAddCheckbox ? autoAddCheckbox.checked : true; // Default to auto-add
+                        // Auto-add mode
+                        scanning = false;
+                        resultContainer.className = 'alert alert-success';
+                        resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Processing child bag...';
                         
-                        if (autoAddEnabled) {
-                            // AUTOMATIC MODE - Process immediately
-                            console.log('Auto-adding child bag:', qrData);
-                            
-                            // Stop scanning temporarily
-                            scanning = false;
-                            
-                            resultContainer.className = 'alert alert-success';
-                            resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Auto-adding child bag...';
-                            
-                            // Process immediately
-                            processChildQrCodeInstant(qrData);
-                        } else {
-                            // MANUAL MODE - Fill form and wait for user
-                            console.log('Manual mode - filling form for:', qrData);
-                            
-                            const manualInput = document.getElementById('manual-qr-input');
-                            if (manualInput) {
-                                manualInput.value = qrData;
-                                manualInput.focus();
-                            }
-                            
-                            resultContainer.className = 'alert alert-warning';
-                            resultContainer.innerHTML = '<i class="fas fa-hand-pointer me-2"></i>QR code detected! Click "Add" to confirm.';
-                            
-                            // Continue scanning for more codes
-                            lastDetectedCode = null; // Allow same code to be detected again
-                        }
+                        // Process immediately
+                        processChildQrCodeInstant(qrData);
                     }
-                }
             } catch (error) {
                 console.error('Scanning error:', error);
             }
