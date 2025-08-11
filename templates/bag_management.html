@@ -6,6 +6,24 @@
 <!-- QR Scanner Libraries -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<style>
+/* Enhanced Scanner Container */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .scanner-container {
+        height: 300px;
+    }
+}
+</style>
 {% endblock %}
 
 {% block content %}
