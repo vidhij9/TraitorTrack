@@ -82,9 +82,9 @@
                     <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Results</h4>
                 </div>
                 <div class="card-body">
-                    <div id="result-container" class="alert alert-info mb-3">
+                    <div id="result-container" class="alert alert-info mb-3" style="display: none;">
                         <i class="fas fa-info-circle me-2"></i>
-                        Loading scanner...
+                        Ready to scan child bags...
                     </div>
                     
                     <div id="scan-success" class="scan-result alert alert-success d-none">
@@ -292,12 +292,16 @@
                     console.log('Creating LiveQRScanner for child scanning...');
                     scanner = new LiveQRScanner('ultra-child-scanner-container');
                     scanner.setSuccessCallback(handleChildScanSuccess);
-                    console.log('Child LiveQRScanner initialized');
+                    console.log('Child LiveQRScanner initialized successfully');
+                    
+                    // Hide loading message since scanner is ready
+                    resultContainer.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Child scanner initialization failed:', error);
                 resultContainer.className = 'alert alert-danger';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Scanner initialization failed. Please refresh the page.';
+                resultContainer.style.display = 'block';
             }
         }
         
@@ -349,37 +353,36 @@
         
         // Submit child scan
         function submitChildScan(qrCode) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/process_child_scan';
+            // Create form data with proper CSRF token
+            const formData = new FormData();
+            formData.append('qr_code', qrCode);
             
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'qr_code';
-            input.value = qrCode;
-            
-            form.appendChild(input);
-            
-            // Add CSRF token if available
+            // Add CSRF token from meta tag
             const csrfToken = document.querySelector('meta[name=csrf-token]');
             if (csrfToken) {
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = 'csrf_token';
-                csrfInput.value = csrfToken.getAttribute('content');
-                form.appendChild(csrfInput);
+                formData.append('csrf_token', csrfToken.getAttribute('content'));
             }
             
-            // Submit via fetch to avoid page refresh
-            const formData = new FormData(form);
+            // Submit using fetch
             fetch('/process_child_scan', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             }).then(response => {
                 if (response.ok) {
                     console.log('Child scan submitted successfully');
+                    return response.json();
                 } else {
                     console.warn('Failed to submit child scan');
+                    throw new Error('Submission failed');
+                }
+            }).then(data => {
+                if (data.success) {
+                    console.log('Child bag linked successfully');
+                } else {
+                    console.warn('Child bag linking failed:', data.message);
                 }
             }).catch(error => {
                 console.error('Error submitting child scan:', error);
