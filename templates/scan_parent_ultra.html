@@ -218,7 +218,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/direct-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/perfect-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -287,13 +287,13 @@
             form.submit();
         }
         
-        // Initialize scanner function
+        // Initialize perfect scanner
         function initializeScanner() {
             if (!scanner) {
-                console.log('Creating DirectQRScanner...');
-                scanner = new DirectQRScanner('ultra-scanner-container');
+                console.log('🌟 Creating PerfectQRScanner...');
+                scanner = new PerfectQRScanner('ultra-scanner-container');
                 scanner.setSuccessCallback(handleScanSuccess);
-                console.log('DirectQRScanner initialized');
+                console.log('✅ PerfectQRScanner initialized');
             }
         }
         
@@ -353,32 +353,29 @@
             }
         });
         
-        // Auto-initialize scanner when DOM and libraries are ready
-        function checkAndInitialize() {
-            console.log('Checking for DirectQRScanner and Html5Qrcode...');
+        // Initialize perfect scanner automatically
+        function launchPerfectScanner() {
+            console.log('🚀 Launching Perfect QR Scanner...');
             
-            if (typeof DirectQRScanner !== 'undefined' && typeof Html5Qrcode !== 'undefined') {
-                console.log('All libraries loaded - initializing DirectQRScanner');
-                
-                // Hide the manual start buttons since DirectQRScanner auto-starts
-                startCameraBtn.style.display = 'none';
-                stopCameraBtn.style.display = 'none';
-                
-                resultContainer.className = 'alert alert-info';
-                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Starting camera automatically...';
-                resultContainer.style.display = 'block';
-                
-                // Initialize scanner (it will auto-start)
-                initializeScanner();
-                
-            } else {
-                console.log('Libraries not loaded yet, retrying...');
-                setTimeout(checkAndInitialize, 300);
-            }
+            // Hide manual controls - Perfect scanner is fully automatic
+            startCameraBtn.style.display = 'none';
+            stopCameraBtn.style.display = 'none';
+            
+            resultContainer.className = 'alert alert-success';
+            resultContainer.innerHTML = '<i class="fas fa-rocket me-2"></i>🌟 Perfect Scanner launching - World class QR detection starting...';
+            resultContainer.style.display = 'block';
+            
+            // Initialize the perfect scanner (auto-starts immediately)
+            initializeScanner();
+            
+            // Update status after initialization
+            setTimeout(() => {
+                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>🎯 Perfect Scanner active - Ready for QR codes!';
+            }, 2000);
         }
         
-        // Start checking immediately
-        checkAndInitialize();
+        // Launch immediately when DOM is ready
+        setTimeout(launchPerfectScanner, 500);
         
         // Add enhancement indicator
         setTimeout(() => {

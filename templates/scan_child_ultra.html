@@ -284,7 +284,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/direct-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/perfect-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let ultraScanner = null;
@@ -494,40 +494,37 @@
             }
         });
         
-        // Initialize scanner function
+        // Initialize perfect scanner for child scanning
         function initializeScanner() {
             if (!ultraScanner) {
-                console.log('Creating DirectQRScanner for child scanning...');
-                ultraScanner = new DirectQRScanner('ultra-child-scanner-container');
+                console.log('🌟 Creating PerfectQRScanner for child scanning...');
+                ultraScanner = new PerfectQRScanner('ultra-child-scanner-container');
                 ultraScanner.setSuccessCallback(handleChildScanSuccess);
-                console.log('DirectQRScanner for child scanning initialized');
+                console.log('✅ PerfectQRScanner for child scanning initialized');
             }
         }
         
-        // Auto-initialize child scanner
-        function checkAndInitializeChild() {
-            console.log('Checking for DirectQRScanner (child scanner)...');
+        // Launch perfect child scanner
+        function launchPerfectChildScanner() {
+            console.log('🚀 Launching Perfect QR Scanner for child scanning...');
             
-            if (typeof DirectQRScanner !== 'undefined' && typeof Html5Qrcode !== 'undefined') {
-                console.log('All libraries loaded - initializing DirectQRScanner for child scanning');
-                
-                // Hide manual start buttons since DirectQRScanner auto-starts
-                startCameraBtn.style.display = 'none';
-                stopCameraBtn.style.display = 'none';
-                
-                showMessage('info', 'Starting camera automatically for child scanning...');
-                
-                // Initialize scanner (it will auto-start)
-                initializeScanner();
-                
-            } else {
-                console.log('Libraries not loaded yet for child scanner, retrying...');
-                setTimeout(checkAndInitializeChild, 300);
-            }
+            // Hide manual controls
+            startCameraBtn.style.display = 'none';
+            stopCameraBtn.style.display = 'none';
+            
+            showMessage('success', '🌟 Perfect Scanner launching for child scanning - World class detection starting...');
+            
+            // Initialize perfect scanner (auto-starts)
+            initializeScanner();
+            
+            // Update status
+            setTimeout(() => {
+                showMessage('success', '🎯 Perfect Scanner active - Ready for child QR codes!');
+            }, 2000);
         }
         
-        // Start checking immediately
-        checkAndInitializeChild();
+        // Launch immediately
+        setTimeout(launchPerfectChildScanner, 500);
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};
