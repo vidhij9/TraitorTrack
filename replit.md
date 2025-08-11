@@ -64,6 +64,12 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 - **Code Reduction**: Eliminated 25% of codebase while maintaining full functionality
 - **Memory Usage**: Reduced by 30% through better caching and query optimization
 
+### Critical Bug Fixes (August 11, 2025)
+- **FIXED: Bag Role Conflicts**: Implemented comprehensive validation to prevent QR codes from being used as both parent and child bags
+- **Business Logic Enhancement**: Added strict role enforcement - one QR code can only have one role (parent OR child, never both)
+- **Multi-Layer Validation**: Added validation at route level, query optimizer level, and database creation level
+- **User-Friendly Errors**: Clear error messages explaining why a QR code cannot be used in conflicting roles
+
 ### Code Consolidation
 - **Authentication**: Centralized all authentication logic in `auth_utils.py`
 - **Database Operations**: Created `query_optimizer.py` for optimized database interactions

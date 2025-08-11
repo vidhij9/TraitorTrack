@@ -899,9 +899,14 @@ def process_parent_scan():
             )
             db.session.add(parent_bag)
         else:
-            # Update to parent type if needed
-            if parent_bag.type != BagType.PARENT.value:
-                parent_bag.type = BagType.PARENT.value
+            # CRITICAL: Check if bag is already a child - cannot be converted to parent
+            if parent_bag.type == BagType.CHILD.value:
+                flash(f'QR code {qr_code} is already registered as a child bag. One bag can only have one role - either parent OR child, never both.', 'error')
+                return redirect(url_for('scan_parent'))
+            elif parent_bag.type != BagType.PARENT.value:
+                # Handle unknown bag types (should not happen in normal operation)
+                flash(f'QR code {qr_code} has an invalid bag type. Please contact support.', 'error')
+                return redirect(url_for('scan_parent'))
         
         db.session.commit()
         
@@ -941,25 +946,42 @@ def process_child_scan():
         if not parent_bag:
             return jsonify({'success': False, 'message': 'Parent bag not found'})
         
-        # Check if child already exists
-        child_bag = Bag.query.filter_by(qr_id=qr_code).first()
+        # Check if bag already exists and validate its type
+        existing_bag = Bag.query.filter_by(qr_id=qr_code).first()
         
-        if child_bag:
-            # Check if child is already linked to any parent
-            existing_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
-            if existing_link:
-                if existing_link.parent_bag_id == parent_bag.id:
-                    return jsonify({
-                        'success': False, 
-                        'message': f'Child bag {qr_code} is already linked to this parent bag.'
-                    })
-                else:
-                    existing_parent = Bag.query.get(existing_link.parent_bag_id)
-                    existing_parent_qr = existing_parent.qr_id if existing_parent else 'Unknown'
-                    return jsonify({
-                        'success': False,
-                        'message': f'Child bag {qr_code} is already linked to parent bag {existing_parent_qr}. One child can only be linked to one parent.'
-                    })
+        if existing_bag:
+            # CRITICAL: Prevent parent bags from being used as children
+            if existing_bag.type == BagType.PARENT.value:
+                return jsonify({
+                    'success': False,
+                    'message': f'QR code {qr_code} is already registered as a parent bag. One bag can only have one role - either parent OR child, never both.'
+                })
+            
+            # If it's already a child, check if it's linked to any parent
+            if existing_bag.type == BagType.CHILD.value:
+                existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
+                if existing_link:
+                    if existing_link.parent_bag_id == parent_bag.id:
+                        return jsonify({
+                            'success': False, 
+                            'message': f'Child bag {qr_code} is already linked to this parent bag.'
+                        })
+                    else:
+                        existing_parent = Bag.query.get(existing_link.parent_bag_id)
+                        existing_parent_qr = existing_parent.qr_id if existing_parent else 'Unknown'
+                        return jsonify({
+                            'success': False,
+                            'message': f'Child bag {qr_code} is already linked to parent bag {existing_parent_qr}. One child can only be linked to one parent.'
+                        })
+                
+                # Use existing child bag
+                child_bag = existing_bag
+            else:
+                # Handle unknown bag types
+                return jsonify({
+                    'success': False,
+                    'message': f'QR code {qr_code} has an invalid bag type. Please contact support.'
+                })
         else:
             # Create new child bag
             child_bag = Bag(
@@ -1165,21 +1187,27 @@ def scan_child():
             if not parent_bag:
                 return jsonify({'success': False, 'message': 'Parent bag not found'})
             
-            # OPTIMIZED: Check child bag exists
-            existing_child = query_optimizer.get_bag_by_qr(qr_id)
+            # OPTIMIZED: Check bag exists and validate its type
+            existing_bag = query_optimizer.get_bag_by_qr(qr_id)
             
-            if existing_child and existing_child.type != BagType.CHILD.value:
-                return jsonify({'success': False, 'message': f'QR code {qr_id} is registered as a parent bag. Cannot use as child bag.'})
+            if existing_bag:
+                if existing_bag.type == BagType.PARENT.value:
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag. One bag can only have one role - either parent OR child, never both.'})
+                elif existing_bag.type != BagType.CHILD.value:
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} has an invalid bag type. Please contact support.'})
             
             # OPTIMIZED: Create child bag if needed
-            if not existing_child:
-                child_bag = query_optimizer.create_bag_optimized(
-                    qr_id=qr_id,
-                    bag_type=BagType.CHILD.value,
-                    dispatch_area=parent_bag.dispatch_area
-                )
+            if not existing_bag:
+                try:
+                    child_bag = query_optimizer.create_bag_optimized(
+                        qr_id=qr_id,
+                        bag_type=BagType.CHILD.value,
+                        dispatch_area=parent_bag.dispatch_area
+                    )
+                except ValueError as e:
+                    return jsonify({'success': False, 'message': str(e)})
             else:
-                child_bag = existing_child
+                child_bag = existing_bag
             
             # OPTIMIZED: Create link with duplicate handling
             link, created = query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)

@@ -78,7 +78,15 @@ class QueryOptimizer:
     
     @staticmethod
     def create_bag_optimized(qr_id, bag_type, name=None, dispatch_area=None):
-        """Optimized bag creation with minimal database operations"""
+        """Optimized bag creation with validation to prevent role conflicts"""
+        # CRITICAL: Check if bag with this QR already exists with a different type
+        existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
+        if existing_bag:
+            if existing_bag.type != bag_type:
+                raise ValueError(f"QR code {qr_id} is already registered as a {existing_bag.type} bag. One bag can only have one role - either parent OR child, never both.")
+            # If same type, return existing bag
+            return existing_bag
+        
         bag = Bag()
         bag.qr_id = qr_id
         bag.type = bag_type
