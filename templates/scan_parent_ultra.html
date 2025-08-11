@@ -91,20 +91,7 @@
                         </div>
                     </div>
                     
-                    <form id="manual-entry-form" class="mt-4" method="POST" action="/process_parent_scan">
-                        {{ form.hidden_tag() if form }}
-                        <div class="mb-3">
-                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-keyboard"></i>
-                                </span>
-                                <input type="text" class="form-control" id="manual-qr-code" name="qr_code" placeholder="e.g., P123-10" required>
-                                <button type="submit" class="btn btn-primary">Submit</button>
-                            </div>
-                            <div class="form-text">If scanning doesn't work, manually enter the QR code value here.</div>
-                        </div>
-                    </form>
+
                 </div>
             </div>
         </div>
@@ -232,7 +219,7 @@
         const scanSuccess = document.getElementById('scan-success');
         const parentQrValue = document.getElementById('parent-qr-value');
         const scanChildLink = document.getElementById('scan-child-link');
-        const manualEntryForm = document.getElementById('manual-entry-form');
+
         const resultContainer = document.getElementById('result-container');
         
         // Initialize scanner with proper error handling
@@ -366,16 +353,7 @@
             }
         });
         
-        // Manual entry form - let it submit naturally with CSRF
-        manualEntryForm.addEventListener('submit', function(e) {
-            const manualQrCode = document.getElementById('manual-qr-code').value.trim();
-            if (!manualQrCode) {
-                e.preventDefault();
-                alert('Please enter a QR code value');
-                return false;
-            }
-            // Form will submit naturally with CSRF token
-        });
+
         
         // Launch live scanner with proper initialization
         async function launchLiveScanner() {

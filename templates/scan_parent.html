@@ -259,7 +259,7 @@
         const parentQrValue = document.getElementById('parent-qr-value');
         const expectedChildCount = document.getElementById('expected-child-count');
         const scanChildLink = document.getElementById('scan-child-link');
-        const manualEntryForm = document.getElementById('manual-entry-form');
+
         const scannerOverlay = document.getElementById('scanner-overlay');
         
         let stream = null;
@@ -289,9 +289,9 @@
                     startCamera();
                 }, 500);
             } else {
-                console.error('jsQR library not loaded - using manual entry only');
+                console.error('jsQR library not loaded - camera only mode');
                 resultContainer.className = 'alert alert-warning';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library not loaded. Please use manual entry below.';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library not loaded. Please refresh the page.';
                 resultContainer.style.display = 'block';
             }
         }
@@ -299,17 +299,7 @@
         // Single check only - no infinite loops
         setTimeout(checkLibraryAndStartCamera, 1000);
         
-        // Handle manual entry form submission
-        manualEntryForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const manualQrInput = document.getElementById('manual-qr-code');
-            const qrCode = manualQrInput.value.trim();
-            
-            if (qrCode) {
-                processQrCode(qrCode);
-                manualQrInput.value = '';
-            }
-        });
+
         
         // Stop camera when button is clicked
         stopCameraBtn.addEventListener('click', stopCamera);
@@ -736,9 +726,7 @@
             // Set processing flag immediately
             processingRequest = true;
             
-            // Display instant feedback
-            const manualQrInput = document.getElementById('manual-qr-code');
-            manualQrInput.value = qrCode;
+
             
             resultContainer.className = 'alert alert-info';
             resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing parent bag...';
@@ -792,20 +780,7 @@
         
         // formatQrCode function removed - preserving original QR code format
         
-        // Handle manual form submission
-        manualEntryForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const manualQrInput = document.getElementById('manual-qr-code');
-            const qrCode = manualQrInput.value.trim();
-            
-            if (qrCode) {
-                processQrCodeInstant(qrCode);
-            } else {
-                resultContainer.className = 'alert alert-warning';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter a QR code value.';
-                resultContainer.style.display = 'block';
-            }
-        });
+
     });
 </script>
 {% endblock %}

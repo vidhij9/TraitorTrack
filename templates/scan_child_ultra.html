@@ -127,19 +127,7 @@
                         </div>
                     </div>
                     
-                    <form id="manual-entry-form" class="mt-4" onsubmit="return handleManualSubmission(event);">
-                        <div class="mb-3">
-                            <label for="manual-qr-code" class="form-label">Manual Child QR Entry</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-keyboard"></i>
-                                </span>
-                                <input type="text" class="form-control" id="manual-qr-code" name="qr_code" placeholder="e.g., C123-10" required>
-                                <button type="submit" class="btn btn-primary">Add Child</button>
-                            </div>
-                            <div class="form-text">Manually enter child QR code if scanning fails.</div>
-                        </div>
-                    </form>
+
                 </div>
             </div>
         </div>
@@ -309,7 +297,7 @@
         const scanSuccess = document.getElementById('scan-success');
         const childQrValue = document.getElementById('child-qr-value');
         const scanAnotherBtn = document.getElementById('scan-another');
-        const manualEntryForm = document.getElementById('manual-entry-form');
+
         const resultContainer = document.getElementById('result-container');
         const childrenList = document.getElementById('children-list');
         const progressText = document.getElementById('progress-text');
@@ -474,46 +462,7 @@
             }, 800);
         }
 
-        // Handle manual form submission with popup notifications
-        function handleManualSubmission(event) {
-            event.preventDefault();
-            
-            const form = event.target;
-            const qrCode = form.qr_code.value.trim();
-            
-            if (!qrCode) {
-                showToast('Please enter a QR code', 'warning');
-                return false;
-            }
-            
-            // Create proper JSON request like the scanner does
-            fetch('/scan/child', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({
-                    qr_code: qrCode
-                })
-            }).then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast(`${qrCode} linked successfully!`, 'success');
-                    addChildToList(data.child_qr, data.child_name);
-                    
-                    // Clear the form
-                    form.reset();
-                } else {
-                    showToast(data.message, 'error');
-                }
-            }).catch(error => {
-                console.error('Manual entry error:', error);
-                showToast('Network error. Please try again.', 'error');
-            });
-            
-            return false;  // Prevent default form submission
-        }
+
         
         // Complete scanning function
         window.completeScanning = function() {

@@ -108,7 +108,7 @@
         const stopCameraBtn = document.getElementById('stop-camera');
         const resultContainer = document.getElementById('result-container');
         const progressText = document.getElementById('progress-text');
-        const manualEntryForm = document.getElementById('manual-entry-form');
+
         const scannerOverlay = document.getElementById('scanner-overlay');
         
         let stream = null;
@@ -144,9 +144,9 @@
                     }, 500);
                 }
             } else {
-                console.error('jsQR library not loaded - using manual entry only');
+                console.error('jsQR library not loaded - camera only mode');
                 resultContainer.className = 'alert alert-warning';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library not loaded. Please use manual entry below.';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library not loaded. Please refresh the page.';
                 resultContainer.style.display = 'block';
             }
         }
@@ -501,9 +501,7 @@
             // Set processing flag immediately
             processingRequest = true;
             
-            // Display instant feedback
-            const manualQrInput = document.getElementById('manual-qr-code');
-            manualQrInput.value = qrCode;
+
             
             resultContainer.className = 'alert alert-info';
             resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing child bag...';
@@ -618,16 +616,7 @@
             progressText.textContent = scannedCount;
         }
         
-        // Manual entry
-        function submitManualCode() {
-            const manualInput = document.getElementById('manual-qr-code');
-            const qrCode = manualInput.value.trim();
-            
-            if (qrCode) {
-                processChildQrCodeInstant(qrCode);
-                manualInput.value = '';
-            }
-        }
+
         
         // Global action button functions
         window.changeParent = function() {
@@ -651,14 +640,7 @@
             loadScannedBags();
         }
         
-        // Initialize manual entry form
-        const manualForm = document.getElementById('manual-entry-form');
-        if (manualForm) {
-            manualForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                submitManualCode();
-            });
-        }
+
     });
 </script>
 {% endblock %}
