@@ -501,7 +501,7 @@
                 
             } catch (error) {
                 console.error('Ultra-fast scan error:', error);
-                showToast('⚠️ Network error. Check connection and try again.', 'error');
+                showToast(`⚠️ Network error: ${error.message}`, 'error');
             }
         }
         
@@ -528,6 +528,7 @@
             console.log('Child count for completion:', childCount);
             
             if (childCount > 0) {
+                console.log('Starting completion process...');
                 // Stop the scanner first
                 if (scanner) {
                     console.log('Stopping scanner...');

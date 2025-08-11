@@ -1162,9 +1162,14 @@ def process_child_scan_fast():
         if not qr_id:
             return jsonify({'success': False, 'message': 'No QR code provided'})
         
-        # Quick validation
+        # Validation: check length and truncate if needed
         if len(qr_id) < 3:
             return jsonify({'success': False, 'message': 'QR code too short'})
+        
+        # Handle long QR codes (database now supports up to 255 chars)
+        if len(qr_id) > 255:
+            qr_id = qr_id[:255]
+            app.logger.info(f'Truncated extremely long QR code to 255 characters')
         
         # Get parent from session (fastest possible)
         parent_qr = session.get('current_parent_qr')
@@ -1210,6 +1215,7 @@ def process_child_scan_fast():
             'success': True,
             'child_qr': qr_id,
             'parent_qr': parent_qr,
+            'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
             'message': f'{qr_id} linked!'
         })
         
