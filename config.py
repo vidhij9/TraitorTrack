@@ -75,7 +75,7 @@ class DevelopmentConfig(Config):
     SESSION_COOKIE_SECURE = False  # Allow non-HTTPS for development
     SECURITY_STRICT_MODE = False   # More lenient security in development
     
-    # Development uses Replit's default DATABASE_URL
+    # Development uses Replit's public DATABASE_URL
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     
     # Smaller connection pool for development
@@ -100,15 +100,7 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_ECHO = True         # Enable SQL echoing for development debugging
 
 
-class TestingConfig(Config):
-    """Configuration for testing environment."""
-    TESTING = True
-    DEBUG = True
-    SESSION_COOKIE_SECURE = False
-    WTF_CSRF_ENABLED = False  # Disable CSRF for testing
-    
-    # Use in-memory database for testing
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+
 
 
 class ProductionConfig(Config):
@@ -117,8 +109,8 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
     SECURITY_STRICT_MODE = True
     
-    # Production uses dedicated production database
-    SQLALCHEMY_DATABASE_URI = os.environ.get("PRODUCTION_DATABASE_URL")
+    # Production uses AWS database
+    SQLALCHEMY_DATABASE_URI = os.environ.get("AWS_DATABASE_URL") or os.environ.get("PRODUCTION_DATABASE_URL")
     
     # Optimized production database settings
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -141,14 +133,14 @@ class ProductionConfig(Config):
     def __init__(self):
         if not os.environ.get("SESSION_SECRET"):
             raise ValueError("SESSION_SECRET must be set in production")
-        if not os.environ.get("PRODUCTION_DATABASE_URL"):
-            raise ValueError("PRODUCTION_DATABASE_URL must be set in production")
+        aws_db_url = os.environ.get("AWS_DATABASE_URL") or os.environ.get("PRODUCTION_DATABASE_URL")
+        if not aws_db_url:
+            raise ValueError("AWS_DATABASE_URL or PRODUCTION_DATABASE_URL must be set for production")
 
 
 # Create a mapping of environment names to configuration classes
 config_by_name = {
     'development': DevelopmentConfig,
-    'testing': TestingConfig,
     'production': ProductionConfig
 }
 

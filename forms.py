@@ -68,15 +68,7 @@ class PromotionRequestActionForm(FlaskForm):
     ])
     submit = SubmitField('Process Request')
 
-class ScanParentForm(FlaskForm):
-    """Form for parent bag scanning."""
-    qr_code = StringField('QR Code', validators=[DataRequired()])
-    submit = SubmitField('Submit')
 
-class ScanChildForm(FlaskForm):
-    """Form for child bag scanning."""
-    qr_code = StringField('QR Code', validators=[DataRequired()])
-    submit = SubmitField('Submit')
 
 class BillCreationForm(FlaskForm):
     """Form to create a new bill."""

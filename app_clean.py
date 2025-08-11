@@ -58,18 +58,18 @@ def get_database_url():
     current_env = get_current_environment()
     
     if current_env == 'production':
-        # Production: use dedicated production database URL
-        prod_url = os.environ.get('PRODUCTION_DATABASE_URL')
-        if prod_url:
-            logging.info("PRODUCTION: Using production database")
-            return prod_url
+        # Production: use AWS database URL
+        aws_url = os.environ.get('AWS_DATABASE_URL') or os.environ.get('PRODUCTION_DATABASE_URL')
+        if aws_url:
+            logging.info("PRODUCTION: Using AWS database")
+            return aws_url
         else:
-            raise ValueError("PRODUCTION_DATABASE_URL must be set for production deployment")
+            raise ValueError("AWS_DATABASE_URL or PRODUCTION_DATABASE_URL must be set for production deployment")
     else:
-        # Development: use Replit's default DATABASE_URL
+        # Development: use Replit's public DATABASE_URL
         dev_url = os.environ.get('DATABASE_URL')
         if dev_url:
-            logging.info("DEVELOPMENT: Using development database")
+            logging.info("DEVELOPMENT: Using Replit public database")
             return dev_url
         else:
             raise ValueError("DATABASE_URL not available in development environment")

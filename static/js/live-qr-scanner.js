@@ -60,7 +60,7 @@ class LiveQRScanner {
                     <div class="success-flash" id="success-flash"></div>
                 </div>
                 
-                <!-- Manual entry removed - using main form only -->
+
             </div>
             
             <style>
@@ -208,44 +208,7 @@ class LiveQRScanner {
                     opacity: 1;
                 }
                 
-                .manual-modal {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0,0,0,0.8);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 100;
-                }
-                
-                .modal-content {
-                    background: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    width: 90%;
-                    max-width: 300px;
-                    text-align: center;
-                }
-                
-                .modal-content h6 {
-                    margin-bottom: 15px;
-                }
-                
-                .modal-content .form-control {
-                    margin-bottom: 15px;
-                }
-                
-                .modal-buttons {
-                    display: flex;
-                    gap: 10px;
-                }
-                
-                .modal-buttons .btn {
-                    flex: 1;
-                }
+
             </style>
         `;
     }
@@ -262,7 +225,7 @@ class LiveQRScanner {
             this.toggleTorch();
         });
         
-        // Manual entry removed - using main form only
+
     }
     
     async startScanning() {

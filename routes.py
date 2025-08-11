@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 
 from app_clean import app, db, limiter, csrf
 from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus
-from forms import LoginForm, RegistrationForm, ScanParentForm, ScanChildForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
+from forms import LoginForm, RegistrationForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
 import csv
@@ -864,17 +864,15 @@ def process_promotion_request(request_id):
 @app.route('/scan/parent')
 @login_required
 def scan_parent():
-    """Scan parent bag QR code - Ultra scanner enabled"""
-    form = ScanParentForm()
-    # Use ultra scanner template for enhanced scanning
-    return render_template('scan_parent_ultra.html', form=form)
+    """Scan parent bag QR code - Ultra scanner enabled (camera only)"""
+    # Use ultra scanner template for enhanced scanning - no manual forms
+    return render_template('scan_parent_ultra.html')
 
 @app.route('/scan/parent/standard')
 @login_required  
 def scan_parent_standard():
-    """Standard parent bag scanning (fallback)"""
-    form = ScanParentForm()
-    return render_template('scan_parent.html', form=form)
+    """Standard parent bag scanning (fallback) - camera only"""
+    return render_template('scan_parent.html')
 
 @app.route('/process_parent_scan', methods=['POST'])
 @login_required
@@ -1149,69 +1147,8 @@ def scan_parent_bag():
                 return jsonify({'success': False, 'message': 'Error processing scan. Please try again or contact support.'})
     
     else:
-        # Handle regular form submission
-        form = ScanParentForm()
-        
-        if form.validate_on_submit():
-            try:
-                qr_id = sanitize_input(getattr(form, 'qr_id', form).data).strip()
-                
-                # Accept any QR code format - no validation restrictions
-                if not qr_id:
-                    flash('Please enter a QR code.', 'error')
-                    return render_template('scan_parent.html', form=form)
-                
-                # Comprehensive duplicate check for QR code uniqueness
-                existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
-                
-                if existing_bag:
-                    if existing_bag.type == BagType.PARENT.value:
-                        parent_bag = existing_bag
-                    else:
-                        pass
-                        flash(f'QR code {qr_id} is already registered as a child bag. Cannot use as parent bag.', 'error')
-                        return render_template('scan_parent.html', form=form)
-                else:
-                    # Create new parent bag - simplified validation for optimized version
-                    
-                    # Create new parent bag
-                    parent_bag = Bag()
-                    parent_bag.qr_id = qr_id
-                    parent_bag.name = f"Bag {qr_id}"
-                    parent_bag.type = BagType.PARENT.value
-                    parent_bag.dispatch_area = current_user.dispatch_area if current_user.is_dispatcher() else None
-                    db.session.add(parent_bag)
-                    db.session.commit()
-                    flash(f'New parent bag created for QR code: {qr_id}', 'info')
-                
-                # Record the scan
-                scan = Scan()
-                scan.parent_bag_id = parent_bag.id
-                scan.user_id = current_user.id
-                scan.timestamp = datetime.utcnow()
-                
-                db.session.add(scan)
-                db.session.commit()
-                
-                # Store in session for the completion page
-                session['last_scan'] = {
-                    'type': 'parent',
-                    'qr_id': qr_id,
-                    'bag_name': parent_bag.name,
-                    'timestamp': scan.timestamp.isoformat()
-                }
-                # Also store the current parent QR for child scanner
-                session['current_parent_qr'] = qr_id
-                
-                flash('Parent bag scanned successfully! Now scan child bags to link them.', 'success')
-                return redirect(url_for('scan_child', s=request.args.get('s')))
-                
-            except Exception as e:
-                db.session.rollback()
-                flash('Error processing scan. Please try again.', 'error')
-                app.logger.error(f'Parent scan error: {str(e)}')
-        
-        return render_template('scan_parent.html', form=form)
+        # Only camera scanning allowed - no manual form submission
+        return redirect(url_for('scan_parent'))
 
 @app.route('/scan/child', methods=['GET', 'POST'])
 @login_required
@@ -1324,27 +1261,6 @@ def scan_child():
                 return jsonify({'success': False, 'message': f'Error processing scan: {str(e)}'})
     
     else:
-        # Handle regular form submission
-        form = ScanChildForm()
-        
-        if form.validate_on_submit():
-            try:
-                qr_id = sanitize_input(getattr(form, 'qr_id', form).data).strip()
-                
-                if not qr_id:
-                    flash('Please enter a QR code.', 'error')
-                    return render_template('scan_child_ultra.html', form=form)
-                
-                # Same logic as AJAX but with redirect
-                # ... (similar processing logic)
-                flash('Child bag scanned successfully!', 'success')
-                return redirect(url_for('scan_complete', s=request.args.get('s')))
-                
-            except Exception as e:
-                db.session.rollback()
-                flash('Error processing scan. Please try again.', 'error')
-                app.logger.error(f'Child scan error: {str(e)}')
-        
         # Get parent bag from session for display
         parent_bag = None
         scanned_child_count = 0
@@ -1372,7 +1288,6 @@ def scan_child():
                 ).all()
         
         return render_template('scan_child_ultra.html', 
-                             form=form, 
                              parent_bag=parent_bag, 
                              scanned_child_count=scanned_child_count,
                              linked_child_bags=linked_child_bags)
@@ -2051,8 +1966,6 @@ def scan_bill_parent(bill_id):
     # Get the bill or return 404 if not found
     bill = Bill.query.get_or_404(bill_id)
     
-    form = ScanParentForm()
-    
     # Get current parent bags linked to this bill
     linked_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
     
@@ -2060,7 +1973,7 @@ def scan_bill_parent(bill_id):
     current_count = bill.bag_links.count()
     app.logger.info(f'Scan bill parent page - Bill {bill.id} has {current_count} linked bags')
     
-    return render_template('scan_bill_parent.html', form=form, bill=bill, linked_bags=linked_bags)
+    return render_template('scan_bill_parent.html', bill=bill, linked_bags=linked_bags)
 
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
