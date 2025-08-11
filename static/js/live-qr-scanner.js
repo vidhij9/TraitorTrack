@@ -419,8 +419,8 @@ class LiveQRScanner {
             if (!this.isScanning) return;
             
             frame++;
-            // Scan every 5th frame for performance
-            if (frame % 5 === 0) {
+            // Scan every 3rd frame for better speed
+            if (frame % 3 === 0) {
                 try {
                     this.canvas.width = this.video.videoWidth;
                     this.canvas.height = this.video.videoHeight;
@@ -489,7 +489,7 @@ class LiveQRScanner {
                 console.log('LiveQR: Resuming continuous scanning...');
                 this.detectQRCode();
             }
-        }, 800);
+        }, 400);  // Reduced pause for faster scanning
     }
     
     setSuccessCallback(callback) {
