@@ -196,24 +196,35 @@ document.addEventListener('DOMContentLoaded', function() {
             resultContainer.className = 'alert alert-success';
             resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera ready - point at QR code to scan';
             
+            // Hide manual controls on success
+            document.getElementById('manual-camera-controls').style.display = 'none';
+            
         } catch (error) {
             console.error('Scanner initialization failed:', error);
             
             let errorMessage = 'Camera access failed. ';
+            let showManualControls = true;
+            
             if (error.name === 'NotAllowedError' || error.message.includes('Permission')) {
-                errorMessage += 'Please allow camera permissions and refresh the page.';
+                errorMessage += 'Please click "Start Camera" below to grant permissions.';
             } else if (error.message.includes('No cameras found')) {
                 errorMessage += 'No cameras detected on this device.';
+                showManualControls = false;
+            } else if (error.message.includes('secure context')) {
+                errorMessage += 'Camera requires HTTPS. Please use a secure connection.';
+                showManualControls = false;
             } else {
-                errorMessage += 'Please check camera permissions and try again.';
+                errorMessage += 'Please try clicking "Start Camera" below.';
             }
             
             resultContainer.className = 'alert alert-danger';
             resultContainer.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${errorMessage}`;
             resultContainer.style.display = 'block';
             
-            // Show manual camera controls
-            document.getElementById('manual-camera-controls').style.display = 'block';
+            // Show/hide manual camera controls based on error type
+            if (showManualControls) {
+                document.getElementById('manual-camera-controls').style.display = 'block';
+            }
             
             // Add manual refresh button
             const refreshBtn = document.createElement('button');
