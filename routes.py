@@ -1147,6 +1147,7 @@ def scan_parent_bag():
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan_fast', methods=['POST'])
+@csrf.exempt
 @login_required
 def process_child_scan_fast():
     """Ultra-fast child bag processing with CSRF exemption for JSON requests"""

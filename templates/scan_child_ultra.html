@@ -410,11 +410,13 @@
             }, 600);
         }
         
-        // APPLE SPEED: Lightning-fast visual feedback
+        // APPLE SPEED: Lightning-fast visual feedback with better messages
         function showQuickFeedback(message) {
             const feedback = document.createElement('div');
             feedback.className = 'scan-feedback';
-            feedback.innerHTML = `<i class="fas fa-bolt"></i> ${message}`;
+            feedback.innerHTML = message;
+            feedback.style.fontSize = '16px';
+            feedback.style.fontWeight = 'bold';
             document.body.appendChild(feedback);
             
             // APPLE SPEED: Faster feedback removal
@@ -422,7 +424,7 @@
                 if (feedback.parentNode) {
                     feedback.parentNode.removeChild(feedback);
                 }
-            }, 600); // Faster than before
+            }, 800); // Slightly longer for readability
         }
         
         // APPLE SPEED: Performance monitoring
@@ -460,7 +462,7 @@
             console.log('ULTRA-FAST Child scan:', qrText);
             
             // APPLE SPEED: Instant visual feedback (no server wait)
-            showQuickFeedback(`⚡ ${qrText}`);
+            showQuickFeedback(`🔗 Linking ${qrText}...`);
             
             try {
                 // APPLE SPEED: Parallel processing - start UI update immediately
@@ -481,8 +483,9 @@
                 console.log(`SPEED: Total processing time: ${endTime - startTime}ms`);
                 
                 if (data.success) {
-                    // SUCCESS: Show confirmation toast
-                    showToast(`${qrText} linked in ${Math.round(endTime - startTime)}ms!`, 'success');
+                    // SUCCESS: Show confirmation toast with speed
+                    showToast(`✓ ${qrText} linked in ${Math.round(endTime - startTime)}ms`, 'success');
+                    window.scanPerformance.addScan(endTime - startTime);
                     
                     // Track for completion
                     scannedChildren.push({
@@ -492,14 +495,13 @@
                     });
                     
                 } else {
-                    // ERROR: Revert UI changes if server failed
-                    showToast(data.message || 'Failed to link bag', 'error');
-                    // Could add UI revert logic here if needed
+                    // ERROR: Show clear error message
+                    showToast(`❌ ${data.message || 'Failed to link bag'}`, 'error');
                 }
                 
             } catch (error) {
                 console.error('Ultra-fast scan error:', error);
-                showToast('Network error. Retrying...', 'error');
+                showToast('⚠️ Network error. Check connection and try again.', 'error');
             }
         }
         
@@ -507,12 +509,23 @@
 
 
         
-        // FIXED: Complete scanning function
+        // FIXED: Complete scanning function with better debugging
         window.completeScanning = function() {
-            const progressElement = document.getElementById('child-count');
-            const childCount = parseInt(progressElement ? progressElement.textContent : '0') || 0;
+            console.log('Complete button clicked!');
             
-            console.log('Complete button clicked - Child count:', childCount);
+            const progressElement = document.getElementById('child-count');
+            const completeElement = document.getElementById('complete-count');
+            
+            console.log('Elements:', {
+                progressElement: progressElement,
+                completeElement: completeElement,
+                progressText: progressElement ? progressElement.textContent : 'NOT FOUND',
+                completeText: completeElement ? completeElement.textContent : 'NOT FOUND'
+            });
+            
+            const childCount = parseInt(completeElement ? completeElement.textContent : '0') || 0;
+            
+            console.log('Child count for completion:', childCount);
             
             if (childCount > 0) {
                 // Stop the scanner first
@@ -522,13 +535,15 @@
                 }
                 
                 console.log('Completing scanning with', childCount, 'child bags');
-                showToast('Completing scanning...', 'success');
+                showToast(`🎉 Completing with ${childCount} bags...`, 'success');
                 
                 // Redirect to completion page
-                window.location.href = '{{ url_for("scan_complete") }}';
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("scan_complete") }}';
+                }, 500);
             } else {
                 console.log('No child bags scanned yet');
-                showToast('Please scan at least one child bag before completing.', 'warning');
+                showToast('⚠️ Please scan at least one child bag before completing', 'warning');
             }
         };
         
