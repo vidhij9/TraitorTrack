@@ -219,7 +219,7 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/apple-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -288,13 +288,13 @@
             form.submit();
         }
         
-        // Initialize Apple-level scanner
+        // Initialize live scanner
         function initializeScanner() {
             if (!scanner) {
-                console.log('Creating AppleQRScanner...');
-                scanner = new AppleQRScanner('ultra-scanner-container');
+                console.log('Creating LiveQRScanner...');
+                scanner = new LiveQRScanner('ultra-scanner-container');
                 scanner.setSuccessCallback(handleScanSuccess);
-                console.log('AppleQRScanner initialized');
+                console.log('LiveQRScanner initialized');
             }
         }
         
@@ -354,15 +354,13 @@
             }
         });
         
-        // Launch Apple-level scanner
-        function launchAppleScanner() {
-            console.log('Launching Apple QR Scanner...');
+        // Launch live scanner
+        function launchLiveScanner() {
+            console.log('Launching Live QR Scanner...');
             
-            // Hide manual controls - Apple scanner handles everything
+            // Hide manual controls
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
-            
-            // Hide result container - Apple scanner has clean UI
             resultContainer.style.display = 'none';
             
             // Initialize scanner
@@ -370,7 +368,7 @@
         }
         
         // Launch immediately
-        setTimeout(launchAppleScanner, 100);
+        setTimeout(launchLiveScanner, 100);
     });
 </script>
 {% endblock %}

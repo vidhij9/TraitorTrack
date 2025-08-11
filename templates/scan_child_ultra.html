@@ -285,7 +285,7 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/apple-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let ultraScanner = null;
@@ -495,25 +495,23 @@
             }
         });
         
-        // Initialize Apple-level scanner for child scanning
+        // Initialize live scanner for child scanning
         function initializeScanner() {
             if (!ultraScanner) {
-                console.log('Creating AppleQRScanner for child scanning...');
-                ultraScanner = new AppleQRScanner('ultra-child-scanner-container');
+                console.log('Creating LiveQRScanner for child scanning...');
+                ultraScanner = new LiveQRScanner('ultra-child-scanner-container');
                 ultraScanner.setSuccessCallback(handleChildScanSuccess);
-                console.log('AppleQRScanner for child scanning initialized');
+                console.log('LiveQRScanner for child scanning initialized');
             }
         }
         
-        // Launch Apple-level child scanner
-        function launchAppleChildScanner() {
-            console.log('Launching Apple QR Scanner for child scanning...');
+        // Launch live child scanner
+        function launchLiveChildScanner() {
+            console.log('Launching Live QR Scanner for child scanning...');
             
             // Hide manual controls
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
-            
-            // Clear messages for clean UI
             clearMessages();
             
             // Initialize scanner
@@ -521,7 +519,7 @@
         }
         
         // Launch immediately
-        setTimeout(launchAppleChildScanner, 100);
+        setTimeout(launchLiveChildScanner, 100);
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};

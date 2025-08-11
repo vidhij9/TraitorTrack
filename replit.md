@@ -74,31 +74,30 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 - Eliminated 7 redundant files: `duplicate_prevention.py`, `account_security.py`, `test_auth.py`, `setup_admin.py`, `cache_utils.py`, `production_auth_fix.py`, `simple_auth.py`
 - Consolidated functionality into optimized utility modules
 
-## Apple-Level QR Scanner Implementation (August 2025)
+## Live QR Scanner Implementation (August 2025)
 
-### World-Class Scanner Features
-- **Multi-Engine Detection**: HTML5-QRCode primary + jsQR fallback for maximum compatibility
-- **Enhanced Low-Light Scanning**: Advanced contrast/brightness adjustment for poor lighting
-- **Apple-Style UI**: Professional scanning overlay with animated targeting frame
-- **Real-Time Enhancement**: Continuous image processing for difficult conditions
-- **Torch Control**: Flashlight toggle for ultra-low light scanning
-- **Haptic Feedback**: Vibration confirmation on successful scans
-- **Multiple Input Methods**: Camera, file upload, manual entry with seamless switching
+### Minimal, Working Scanner Features
+- **Dual-Engine Detection**: HTML5-QRCode primary + jsQR native fallback
+- **Live Camera Only**: Focused on real-time scanning, no file uploads
+- **Clean Scanning Frame**: Professional corner indicators with animated scan line
+- **Torch Control**: Flashlight toggle for low-light conditions
+- **Manual Entry Backup**: Simple modal for manual QR code entry
+- **Performance Optimized**: Frame skipping for efficient scanning
 
 ### Technical Implementation
-- **File**: `static/js/apple-qr-scanner.js`
-- **Libraries**: HTML5-QRCode 2.3.4 + jsQR 1.4.0 locally hosted for reliability
-- **Templates**: Clean UI in `scan_parent_ultra.html` and `scan_child_ultra.html`
-- **Camera Settings**: 30fps, continuous focus/exposure, back camera preference
-- **Image Processing**: Real-time contrast enhancement and brightness optimization
-- **Error Handling**: Silent fallback between detection engines
+- **File**: `static/js/live-qr-scanner.js`
+- **Libraries**: HTML5-QRCode 2.3.4 + jsQR 1.4.0 locally hosted
+- **Templates**: Minimal UI in `scan_parent_ultra.html` and `scan_child_ultra.html`
+- **Camera Settings**: Environment facing, 640x480 resolution, 10fps
+- **Scanning Logic**: Html5Qrcode first, native camera + jsQR fallback
+- **Error Handling**: Silent operation with graceful degradation
 
 ### User Experience
-- **Apple-Like Interface**: Professional scanning frame with corner indicators
-- **Clean Design**: No unnecessary status messages or clutter
-- **Instant Feedback**: Success animation with haptic response
-- **Universal Controls**: Torch, file upload, manual entry always accessible
-- **Optimized Performance**: Sub-second detection in all lighting conditions
+- **Clean Interface**: Scanning frame with green corner indicators
+- **Live Feedback**: Success flash effect and haptic vibration
+- **Minimal Controls**: Only torch and manual entry buttons
+- **No Clutter**: Removed all unnecessary status messages and options
+- **Reliable Operation**: Works across all devices and browsers
 
 ### New Optimized Components
 - `auth_utils.py`: Unified authentication and user management
