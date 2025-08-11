@@ -342,9 +342,9 @@
             let delay = 2000; // Faster default
             
             if (type === 'error') {
-                icon = 'fas fa-exclamation-circle';
+                icon = 'fas fa-exclamation-triangle';
                 bgClass = 'bg-danger';
-                delay = 3000; // Longer for errors
+                delay = 5000; // Much longer for errors to be visible
             } else if (type === 'warning') {
                 icon = 'fas fa-clock';  
                 bgClass = 'bg-warning text-dark';
@@ -495,13 +495,14 @@
                     });
                     
                 } else {
-                    // ERROR: Show clear error message
-                    showToast(`❌ ${data.message || 'Failed to link bag'}`, 'error');
+                    // ERROR: Show clear error message with red background
+                    console.log('SCAN ERROR:', data.message);
+                    showToast(data.message || 'Failed to link bag', 'error');
                 }
                 
             } catch (error) {
                 console.error('Ultra-fast scan error:', error);
-                showToast(`⚠️ Network error: ${error.message}`, 'error');
+                showToast(`Network error: ${error.message}`, 'error');
             }
         }
         

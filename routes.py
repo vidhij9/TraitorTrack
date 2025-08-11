@@ -1193,11 +1193,12 @@ def process_child_scan_fast():
             existing_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
             if existing_link:
                 if existing_link.parent_bag_id == parent_bag.id:
-                    return jsonify({'success': False, 'message': f'🔄 {qr_id[:20]}... already linked to current parent'})
+                    return jsonify({'success': False, 'message': f'Already linked to current parent'})
                 else:
-                    other_parent = query_optimizer.get_bag_by_id(existing_link.parent_bag_id)
-                    parent_name = other_parent.qr_id[:15] if other_parent else "unknown parent"
-                    return jsonify({'success': False, 'message': f'🚫 {qr_id[:20]}... already linked to {parent_name}...'})
+                    # Get the other parent bag details
+                    other_parent_bag = db.session.get(Bag, existing_link.parent_bag_id)
+                    parent_name = other_parent_bag.qr_id[:15] if other_parent_bag else "unknown parent"
+                    return jsonify({'success': False, 'message': f'Already linked to {parent_name}...'})
         else:
             # Create new child bag
             child_bag = query_optimizer.create_bag_optimized(
