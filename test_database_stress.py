@@ -229,32 +229,46 @@ class DatabaseStressTester:
                 with app.app_context():
                     for op in range(operations_per_thread):
                         try:
-                            # Create parent bag
-                            parent_qr = f"CONCURRENT_PARENT_{thread_id}_{op}"
-                            parent_bag = Bag(
-                                qr_id=parent_qr,
-                                type=BagType.PARENT.value,
-                                name=f"Concurrent Parent {thread_id}-{op}",
-                                child_count=0
-                            )
-                            db.session.add(parent_bag)
-                            db.session.flush()
+                            # Create parent bag with unique timestamp to avoid duplicates
+                            parent_qr = f"CONCURRENT_PARENT_{thread_id}_{op}_{int(time.time() * 1000000) % 1000000}"
+                            
+                            # Check if bag already exists (handle race conditions)
+                            existing_bag = Bag.query.filter_by(qr_id=parent_qr).first()
+                            if existing_bag:
+                                parent_bag = existing_bag
+                            else:
+                                parent_bag = Bag(
+                                    qr_id=parent_qr,
+                                    type=BagType.PARENT.value,
+                                    name=f"Concurrent Parent {thread_id}-{op}",
+                                    child_count=0
+                                )
+                                db.session.add(parent_bag)
+                                db.session.flush()
                             
                             # Add 5 child bags
                             for child_num in range(5):
-                                child_qr = f"CONCURRENT_CHILD_{thread_id}_{op}_{child_num}"
-                                child_bag = Bag(
-                                    qr_id=child_qr,
-                                    type=BagType.CHILD.value,
-                                    name=f"Concurrent Child {thread_id}-{op}-{child_num}",
-                                    parent_id=parent_bag.id
-                                )
-                                db.session.add(child_bag)
-                                db.session.flush()
+                                child_qr = f"CONCURRENT_CHILD_{thread_id}_{op}_{child_num}_{int(time.time() * 1000000) % 1000000}"
                                 
-                                # Create link
-                                link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
-                                db.session.add(link)
+                                # Check if child bag already exists
+                                existing_child = Bag.query.filter_by(qr_id=child_qr).first()
+                                if existing_child:
+                                    child_bag = existing_child
+                                else:
+                                    child_bag = Bag(
+                                        qr_id=child_qr,
+                                        type=BagType.CHILD.value,
+                                        name=f"Concurrent Child {thread_id}-{op}-{child_num}",
+                                        parent_id=parent_bag.id
+                                    )
+                                    db.session.add(child_bag)
+                                    db.session.flush()
+                                
+                                # Create link only if it doesn't exist
+                                existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
+                                if not existing_link:
+                                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+                                    db.session.add(link)
                             
                             # Update parent child count
                             parent_bag.child_count = 5
