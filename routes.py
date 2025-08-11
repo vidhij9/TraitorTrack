@@ -1222,7 +1222,7 @@ def scan_child():
                 
                 if not qr_id:
                     flash('Please enter a QR code.', 'error')
-                    return render_template('scan_child.html', form=form)
+                    return render_template('scan_child_ultra.html', form=form)
                 
                 # Same logic as AJAX but with redirect
                 # ... (similar processing logic)
@@ -1260,7 +1260,7 @@ def scan_child():
                     Bag.type == BagType.CHILD.value
                 ).all()
         
-        return render_template('scan_child.html', 
+        return render_template('scan_child_ultra.html', 
                              form=form, 
                              parent_bag=parent_bag, 
                              scanned_child_count=scanned_child_count,
