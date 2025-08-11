@@ -54,7 +54,7 @@
     <div class="row">
         <div class="col-lg-6 mb-4 mb-lg-0">
             <div class="card">
-                <div class="card-header bg-success bg-opacity-25 text-dark">
+                <div class="card-header bg-primary bg-opacity-25 text-dark">
                     <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
                 <div class="card-body p-0">
@@ -73,20 +73,27 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-footer d-flex justify-content-between">
-                    <button id="start-camera" class="btn btn-success">
-                        <i class="fas fa-play me-2"></i>Start Camera
-                    </button>
-                    <button id="stop-camera" class="btn btn-secondary" disabled>
-                        <i class="fas fa-stop me-2"></i>Stop Camera
-                    </button>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div class="scanner-controls">
+                        <button id="start-camera" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i>Start Camera
+                        </button>
+                        <button id="stop-camera" class="btn btn-secondary" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop Camera
+                        </button>
+                    </div>
+                    <div class="scanner-info">
+                        <small class="text-muted">
+                            <i class="fas fa-link me-1"></i>Link child bags to parent
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
         
         <div class="col-lg-6">
             <div class="card">
-                <div class="card-header bg-primary bg-opacity-25 text-dark">
+                <div class="card-header bg-success bg-opacity-25 text-dark">
                     <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Result</h4>
                 </div>
                 <div class="card-body">
@@ -95,10 +102,19 @@
                         The result of the scan will appear here.
                     </div>
                     
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Manual entry form is available below the scanned bags section.
-                    </div>
+                    <form id="manual-entry-form" class="mt-4">
+                        <div class="mb-3">
+                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-keyboard"></i>
+                                </span>
+                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., C123-15">
+                                <button type="submit" class="btn btn-primary">Submit</button>
+                            </div>
+                            <div class="form-text">If scanning doesn't work, you can manually enter the QR code value here.</div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -915,13 +931,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     
     function submitManualCode() {
-        const manualInput = document.getElementById('manual-qr-input');
+        const manualInput = document.getElementById('manual-qr-code');
         const qrCode = manualInput.value.trim();
         
         if (qrCode) {
             processChildQrCodeInstant(qrCode);
             manualInput.value = '';
         }
+    }
+        manualEntryForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitManualCode();
+        });
     }
     
     // Global action button functions (accessible to onclick handlers)
@@ -967,6 +988,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const manualForm = document.getElementById('manual-entry-form');
     if (manualForm) {
         manualForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitManualCode();
+        });
+    }
+    
+    // Also handle the old manual form if it exists
+    const oldManualForm = document.getElementById('manual-qr-input');
+    if (oldManualForm) {
+        oldManualForm.addEventListener('submit', function(e) {
             e.preventDefault();
             submitManualCode();
         });

@@ -1021,8 +1021,18 @@ def scan_parent_bag():
             if existing_bag:
                 if existing_bag.type == BagType.PARENT.value:
                     parent_bag = existing_bag
+                    # Get current linked child count for existing parent
+                    child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                    return jsonify({
+                        'success': True,
+                        'parent_qr': qr_id,
+                        'existing': True,
+                        'child_count': child_count,
+                        'message': f'Parent bag {qr_id} found with {child_count} linked child bags. Continue to add more children.',
+                        'redirect': url_for('scan_child', s=request.args.get('s'))
+                    })
                 else:
-                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag.'})
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag. Cannot use as parent.'})
             else:
                 # OPTIMIZED: Create new parent bag
                 parent_bag = query_optimizer.create_bag_optimized(
@@ -1159,7 +1169,7 @@ def scan_child():
             existing_child = query_optimizer.get_bag_by_qr(qr_id)
             
             if existing_child and existing_child.type != BagType.CHILD.value:
-                return jsonify({'success': False, 'message': f'{qr_id} exists as parent bag'})
+                return jsonify({'success': False, 'message': f'QR code {qr_id} is registered as a parent bag. Cannot use as child bag.'})
             
             # OPTIMIZED: Create child bag if needed
             if not existing_child:
