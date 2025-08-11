@@ -69,6 +69,8 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 - **Business Logic Enhancement**: Added strict role enforcement - one QR code can only have one role (parent OR child, never both)
 - **Multi-Layer Validation**: Added validation at route level, query optimizer level, and database creation level
 - **User-Friendly Errors**: Clear error messages explaining why a QR code cannot be used in conflicting roles
+- **Enhanced Error Messages**: Comprehensive error handling for all scanning scenarios including QR code validation, duplicate detection, role conflicts, and database errors
+- **Detailed Issue Reporting**: Error messages now include specific information about existing bag types, link counts, and database relationship issues
 
 ### Code Consolidation
 - **Authentication**: Centralized all authentication logic in `auth_utils.py`

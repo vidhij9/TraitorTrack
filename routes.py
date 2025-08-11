@@ -937,14 +937,22 @@ def process_child_scan():
         if not qr_code:
             return jsonify({'success': False, 'message': 'No QR code provided'})
         
+        # Validate QR code format
+        if len(qr_code) < 3:
+            return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
+        
         # Get parent from session
         parent_qr = session.get('current_parent_qr')
         if not parent_qr:
-            return jsonify({'success': False, 'message': 'No parent bag selected'})
+            return jsonify({'success': False, 'message': 'No parent bag selected. Please scan a parent bag first.'})
+        
+        # Check if trying to scan the same QR code as parent
+        if qr_code == parent_qr:
+            return jsonify({'success': False, 'message': f'Cannot link QR code {qr_code} to itself. Parent and child must be different QR codes.'})
         
         parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
         if not parent_bag:
-            return jsonify({'success': False, 'message': 'Parent bag not found'})
+            return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
         
         # Check if bag already exists and validate its type
         existing_bag = Bag.query.filter_by(qr_id=qr_code).first()
@@ -952,9 +960,11 @@ def process_child_scan():
         if existing_bag:
             # CRITICAL: Prevent parent bags from being used as children
             if existing_bag.type == BagType.PARENT.value:
+                # Get details about this parent bag
+                child_count = Link.query.filter_by(parent_bag_id=existing_bag.id).count()
                 return jsonify({
                     'success': False,
-                    'message': f'QR code {qr_code} is already registered as a parent bag. One bag can only have one role - either parent OR child, never both.'
+                    'message': f'QR code {qr_code} is already registered as a parent bag with {child_count} child bags linked. One bag can only have one role - either parent OR child, never both.'
                 })
             
             # If it's already a child, check if it's linked to any parent
@@ -980,7 +990,7 @@ def process_child_scan():
                 # Handle unknown bag types
                 return jsonify({
                     'success': False,
-                    'message': f'QR code {qr_code} has an invalid bag type. Please contact support.'
+                    'message': f'QR code {qr_code} has an invalid bag type ({existing_bag.type}). Please contact support.'
                 })
         else:
             # Create new child bag
@@ -1015,10 +1025,23 @@ def process_child_scan():
             'parent_qr': parent_qr
         })
         
+    except ValueError as e:
+        # Handle validation errors from query_optimizer
+        db.session.rollback()
+        app.logger.error(f'Child scan validation error: {str(e)}')
+        return jsonify({'success': False, 'message': str(e)})
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Process child scan error: {str(e)}')
-        return jsonify({'success': False, 'message': 'Error processing scan'})
+        # Check for common database errors
+        if 'duplicate key' in str(e).lower():
+            return jsonify({'success': False, 'message': 'Duplicate entry detected. This bag may already be processed.'})
+        elif 'foreign key' in str(e).lower():
+            return jsonify({'success': False, 'message': 'Database relationship error. Please contact support.'})
+        elif 'connection' in str(e).lower():
+            return jsonify({'success': False, 'message': 'Database connection error. Please try again.'})
+        else:
+            return jsonify({'success': False, 'message': 'Error processing scan. Please try again or contact support.'})
 
 @app.route('/scan/parent', methods=['POST'])
 @login_required
@@ -1037,6 +1060,10 @@ def scan_parent_bag():
             return jsonify({'success': False, 'message': 'Please provide a QR code.'})
         
         try:
+            # Validate QR code format
+            if len(qr_id) < 3:
+                return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
+            
             # OPTIMIZED: Single query to check existing bag
             existing_bag = query_optimizer.get_bag_by_qr(qr_id)
             
@@ -1053,15 +1080,27 @@ def scan_parent_bag():
                         'message': f'Parent bag {qr_id} found with {child_count} linked child bags. Continue to add more children.',
                         'redirect': url_for('scan_child', s=request.args.get('s'))
                     })
+                elif existing_bag.type == BagType.CHILD.value:
+                    # Check if this child is already linked to a parent
+                    existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
+                    if existing_link:
+                        linked_parent = Bag.query.get(existing_link.parent_bag_id)
+                        parent_qr = linked_parent.qr_id if linked_parent else 'Unknown'
+                        return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag linked to parent {parent_qr}. Cannot use as parent.'})
+                    else:
+                        return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag. Cannot use as parent.'})
                 else:
-                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a child bag. Cannot use as parent.'})
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} has an invalid bag type ({existing_bag.type}). Please contact support.'})
             else:
                 # OPTIMIZED: Create new parent bag
-                parent_bag = query_optimizer.create_bag_optimized(
-                    qr_id=qr_id,
-                    bag_type=BagType.PARENT.value,
-                    dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
-                )
+                try:
+                    parent_bag = query_optimizer.create_bag_optimized(
+                        qr_id=qr_id,
+                        bag_type=BagType.PARENT.value,
+                        dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
+                    )
+                except ValueError as e:
+                    return jsonify({'success': False, 'message': str(e)})
             
             # OPTIMIZED: Create scan record
             query_optimizer.create_scan_optimized(
@@ -1091,9 +1130,23 @@ def scan_parent_bag():
                 'redirect': url_for('scan_child', s=request.args.get('s'))
             })
             
+        except ValueError as e:
+            # Handle validation errors from query_optimizer
+            db.session.rollback()
+            app.logger.error(f'Parent scan validation error: {str(e)}')
+            return jsonify({'success': False, 'message': str(e)})
         except Exception as e:
             db.session.rollback()
-            return jsonify({'success': False, 'message': f'Processing failed: {str(e)}'})
+            app.logger.error(f'Parent scan processing error: {str(e)}')
+            # Check for common database errors
+            if 'duplicate key' in str(e).lower():
+                return jsonify({'success': False, 'message': 'Duplicate entry detected. This bag may already be processed.'})
+            elif 'foreign key' in str(e).lower():
+                return jsonify({'success': False, 'message': 'Database relationship error. Please contact support.'})
+            elif 'connection' in str(e).lower():
+                return jsonify({'success': False, 'message': 'Database connection error. Please try again.'})
+            else:
+                return jsonify({'success': False, 'message': 'Error processing scan. Please try again or contact support.'})
     
     else:
         # Handle regular form submission
@@ -1177,24 +1230,43 @@ def scan_child():
             return jsonify({'success': False, 'message': 'QR code required'})
         
         try:
+            # Validate QR code format
+            if len(qr_id) < 3:
+                return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
+            
             # OPTIMIZED: Get parent bag from session (cached)
             parent_qr = session.get('current_parent_qr')
             if not parent_qr:
-                return jsonify({'success': False, 'message': 'No parent bag selected'})
+                return jsonify({'success': False, 'message': 'No parent bag selected. Please scan a parent bag first.'})
             
             # OPTIMIZED: Get parent bag efficiently
             parent_bag = query_optimizer.get_bag_by_qr(parent_qr, BagType.PARENT.value)
             if not parent_bag:
-                return jsonify({'success': False, 'message': 'Parent bag not found'})
+                return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
+            
+            # Check if trying to scan the same QR code as parent
+            if qr_id == parent_qr:
+                return jsonify({'success': False, 'message': f'Cannot link QR code {qr_id} to itself. Parent and child must be different QR codes.'})
             
             # OPTIMIZED: Check bag exists and validate its type
             existing_bag = query_optimizer.get_bag_by_qr(qr_id)
             
             if existing_bag:
                 if existing_bag.type == BagType.PARENT.value:
-                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag. One bag can only have one role - either parent OR child, never both.'})
-                elif existing_bag.type != BagType.CHILD.value:
-                    return jsonify({'success': False, 'message': f'QR code {qr_id} has an invalid bag type. Please contact support.'})
+                    # Get details about this parent bag
+                    child_count = Link.query.filter_by(parent_bag_id=existing_bag.id).count()
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag with {child_count} child bags linked. One bag can only have one role - either parent OR child, never both.'})
+                elif existing_bag.type == BagType.CHILD.value:
+                    # Check if this child is already linked to another parent
+                    existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
+                    if existing_link and existing_link.parent_bag_id != parent_bag.id:
+                        linked_parent = Bag.query.get(existing_link.parent_bag_id)
+                        parent_qr_linked = linked_parent.qr_id if linked_parent else 'Unknown'
+                        return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to parent bag {parent_qr_linked}. One child can only be linked to one parent.'})
+                    elif existing_link and existing_link.parent_bag_id == parent_bag.id:
+                        return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to this parent bag {parent_qr}.'})
+                else:
+                    return jsonify({'success': False, 'message': f'QR code {qr_id} has an invalid bag type ({existing_bag.type}). Please contact support.'})
             
             # OPTIMIZED: Create child bag if needed
             if not existing_bag:
