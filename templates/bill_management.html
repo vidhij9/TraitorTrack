@@ -415,6 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initBillScanner() {
         try {
             if (!billScanner) {
+                console.log('Creating bill scanner...');
                 billScanner = new LiveQRScanner('bill-scanner-container');
                 billScanner.setSuccessCallback(function(qrCode) {
                     scannedBillCode = qrCode;
@@ -423,8 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         `<i class="fas fa-check-circle me-2"></i>QR Code detected: <strong>${qrCode}</strong>`;
                     document.getElementById('use-scanned-code').disabled = false;
                 });
-                // Start the scanner to enable all features including torch
-                await billScanner.startScanning();
+                console.log('Bill scanner created successfully');
             }
         } catch (error) {
             console.error('Scanner initialization failed:', error);

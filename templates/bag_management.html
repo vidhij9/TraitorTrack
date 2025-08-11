@@ -459,6 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initBagScanner() {
         try {
             if (!bagScanner) {
+                console.log('Creating bag scanner...');
                 bagScanner = new LiveQRScanner('bag-scanner-container');
                 bagScanner.setSuccessCallback(function(qrCode) {
                     scannedQRCode = qrCode;
@@ -467,8 +468,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         `<i class="fas fa-check-circle me-2"></i>QR Code detected: <strong>${qrCode}</strong>`;
                     document.getElementById('use-scanned-code').disabled = false;
                 });
-                // Start the scanner to enable all features including torch
-                await bagScanner.startScanning();
+                console.log('Bag scanner created successfully');
             }
         } catch (error) {
             console.error('Scanner initialization failed:', error);
