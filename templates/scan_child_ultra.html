@@ -131,7 +131,8 @@
                     <div class="mt-3 d-grid">
                         <button type="button" id="complete-scanning-btn" 
                                 class="btn btn-success btn-lg fw-bold"
-                                style="background: linear-gradient(135deg, #28a745, #20c997); border: none; padding: 15px;">
+                                style="background: linear-gradient(135deg, #28a745, #20c997); border: none; padding: 15px;"
+                                onclick="handleCompleteScanning()">
                             <i class="fas fa-check-circle me-2"></i>
                             Complete Scanning (<span id="complete-btn-count">0</span> bags)
                         </button>
@@ -617,18 +618,28 @@
             }
         };
         
-        // SEPARATE COMPLETE BUTTON: Fixed dedicated button handler
-        document.getElementById('complete-scanning-btn').addEventListener('click', function() {
-            console.log('=== DEDICATED COMPLETE BUTTON CLICKED ===');
+        // GLOBAL COMPLETE FUNCTION: Accessible from onclick and event listener
+        window.handleCompleteScanning = function() {
+            console.log('=== COMPLETE SCANNING TRIGGERED ===');
             
-            // Get count from the dedicated button
+            // Get count from multiple sources for reliability
             const completeBtnCount = document.getElementById('complete-btn-count');
-            const childCount = parseInt(completeBtnCount ? completeBtnCount.textContent : '0') || 0;
+            const childrenList = document.getElementById('children-list');
+            const listItems = childrenList ? childrenList.querySelectorAll('.list-group-item:not(.text-center)') : [];
             
-            console.log('Dedicated button count:', childCount);
+            const buttonCount = parseInt(completeBtnCount ? completeBtnCount.textContent : '0') || 0;
+            const listCount = listItems.length;
+            const finalCount = Math.max(buttonCount, listCount);
             
-            if (childCount > 0) {
-                console.log('Processing completion...');
+            console.log('Complete button counts:', {
+                buttonCount,
+                listCount,
+                finalCount,
+                scannedChildrenLength: scannedChildren.length
+            });
+            
+            if (finalCount > 0) {
+                console.log('✅ Processing completion with', finalCount, 'bags...');
                 
                 // Stop scanner if active
                 if (scanner && typeof scanner.stop === 'function') {
@@ -641,7 +652,7 @@
                 }
                 
                 // Show completion message
-                showToast(`Completing with ${childCount} bags...`, 'success');
+                showToast(`Completing with ${finalCount} bags...`, 'success');
                 
                 // Redirect after delay
                 setTimeout(() => {
@@ -650,8 +661,17 @@
                 }, 1500);
                 
             } else {
-                console.log('No bags to complete');
+                console.log('❌ No bags to complete');
                 showToast('Please scan at least one child bag before completing', 'warning');
+            }
+        };
+        
+        // BACKUP EVENT LISTENER: In case onclick doesn't work
+        document.addEventListener('DOMContentLoaded', function() {
+            const completeBtn = document.getElementById('complete-scanning-btn');
+            if (completeBtn) {
+                completeBtn.addEventListener('click', window.handleCompleteScanning);
+                console.log('Complete button event listener attached');
             }
         });
 
