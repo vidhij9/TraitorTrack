@@ -447,20 +447,24 @@
         function handleManualSubmission(event) {
             event.preventDefault();
             
-            const formData = new FormData(event.target);
-            const qrCode = formData.get('qr_code');
+            const form = event.target;
+            const qrCode = form.qr_code.value.trim();
             
             if (!qrCode) {
                 showToast('Please enter a QR code', 'warning');
                 return;
             }
             
+            // Create proper JSON request like the scanner does
             fetch('/scan/child', {
                 method: 'POST',
-                body: formData,
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                body: JSON.stringify({
+                    qr_code: qrCode
+                })
             }).then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -468,7 +472,7 @@
                     addChildToList(data.child_qr, data.child_name);
                     
                     // Clear the form
-                    event.target.reset();
+                    form.reset();
                 } else {
                     showToast(data.message, 'error');
                 }

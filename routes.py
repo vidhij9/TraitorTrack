@@ -1264,7 +1264,7 @@ def scan_child():
                         parent_qr_linked = linked_parent.qr_id if linked_parent else 'Unknown'
                         return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to parent bag {parent_qr_linked}. One child can only be linked to one parent.'})
                     elif existing_link and existing_link.parent_bag_id == parent_bag.id:
-                        return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to this parent bag {parent_qr}.'})
+                        return jsonify({'success': False, 'message': f'{qr_id} is already linked to parent {parent_qr}'})
                 else:
                     return jsonify({'success': False, 'message': f'QR code {qr_id} has an invalid bag type ({existing_bag.type}). Please contact support.'})
             
