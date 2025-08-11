@@ -26,7 +26,7 @@
                                 <div class="progress-step-label">Scan Child Bags</div>
                             </div>
                             <div class="progress-line"></div>
-                            <div class="progress-step" id="complete-step" style="cursor: pointer;" onclick="completeScanning()">
+                            <div class="progress-step" id="complete-step" style="cursor: pointer;" onclick="window.completeScanning()">
                                 <div class="progress-step-circle" id="complete-circle">3</div>
                                 <div class="progress-step-label">Complete (<span id="complete-count">0</span>)</div>
                             </div>
@@ -509,42 +509,61 @@
 
 
         
-        // FIXED: Complete scanning function with better debugging
+        // COMPLETE BUTTON: Fixed function with thorough debugging
         window.completeScanning = function() {
-            console.log('Complete button clicked!');
+            console.log('=== COMPLETE BUTTON CLICKED ===');
             
+            // Get all possible count elements
             const progressElement = document.getElementById('child-count');
             const completeElement = document.getElementById('complete-count');
             
-            console.log('Elements:', {
-                progressElement: progressElement,
-                completeElement: completeElement,
-                progressText: progressElement ? progressElement.textContent : 'NOT FOUND',
-                completeText: completeElement ? completeElement.textContent : 'NOT FOUND'
+            console.log('Element check:', {
+                progressElement: !!progressElement,
+                completeElement: !!completeElement,
+                progressText: progressElement ? progressElement.textContent : 'ELEMENT NOT FOUND',
+                completeText: completeElement ? completeElement.textContent : 'ELEMENT NOT FOUND'
             });
             
-            const childCount = parseInt(completeElement ? completeElement.textContent : '0') || 0;
+            // Try multiple ways to get count
+            let childCount = 0;
+            if (completeElement && completeElement.textContent) {
+                childCount = parseInt(completeElement.textContent) || 0;
+            } else if (progressElement && progressElement.textContent) {
+                childCount = parseInt(progressElement.textContent) || 0;
+            } else {
+                // Count from the actual list
+                const listItems = document.querySelectorAll('#children-list .list-group-item:not(.text-center)');
+                childCount = listItems.length;
+                console.log('Counted from list:', childCount, 'items');
+            }
             
-            console.log('Child count for completion:', childCount);
+            console.log('Final child count:', childCount);
             
             if (childCount > 0) {
-                console.log('Starting completion process...');
-                // Stop the scanner first
-                if (scanner) {
+                console.log('✓ Proceeding with completion...');
+                
+                // Stop the scanner
+                if (window.scanner && window.scanner.stop) {
                     console.log('Stopping scanner...');
-                    scanner.stop();
+                    try {
+                        window.scanner.stop();
+                    } catch (e) {
+                        console.log('Scanner stop warning:', e.message);
+                    }
                 }
                 
-                console.log('Completing scanning with', childCount, 'child bags');
-                showToast(`🎉 Completing with ${childCount} bags...`, 'success');
+                // Show completion message
+                showToast(`Completing with ${childCount} bags...`, 'success');
                 
                 // Redirect to completion page
+                console.log('Redirecting to scan_complete...');
                 setTimeout(() => {
                     window.location.href = '{{ url_for("scan_complete") }}';
-                }, 500);
+                }, 1000);
+                
             } else {
-                console.log('No child bags scanned yet');
-                showToast('⚠️ Please scan at least one child bag before completing', 'warning');
+                console.log('❌ No child bags found');
+                showToast('Please scan at least one child bag before completing', 'warning');
             }
         };
         
