@@ -63,19 +63,13 @@
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center">
                     <div class="scanner-controls">
-                        <button id="start-camera" class="btn btn-success" disabled>
-                            <i class="fas fa-play me-2"></i>Start Camera
-                        </button>
-                        <button id="stop-camera" class="btn btn-secondary" disabled>
-                            <i class="fas fa-stop me-2"></i>Stop Camera
-                        </button>
-                        <button id="continuous-mode" class="btn btn-outline-primary">
-                            <i class="fas fa-sync me-2"></i>Continuous Mode
-                        </button>
+                        <span class="badge bg-success">
+                            <i class="fas fa-camera me-1"></i>Live Scanner Active
+                        </span>
                     </div>
                     <div class="scanner-info">
                         <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Rapid sequential scanning
+                            <i class="fas fa-info-circle me-1"></i>Enhanced detection
                         </small>
                     </div>
                 </div>
@@ -115,14 +109,15 @@
                         </div>
                     </div>
                     
-                    <form id="manual-entry-form" class="mt-4">
+                    <form id="manual-entry-form" class="mt-4" method="POST" action="/scan/child">
+                        {{ form.hidden_tag() if form }}
                         <div class="mb-3">
                             <label for="manual-qr-code" class="form-label">Manual Child QR Entry</label>
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="fas fa-keyboard"></i>
                                 </span>
-                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., C123-10">
+                                <input type="text" class="form-control" id="manual-qr-code" name="qr_code" placeholder="e.g., C123-10" required>
                                 <button type="submit" class="btn btn-primary">Add Child</button>
                             </div>
                             <div class="form-text">Manually enter child QR code if scanning fails.</div>
@@ -258,26 +253,13 @@
     }
 }
 
-/* Continuous mode indicator */
-.continuous-mode-active {
-    background-color: #fd7e14 !important;
-    border-color: #fd7e14 !important;
+/* Scanner controls */
+.scanner-controls .btn {
+    margin-right: 0.5rem;
 }
 
-.pulse {
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
-    }
+.scanner-info {
+    font-style: italic;
 }
 </style>
 {% endblock %}
@@ -285,17 +267,16 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        let ultraScanner = null;
-        let continuousMode = false;
+        let scanner = null;
         let scannedChildren = [];
         
         // Get UI elements
         const startCameraBtn = document.getElementById('start-camera');
         const stopCameraBtn = document.getElementById('stop-camera');
-        const continuousModeBtn = document.getElementById('continuous-mode');
         const scanSuccess = document.getElementById('scan-success');
         const childQrValue = document.getElementById('child-qr-value');
         const scanAnotherBtn = document.getElementById('scan-another');
@@ -304,16 +285,20 @@
         const childrenList = document.getElementById('children-list');
         const progressText = document.getElementById('progress-text');
         
-        // Initialize Ultra Scanner for child scanning
-        function initializeUltraScanner() {
-            ultraScanner = new UltraQRScanner('ultra-child-scanner-container', {
-                fps: 60,
-                qrbox: { width: 280, height: 280 }
-            });
-            
-            ultraScanner.setSuccessCallback((decodedText, decodedResult) => {
-                handleChildScanSuccess(decodedText);
-            });
+        // Initialize scanner with proper error handling
+        async function initializeScanner() {
+            try {
+                if (!scanner) {
+                    console.log('Creating LiveQRScanner for child scanning...');
+                    scanner = new LiveQRScanner('ultra-child-scanner-container');
+                    scanner.setSuccessCallback(handleChildScanSuccess);
+                    console.log('Child LiveQRScanner initialized');
+                }
+            } catch (error) {
+                console.error('Child scanner initialization failed:', error);
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Scanner initialization failed. Please refresh the page.';
+            }
         }
         
         // Handle successful child scan
@@ -336,15 +321,9 @@
             // Submit the scan
             submitChildScan(qrCode);
             
-            if (continuousMode) {
-                // In continuous mode, just show brief success and continue
-                showMessage('success', `Child ${qrCode} linked! Continuing...`, 1500);
-                // Scanner continues automatically
-            } else {
-                // Show success dialog
-                resultContainer.style.display = 'none';
-                scanSuccess.classList.remove('d-none');
-            }
+            // Show success dialog
+            resultContainer.style.display = 'none';
+            scanSuccess.classList.remove('d-none');
         }
         
         // Update children list
@@ -423,110 +402,28 @@
             }
         }
         
-        // Start camera event
-        startCameraBtn.addEventListener('click', async function() {
-            try {
-                if (!ultraScanner) {
-                    initializeScanner();
-                }
-                
-                await ultraScanner.start();
-                
-                // Update button states
-                startCameraBtn.disabled = true;
-                stopCameraBtn.disabled = false;
-                startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Camera Active';
-                startCameraBtn.classList.add('pulse');
-                
-                showMessage('success', 'Camera active! Position child QR codes in the scanning area.');
-                
-            } catch (error) {
-                console.error('Failed to start scanner:', error);
-                showMessage('danger', 'Camera access failed. Please allow camera permissions and try again.');
-            }
-        });
-        
-        // Stop camera event
-        stopCameraBtn.addEventListener('click', async function() {
-            if (ultraScanner) {
-                await ultraScanner.stop();
-                
-                // Update button states
-                startCameraBtn.disabled = false;
-                stopCameraBtn.disabled = true;
-                startCameraBtn.innerHTML = '<i class="fas fa-play me-2"></i>Start Camera';
-                startCameraBtn.classList.remove('pulse');
-                
-                showMessage('info', 'Camera stopped. Click "Start Camera" to resume scanning.');
-            }
-        });
-        
-        // Continuous mode toggle
-        continuousModeBtn.addEventListener('click', function() {
-            continuousMode = !continuousMode;
-            
-            if (continuousMode) {
-                continuousModeBtn.classList.add('continuous-mode-active');
-                continuousModeBtn.innerHTML = '<i class="fas fa-sync fa-spin me-2"></i>Continuous ON';
-                showMessage('info', 'Continuous mode enabled. Scanner will not stop after each scan.');
-            } else {
-                continuousModeBtn.classList.remove('continuous-mode-active');
-                continuousModeBtn.innerHTML = '<i class="fas fa-sync me-2"></i>Continuous Mode';
-                showMessage('info', 'Continuous mode disabled.');
-            }
-        });
+        // Initialize scanner when document loads
+        initializeScanner();
         
         // Scan another button
         scanAnotherBtn.addEventListener('click', function() {
             scanSuccess.classList.add('d-none');
-            if (ultraScanner && !ultraScanner.isScanning) {
-                startCameraBtn.click();
-            }
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scanner ready for next child bag...';
+            resultContainer.style.display = 'block';
         });
         
-        // Manual entry form
-        manualEntryForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const manualQrCode = document.getElementById('manual-qr-code').value.trim();
-            if (manualQrCode) {
-                handleChildScanSuccess(manualQrCode);
-                document.getElementById('manual-qr-code').value = '';
-            }
-        });
-        
-        // Initialize live scanner for child scanning
-        function initializeScanner() {
-            if (!ultraScanner) {
-                console.log('Creating LiveQRScanner for child scanning...');
-                ultraScanner = new LiveQRScanner('ultra-child-scanner-container');
-                ultraScanner.setSuccessCallback(handleChildScanSuccess);
-                console.log('LiveQRScanner for child scanning initialized');
-            }
-        }
-        
-        // Launch live child scanner
-        function launchLiveChildScanner() {
-            console.log('Launching Live QR Scanner for child scanning...');
-            
-            // Hide manual controls
-            startCameraBtn.style.display = 'none';
-            stopCameraBtn.style.display = 'none';
-            clearMessages();
-            
-            // Initialize scanner
-            initializeScanner();
-        }
-        
-        // Launch immediately
-        setTimeout(launchLiveChildScanner, 100);
+        // Manual entry form - now handled by form action
+        // This prevents double submission and ensures proper CSRF handling
         
         // Load existing scanned children
-        const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};
+        {% if scanned_children %}
+        const existingChildren = {{ scanned_children | tojson }};
         scannedChildren = existingChildren;
         existingChildren.forEach(child => {
             updateChildrenList(child);
         });
+        {% endif %}
     });
 </script>
 {% endblock %}
