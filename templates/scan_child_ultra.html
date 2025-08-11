@@ -315,6 +315,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
         let scannedChildren = [];
+        let scannedQrCodes = new Set(); // Client-side duplicate prevention
         
         // Get UI elements
         const startCameraBtn = document.getElementById('start-camera');
@@ -456,10 +457,20 @@
             }
         }
         
-        // APPLE SPEED: Ultra-fast child QR code processing 
+        // APPLE SPEED: Ultra-fast child QR code processing with duplicate prevention
         async function handleChildScanSuccess(qrText) {
             const startTime = performance.now();
             console.log('ULTRA-FAST Child scan:', qrText);
+            
+            // CLIENT-SIDE DUPLICATE PREVENTION
+            if (scannedQrCodes.has(qrText)) {
+                console.log('CLIENT-SIDE DUPLICATE DETECTED:', qrText);
+                showToast('Already scanned this bag!', 'error');
+                return; // Stop processing
+            }
+            
+            // Add to scanned set immediately
+            scannedQrCodes.add(qrText);
             
             // APPLE SPEED: Instant visual feedback (no server wait)
             showQuickFeedback(`🔗 Linking ${qrText}...`);
@@ -495,12 +506,15 @@
                     });
                     
                 } else {
-                    // ERROR: Show clear error message with red background
+                    // ERROR: Remove from scanned set on server error and show message
+                    scannedQrCodes.delete(qrText);
                     console.log('SCAN ERROR:', data.message);
                     showToast(data.message || 'Failed to link bag', 'error');
                 }
                 
             } catch (error) {
+                // ERROR: Remove from scanned set on network error
+                scannedQrCodes.delete(qrText);
                 console.error('Ultra-fast scan error:', error);
                 showToast(`Network error: ${error.message}`, 'error');
             }
