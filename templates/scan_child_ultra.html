@@ -88,12 +88,12 @@
                     </div>
                     
                     <div id="scan-success" class="scan-result alert alert-success d-none">
-                        <h5><i class="fas fa-check-circle me-2"></i>Child Bag Linked Successfully</h5>
-                        <p class="mb-3">Child QR: <span id="child-qr-value" class="fw-bold"></span></p>
-                        <p class="mb-3">Parent QR: <span id="parent-qr-display" class="fw-bold text-primary">{{ parent_bag.qr_id if parent_bag else 'None' }}</span></p>
+                        <h5><i class="fas fa-check-circle me-2"></i>Scanning Complete</h5>
+                        <p class="mb-3">Total: <span id="child-qr-value" class="fw-bold"></span></p>
+                        <p class="mb-3">Parent: <span id="parent-qr-display" class="fw-bold text-primary">{{ parent_bag.qr_id if parent_bag else 'None' }}</span></p>
                         <div class="d-grid gap-2">
                             <button id="scan-another" class="btn btn-success">
-                                <i class="fas fa-plus me-2"></i>Scan Another Child Bag
+                                <i class="fas fa-plus me-2"></i>Continue Scanning
                             </button>
                             <a href="{{ url_for('index') }}" class="btn btn-primary">
                                 <i class="fas fa-home me-2"></i>Return to Dashboard
@@ -311,7 +311,7 @@
             
             // Check if already scanned
             if (scannedChildren.includes(qrCode)) {
-                showMessage('warning', `Child bag ${qrCode} already scanned!`);
+                showMessage('warning', `${qrCode} already scanned!`, 1000);
                 return;
             }
             
@@ -326,7 +326,7 @@
             submitChildScan(qrCode);
             
             // Show brief success message and continue scanning
-            showMessage('success', `Child bag ${qrCode} linked successfully! Scanner ready for next bag.`, 2000);
+            showMessage('success', `${qrCode} linked! Ready for next bag.`, 1500);
             
             // Keep scanner running for continuous scanning
             // Don't show the success dialog to allow rapid scanning
@@ -339,8 +339,7 @@
             item.innerHTML = `
                 <div>
                     <i class="fas fa-cube me-2 text-success"></i>
-                    <strong>Child Bag: ${newChild}</strong>
-                    <small class="text-muted ms-2">Scanned at ${new Date().toLocaleTimeString()}</small>
+                    <strong>${newChild}</strong>
                 </div>
                 <span class="badge bg-success">Linked</span>
             `;
@@ -416,16 +415,20 @@
             resultContainer.style.display = 'none';
         });
         
-        // Add button to show success summary
-        const showSummaryBtn = document.createElement('button');
-        showSummaryBtn.className = 'btn btn-info btn-sm mt-2';
-        showSummaryBtn.innerHTML = '<i class="fas fa-list me-1"></i>Show Summary';
-        showSummaryBtn.onclick = function() {
+        // Add complete scanning button
+        const completeBtn = document.createElement('button');
+        completeBtn.className = 'btn btn-primary btn-sm mt-2';
+        completeBtn.innerHTML = '<i class="fas fa-check me-1"></i>Complete Scanning';
+        completeBtn.onclick = function() {
             if (scannedChildren.length > 0) {
+                // Update the success dialog with current count
+                document.getElementById('child-qr-value').textContent = scannedChildren.length + ' bags scanned';
                 scanSuccess.classList.remove('d-none');
+            } else {
+                alert('No child bags scanned yet.');
             }
         };
-        document.getElementById('scanned-children-list').appendChild(showSummaryBtn);
+        document.getElementById('scanned-children-list').appendChild(completeBtn);
         
         // Manual entry form - now handled by form action
         // This prevents double submission and ensures proper CSRF handling

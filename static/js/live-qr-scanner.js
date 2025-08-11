@@ -433,7 +433,7 @@ class LiveQRScanner {
                         if (code) {
                             console.log('LiveQR: QR detected via jsQR:', code.data);
                             this.handleSuccess(code.data);
-                            return;
+                            // Don't return here - let the scan loop continue
                         }
                     }
                 } catch (error) {
@@ -482,6 +482,14 @@ class LiveQRScanner {
         if (this.onSuccess) {
             this.onSuccess(qrText);
         }
+        
+        // Continue scanning after brief pause to prevent duplicate reads
+        setTimeout(() => {
+            if (this.isScanning) {
+                console.log('LiveQR: Resuming continuous scanning...');
+                this.detectQRCode();
+            }
+        }, 800);
     }
     
     setSuccessCallback(callback) {
