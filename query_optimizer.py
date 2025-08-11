@@ -49,7 +49,7 @@ class QueryOptimizer:
     def get_recent_scans(limit=10, user_id=None):
         """Optimized recent scans query with optional user filter"""
         query = Scan.query.options(
-            joinedload(Scan.scanned_by),
+            joinedload(Scan.user),
             joinedload(Scan.parent_bag),
             joinedload(Scan.child_bag)
         )
