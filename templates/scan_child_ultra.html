@@ -283,7 +283,9 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/simple-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/apple-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let ultraScanner = null;
@@ -493,37 +495,33 @@
             }
         });
         
-        // Initialize simple scanner for child scanning
+        // Initialize Apple-level scanner for child scanning
         function initializeScanner() {
             if (!ultraScanner) {
-                console.log('Creating SimpleQRScanner for child scanning...');
-                ultraScanner = new SimpleQRScanner('ultra-child-scanner-container');
+                console.log('Creating AppleQRScanner for child scanning...');
+                ultraScanner = new AppleQRScanner('ultra-child-scanner-container');
                 ultraScanner.setSuccessCallback(handleChildScanSuccess);
-                console.log('SimpleQRScanner for child scanning initialized');
+                console.log('AppleQRScanner for child scanning initialized');
             }
         }
         
-        // Launch simple child scanner
-        function launchSimpleChildScanner() {
-            console.log('Launching Simple QR Scanner for child scanning...');
+        // Launch Apple-level child scanner
+        function launchAppleChildScanner() {
+            console.log('Launching Apple QR Scanner for child scanning...');
             
             // Hide manual controls
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
             
-            showMessage('success', 'Simple Scanner starting for child scanning - Native browser APIs...');
+            // Clear messages for clean UI
+            clearMessages();
             
             // Initialize scanner
             initializeScanner();
-            
-            // Update status
-            setTimeout(() => {
-                showMessage('success', 'Child scanner ready - Camera, file upload, or manual entry available');
-            }, 2000);
         }
         
         // Launch immediately
-        setTimeout(launchSimpleChildScanner, 500);
+        setTimeout(launchAppleChildScanner, 100);
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};

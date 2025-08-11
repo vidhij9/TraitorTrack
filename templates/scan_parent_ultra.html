@@ -217,7 +217,9 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/simple-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/apple-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -286,13 +288,13 @@
             form.submit();
         }
         
-        // Initialize simple scanner
+        // Initialize Apple-level scanner
         function initializeScanner() {
             if (!scanner) {
-                console.log('Creating SimpleQRScanner...');
-                scanner = new SimpleQRScanner('ultra-scanner-container');
+                console.log('Creating AppleQRScanner...');
+                scanner = new AppleQRScanner('ultra-scanner-container');
                 scanner.setSuccessCallback(handleScanSuccess);
-                console.log('SimpleQRScanner initialized');
+                console.log('AppleQRScanner initialized');
             }
         }
         
@@ -352,29 +354,23 @@
             }
         });
         
-        // Launch simple scanner
-        function launchSimpleScanner() {
-            console.log('Launching Simple QR Scanner...');
+        // Launch Apple-level scanner
+        function launchAppleScanner() {
+            console.log('Launching Apple QR Scanner...');
             
-            // Hide manual controls - simple scanner has its own controls
+            // Hide manual controls - Apple scanner handles everything
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
             
-            resultContainer.className = 'alert alert-success';
-            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Simple Scanner starting - Native browser APIs only...';
-            resultContainer.style.display = 'block';
+            // Hide result container - Apple scanner has clean UI
+            resultContainer.style.display = 'none';
             
             // Initialize scanner
             initializeScanner();
-            
-            // Update status
-            setTimeout(() => {
-                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Scanner ready - Camera, file upload, or manual entry available';
-            }, 2000);
         }
         
         // Launch immediately
-        setTimeout(launchSimpleScanner, 500);
+        setTimeout(launchAppleScanner, 100);
         
         // Add enhancement indicator
         setTimeout(() => {
