@@ -26,9 +26,9 @@
                                 <div class="progress-step-label">Scan Child Bags</div>
                             </div>
                             <div class="progress-line"></div>
-                            <div class="progress-step">
-                                <div class="progress-step-circle">3</div>
-                                <div class="progress-step-label">Complete</div>
+                            <div class="progress-step" id="complete-step" style="cursor: pointer;" onclick="completeScanning()">
+                                <div class="progress-step-circle" id="complete-circle">3</div>
+                                <div class="progress-step-label">Complete (<span id="complete-count">0</span>)</div>
                             </div>
                         </div>
                     </div>
@@ -351,6 +351,21 @@
                 progressText.textContent = scannedChildren.length;
             }
             
+            // Update complete step counter
+            const completeCount = document.getElementById('complete-count');
+            if (completeCount) {
+                completeCount.textContent = scannedChildren.length;
+            }
+            
+            // Make complete step clickable when there are scanned bags
+            const completeStep = document.getElementById('complete-step');
+            const completeCircle = document.getElementById('complete-circle');
+            if (scannedChildren.length > 0) {
+                completeStep.style.color = '#28a745';
+                completeCircle.style.backgroundColor = '#28a745';
+                completeCircle.style.color = 'white';
+            }
+            
             // Show mini success animation
             item.style.transform = 'scale(1.05)';
             item.style.backgroundColor = '#d1ecf1';
@@ -442,20 +457,18 @@
             resultContainer.style.display = 'none';
         });
         
-        // Add complete scanning button
-        const completeBtn = document.createElement('button');
-        completeBtn.className = 'btn btn-primary btn-sm mt-2';
-        completeBtn.innerHTML = '<i class="fas fa-check me-1"></i>Complete Scanning';
-        completeBtn.onclick = function() {
+        // Complete scanning function
+        window.completeScanning = function() {
             if (scannedChildren.length > 0) {
                 // Update the success dialog with current count
                 document.getElementById('child-qr-value').textContent = scannedChildren.length + ' bags scanned';
-                scanSuccess.classList.remove('d-none');
+                document.getElementById('scan-success').classList.remove('d-none');
+                // Hide the result container
+                document.getElementById('result-container').style.display = 'none';
             } else {
-                alert('No child bags scanned yet.');
+                alert('No child bags scanned yet. Please scan at least one child bag.');
             }
         };
-        document.getElementById('scanned-children-list').appendChild(completeBtn);
         
         // Manual entry form - now handled by form action
         // This prevents double submission and ensures proper CSRF handling
