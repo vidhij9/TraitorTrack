@@ -141,8 +141,86 @@ class QueryOptimizer:
             logger.error(f"Bulk commit failed: {str(e)}")
             db.session.rollback()
             return False
-        
-        link = Link()
+    
+    @staticmethod
+    def bulk_create_child_bags(parent_bag, child_qr_codes, user_id):
+        """Optimized bulk creation of child bags and links"""
+        try:
+            created_children = []
+            created_links = []
+            created_scans = []
+            
+            # Prepare all objects in memory first
+            for child_qr in child_qr_codes:
+                # Check if child bag already exists
+                existing_child = Bag.query.filter_by(qr_id=child_qr).first()
+                
+                if existing_child:
+                    # Check if it's already linked
+                    existing_link = Link.query.filter_by(
+                        parent_bag_id=parent_bag.id,
+                        child_bag_id=existing_child.id
+                    ).first()
+                    
+                    if not existing_link:
+                        link = Link(parent_bag_id=parent_bag.id, child_bag_id=existing_child.id)
+                        created_links.append(link)
+                        
+                        # Create scan record
+                        scan = QueryOptimizer.create_scan_optimized(user_id, parent_bag.id, existing_child.id)
+                        created_scans.append(scan)
+                else:
+                    # Create new child bag
+                    child_bag = Bag(
+                        qr_id=child_qr,
+                        type=BagType.CHILD.value,
+                        name=f"Child of {parent_bag.qr_id}",
+                        parent_id=parent_bag.id
+                    )
+                    created_children.append(child_bag)
+            
+            # Bulk insert all child bags first
+            if created_children:
+                db.session.add_all(created_children)
+                db.session.flush()  # Get IDs for linking
+            
+            # Create links for new child bags
+            for child_bag in created_children:
+                link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+                created_links.append(link)
+                
+                # Create scan record
+                scan = QueryOptimizer.create_scan_optimized(user_id, parent_bag.id, child_bag.id)
+                created_scans.append(scan)
+            
+            # Bulk insert all links and scans
+            if created_links:
+                db.session.add_all(created_links)
+            if created_scans:
+                db.session.add_all(created_scans)
+            
+            # Update parent bag child count
+            total_links = Link.query.filter_by(parent_bag_id=parent_bag.id).count() + len(created_links)
+            parent_bag.child_count = total_links
+            
+            # Single commit for everything
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'children_created': len(created_children),
+                'links_created': len(created_links),
+                'total_children': total_links
+            }
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Bulk child creation failed: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'children_created': 0,
+                'links_created': 0
+            }
         link.parent_bag_id = parent_id
         link.child_bag_id = child_id
         
