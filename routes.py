@@ -1245,12 +1245,39 @@ def scan_child():
 @login_required
 def scan_complete():
     """Completion page for scanning workflow"""
-    last_scan = session.get('last_scan')
-    if not last_scan:
-        flash('No recent scan found.', 'info')
+    try:
+        # Get parent bag from session
+        parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            flash('No recent scan found.', 'info')
+            return redirect(url_for('index'))
+        
+        # Get parent bag details
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+        if not parent_bag:
+            flash('Parent bag not found.', 'error')
+            return redirect(url_for('index'))
+        
+        # Get all child bags linked to this parent
+        child_bags = Bag.query.filter_by(parent_id=parent_bag.id, type=BagType.CHILD.value).all()
+        scan_count = len(child_bags)
+        
+        # Store completion data in session
+        session['last_scan'] = {
+            'type': 'completed',
+            'parent_qr': parent_qr,
+            'child_count': scan_count,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        return render_template('scan_complete.html', 
+                             parent_bag=parent_bag, 
+                             child_bags=child_bags, 
+                             scan_count=scan_count)
+    except Exception as e:
+        app.logger.error(f'Scan complete error: {str(e)}')
+        flash('Error loading scan summary.', 'error')
         return redirect(url_for('index'))
-    
-    return render_template('scan_complete.html', scan_data=last_scan)
 
 @app.route('/scan/finish')
 @login_required

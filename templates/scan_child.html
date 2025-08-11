@@ -913,8 +913,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     window.completeScan = function() {
-        if (confirm('Complete scanning session?')) {
-            window.location.href = '{{ url_for("index") }}';
+        if (confirm('Complete scanning session and view summary?')) {
+            // Store scan completion data in session and redirect to completion page
+            window.location.href = '{{ url_for("scan_complete") }}';
         }
     }
     
