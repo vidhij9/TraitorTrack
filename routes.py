@@ -1231,6 +1231,7 @@ def scan_child():
         else:
             qr_id = None
             app.logger.info(f"Child scan request - NO DATA, Method: {request.method}")
+            return jsonify({'success': False, 'message': 'No QR code provided'})
             
         if qr_id:
             # Handle QR scan request - ULTRA-OPTIMIZED FOR SUB-SECOND RESPONSE
