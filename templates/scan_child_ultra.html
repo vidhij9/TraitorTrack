@@ -103,7 +103,7 @@
                     
                     <!-- Scanned children list -->
                     <div id="scanned-children-list" class="mt-3">
-                        <h6><i class="fas fa-list me-2"></i>Scanned Child Bags</h6>
+                        <h6 style="font-size: 12px;"><i class="fas fa-list me-1" style="font-size: 10px;"></i>Scanned Child Bags</h6>
                         <div id="children-list" class="list-group" style="max-height: 200px; overflow-y: auto;">
                             <!-- Dynamically populated -->
                         </div>
@@ -320,6 +320,7 @@
             
             // Add to scanned list
             scannedChildren.push(qrCode);
+            console.log('Added child bag to list:', qrCode, 'Total bags:', scannedChildren.length);
             updateChildrenList(qrCode);
             
             // Submit the scan
@@ -338,10 +339,10 @@
             item.className = 'list-group-item newly-added d-flex justify-content-between align-items-center py-1';
             item.innerHTML = `
                 <div>
-                    <i class="fas fa-cube me-2 text-success"></i>
-                    <small><strong>${newChild}</strong></small>
+                    <i class="fas fa-cube me-1 text-success" style="font-size: 10px;"></i>
+                    <span style="font-size: 10px; font-weight: bold;">${newChild}</span>
                 </div>
-                <span class="badge bg-success badge-sm">✓</span>
+                <span class="badge bg-success" style="font-size: 8px; padding: 2px 4px;">✓</span>
             `;
             
             childrenList.insertBefore(item, childrenList.firstChild);
@@ -460,11 +461,19 @@
         // Complete scanning function
         window.completeScanning = function() {
             if (scannedChildren.length > 0) {
+                // Stop the scanner first
+                if (window.childScanner) {
+                    window.childScanner.stop();
+                }
+                
                 // Update the success dialog with current count
                 document.getElementById('child-qr-value').textContent = scannedChildren.length + ' bags scanned';
                 document.getElementById('scan-success').classList.remove('d-none');
-                // Hide the result container
+                // Hide the result container and scanner
                 document.getElementById('result-container').style.display = 'none';
+                document.getElementById('ultra-child-scanner-container').style.display = 'none';
+                
+                console.log('Scanning completed with', scannedChildren.length, 'bags:', scannedChildren);
             } else {
                 alert('No child bags scanned yet. Please scan at least one child bag.');
             }
