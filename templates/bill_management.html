@@ -2,6 +2,12 @@
 
 {% block title %}Bill Management - traitor track{% endblock %}
 
+{% block head %}
+<!-- QR Scanner Libraries -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-4">
@@ -34,8 +40,13 @@
                                 </span>
                             </div>
                             <div class="col-auto" style="min-width: 150px;">
-                                <input type="text" class="form-control form-control-sm" id="search_bill_id" name="search_bill_id" 
-                                       placeholder="Bill ID" value="{{ request.args.get('search_bill_id', '') }}">
+                                <div class="input-group">
+                                    <input type="text" class="form-control form-control-sm" id="search_bill_id" name="search_bill_id" 
+                                           placeholder="Bill ID" value="{{ request.args.get('search_bill_id', '') }}">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="start-qr-search-bill" title="Scan QR Code">
+                                        <i class="fas fa-qrcode"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="col-auto" style="min-width: 130px;">
                                 <select class="form-select form-select-sm" id="status_filter" name="status_filter">
@@ -187,6 +198,32 @@
     </div>
 </div>
 
+<!-- QR Scanner Modal -->
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-qrcode me-2"></i>Scan Bill QR Code
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="bill-scanner-container" class="scanner-container mb-3">
+                    <!-- Scanner will be initialized here -->
+                </div>
+                <div id="scan-result-display" class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Position QR code in the scanning area
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="use-scanned-code" disabled>Use This Code</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 /* Fix modal flickering by preventing hover interference */
 .modal {
@@ -320,6 +357,62 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // QR Scanner functionality
+    let billScanner = null;
+    let scannedBillCode = null;
+
+    document.getElementById('start-qr-search-bill').addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('qrScannerModal'));
+        modal.show();
+        
+        // Initialize scanner when modal is shown
+        document.getElementById('qrScannerModal').addEventListener('shown.bs.modal', function() {
+            initBillScanner();
+        }, { once: true });
+    });
+
+    document.getElementById('use-scanned-code').addEventListener('click', function() {
+        if (scannedBillCode) {
+            document.getElementById('search_bill_id').value = scannedBillCode;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('qrScannerModal'));
+            modal.hide();
+            // Submit the search form
+            document.querySelector('form[method="GET"]').submit();
+        }
+    });
+
+    // Clean up scanner when modal is closed
+    document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', function() {
+        if (billScanner) {
+            billScanner.stop().catch(console.error);
+            billScanner = null;
+        }
+        scannedBillCode = null;
+        document.getElementById('use-scanned-code').disabled = true;
+        document.getElementById('scan-result-display').className = 'alert alert-info';
+        document.getElementById('scan-result-display').innerHTML = '<i class="fas fa-info-circle me-2"></i>Position QR code in the scanning area';
+    });
+
+    async function initBillScanner() {
+        try {
+            if (!billScanner) {
+                billScanner = new LiveQRScanner('bill-scanner-container');
+                billScanner.setSuccessCallback(function(qrCode) {
+                    scannedBillCode = qrCode;
+                    document.getElementById('scan-result-display').className = 'alert alert-success';
+                    document.getElementById('scan-result-display').innerHTML = 
+                        `<i class="fas fa-check-circle me-2"></i>QR Code detected: <strong>${qrCode}</strong>`;
+                    document.getElementById('use-scanned-code').disabled = false;
+                });
+            }
+        } catch (error) {
+            console.error('Scanner initialization failed:', error);
+            document.getElementById('scan-result-display').className = 'alert alert-danger';
+            document.getElementById('scan-result-display').innerHTML = 
+                '<i class="fas fa-exclamation-circle me-2"></i>Scanner initialization failed. Please refresh the page.';
+        }
+    }
     
     // Prevent table hover events from interfering with modal
     const tableRows = document.querySelectorAll('.table tbody tr');
@@ -340,4 +433,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 {% endblock %}

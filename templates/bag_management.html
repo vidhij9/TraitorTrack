@@ -2,6 +2,12 @@
 
 {% block title %} - Bag Management{% endblock %}
 
+{% block head %}
+<!-- QR Scanner Libraries -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -78,10 +84,15 @@
                         </select>
                     </div>
 
-                    <!-- Search Filter -->
+                    <!-- Search Filter with QR Scanner -->
                     <div class="col-md-6">
                         <label for="search" class="form-label">Search QR Code</label>
-                        <input type="text" class="form-control" id="search" name="search" value="{{ filters.search }}" placeholder="Enter QR code to search...">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search" name="search" value="{{ filters.search }}" placeholder="Enter QR code to search...">
+                            <button type="button" class="btn btn-outline-primary" id="start-qr-search" title="Scan QR Code">
+                                <i class="fas fa-qrcode"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Filter Buttons -->
@@ -236,6 +247,32 @@
     </div>
 </div>
 
+<!-- QR Scanner Modal -->
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-qrcode me-2"></i>Scan QR Code
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="bag-scanner-container" class="scanner-container mb-3">
+                    <!-- Scanner will be initialized here -->
+                </div>
+                <div id="scan-result-display" class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Position QR code in the scanning area
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="use-scanned-code" disabled>Use This Code</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 
 <script>
@@ -365,6 +402,61 @@ document.addEventListener('DOMContentLoaded', function() {
             openEditModal(qrCode);
         }
     });
+
+    // QR Scanner functionality
+    let bagScanner = null;
+    let scannedQRCode = null;
+
+    document.getElementById('start-qr-search').addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('qrScannerModal'));
+        modal.show();
+        
+        // Initialize scanner when modal is shown
+        document.getElementById('qrScannerModal').addEventListener('shown.bs.modal', function() {
+            initBagScanner();
+        }, { once: true });
+    });
+
+    document.getElementById('use-scanned-code').addEventListener('click', function() {
+        if (scannedQRCode) {
+            document.getElementById('search').value = scannedQRCode;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('qrScannerModal'));
+            modal.hide();
+            document.getElementById('filterForm').submit();
+        }
+    });
+
+    // Clean up scanner when modal is closed
+    document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', function() {
+        if (bagScanner) {
+            bagScanner.stop().catch(console.error);
+            bagScanner = null;
+        }
+        scannedQRCode = null;
+        document.getElementById('use-scanned-code').disabled = true;
+        document.getElementById('scan-result-display').className = 'alert alert-info';
+        document.getElementById('scan-result-display').innerHTML = '<i class="fas fa-info-circle me-2"></i>Position QR code in the scanning area';
+    });
+
+    async function initBagScanner() {
+        try {
+            if (!bagScanner) {
+                bagScanner = new LiveQRScanner('bag-scanner-container');
+                bagScanner.setSuccessCallback(function(qrCode) {
+                    scannedQRCode = qrCode;
+                    document.getElementById('scan-result-display').className = 'alert alert-success';
+                    document.getElementById('scan-result-display').innerHTML = 
+                        `<i class="fas fa-check-circle me-2"></i>QR Code detected: <strong>${qrCode}</strong>`;
+                    document.getElementById('use-scanned-code').disabled = false;
+                });
+            }
+        } catch (error) {
+            console.error('Scanner initialization failed:', error);
+            document.getElementById('scan-result-display').className = 'alert alert-danger';
+            document.getElementById('scan-result-display').innerHTML = 
+                '<i class="fas fa-exclamation-circle me-2"></i>Scanner initialization failed. Please refresh the page.';
+        }
+    }
 });
 
 function showAlert(type, message) {
@@ -480,4 +572,9 @@ function saveChildrenChanges() {
     });
 }
 </script>
+
+<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 {% endblock %}
