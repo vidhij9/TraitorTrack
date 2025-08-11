@@ -17,18 +17,33 @@ class Config:
     # Default database URI (will be overridden by specific environments)
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_size": 50,                # Larger connection pool for better concurrent performance
-        "max_overflow": 60,             # Allow more overflow connections during peak loads
-        "pool_recycle": 300,            # Recycle connections every 5 minutes to prevent stale connections
+        # High-concurrency connection pool for 200+ concurrent users and 4+ lakh bags
+        "pool_size": 100,               # Large connection pool for enterprise scale
+        "max_overflow": 150,            # Extra connections for peak loads (total: 250 connections)
+        "pool_recycle": 3600,           # Recycle connections every hour for stability
         "pool_pre_ping": True,          # Test connections before use to detect broken connections
-        "pool_timeout": 20,             # Faster timeout for connection pool requests
+        "pool_timeout": 30,             # Timeout for connection pool requests
         "pool_use_lifo": True,          # LIFO queue to maximize connection reuse and performance
-        "connect_args": {               # PostgreSQL specific optimizations
+        "connect_args": {               # PostgreSQL specific optimizations for enterprise scale
             "keepalives": 1,            # Enable TCP keepalives
-            "keepalives_idle": 60,      # Idle time before sending keepalive probes
-            "keepalives_interval": 10,  # Time between keepalive probes
+            "keepalives_idle": 30,      # Reduced idle time for faster detection
+            "keepalives_interval": 5,   # More frequent keepalive probes
             "keepalives_count": 3,      # Number of probes before connection is considered dead
-            "options": "-c statement_timeout=90000"  # 90-second statement timeout
+            "options": (
+                "-c statement_timeout=120000 "           # 2-minute statement timeout for complex queries
+                "-c lock_timeout=60000 "                 # 1-minute lock timeout
+                "-c idle_in_transaction_session_timeout=300000 "  # 5-minute transaction timeout
+                "-c checkpoint_timeout=15min "           # Optimize checkpoint frequency
+                "-c wal_buffers=16MB "                   # Increase WAL buffers for high write loads
+                "-c effective_cache_size=1GB "          # Assume 1GB cache for query planning
+                "-c shared_buffers=256MB "               # Increase shared buffers
+                "-c work_mem=32MB "                      # Increase work memory for complex operations
+                "-c maintenance_work_mem=128MB "         # Increase maintenance work memory
+                "-c max_connections=300"                 # Ensure database allows enough connections
+            ),
+            "application_name": "TraceTrack_Enterprise", # Identify our application in logs
+            "connect_timeout": 20,       # Connection establishment timeout
+            "server_side_cursors": True  # Use server-side cursors for large result sets
         }
     }
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # Disable unnecessary event tracking

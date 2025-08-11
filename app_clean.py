@@ -79,16 +79,26 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Configure database engine options
+# Enterprise-scale database engine configuration for 4+ lakh bags and 200+ concurrent users  
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 5,
-    "max_overflow": 10,
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-    "pool_timeout": 20,
-    "connect_args": {
-        "connect_timeout": 60,
-        "application_name": "tracetrack_app"
+    "pool_size": 100,               # Large connection pool for enterprise scale
+    "max_overflow": 150,            # Extra connections for peak loads (total: 250)
+    "pool_recycle": 3600,           # Recycle connections every hour
+    "pool_pre_ping": True,          # Test connections before use
+    "pool_timeout": 30,             # Connection pool timeout
+    "pool_use_lifo": True,          # LIFO queue for better connection reuse
+    "connect_args": {               # PostgreSQL optimizations for large datasets
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 5,
+        "keepalives_count": 3,
+        "connect_timeout": 20,
+        "application_name": "TraceTrack_Enterprise",
+        "options": (
+            "-c statement_timeout=120000 "           # 2-minute statement timeout
+            "-c lock_timeout=60000 "                 # 1-minute lock timeout
+            "-c idle_in_transaction_session_timeout=300000"  # 5-minute transaction timeout
+        )
     }
 }
 
