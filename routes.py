@@ -1282,6 +1282,7 @@ def scan_child():
                 child_bag = existing_bag
             
             # OPTIMIZED: Create link with duplicate handling
+            app.logger.info(f'Creating link between parent {parent_bag.id} ({parent_bag.qr_id}) and child {child_bag.id} ({child_bag.qr_id})')
             link, created = query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
             if not created:
                 return jsonify({'success': False, 'message': f'{qr_id} already linked'})
@@ -1294,7 +1295,10 @@ def scan_child():
             
             # OPTIMIZED: Single bulk commit
             if not query_optimizer.bulk_commit():
+                app.logger.error(f'Bulk commit failed for linking {qr_id} to {parent_bag.qr_id}')
                 return jsonify({'success': False, 'message': 'Database error occurred'})
+            
+            app.logger.info(f'Successfully committed link between {parent_bag.qr_id} and {qr_id}')
             
             # ULTRA-FAST: Skip count query for maximum speed
             # We can get count from client-side instead of server query
@@ -1391,6 +1395,17 @@ def scan_complete():
             Bag.type == BagType.CHILD.value
         ).all()
         scan_count = len(child_bags)
+        
+        # Debug logging to troubleshoot the issue
+        app.logger.info(f'Scan complete: Parent QR {parent_qr}, Parent ID {parent_bag.id}, Child count {scan_count}')
+        
+        # Alternative query to double-check
+        link_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        app.logger.info(f'Direct link count for parent ID {parent_bag.id}: {link_count}')
+        
+        # Get links and their child bags separately for debugging
+        links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
+        app.logger.info(f'Links found: {[(link.id, link.child_bag_id) for link in links]}')
         
         # Store completion data in session
         session['last_scan'] = {
