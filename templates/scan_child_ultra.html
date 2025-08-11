@@ -462,20 +462,16 @@
         window.completeScanning = function() {
             if (scannedChildren.length > 0) {
                 // Stop the scanner first
-                if (window.childScanner) {
-                    window.childScanner.stop();
+                if (scanner) {
+                    scanner.stop();
                 }
                 
-                // Update the success dialog with current count
-                document.getElementById('child-qr-value').textContent = scannedChildren.length + ' bags scanned';
-                document.getElementById('scan-success').classList.remove('d-none');
-                // Hide the result container and scanner
-                document.getElementById('result-container').style.display = 'none';
-                document.getElementById('ultra-child-scanner-container').style.display = 'none';
+                console.log('Completing scanning with', scannedChildren.length, 'bags:', scannedChildren);
                 
-                console.log('Scanning completed with', scannedChildren.length, 'bags:', scannedChildren);
+                // Redirect to completion page
+                window.location.href = '{{ url_for("scan_complete") }}';
             } else {
-                alert('No child bags scanned yet. Please scan at least one child bag.');
+                alert('No child bags scanned yet. Please scan at least one child bag before completing.');
             }
         };
         
