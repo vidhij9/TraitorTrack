@@ -50,9 +50,6 @@ class AppleQRScanner {
                             <button id="torch-btn" class="control-btn">
                                 <span class="icon">💡</span>
                             </button>
-                            <button id="file-btn" class="control-btn">
-                                <span class="icon">📁</span>
-                            </button>
                             <button id="manual-btn" class="control-btn">
                                 <span class="icon">⌨️</span>
                             </button>
@@ -65,8 +62,7 @@ class AppleQRScanner {
                     </div>
                 </div>
                 
-                <!-- Hidden inputs -->
-                <input type="file" id="file-input" accept="image/*" style="display: none;">
+                <!-- Manual input overlay -->
                 <div class="manual-input-overlay" id="manual-overlay" style="display: none;">
                     <div class="manual-input-box">
                         <h6>Enter QR Code</h6>
@@ -308,17 +304,7 @@ class AppleQRScanner {
             this.toggleTorch();
         });
         
-        // File upload
-        document.getElementById('file-btn').addEventListener('click', () => {
-            document.getElementById('file-input').click();
-        });
-        
-        document.getElementById('file-input').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                this.processFile(file);
-            }
-        });
+        // File upload removed - live scanning only
         
         // Manual entry
         document.getElementById('manual-btn').addEventListener('click', () => {
@@ -361,85 +347,97 @@ class AppleQRScanner {
     
     async startCamera() {
         try {
-            // Use Html5Qrcode for advanced scanning
+            console.log('AppleQR: Starting camera with Html5Qrcode...');
+            
+            // Create scanner instance for the video element
             this.scanner = new Html5Qrcode(`${this.containerId}-video`);
             
-            // Get cameras and prefer back camera
+            // Get available cameras
             const cameras = await Html5Qrcode.getCameras();
-            const backCamera = cameras.find(camera => 
-                camera.label.toLowerCase().includes('back') || 
-                camera.label.toLowerCase().includes('rear') ||
-                camera.label.toLowerCase().includes('environment')
-            ) || cameras[0];
+            console.log('AppleQR: Available cameras:', cameras);
             
-            if (!backCamera) {
-                throw new Error('No camera available');
+            if (cameras.length === 0) {
+                throw new Error('No cameras found');
             }
             
-            // Advanced configuration for all conditions
+            // Prefer environment (back) camera
+            let selectedCamera = cameras[0];
+            for (const camera of cameras) {
+                if (camera.label && 
+                    (camera.label.toLowerCase().includes('back') || 
+                     camera.label.toLowerCase().includes('rear') ||
+                     camera.label.toLowerCase().includes('environment'))) {
+                    selectedCamera = camera;
+                    break;
+                }
+            }
+            
+            console.log('AppleQR: Using camera:', selectedCamera);
+            
+            // Optimized config for maximum detection
             const config = {
-                fps: 30,
+                fps: 10,
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
                 disableFlip: false,
                 videoConstraints: {
-                    facingMode: 'environment',
-                    advanced: [
-                        { focusMode: 'continuous' },
-                        { exposureMode: 'continuous' },
-                        { whiteBalanceMode: 'continuous' },
-                        { torch: false }
-                    ]
+                    facingMode: 'environment'
                 }
             };
             
+            // Start scanning
             await this.scanner.start(
-                backCamera.id,
+                selectedCamera.id,
                 config,
                 (decodedText, decodedResult) => {
-                    console.log('AppleQR: QR Code detected:', decodedText);
+                    console.log('AppleQR: QR detected:', decodedText);
                     this.handleSuccess(decodedText);
                 },
                 (errorMessage) => {
-                    // Silent error handling for continuous scanning
+                    // Silent scanning - don't log every miss
                 }
             );
             
             this.isScanning = true;
-            console.log('AppleQR: Camera started successfully');
-            
-            // Start enhanced scanning for low-light conditions
-            this.startEnhancedScanning();
+            console.log('AppleQR: Html5Qrcode scanner started successfully');
             
         } catch (error) {
-            console.error('AppleQR: Camera start failed:', error);
-            // Fallback to native camera
+            console.error('AppleQR: Html5Qrcode failed, trying native camera:', error);
             await this.startNativeCamera();
         }
     }
     
     async startNativeCamera() {
         try {
+            console.log('AppleQR: Starting native camera fallback...');
+            
+            // Create video element for native scanning
+            const videoElement = document.getElementById(`${this.containerId}-video`);
+            
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 1920, min: 1280 },
-                    height: { ideal: 1080, min: 720 },
-                    frameRate: { ideal: 30, min: 15 }
+                    width: { ideal: 1280, min: 640 },
+                    height: { ideal: 720, min: 480 }
                 }
             });
             
-            this.video.srcObject = stream;
-            this.video.onloadedmetadata = () => {
-                this.video.play();
-                this.isScanning = true;
-                this.startNativeScanning();
-            };
+            videoElement.srcObject = stream;
             
-            console.log('AppleQR: Native camera started');
+            await new Promise((resolve) => {
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    resolve();
+                };
+            });
+            
+            this.video = videoElement;
+            this.isScanning = true;
+            console.log('AppleQR: Native camera started, beginning jsQR scanning...');
+            this.startNativeScanning();
             
         } catch (error) {
-            console.error('AppleQR: All camera methods failed:', error);
+            console.error('AppleQR: Native camera failed:', error);
         }
     }
     
@@ -466,27 +464,37 @@ class AppleQRScanner {
     }
     
     startNativeScanning() {
+        let frameCount = 0;
+        
         const nativeScan = () => {
             if (!this.isScanning) return;
             
-            this.canvas.width = this.video.videoWidth;
-            this.canvas.height = this.video.videoHeight;
+            frameCount++;
             
-            if (this.canvas.width > 0 && this.canvas.height > 0) {
-                this.context.drawImage(this.video, 0, 0);
-                
-                // Try jsQR if available
-                if (typeof jsQR !== 'undefined') {
-                    const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: 'dontInvert'
-                    });
+            // Only process every 3rd frame for performance
+            if (frameCount % 3 === 0) {
+                try {
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
                     
-                    if (code) {
-                        console.log('AppleQR: Native QR detected:', code.data);
-                        this.handleSuccess(code.data);
-                        return;
+                    if (this.canvas.width > 0 && this.canvas.height > 0) {
+                        this.context.drawImage(this.video, 0, 0);
+                        
+                        if (typeof jsQR !== 'undefined') {
+                            const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                                inversionAttempts: 'attemptBoth'
+                            });
+                            
+                            if (code) {
+                                console.log('AppleQR: jsQR detected:', code.data);
+                                this.handleSuccess(code.data);
+                                return;
+                            }
+                        }
                     }
+                } catch (error) {
+                    console.error('AppleQR: Native scanning error:', error);
                 }
             }
             
