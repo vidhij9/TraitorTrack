@@ -973,7 +973,7 @@ def process_child_scan():
         # Create scan record
         scan = Scan(
             user_id=current_user.id,
-            bag_id=child_bag.id
+            child_bag_id=child_bag.id
         )
         db.session.add(scan)
         
