@@ -66,14 +66,22 @@ def user_management():
         user_data = []
         for user in users:
             try:
-                # Use optimized query for user scan statistics
-                recent_scans = query_optimizer.get_recent_scans(limit=1, user_id=user.id)
-                scan_count = Scan.query.filter_by(user_id=user.id).count()
+                # Use direct database query to avoid join ambiguity
+                scan_count = db.session.execute(
+                    db.text("SELECT COUNT(*) FROM scan WHERE user_id = :user_id"),
+                    {"user_id": user.id}
+                ).scalar() or 0
+                
+                # Get last scan timestamp
+                last_scan_result = db.session.execute(
+                    db.text("SELECT timestamp FROM scan WHERE user_id = :user_id ORDER BY timestamp DESC LIMIT 1"),
+                    {"user_id": user.id}
+                ).first()
                 
                 user_data.append({
                     'user': user,
                     'scan_count': scan_count,
-                    'last_scan': recent_scans[0].timestamp if recent_scans else None
+                    'last_scan': last_scan_result[0] if last_scan_result else None
                 })
             except Exception as e:
                 app.logger.error(f"Error processing user {user.id}: {e}")
