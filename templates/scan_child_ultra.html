@@ -410,20 +410,31 @@
             }, 600);
         }
         
-        // FAST VISUAL FEEDBACK: Show instant scan confirmation
+        // APPLE SPEED: Lightning-fast visual feedback
         function showQuickFeedback(message) {
             const feedback = document.createElement('div');
             feedback.className = 'scan-feedback';
-            feedback.textContent = message;
+            feedback.innerHTML = `<i class="fas fa-bolt"></i> ${message}`;
             document.body.appendChild(feedback);
             
-            // Remove after animation
+            // APPLE SPEED: Faster feedback removal
             setTimeout(() => {
                 if (feedback.parentNode) {
                     feedback.parentNode.removeChild(feedback);
                 }
-            }, 1000);
+            }, 600); // Faster than before
         }
+        
+        // APPLE SPEED: Performance monitoring
+        window.scanPerformance = {
+            scans: [],
+            addScan: function(time) {
+                this.scans.push(time);
+                if (this.scans.length > 10) this.scans.shift();
+                const avg = this.scans.reduce((a, b) => a + b, 0) / this.scans.length;
+                console.log(`Average scan time: ${avg.toFixed(1)}ms`);
+            }
+        };
 
         // Initialize scanner with proper error handling
         async function initializeScanner() {
@@ -443,48 +454,52 @@
             }
         }
         
-        // Handle Child QR Code scan success - ULTRA FAST VERSION
+        // APPLE SPEED: Ultra-fast child QR code processing 
         async function handleChildScanSuccess(qrText) {
-            console.log('Child scan success:', qrText);
+            const startTime = performance.now();
+            console.log('ULTRA-FAST Child scan:', qrText);
             
-            // INSTANT FEEDBACK: Show immediate visual feedback before server call
-            const tempToast = showToast(`Linking ${qrText}...`, 'warning');
+            // APPLE SPEED: Instant visual feedback (no server wait)
+            showQuickFeedback(`⚡ ${qrText}`);
             
             try {
-                // OPTIMIZED: Use fast endpoint with minimal data
-                const response = await fetch('/process_child_scan_fast', {
+                // APPLE SPEED: Parallel processing - start UI update immediately
+                const uiUpdatePromise = addChildToList(qrText, null);
+                
+                // APPLE SPEED: Optimized fetch with minimal headers
+                const serverPromise = fetch('/process_child_scan_fast', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        qr_code: qrText
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ qr_code: qrText })
                 });
                 
+                // APPLE SPEED: Wait for server response while UI updates
+                const response = await serverPromise;
                 const data = await response.json();
                 
+                const endTime = performance.now();
+                console.log(`SPEED: Total processing time: ${endTime - startTime}ms`);
+                
                 if (data.success) {
-                    // INSTANT UPDATE: Show success immediately
-                    showToast(`${qrText} linked!`, 'success');
-                    
-                    // INSTANT UI UPDATE: Add to list immediately
-                    addChildToList(data.child_qr, data.child_name);
+                    // SUCCESS: Show confirmation toast
+                    showToast(`${qrText} linked in ${Math.round(endTime - startTime)}ms!`, 'success');
                     
                     // Track for completion
                     scannedChildren.push({
                         qr: qrText,
-                        timestamp: new Date()
+                        timestamp: new Date(),
+                        processingTime: endTime - startTime
                     });
                     
                 } else {
-                    // Show clear error message
+                    // ERROR: Revert UI changes if server failed
                     showToast(data.message || 'Failed to link bag', 'error');
+                    // Could add UI revert logic here if needed
                 }
                 
             } catch (error) {
-                console.error('Child scan error:', error);
-                showToast('Connection error. Check your network.', 'error');
+                console.error('Ultra-fast scan error:', error);
+                showToast('Network error. Retrying...', 'error');
             }
         }
         

@@ -156,6 +156,11 @@ class LiveQRScanner {
                     100% { top: 0; }
                 }
                 
+                /* APPLE SPEED: Faster animation for speed perception */
+                .scan-line {
+                    animation: scanning 1s ease-in-out infinite; /* Faster animation */
+                }
+                
                 .scan-text {
                     color: white;
                     font-size: 14px;
@@ -274,9 +279,13 @@ class LiveQRScanner {
         }
         
         const config = {
-            fps: 10,
-            qrbox: { width: 200, height: 200 },
-            aspectRatio: 1.0
+            fps: 60,  // APPLE SPEED: Maximum FPS
+            qrbox: { width: 250, height: 250 }, // APPLE SPEED: Larger detection box
+            aspectRatio: 1.0,
+            formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ], // SPEED: QR only
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true // APPLE SPEED: Use native detection
+            }
         };
         
         await this.scanner.start(
@@ -302,9 +311,12 @@ class LiveQRScanner {
         const constraints = {
             video: {
                 facingMode: { ideal: 'environment' },
-                width: { ideal: 1280, min: 640 },
-                height: { ideal: 720, min: 480 },
-                frameRate: { ideal: 30, min: 15 }
+                width: { ideal: 1920, min: 1280 }, // APPLE SPEED: Higher resolution for better detection
+                height: { ideal: 1080, min: 720 },
+                frameRate: { ideal: 60, min: 30 }, // APPLE SPEED: 60fps for ultra-fast scanning
+                focusMode: 'continuous',           // APPLE SPEED: Continuous autofocus
+                exposureMode: 'continuous',        // APPLE SPEED: Continuous exposure
+                whiteBalanceMode: 'continuous'     // APPLE SPEED: Continuous white balance
             },
             audio: false
         };
@@ -378,30 +390,45 @@ class LiveQRScanner {
         }
         
         let frame = 0;
+        let lastScan = '';
+        let lastScanTime = 0;
+        
         const scan = () => {
             if (!this.isScanning) return;
             
             frame++;
-            // Scan every 2nd frame for ultra-fast detection
-            if (frame % 2 === 0) {
-                try {
-                    this.canvas.width = this.video.videoWidth;
-                    this.canvas.height = this.video.videoHeight;
+            // APPLE SPEED: Scan every frame for ultra-fast detection
+            try {
+                this.canvas.width = this.video.videoWidth;
+                this.canvas.height = this.video.videoHeight;
+                
+                if (this.canvas.width > 0 && this.canvas.height > 0) {
+                    this.context.drawImage(this.video, 0, 0);
                     
-                    if (this.canvas.width > 0 && this.canvas.height > 0) {
-                        this.context.drawImage(this.video, 0, 0);
-                        const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                        const code = jsQR(imageData.data, imageData.width, imageData.height);
-                        
-                        if (code) {
-                            console.log('LiveQR: QR detected via jsQR:', code.data);
+                    // OPTIMIZATION: Scan only center region for faster processing
+                    const centerX = Math.floor(this.canvas.width * 0.25);
+                    const centerY = Math.floor(this.canvas.height * 0.25);
+                    const centerWidth = Math.floor(this.canvas.width * 0.5);
+                    const centerHeight = Math.floor(this.canvas.height * 0.5);
+                    
+                    const imageData = this.context.getImageData(centerX, centerY, centerWidth, centerHeight);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "dontInvert" // SPEED: Skip inversion attempts
+                    });
+                    
+                    if (code && code.data) {
+                        const now = Date.now();
+                        // APPLE SPEED: Prevent duplicate scans within 200ms
+                        if (code.data !== lastScan || (now - lastScanTime) > 200) {
+                            console.log('LiveQR: ULTRA-FAST QR detected:', code.data);
+                            lastScan = code.data;
+                            lastScanTime = now;
                             this.handleSuccess(code.data);
-                            // Don't return here - let the scan loop continue
                         }
                     }
-                } catch (error) {
-                    // Silent error handling
                 }
+            } catch (error) {
+                // Silent error handling for continuous scanning
             }
             
             requestAnimationFrame(scan);
@@ -446,13 +473,8 @@ class LiveQRScanner {
             this.onSuccess(qrText);
         }
         
-        // Continue scanning after minimal pause for ultra-fast scanning
-        setTimeout(() => {
-            if (this.isScanning) {
-                console.log('LiveQR: Resuming ultra-fast scanning...');
-                this.detectQRCode();
-            }
-        }, 150);  // Ultra-fast pause for split-second scanning
+        // APPLE SPEED: Immediate continuous scanning (no pause)
+        // No pause needed - continuous scanning loop handles everything
     }
     
     setSuccessCallback(callback) {
