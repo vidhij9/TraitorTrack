@@ -115,7 +115,7 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 
 ## Recent Changes (August 11, 2025)
 
-### Manual QR Entry Removal
+### Manual QR Entry Removal & Template Cleanup
 - Completely removed all manual QR code entry functionality from the entire system
 - Deleted `ScanParentForm` and `ScanChildForm` classes from `forms.py`
 - Removed all manual entry sections from templates: `scan_child.html`, `scan_parent.html`, `scan_parent_ultra.html`, `scan_child_ultra.html`
@@ -123,6 +123,8 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 - Updated all route handlers to remove references to manual entry forms
 - System now uses exclusively live camera scanning for QR code detection
 - Primary scanning interface: `/scan/parent` → `scan_parent_ultra.html` (camera-only)
+- Removed fallback routes and old/backup templates: `scan_parent_standard`, `scan_child_backup.html`, `scan_child_old.html`, `scan_parent.html`
+- Created simplified camera-only `scan_bill_parent.html` for bill management functionality
 
 ### Database Configuration Simplification  
 - Removed unused TestingConfig from database configurations

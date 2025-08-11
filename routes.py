@@ -868,11 +868,7 @@ def scan_parent():
     # Use ultra scanner template for enhanced scanning - no manual forms
     return render_template('scan_parent_ultra.html')
 
-@app.route('/scan/parent/standard')
-@login_required  
-def scan_parent_standard():
-    """Standard parent bag scanning (fallback) - camera only"""
-    return render_template('scan_parent.html')
+
 
 @app.route('/process_parent_scan', methods=['POST'])
 @login_required
