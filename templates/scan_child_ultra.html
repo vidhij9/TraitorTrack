@@ -325,9 +325,11 @@
             // Submit the scan
             submitChildScan(qrCode);
             
-            // Show success dialog
-            resultContainer.style.display = 'none';
-            scanSuccess.classList.remove('d-none');
+            // Show brief success message and continue scanning
+            showMessage('success', `Child bag ${qrCode} linked successfully! Scanner ready for next bag.`, 2000);
+            
+            // Keep scanner running for continuous scanning
+            // Don't show the success dialog to allow rapid scanning
         }
         
         // Update children list
@@ -337,8 +339,8 @@
             item.innerHTML = `
                 <div>
                     <i class="fas fa-cube me-2 text-success"></i>
-                    <strong>${newChild}</strong>
-                    <small class="text-muted ms-2">${new Date().toLocaleTimeString()}</small>
+                    <strong>Child Bag: ${newChild}</strong>
+                    <small class="text-muted ms-2">Scanned at ${new Date().toLocaleTimeString()}</small>
                 </div>
                 <span class="badge bg-success">Linked</span>
             `;
@@ -408,13 +410,22 @@
         // Initialize scanner when document loads
         initializeScanner();
         
-        // Scan another button
+        // Scan another button - now shows success dialog when clicked
         scanAnotherBtn.addEventListener('click', function() {
-            scanSuccess.classList.add('d-none');
-            resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Scanner ready for next child bag...';
-            resultContainer.style.display = 'block';
+            scanSuccess.classList.remove('d-none');
+            resultContainer.style.display = 'none';
         });
+        
+        // Add button to show success summary
+        const showSummaryBtn = document.createElement('button');
+        showSummaryBtn.className = 'btn btn-info btn-sm mt-2';
+        showSummaryBtn.innerHTML = '<i class="fas fa-list me-1"></i>Show Summary';
+        showSummaryBtn.onclick = function() {
+            if (scannedChildren.length > 0) {
+                scanSuccess.classList.remove('d-none');
+            }
+        };
+        document.getElementById('scanned-children-list').appendChild(showSummaryBtn);
         
         // Manual entry form - now handled by form action
         // This prevents double submission and ensures proper CSRF handling
