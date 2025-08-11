@@ -366,9 +366,20 @@
             return bsToast; // Return for potential dismissal
         }
 
-        // OPTIMIZED: Add child bag to list with instant feedback
+        // FIXED: Add child bag to list (prevent duplicates and update counts properly)
         function addChildToList(childQr, childName = null) {
             const childrenList = document.getElementById('children-list');
+            
+            // CHECK FOR DUPLICATES: Don't add if already in list
+            const existingItems = childrenList.querySelectorAll('.list-group-item');
+            for (let item of existingItems) {
+                const spanElement = item.querySelector('span.fw-bold');
+                if (spanElement && spanElement.textContent === childQr) {
+                    console.log('Item already in UI list, skipping add:', childQr);
+                    return; // Don't add duplicate
+                }
+            }
+            
             const emptyMessage = childrenList.querySelector('.text-center');
             
             // Remove empty message if it exists
@@ -395,15 +406,15 @@
             // Add to top of list instantly
             childrenList.insertBefore(listItem, childrenList.firstChild);
             
-            // Update progress counter instantly  
+            // Update progress counter based on actual list count
+            const actualCount = childrenList.querySelectorAll('.list-group-item:not(.text-center)').length;
+            
             const progressElement = document.getElementById('child-count');
-            const currentCount = parseInt(progressElement ? progressElement.textContent : '0') || 0;
-            const newCount = currentCount + 1;
-            if (progressElement) progressElement.textContent = newCount;
+            if (progressElement) progressElement.textContent = actualCount;
             
             // Update complete count if element exists
             const completeElement = document.getElementById('complete-count');
-            if (completeElement) completeElement.textContent = newCount;
+            if (completeElement) completeElement.textContent = actualCount;
             
             // Remove highlight animation faster
             setTimeout(() => {
@@ -476,8 +487,7 @@
             showQuickFeedback(`🔗 Linking ${qrText}...`);
             
             try {
-                // APPLE SPEED: Parallel processing - start UI update immediately
-                const uiUpdatePromise = addChildToList(qrText, null);
+                // Note: Don't add to UI immediately - wait for server success to prevent duplicates
                 
                 // APPLE SPEED: Optimized fetch with minimal headers
                 const serverPromise = fetch('/process_child_scan_fast', {
@@ -494,7 +504,10 @@
                 console.log(`SPEED: Total processing time: ${endTime - startTime}ms`);
                 
                 if (data.success) {
-                    // SUCCESS: Show confirmation toast with speed
+                    // SUCCESS: Add to UI list only after server confirms success
+                    addChildToList(data.child_qr || qrText, data.child_name);
+                    
+                    // Show confirmation toast with speed
                     showToast(`✓ ${qrText} linked in ${Math.round(endTime - startTime)}ms`, 'success');
                     window.scanPerformance.addScan(endTime - startTime);
                     
@@ -558,23 +571,31 @@
                 console.log('✓ Proceeding with completion...');
                 
                 // Stop the scanner
-                if (window.scanner && window.scanner.stop) {
+                if (window.scanner && typeof window.scanner.stop === 'function') {
                     console.log('Stopping scanner...');
                     try {
                         window.scanner.stop();
                     } catch (e) {
                         console.log('Scanner stop warning:', e.message);
                     }
+                } else if (scanner && typeof scanner.stop === 'function') {
+                    console.log('Stopping local scanner...');
+                    try {
+                        scanner.stop();
+                    } catch (e) {
+                        console.log('Local scanner stop warning:', e.message);
+                    }
                 }
                 
                 // Show completion message
                 showToast(`Completing with ${childCount} bags...`, 'success');
                 
-                // Redirect to completion page
+                // Redirect to completion page with delay
                 console.log('Redirecting to scan_complete...');
                 setTimeout(() => {
+                    console.log('Executing redirect now...');
                     window.location.href = '{{ url_for("scan_complete") }}';
-                }, 1000);
+                }, 1500);
                 
             } else {
                 console.log('❌ No child bags found');
