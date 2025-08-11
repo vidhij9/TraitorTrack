@@ -122,6 +122,7 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 - Cleaned up `live-qr-scanner.js` to remove manual entry modal, CSS, and JavaScript code
 - Updated all route handlers to remove references to manual entry forms
 - System now uses exclusively live camera scanning for QR code detection
+- Primary scanning interface: `/scan/parent` → `scan_parent_ultra.html` (camera-only)
 
 ### Database Configuration Simplification  
 - Removed unused TestingConfig from database configurations
