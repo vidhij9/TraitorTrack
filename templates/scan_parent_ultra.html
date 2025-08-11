@@ -219,6 +219,7 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -233,16 +234,20 @@
         const manualEntryForm = document.getElementById('manual-entry-form');
         const resultContainer = document.getElementById('result-container');
         
-        // Initialize Ultra Scanner
-        function initializeUltraScanner() {
-            ultraScanner = new UltraQRScanner('ultra-scanner-container', {
-                fps: 60,
-                qrbox: { width: 300, height: 300 }
-            });
-            
-            ultraScanner.setSuccessCallback((decodedText, decodedResult) => {
-                handleScanSuccess(decodedText);
-            });
+        // Initialize scanner with proper error handling
+        async function initializeScanner() {
+            try {
+                if (!scanner) {
+                    console.log('Creating LiveQRScanner...');
+                    scanner = new LiveQRScanner('ultra-scanner-container');
+                    scanner.setSuccessCallback(handleScanSuccess);
+                    console.log('LiveQRScanner initialized');
+                }
+            } catch (error) {
+                console.error('Scanner initialization failed:', error);
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Scanner initialization failed. Please refresh the page.';
+            }
         }
         
         // Handle successful scan
@@ -288,14 +293,14 @@
             form.submit();
         }
         
-        // Initialize live scanner
-        function initializeScanner() {
-            if (!scanner) {
-                console.log('Creating LiveQRScanner...');
-                scanner = new LiveQRScanner('ultra-scanner-container');
-                scanner.setSuccessCallback(handleScanSuccess);
-                console.log('LiveQRScanner initialized');
+        // Check camera permissions and show helpful messages
+        async function checkCameraSupport() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera not supported in this browser. Please use Chrome, Firefox, or Safari.';
+                return false;
             }
+            return true;
         }
         
         // Start camera event
@@ -354,21 +359,31 @@
             }
         });
         
-        // Launch live scanner
-        function launchLiveScanner() {
+        // Launch live scanner with proper initialization
+        async function launchLiveScanner() {
             console.log('Launching Live QR Scanner...');
             
-            // Hide manual controls
+            // Check camera support first
+            const cameraSupported = await checkCameraSupport();
+            if (!cameraSupported) {
+                return;
+            }
+            
+            // Show loading state
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading camera...';
+            resultContainer.style.display = 'block';
+            
+            // Hide manual controls initially
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
-            resultContainer.style.display = 'none';
             
-            // Initialize scanner
-            initializeScanner();
+            // Initialize and auto-start scanner
+            await initializeScanner();
         }
         
-        // Launch immediately
-        setTimeout(launchLiveScanner, 100);
+        // Launch with delay to ensure DOM is ready
+        setTimeout(launchLiveScanner, 300);
     });
 </script>
 {% endblock %}

@@ -1,6 +1,6 @@
 /**
- * Live QR Scanner - Minimal, working implementation
- * Focused on live camera scanning only
+ * Live QR Scanner - Fixed camera access implementation
+ * Robust camera initialization with proper error handling
  */
 
 class LiveQRScanner {
@@ -13,16 +13,23 @@ class LiveQRScanner {
         this.scanner = null;
         this.isScanning = false;
         this.onSuccess = null;
+        this.cameraStream = null;
+        this.permissionManager = new CameraPermissionManager();
         
-        console.log('LiveQR: Starting minimal scanner');
+        console.log('LiveQR: Starting camera-fixed scanner');
         this.init();
     }
     
-    init() {
+    async init() {
         this.setupUI();
         this.setupElements();
         this.setupControls();
-        this.startScanning();
+        
+        // Wait a moment for UI to render
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Auto-start camera with proper permission handling
+        await this.startScanning();
     }
     
     setupUI() {
@@ -292,12 +299,25 @@ class LiveQRScanner {
     }
     
     async startScanning() {
+        console.log('LiveQR: Starting camera...');
+        
         try {
-            // Try Html5Qrcode first
-            await this.tryHtml5Scanner();
+            // Check and request camera permission first
+            const hasPermission = await this.permissionManager.requestCameraAccess();
+            
+            if (!hasPermission) {
+                throw new Error('Camera permission denied');
+            }
+            
+            // Show loading state
+            this.showStatus('Initializing camera...', 'info');
+            
+            // Try native camera first (more reliable)
+            await this.initializeNativeCamera();
+            
         } catch (error) {
-            console.log('LiveQR: Html5Qrcode failed, trying native camera');
-            await this.tryNativeCamera();
+            console.error('LiveQR: Camera start failed:', error);
+            this.showStatus(`Camera error: ${error.message}. Try allowing camera access and refresh.`, 'error');
         }
     }
     
@@ -345,29 +365,80 @@ class LiveQRScanner {
         console.log('LiveQR: Html5Qrcode scanner started');
     }
     
-    async tryNativeCamera() {
+    async initializeNativeCamera() {
         console.log('LiveQR: Starting native camera');
         
-        const stream = await navigator.mediaDevices.getUserMedia({
+        // Enhanced camera constraints for better compatibility
+        const constraints = {
             video: {
-                facingMode: 'environment',
-                width: { ideal: 640 },
-                height: { ideal: 480 }
-            }
-        });
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280, min: 640 },
+                height: { ideal: 720, min: 480 },
+                frameRate: { ideal: 30, min: 15 }
+            },
+            audio: false
+        };
         
-        this.video.srcObject = stream;
+        try {
+            this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.video.srcObject = this.cameraStream;
+            
+            // Wait for video to be ready
+            await new Promise((resolve, reject) => {
+                this.video.onloadedmetadata = () => {
+                    this.video.play()
+                        .then(resolve)
+                        .catch(reject);
+                };
+                this.video.onerror = reject;
+                
+                // Timeout after 10 seconds
+                setTimeout(() => reject(new Error('Video load timeout')), 10000);
+            });
+            
+            this.isScanning = true;
+            this.startNativeScanning();
+            this.showStatus('Camera active! Position QR code in frame', 'success');
+            console.log('LiveQR: Native camera started successfully');
+            
+        } catch (error) {
+            console.error('LiveQR: Native camera failed:', error);
+            
+            // Try fallback with simpler constraints
+            await this.tryFallbackCamera();
+        }
+    }
+    
+    async tryFallbackCamera() {
+        console.log('LiveQR: Trying fallback camera settings');
         
-        await new Promise((resolve) => {
-            this.video.onloadedmetadata = () => {
-                this.video.play();
-                resolve();
-            };
-        });
+        const fallbackConstraints = {
+            video: true,
+            audio: false
+        };
         
-        this.isScanning = true;
-        this.startNativeScanning();
-        console.log('LiveQR: Native camera started');
+        try {
+            this.cameraStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+            this.video.srcObject = this.cameraStream;
+            
+            await new Promise((resolve, reject) => {
+                this.video.onloadedmetadata = () => {
+                    this.video.play()
+                        .then(resolve)
+                        .catch(reject);
+                };
+                setTimeout(() => reject(new Error('Fallback timeout')), 5000);
+            });
+            
+            this.isScanning = true;
+            this.startNativeScanning();
+            this.showStatus('Camera active (fallback mode)', 'success');
+            console.log('LiveQR: Fallback camera started');
+            
+        } catch (error) {
+            console.error('LiveQR: All camera attempts failed:', error);
+            throw new Error('Unable to access camera. Please check permissions.');
+        }
     }
     
     startNativeScanning() {
@@ -453,6 +524,22 @@ class LiveQRScanner {
         this.onSuccess = callback;
     }
     
+    showStatus(message, type = 'info') {
+        // Find status container in parent page
+        const statusContainer = document.getElementById('result-container');
+        if (statusContainer) {
+            statusContainer.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'}`;
+            statusContainer.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}`;
+            statusContainer.style.display = 'block';
+        }
+    }
+    
+    async start() {
+        if (!this.isScanning) {
+            await this.startScanning();
+        }
+    }
+    
     async stop() {
         this.isScanning = false;
         
@@ -464,11 +551,21 @@ class LiveQRScanner {
             }
         }
         
-        if (this.video && this.video.srcObject) {
-            const tracks = this.video.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
+        if (this.cameraStream) {
+            const tracks = this.cameraStream.getTracks();
+            tracks.forEach(track => {
+                track.stop();
+                console.log('LiveQR: Stopped camera track:', track.kind);
+            });
+            this.cameraStream = null;
+        }
+        
+        if (this.video) {
             this.video.srcObject = null;
         }
+        
+        this.showStatus('Camera stopped', 'info');
+        console.log('LiveQR: Camera stopped');
     }
 }
 
