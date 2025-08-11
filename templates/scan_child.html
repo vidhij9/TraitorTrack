@@ -120,37 +120,7 @@
         </div>
     </div>
     
-    <!-- Manual Entry Section -->
-    <div class="row mb-2">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header py-2">
-                    <h6 class="mb-0"><i class="fas fa-keyboard me-2"></i>Manual Entry</h6>
-                </div>
-                <div class="card-body p-2">
-                    <form id="manual-entry-form" class="d-flex gap-2">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="text" 
-                               id="manual-qr-input" 
-                               name="qr_code"
-                               class="form-control form-control-sm" 
-                               placeholder="Enter child bag QR code manually..."
-                               autocomplete="off">
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="fas fa-plus me-1"></i>Add
-                        </button>
-                    </form>
-                    
-                    <div class="mt-2">
-                        <label class="form-check">
-                            <input type="checkbox" class="form-check-input" id="auto-add-checkbox" checked>
-                            <span class="form-check-label small">Auto-add child bags (faster scanning)</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
     
     <!-- Action buttons section -->
     <div class="row mb-2">
@@ -988,15 +958,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const manualForm = document.getElementById('manual-entry-form');
     if (manualForm) {
         manualForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            submitManualCode();
-        });
-    }
-    
-    // Also handle the old manual form if it exists
-    const oldManualForm = document.getElementById('manual-qr-input');
-    if (oldManualForm) {
-        oldManualForm.addEventListener('submit', function(e) {
             e.preventDefault();
             submitManualCode();
         });
