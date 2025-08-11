@@ -132,9 +132,10 @@
                         <button type="button" id="complete-scanning-btn" 
                                 class="btn btn-success btn-lg fw-bold"
                                 style="background: linear-gradient(135deg, #28a745, #20c997); border: none; padding: 15px;"
-                                onclick="handleCompleteScanning()">
+                                onclick="console.log('Button clicked'); window.handleCompleteScanning ? window.handleCompleteScanning() : alert('Function not found')">
                             <i class="fas fa-check-circle me-2"></i>
                             Complete Scanning (<span id="complete-btn-count">0</span> bags)
+                            <small class="d-block" style="font-size: 11px; opacity: 0.8;">Click to finish</small>
                         </button>
                     </div>
                     
@@ -618,7 +619,8 @@
             }
         };
         
-        // GLOBAL COMPLETE FUNCTION: Accessible from onclick and event listener
+        // MOVED TO TOP: Global complete function must be defined early
+        console.log('Defining handleCompleteScanning function...');
         window.handleCompleteScanning = function() {
             console.log('=== COMPLETE SCANNING TRIGGERED ===');
             
@@ -665,15 +667,26 @@
                 showToast('Please scan at least one child bag before completing', 'warning');
             }
         };
+        console.log('handleCompleteScanning function defined successfully');
         
-        // BACKUP EVENT LISTENER: In case onclick doesn't work
-        document.addEventListener('DOMContentLoaded', function() {
-            const completeBtn = document.getElementById('complete-scanning-btn');
-            if (completeBtn) {
-                completeBtn.addEventListener('click', window.handleCompleteScanning);
-                console.log('Complete button event listener attached');
-            }
-        });
+        // TEST BUTTON: Add test functionality
+        window.testCompleteButton = function() {
+            console.log('TEST: Button is clickable');
+            alert('Button test successful!');
+        };
+
+        // BACKUP EVENT LISTENER: Attach after DOM loads
+        const completeBtn = document.getElementById('complete-scanning-btn');
+        if (completeBtn) {
+            completeBtn.addEventListener('click', function(e) {
+                console.log('Event listener fired!');
+                e.preventDefault();
+                window.handleCompleteScanning();
+            });
+            console.log('✓ Complete button event listener attached');
+        } else {
+            console.error('❌ Complete button not found!');
+        }
 
         // Initialize scanner when document loads
         initializeScanner();
