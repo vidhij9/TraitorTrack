@@ -123,6 +123,25 @@ class QueryOptimizer:
         if existing:
             return existing, False  # Return existing link, not created
         
+        # Create new link
+        link = Link()
+        link.parent_bag_id = parent_id
+        link.child_bag_id = child_id
+        
+        db.session.add(link)
+        return link, True  # Return new link, created
+    
+    @staticmethod
+    def bulk_commit():
+        """Optimized bulk commit with error handling"""
+        try:
+            db.session.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Bulk commit failed: {str(e)}")
+            db.session.rollback()
+            return False
+        
         link = Link()
         link.parent_bag_id = parent_id
         link.child_bag_id = child_id

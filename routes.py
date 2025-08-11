@@ -1146,13 +1146,84 @@ def scan_parent_bag():
         # Only camera scanning allowed - no manual form submission
         return redirect(url_for('scan_parent'))
 
-@app.route('/scan/child', methods=['GET', 'POST'])
+@app.route('/process_child_scan_fast', methods=['POST'])
 @login_required
+def process_child_scan_fast():
+    """Ultra-fast child bag processing with CSRF exemption for JSON requests"""
+    try:
+        # Get QR code from JSON or form data
+        if request.content_type and 'application/json' in request.content_type:
+            data = request.get_json()
+            qr_id = data.get('qr_code', '').strip()
+        else:
+            qr_id = request.form.get('qr_code', '').strip()
+        
+        if not qr_id:
+            return jsonify({'success': False, 'message': 'No QR code provided'})
+        
+        # Quick validation
+        if len(qr_id) < 3:
+            return jsonify({'success': False, 'message': 'QR code too short'})
+        
+        # Get parent from session (fastest possible)
+        parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            return jsonify({'success': False, 'message': 'No parent bag selected'})
+        
+        if qr_id == parent_qr:
+            return jsonify({'success': False, 'message': 'Cannot link to itself'})
+        
+        # Single optimized database call
+        parent_bag = query_optimizer.get_bag_by_qr(parent_qr, BagType.PARENT.value)
+        if not parent_bag:
+            return jsonify({'success': False, 'message': 'Parent bag not found'})
+        
+        # Check/create child bag
+        child_bag = query_optimizer.get_bag_by_qr(qr_id)
+        if child_bag:
+            if child_bag.type == BagType.PARENT.value:
+                return jsonify({'success': False, 'message': f'{qr_id} is already a parent bag'})
+            # Check if already linked
+            existing_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+            if existing_link:
+                if existing_link.parent_bag_id == parent_bag.id:
+                    return jsonify({'success': False, 'message': f'{qr_id} already linked'})
+                else:
+                    return jsonify({'success': False, 'message': f'{qr_id} linked to another parent'})
+        else:
+            # Create new child bag
+            child_bag = query_optimizer.create_bag_optimized(
+                qr_id=qr_id,
+                bag_type=BagType.CHILD.value,
+                dispatch_area=parent_bag.dispatch_area
+            )
+        
+        # Create link and scan record
+        query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
+        query_optimizer.create_scan_optimized(current_user.id, child_bag_id=child_bag.id)
+        
+        # Fast commit
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'child_qr': qr_id,
+            'parent_qr': parent_qr,
+            'message': f'{qr_id} linked!'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Fast child scan error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error processing scan'})
+
+@app.route('/scan/child', methods=['GET', 'POST'])
+@login_required  
 def scan_child():
     """Scan child bag QR code - unified GET/POST handler"""
     # Handle JSON request (from QR scanner and manual entry)
     if request.method == 'POST':
-        # Check if it's JSON data (AJAX)
+        # Check if it's JSON data (AJAX) - exempt from CSRF for QR scanning
         if request.content_type and 'application/json' in request.content_type:
             data = request.get_json()
             qr_id = data.get('qr_code', '').strip()
@@ -1232,24 +1303,23 @@ def scan_child():
                     child_bag_id=child_bag.id
                 )
                 
-                # OPTIMIZED: Single bulk commit
-                if not query_optimizer.bulk_commit():
-                    app.logger.error(f'Bulk commit failed for linking {qr_id} to {parent_bag.qr_id}')
-                    return jsonify({'success': False, 'message': 'Database error occurred'})
-                
-                app.logger.info(f'Successfully committed link between {parent_bag.qr_id} and {qr_id}')
-                
-                # ULTRA-FAST: Skip count query for maximum speed
-                # We can get count from client-side instead of server query
-                
-                # Instant JSON response (removed count query for speed)
-                return jsonify({
-                    'success': True,
-                    'child_qr': qr_id,
-                    'child_name': child_bag.name if child_bag.name else None,
-                    'parent_qr': parent_bag.qr_id,
-                    'message': f'{qr_id} linked!'
-                })
+                # OPTIMIZED: Single bulk commit for maximum speed
+                try:
+                    db.session.commit()
+                    app.logger.info(f'Successfully committed link between {parent_bag.qr_id} and {qr_id}')
+                    
+                    # ULTRA-FAST: Instant JSON response (removed count query for speed)
+                    return jsonify({
+                        'success': True,
+                        'child_qr': qr_id,
+                        'child_name': child_bag.name if child_bag.name else None,
+                        'parent_qr': parent_bag.qr_id,
+                        'message': f'{qr_id} linked successfully!'
+                    })
+                except Exception as commit_error:
+                    db.session.rollback()
+                    app.logger.error(f'Commit failed for linking {qr_id} to {parent_bag.qr_id}: {str(commit_error)}')
+                    return jsonify({'success': False, 'message': 'Failed to save link. Please try again.'})
                 
             except Exception as e:
                 db.session.rollback()

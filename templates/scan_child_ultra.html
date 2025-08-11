@@ -248,26 +248,51 @@
     background-color: #0d6efd;
 }
 
-/* Child list styles */
+/* Child list styles - OPTIMIZED FOR SPEED */
 .list-group-item {
     border: 1px solid #dee2e6;
     margin-bottom: 2px;
     border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
 .list-group-item.newly-added {
-    animation: highlightNew 0.8s ease-out;
+    animation: highlightNew 0.6s ease-out;
 }
 
 @keyframes highlightNew {
     0% {
-        background-color: #d1ecf1;
-        transform: scale(1.02);
+        background-color: #d4edda;
+        transform: scale(1.03);
+        box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3);
     }
     100% {
         background-color: white;
         transform: scale(1);
+        box-shadow: none;
     }
+}
+
+/* Quick scan feedback */
+.scan-feedback {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(25, 135, 84, 0.9);
+    color: white;
+    padding: 20px 30px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    z-index: 9999;
+    animation: fadeInOut 1s ease-in-out;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
 }
 
 /* Scanner controls */
@@ -302,7 +327,7 @@
         const childrenList = document.getElementById('children-list');
         const progressText = document.getElementById('progress-text');
         
-        // Toast notification functions
+        // OPTIMIZED Toast notification functions - faster with shorter delays
         function showToast(message, type = 'success') {
             const toast = document.getElementById('scan-toast');
             const toastMessage = document.getElementById('toast-message');
@@ -310,28 +335,33 @@
             // Set message and icon based on type
             let icon = 'fas fa-check-circle';
             let bgClass = 'bg-success';
+            let delay = 2000; // Faster default
             
             if (type === 'error') {
                 icon = 'fas fa-exclamation-circle';
                 bgClass = 'bg-danger';
+                delay = 3000; // Longer for errors
             } else if (type === 'warning') {
-                icon = 'fas fa-exclamation-triangle';  
+                icon = 'fas fa-clock';  
                 bgClass = 'bg-warning text-dark';
+                delay = 1500; // Very fast for processing messages
             }
             
             // Update toast appearance
             toast.className = `toast align-items-center text-white ${bgClass} border-0`;
             toastMessage.innerHTML = `<i class="${icon} me-2"></i>${message}`;
             
-            // Show toast
+            // Show toast with optimized timing
             const bsToast = new bootstrap.Toast(toast, {
                 autohide: true,
-                delay: 3000
+                delay: delay
             });
             bsToast.show();
+            
+            return bsToast; // Return for potential dismissal
         }
 
-        // Add child bag to list dynamically
+        // OPTIMIZED: Add child bag to list with instant feedback
         function addChildToList(childQr, childName = null) {
             const childrenList = document.getElementById('children-list');
             const emptyMessage = childrenList.querySelector('.text-center');
@@ -341,7 +371,10 @@
                 emptyMessage.remove();
             }
             
-            // Create new list item
+            // INSTANT VISUAL FEEDBACK: Show scan feedback overlay
+            showQuickFeedback(`✓ ${childQr}`);
+            
+            // Create new list item with instant animation
             const listItem = document.createElement('div');
             listItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2 newly-added';
             
@@ -354,19 +387,34 @@
                 <span class="badge bg-success rounded-pill">Linked</span>
             `;
             
-            // Add to top of list
+            // Add to top of list instantly
             childrenList.insertBefore(listItem, childrenList.firstChild);
             
-            // Update progress counter
+            // Update progress counter instantly
             const currentCount = parseInt(progressText.textContent) || 0;
             const newCount = currentCount + 1;
             progressText.textContent = newCount;
             document.getElementById('complete-count').textContent = newCount;
             
-            // Highlight animation will be handled by CSS
+            // Remove highlight animation faster
             setTimeout(() => {
                 listItem.classList.remove('newly-added');
-            }, 800);
+            }, 600);
+        }
+        
+        // FAST VISUAL FEEDBACK: Show instant scan confirmation
+        function showQuickFeedback(message) {
+            const feedback = document.createElement('div');
+            feedback.className = 'scan-feedback';
+            feedback.textContent = message;
+            document.body.appendChild(feedback);
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (feedback.parentNode) {
+                    feedback.parentNode.removeChild(feedback);
+                }
+            }, 1000);
         }
 
         // Initialize scanner with proper error handling
@@ -387,17 +435,19 @@
             }
         }
         
-        // Handle Child QR Code scan success
+        // Handle Child QR Code scan success - ULTRA FAST VERSION
         async function handleChildScanSuccess(qrText) {
             console.log('Child scan success:', qrText);
             
+            // INSTANT FEEDBACK: Show immediate visual feedback before server call
+            const tempToast = showToast(`Linking ${qrText}...`, 'warning');
+            
             try {
-                // Send to server
-                const response = await fetch('/scan/child', {
+                // OPTIMIZED: Use fast endpoint with minimal data
+                const response = await fetch('/process_child_scan_fast', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         qr_code: qrText
@@ -407,26 +457,26 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Show success popup
-                    showToast(`${qrText} linked successfully!`, 'success');
+                    // INSTANT UPDATE: Show success immediately
+                    showToast(`${qrText} linked!`, 'success');
                     
-                    // Add to displayed children list
+                    // INSTANT UI UPDATE: Add to list immediately
                     addChildToList(data.child_qr, data.child_name);
                     
-                    // Add to scanned children tracking
+                    // Track for completion
                     scannedChildren.push({
                         qr: qrText,
                         timestamp: new Date()
                     });
                     
                 } else {
-                    // Show error popup - stay on same page
-                    showToast(data.message, 'error');
+                    // Show clear error message
+                    showToast(data.message || 'Failed to link bag', 'error');
                 }
                 
             } catch (error) {
                 console.error('Child scan error:', error);
-                showToast('Network error. Please try again.', 'error');
+                showToast('Connection error. Check your network.', 'error');
             }
         }
         
