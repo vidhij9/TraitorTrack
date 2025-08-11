@@ -1307,6 +1307,7 @@ def scan_child():
             return jsonify({
                 'success': True,
                 'child_qr': qr_id,
+                'child_name': child_bag.name if child_bag.name else None,
                 'parent_qr': parent_bag.qr_id,
                 'message': f'{qr_id} linked!'
             })

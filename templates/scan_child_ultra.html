@@ -105,11 +105,29 @@
                     <div id="scanned-children-list" class="mt-3">
                         <h6 style="font-size: 12px;"><i class="fas fa-list me-1" style="font-size: 10px;"></i>Scanned Child Bags</h6>
                         <div id="children-list" class="list-group" style="max-height: 200px; overflow-y: auto;">
-                            <!-- Dynamically populated -->
+                            {% if linked_child_bags %}
+                                {% for child_bag in linked_child_bags %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <div>
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        <span class="fw-bold">{{ child_bag.qr_id }}</span>
+                                        {% if child_bag.name %}
+                                            <small class="text-muted ms-2">{{ child_bag.name }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <span class="badge bg-success rounded-pill">Linked</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center text-muted py-3">
+                                    <i class="fas fa-qrcode fa-2x mb-2 opacity-50"></i>
+                                    <p class="mb-0">No child bags scanned yet</p>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     
-                    <form id="manual-entry-form" class="mt-4" method="POST" action="/scan/child">
+                    <form id="manual-entry-form" class="mt-4" onsubmit="handleManualSubmission(event)">
                         {{ form.hidden_tag() if form }}
                         <div class="mb-3">
                             <label for="manual-qr-code" class="form-label">Manual Child QR Entry</label>
@@ -131,6 +149,18 @@
 {% endblock %}
 
 {% block head %}
+<!-- Toast notification container -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="scan-toast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                <i class="fas fa-check-circle me-2"></i>
+                Bag linked successfully!
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
 <!-- Load QR scanning libraries -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
@@ -285,6 +315,73 @@
         const childrenList = document.getElementById('children-list');
         const progressText = document.getElementById('progress-text');
         
+        // Toast notification functions
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('scan-toast');
+            const toastMessage = document.getElementById('toast-message');
+            
+            // Set message and icon based on type
+            let icon = 'fas fa-check-circle';
+            let bgClass = 'bg-success';
+            
+            if (type === 'error') {
+                icon = 'fas fa-exclamation-circle';
+                bgClass = 'bg-danger';
+            } else if (type === 'warning') {
+                icon = 'fas fa-exclamation-triangle';  
+                bgClass = 'bg-warning text-dark';
+            }
+            
+            // Update toast appearance
+            toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+            toastMessage.innerHTML = `<i class="${icon} me-2"></i>${message}`;
+            
+            // Show toast
+            const bsToast = new bootstrap.Toast(toast, {
+                autohide: true,
+                delay: 3000
+            });
+            bsToast.show();
+        }
+
+        // Add child bag to list dynamically
+        function addChildToList(childQr, childName = null) {
+            const childrenList = document.getElementById('children-list');
+            const emptyMessage = childrenList.querySelector('.text-center');
+            
+            // Remove empty message if it exists
+            if (emptyMessage) {
+                emptyMessage.remove();
+            }
+            
+            // Create new list item
+            const listItem = document.createElement('div');
+            listItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2 newly-added';
+            
+            listItem.innerHTML = `
+                <div>
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <span class="fw-bold">${childQr}</span>
+                    ${childName ? `<small class="text-muted ms-2">${childName}</small>` : ''}
+                </div>
+                <span class="badge bg-success rounded-pill">Linked</span>
+            `;
+            
+            // Add to top of list
+            childrenList.insertBefore(listItem, childrenList.firstChild);
+            
+            // Update progress counter
+            const currentCount = parseInt(progressText.textContent) || 0;
+            const newCount = currentCount + 1;
+            progressText.textContent = newCount;
+            document.getElementById('complete-count').textContent = newCount;
+            
+            // Highlight animation will be handled by CSS
+            setTimeout(() => {
+                listItem.classList.remove('newly-added');
+            }, 800);
+        }
+
         // Initialize scanner with proper error handling
         async function initializeScanner() {
             try {
@@ -299,193 +396,108 @@
                 }
             } catch (error) {
                 console.error('Child scanner initialization failed:', error);
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Scanner initialization failed. Please refresh the page.';
-                resultContainer.style.display = 'block';
+                showToast('Scanner initialization failed. Please refresh the page.', 'error');
             }
         }
         
-        // Handle successful child scan
-        function handleChildScanSuccess(qrCode) {
-            console.log('Child bag scanned:', qrCode);
+        // Handle Child QR Code scan success
+        async function handleChildScanSuccess(qrText) {
+            console.log('Child scan success:', qrText);
             
-            // Check if already scanned
-            if (scannedChildren.includes(qrCode)) {
-                showMessage('warning', `${qrCode} already scanned!`, 1000);
+            try {
+                // Send to server
+                const response = await fetch('/scan/child', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        qr_code: qrText
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show success popup
+                    showToast(`${qrText} linked successfully!`, 'success');
+                    
+                    // Add to displayed children list
+                    addChildToList(data.child_qr, data.child_name);
+                    
+                    // Add to scanned children tracking
+                    scannedChildren.push({
+                        qr: qrText,
+                        timestamp: new Date()
+                    });
+                    
+                } else {
+                    // Show error popup - stay on same page
+                    showToast(data.message, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Child scan error:', error);
+                showToast('Network error. Please try again.', 'error');
+            }
+        }
+        
+        // Handle manual form submission with popup notifications
+        function handleManualSubmission(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const qrCode = formData.get('qr_code');
+            
+            if (!qrCode) {
+                showToast('Please enter a QR code', 'warning');
                 return;
             }
             
-            // Update UI
-            childQrValue.textContent = qrCode;
-            
-            // Add to scanned list
-            scannedChildren.push(qrCode);
-            console.log('Added child bag to list:', qrCode, 'Total bags:', scannedChildren.length);
-            updateChildrenList(qrCode);
-            
-            // Submit the scan
-            submitChildScan(qrCode);
-            
-            // Show brief success flash without message to maintain speed
-            showQuickSuccess();
-            
-            // Keep scanner running for continuous scanning
-            // Don't show the success dialog to allow rapid scanning
-        }
-        
-        // Update children list
-        function updateChildrenList(newChild) {
-            const item = document.createElement('div');
-            item.className = 'list-group-item newly-added d-flex justify-content-between align-items-center py-1';
-            item.innerHTML = `
-                <div>
-                    <i class="fas fa-cube me-1 text-success" style="font-size: 10px;"></i>
-                    <span style="font-size: 10px; font-weight: bold;">${newChild}</span>
-                </div>
-                <span class="badge bg-success" style="font-size: 8px; padding: 2px 4px;">✓</span>
-            `;
-            
-            childrenList.insertBefore(item, childrenList.firstChild);
-            
-            // Update progress counter
-            if (progressText) {
-                progressText.textContent = scannedChildren.length;
-            }
-            
-            // Update complete step counter
-            const completeCount = document.getElementById('complete-count');
-            if (completeCount) {
-                completeCount.textContent = scannedChildren.length;
-            }
-            
-            // Make complete step clickable when there are scanned bags
-            const completeStep = document.getElementById('complete-step');
-            const completeCircle = document.getElementById('complete-circle');
-            if (scannedChildren.length > 0) {
-                completeStep.style.color = '#28a745';
-                completeCircle.style.backgroundColor = '#28a745';
-                completeCircle.style.color = 'white';
-            }
-            
-            // Show mini success animation
-            item.style.transform = 'scale(1.05)';
-            item.style.backgroundColor = '#d1ecf1';
-            setTimeout(() => {
-                item.style.transform = 'scale(1)';
-                item.style.backgroundColor = '';
-            }, 300);
-        }
-        
-        // Submit child scan
-        function submitChildScan(qrCode) {
-            // Create form data with proper CSRF token
-            const formData = new FormData();
-            formData.append('qr_code', qrCode);
-            
-            // Add CSRF token from meta tag
-            const csrfToken = document.querySelector('meta[name=csrf-token]');
-            if (csrfToken) {
-                formData.append('csrf_token', csrfToken.getAttribute('content'));
-            }
-            
-            // Submit using fetch
-            fetch('/process_child_scan', {
+            fetch('/scan/child', {
                 method: 'POST',
                 body: formData,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
-            }).then(response => {
-                if (response.ok) {
-                    console.log('Child scan submitted successfully');
-                    return response.json();
-                } else {
-                    console.warn('Failed to submit child scan');
-                    throw new Error('Submission failed');
-                }
-            }).then(data => {
+            }).then(response => response.json())
+            .then(data => {
                 if (data.success) {
-                    console.log('Child bag linked successfully');
+                    showToast(`${qrCode} linked successfully!`, 'success');
+                    addChildToList(data.child_qr, data.child_name);
+                    
+                    // Clear the form
+                    event.target.reset();
                 } else {
-                    console.warn('Child bag linking failed:', data.message);
+                    showToast(data.message, 'error');
                 }
             }).catch(error => {
-                console.error('Error submitting child scan:', error);
+                console.error('Manual entry error:', error);
+                showToast('Network error. Please try again.', 'error');
             });
         }
         
-        // Show message helper
-        function showMessage(type, message, duration = 3000) {
-            const alertClass = type === 'success' ? 'alert-success' : 
-                             type === 'warning' ? 'alert-warning' : 'alert-info';
-            
-            resultContainer.className = `alert ${alertClass}`;
-            resultContainer.innerHTML = `<i class="fas fa-info-circle me-2"></i>${message}`;
-            resultContainer.style.display = 'block';
-            
-            if (duration > 0) {
-                setTimeout(() => {
-                    resultContainer.style.display = 'none';
-                }, duration);
-            }
-        }
-        
-        // Quick success flash for rapid scanning
-        function showQuickSuccess() {
-            // Flash the entire scanner area briefly
-            const scannerContainer = document.getElementById('ultra-child-scanner-container');
-            const originalBorder = scannerContainer.style.border;
-            scannerContainer.style.border = '3px solid #28a745';
-            scannerContainer.style.boxShadow = '0 0 15px rgba(40, 167, 69, 0.5)';
-            
-            // Vibrate if supported
-            if (navigator.vibrate) {
-                navigator.vibrate(50);
-            }
-            
-            setTimeout(() => {
-                scannerContainer.style.border = originalBorder;
-                scannerContainer.style.boxShadow = '';
-            }, 200);
-        }
-        
-        // Initialize scanner when document loads
-        initializeScanner();
-        
-        // Scan another button - now shows success dialog when clicked
-        scanAnotherBtn.addEventListener('click', function() {
-            scanSuccess.classList.remove('d-none');
-            resultContainer.style.display = 'none';
-        });
-        
         // Complete scanning function
         window.completeScanning = function() {
-            if (scannedChildren.length > 0) {
+            const childCount = parseInt(progressText.textContent) || 0;
+            if (childCount > 0) {
                 // Stop the scanner first
                 if (scanner) {
                     scanner.stop();
                 }
                 
-                console.log('Completing scanning with', scannedChildren.length, 'bags:', scannedChildren);
+                console.log('Completing scanning with', childCount, 'child bags');
                 
                 // Redirect to completion page
                 window.location.href = '{{ url_for("scan_complete") }}';
             } else {
-                alert('No child bags scanned yet. Please scan at least one child bag before completing.');
+                showToast('Please scan at least one child bag before completing.', 'warning');
             }
         };
         
-        // Manual entry form - now handled by form action
-        // This prevents double submission and ensures proper CSRF handling
-        
-        // Load existing scanned children
-        {% if scanned_children %}
-        const existingChildren = {{ scanned_children | tojson }};
-        scannedChildren = existingChildren;
-        existingChildren.forEach(child => {
-            updateChildrenList(child);
-        });
-        {% endif %}
+        // Initialize scanner when document loads
+        initializeScanner();
     });
 </script>
 {% endblock %}
