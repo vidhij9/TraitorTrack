@@ -129,14 +129,13 @@
                     
                     <!-- Complete Scanning Button -->
                     <div class="mt-3 d-grid">
-                        <button type="button" id="complete-scanning-btn" 
-                                class="btn btn-success btn-lg fw-bold"
-                                style="background: linear-gradient(135deg, #28a745, #20c997); border: none; padding: 15px;"
-                                onclick="console.log('Button clicked'); window.handleCompleteScanning ? window.handleCompleteScanning() : alert('Function not found')">
+                        <a href="{{ url_for('scan_complete') }}" 
+                           class="btn btn-success btn-lg fw-bold text-decoration-none"
+                           style="background: linear-gradient(135deg, #28a745, #20c997); border: none; padding: 15px;">
                             <i class="fas fa-check-circle me-2"></i>
                             Complete Scanning (<span id="complete-btn-count">0</span> bags)
                             <small class="d-block" style="font-size: 11px; opacity: 0.8;">Click to finish</small>
-                        </button>
+                        </a>
                     </div>
                     
 
@@ -619,74 +618,11 @@
             }
         };
         
-        // MOVED TO TOP: Global complete function must be defined early
-        console.log('Defining handleCompleteScanning function...');
-        window.handleCompleteScanning = function() {
-            console.log('=== COMPLETE SCANNING TRIGGERED ===');
-            
-            // Get count from multiple sources for reliability
-            const completeBtnCount = document.getElementById('complete-btn-count');
-            const childrenList = document.getElementById('children-list');
-            const listItems = childrenList ? childrenList.querySelectorAll('.list-group-item:not(.text-center)') : [];
-            
-            const buttonCount = parseInt(completeBtnCount ? completeBtnCount.textContent : '0') || 0;
-            const listCount = listItems.length;
-            const finalCount = Math.max(buttonCount, listCount);
-            
-            console.log('Complete button counts:', {
-                buttonCount,
-                listCount,
-                finalCount,
-                scannedChildrenLength: scannedChildren.length
-            });
-            
-            if (finalCount > 0) {
-                console.log('✅ Processing completion with', finalCount, 'bags...');
-                
-                // Stop scanner if active
-                if (scanner && typeof scanner.stop === 'function') {
-                    try {
-                        scanner.stop();
-                        console.log('Scanner stopped successfully');
-                    } catch (e) {
-                        console.log('Scanner stop error:', e.message);
-                    }
-                }
-                
-                // Show completion message
-                showToast(`Completing with ${finalCount} bags...`, 'success');
-                
-                // Redirect after delay
-                setTimeout(() => {
-                    console.log('Redirecting to completion page...');
-                    window.location.href = '{{ url_for("scan_complete") }}';
-                }, 1500);
-                
-            } else {
-                console.log('❌ No bags to complete');
-                showToast('Please scan at least one child bag before completing', 'warning');
-            }
-        };
-        console.log('handleCompleteScanning function defined successfully');
-        
-        // TEST BUTTON: Add test functionality
-        window.testCompleteButton = function() {
-            console.log('TEST: Button is clickable');
-            alert('Button test successful!');
-        };
+        // SIMPLE COMPLETE FUNCTION: Direct link approach - no complex JavaScript needed
+        console.log('Complete button now uses direct link approach for reliability');
 
-        // BACKUP EVENT LISTENER: Attach after DOM loads
-        const completeBtn = document.getElementById('complete-scanning-btn');
-        if (completeBtn) {
-            completeBtn.addEventListener('click', function(e) {
-                console.log('Event listener fired!');
-                e.preventDefault();
-                window.handleCompleteScanning();
-            });
-            console.log('✓ Complete button event listener attached');
-        } else {
-            console.error('❌ Complete button not found!');
-        }
+        // SIMPLE APPROACH: Direct link navigation - no event listeners needed
+        console.log('Complete button uses direct navigation for maximum reliability');
 
         // Initialize scanner when document loads
         initializeScanner();
