@@ -312,7 +312,7 @@ class PerfectQRScanner {
                 };
             },
             aspectRatio: 1.0,
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+            supportedScanTypes: [Html5QrcodeScanType?.SCAN_TYPE_CAMERA || 0],
             rememberLastUsedCamera: true,
             videoConstraints: {
                 facingMode: "environment",
@@ -403,13 +403,15 @@ class PerfectQRScanner {
     
     async toggleTorch() {
         try {
-            const track = this.scanner.getRunningTrackCapabilities();
-            if (track && track.torch) {
-                await track.applyConstraints({
-                    advanced: [{ torch: !this.torchOn }]
-                });
-                this.torchOn = !this.torchOn;
-                this.updateStatus(`Torch ${this.torchOn ? 'ON' : 'OFF'}`, this.torchOn ? '🔆' : '🔦');
+            if (this.scanner && this.scanner.getRunningTrackCapabilities) {
+                const track = this.scanner.getRunningTrackCapabilities();
+                if (track && track.torch) {
+                    await track.applyConstraints({
+                        advanced: [{ torch: !this.torchOn }]
+                    });
+                    this.torchOn = !this.torchOn;
+                    this.updateStatus(`Torch ${this.torchOn ? 'ON' : 'OFF'}`, this.torchOn ? '🔆' : '🔦');
+                }
             }
         } catch (error) {
             console.log('Torch not supported:', error);
@@ -418,22 +420,24 @@ class PerfectQRScanner {
     
     async enhanceFocus() {
         try {
-            const track = this.scanner.getRunningTrackCapabilities();
-            if (track) {
-                await track.applyConstraints({
-                    advanced: [
-                        { focusMode: "single-shot" },
-                        { focusDistance: 0.1 }
-                    ]
-                });
-                
-                setTimeout(async () => {
+            if (this.scanner && this.scanner.getRunningTrackCapabilities) {
+                const track = this.scanner.getRunningTrackCapabilities();
+                if (track) {
                     await track.applyConstraints({
-                        advanced: [{ focusMode: "continuous" }]
+                        advanced: [
+                            { focusMode: "single-shot" },
+                            { focusDistance: 0.1 }
+                        ]
                     });
-                }, 1000);
-                
-                this.updateStatus('🎯 Focus enhanced', '🔍');
+                    
+                    setTimeout(async () => {
+                        await track.applyConstraints({
+                            advanced: [{ focusMode: "continuous" }]
+                        });
+                    }, 1000);
+                    
+                    this.updateStatus('Focus enhanced', '🔍');
+                }
             }
         } catch (error) {
             console.log('Focus enhancement failed:', error);

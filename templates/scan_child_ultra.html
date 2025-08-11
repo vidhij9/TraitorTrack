@@ -284,7 +284,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/perfect-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let ultraScanner = null;
@@ -494,37 +494,37 @@
             }
         });
         
-        // Initialize perfect scanner for child scanning
+        // Initialize instant scanner for child scanning
         function initializeScanner() {
             if (!ultraScanner) {
-                console.log('🌟 Creating PerfectQRScanner for child scanning...');
-                ultraScanner = new PerfectQRScanner('ultra-child-scanner-container');
+                console.log('Creating InstantQRScanner for child scanning...');
+                ultraScanner = new InstantQRScanner('ultra-child-scanner-container');
                 ultraScanner.setSuccessCallback(handleChildScanSuccess);
-                console.log('✅ PerfectQRScanner for child scanning initialized');
+                console.log('InstantQRScanner for child scanning initialized');
             }
         }
         
-        // Launch perfect child scanner
-        function launchPerfectChildScanner() {
-            console.log('🚀 Launching Perfect QR Scanner for child scanning...');
+        // Launch instant child scanner
+        function launchInstantChildScanner() {
+            console.log('Launching Instant QR Scanner for child scanning...');
             
             // Hide manual controls
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
             
-            showMessage('success', '🌟 Perfect Scanner launching for child scanning - World class detection starting...');
+            showMessage('info', 'Instant Scanner starting for child scanning...');
             
-            // Initialize perfect scanner (auto-starts)
+            // Initialize scanner
             initializeScanner();
             
             // Update status
             setTimeout(() => {
-                showMessage('success', '🎯 Perfect Scanner active - Ready for child QR codes!');
-            }, 2000);
+                showMessage('success', 'Child scanner ready - Position QR codes in view');
+            }, 3000);
         }
         
         // Launch immediately
-        setTimeout(launchPerfectChildScanner, 500);
+        setTimeout(launchInstantChildScanner, 500);
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};
