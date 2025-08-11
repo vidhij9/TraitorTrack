@@ -91,14 +91,15 @@
                         </div>
                     </div>
                     
-                    <form id="manual-entry-form" class="mt-4">
+                    <form id="manual-entry-form" class="mt-4" method="POST" action="/process_parent_scan">
+                        {{ form.hidden_tag() if form }}
                         <div class="mb-3">
                             <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="fas fa-keyboard"></i>
                                 </span>
-                                <input type="text" class="form-control" id="manual-qr-code" placeholder="e.g., P123-10">
+                                <input type="text" class="form-control" id="manual-qr-code" name="qr_code" placeholder="e.g., P123-10" required>
                                 <button type="submit" class="btn btn-primary">Submit</button>
                             </div>
                             <div class="form-text">If scanning doesn't work, manually enter the QR code value here.</div>
@@ -266,7 +267,7 @@
             submitParentScan(qrCode);
         }
         
-        // Submit parent scan
+        // Submit parent scan with proper CSRF handling
         function submitParentScan(qrCode) {
             const form = document.createElement('form');
             form.method = 'POST';
@@ -278,18 +279,34 @@
             input.value = qrCode;
             
             form.appendChild(input);
-            document.body.appendChild(form);
             
-            // Add CSRF token if available
-            const csrfToken = document.querySelector('meta[name=csrf-token]');
+            // Add CSRF token - try multiple sources
+            let csrfToken = null;
+            
+            // Try meta tag first
+            const csrfMeta = document.querySelector('meta[name=csrf-token]');
+            if (csrfMeta) {
+                csrfToken = csrfMeta.getAttribute('content');
+            }
+            
+            // Try hidden input in existing forms
+            if (!csrfToken) {
+                const existingCsrf = document.querySelector('input[name="csrf_token"]');
+                if (existingCsrf) {
+                    csrfToken = existingCsrf.value;
+                }
+            }
+            
+            // Add CSRF token to form
             if (csrfToken) {
                 const csrfInput = document.createElement('input');
                 csrfInput.type = 'hidden';
                 csrfInput.name = 'csrf_token';
-                csrfInput.value = csrfToken.getAttribute('content');
+                csrfInput.value = csrfToken;
                 form.appendChild(csrfInput);
             }
             
+            document.body.appendChild(form);
             form.submit();
         }
         
@@ -349,14 +366,15 @@
             }
         });
         
-        // Manual entry form
+        // Manual entry form - let it submit naturally with CSRF
         manualEntryForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
             const manualQrCode = document.getElementById('manual-qr-code').value.trim();
-            if (manualQrCode) {
-                handleScanSuccess(manualQrCode);
+            if (!manualQrCode) {
+                e.preventDefault();
+                alert('Please enter a QR code value');
+                return false;
             }
+            // Form will submit naturally with CSRF token
         });
         
         // Launch live scanner with proper initialization
