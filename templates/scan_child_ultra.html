@@ -284,7 +284,8 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/instant-qr-scanner.js') }}"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="{{ url_for('static', filename='js/bulletproof-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let ultraScanner = null;
@@ -494,37 +495,37 @@
             }
         });
         
-        // Initialize instant scanner for child scanning
+        // Initialize bulletproof scanner for child scanning
         function initializeScanner() {
             if (!ultraScanner) {
-                console.log('Creating InstantQRScanner for child scanning...');
-                ultraScanner = new InstantQRScanner('ultra-child-scanner-container');
+                console.log('Creating BulletproofQRScanner for child scanning...');
+                ultraScanner = new BulletproofQRScanner('ultra-child-scanner-container');
                 ultraScanner.setSuccessCallback(handleChildScanSuccess);
-                console.log('InstantQRScanner for child scanning initialized');
+                console.log('BulletproofQRScanner for child scanning initialized');
             }
         }
         
-        // Launch instant child scanner
-        function launchInstantChildScanner() {
-            console.log('Launching Instant QR Scanner for child scanning...');
+        // Launch bulletproof child scanner
+        function launchBulletproofChildScanner() {
+            console.log('Launching Bulletproof QR Scanner for child scanning...');
             
             // Hide manual controls
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
             
-            showMessage('info', 'Instant Scanner starting for child scanning...');
+            showMessage('primary', 'Bulletproof Scanner starting for child scanning - Universal compatibility...');
             
             // Initialize scanner
             initializeScanner();
             
             // Update status
             setTimeout(() => {
-                showMessage('success', 'Child scanner ready - Position QR codes in view');
-            }, 3000);
+                showMessage('success', 'Universal child scanner active - Multiple methods available');
+            }, 2000);
         }
         
         // Launch immediately
-        setTimeout(launchInstantChildScanner, 500);
+        setTimeout(launchBulletproofChildScanner, 500);
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};

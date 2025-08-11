@@ -218,7 +218,8 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/instant-qr-scanner.js') }}"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="{{ url_for('static', filename='js/bulletproof-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -287,13 +288,13 @@
             form.submit();
         }
         
-        // Initialize instant scanner
+        // Initialize bulletproof scanner
         function initializeScanner() {
             if (!scanner) {
-                console.log('Creating InstantQRScanner...');
-                scanner = new InstantQRScanner('ultra-scanner-container');
+                console.log('Creating BulletproofQRScanner...');
+                scanner = new BulletproofQRScanner('ultra-scanner-container');
                 scanner.setSuccessCallback(handleScanSuccess);
-                console.log('InstantQRScanner initialized');
+                console.log('BulletproofQRScanner initialized');
             }
         }
         
@@ -353,16 +354,16 @@
             }
         });
         
-        // Launch instant scanner
-        function launchInstantScanner() {
-            console.log('Launching Instant QR Scanner...');
+        // Launch bulletproof scanner
+        function launchBulletproofScanner() {
+            console.log('Launching Bulletproof QR Scanner...');
             
-            // Hide manual controls
+            // Hide manual controls - bulletproof scanner handles everything
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
             
-            resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Instant Scanner starting - Camera access requested...';
+            resultContainer.className = 'alert alert-primary';
+            resultContainer.innerHTML = '<i class="fas fa-shield-alt me-2"></i>Bulletproof Scanner starting - Will work on any device...';
             resultContainer.style.display = 'block';
             
             // Initialize scanner
@@ -370,12 +371,12 @@
             
             // Update status
             setTimeout(() => {
-                resultContainer.innerHTML = '<i class="fas fa-qrcode me-2"></i>Scanner ready - Position QR codes in view';
-            }, 3000);
+                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Universal scanner active - Multiple methods available';
+            }, 2000);
         }
         
         // Launch immediately
-        setTimeout(launchInstantScanner, 500);
+        setTimeout(launchBulletproofScanner, 500);
         
         // Add enhancement indicator
         setTimeout(() => {

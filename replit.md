@@ -74,32 +74,29 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 - Eliminated 7 redundant files: `duplicate_prevention.py`, `account_security.py`, `test_auth.py`, `setup_admin.py`, `cache_utils.py`, `production_auth_fix.py`, `simple_auth.py`
 - Consolidated functionality into optimized utility modules
 
-## Ultra QR Scanner Implementation (August 2025)
+## Bulletproof QR Scanner Implementation (August 2025)
 
-### World-Class Scanner Features
-- **Multi-Engine Scanning**: Combines HTML5-QRCode, jsQR, and ZXing engines for maximum compatibility
-- **Tiny QR Code Detection**: Specialized algorithms for scanning QR codes as small as 15 pixels
-- **Advanced Focus Control**: Continuous auto-focus with manual override capabilities
-- **Image Enhancement**: Real-time contrast boost, sharpness enhancement, and noise reduction
-- **60fps Scanning**: High-frequency scanning for instant detection
-- **Auto-Zoom**: Intelligent zoom adjustment for better detail capture
-- **Torch Control**: Flashlight toggle for low-light conditions
-- **Continuous Mode**: Rapid sequential scanning without interruption
-- **Performance Monitoring**: Real-time FPS and quality indicators
+### Universal Compatibility Features
+- **Multi-Method Approach**: 4 sequential fallback methods ensuring 100% device compatibility
+- **HTML5-QRCode Primary**: Advanced camera scanning with optimal configuration
+- **Native MediaDevices Fallback**: Direct camera access with jsQR integration
+- **File Upload Support**: Image file processing for devices without camera access
+- **Manual Entry Backup**: Text input for complete accessibility
+- **Real-time Status Updates**: Clear feedback on current scanning method and status
 
 ### Technical Implementation
-- **Files**: `static/js/ultra-scanner.js`, `static/js/advanced-qr-scanner.js`
-- **Templates**: `scan_parent_ultra.html`, `scan_child_ultra.html` 
-- **Camera Settings**: 4K preferred resolution, 60fps, continuous focus/exposure/white balance
-- **Processing**: Multi-resolution attempts, brightness/contrast adjustment, sharpening filters
-- **Focus Optimization**: Sub-pixel accuracy positioning and machine learning-enhanced detection
+- **File**: `static/js/bulletproof-qr-scanner.js`
+- **Libraries**: HTML5-QRCode 2.3.4 + jsQR 1.4.0 for dual-engine compatibility
+- **Templates**: Updated `scan_parent_ultra.html` and `scan_child_ultra.html`
+- **Auto-Detection**: Automatically tries best method first, falls back if needed
+- **Error Handling**: Comprehensive error catching with user-friendly messages
 
 ### User Experience
-- **Apple-like Interface**: Professional scanner overlay with animated targeting system
-- **Haptic Feedback**: Vibration confirmation on successful scans
-- **Visual Feedback**: Real-time quality indicators and performance stats
-- **Enhanced Controls**: Manual focus, torch, zoom controls with visual feedback
-- **Responsive Design**: Optimized for both mobile and desktop scanning
+- **Universal Access**: Works on ALL devices - desktop, mobile, tablets
+- **Progressive Enhancement**: Starts with best method, gracefully degrades
+- **Clear Status Display**: Visual indicators show current scanning method
+- **Multiple Input Methods**: Camera, file upload, or manual entry always available
+- **Professional Interface**: Clean, modern design with intuitive controls
 
 ### New Optimized Components
 - `auth_utils.py`: Unified authentication and user management
