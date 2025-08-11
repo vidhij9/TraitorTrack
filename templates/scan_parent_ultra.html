@@ -371,17 +371,6 @@
         
         // Launch immediately
         setTimeout(launchAppleScanner, 100);
-        
-        // Add enhancement indicator
-        setTimeout(() => {
-            const container = document.getElementById('ultra-scanner-container');
-            if (container) {
-                const badge = document.createElement('div');
-                badge.className = 'enhancement-badge';
-                badge.innerHTML = 'AI Enhanced';
-                container.appendChild(badge);
-            }
-        }, 2000);
     });
 </script>
 {% endblock %}
