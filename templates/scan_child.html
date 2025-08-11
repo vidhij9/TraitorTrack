@@ -36,6 +36,9 @@
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         Scanned <span id="progress-text">{{ scanned_child_count }}</span> child bags so far.
+                        {% if scanned_child_count == 0 %}
+                        <br><small class="text-muted">You can complete scanning even with 0 child bags.</small>
+                        {% endif %}
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -167,7 +170,21 @@
                 </div>
                 <div class="card-body p-2">
                     <ul id="scanned-list" class="list-group list-group-flush">
-                        <!-- Dynamically populated -->
+                        {% if linked_child_bags %}
+                            {% for child_bag in linked_child_bags %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+                                <span class="text-sm">{{ child_bag.qr_id }}</span>
+                                <span class="badge bg-success rounded-pill text-xs">
+                                    <i class="fas fa-link me-1"></i>Linked
+                                </span>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item py-2 text-center text-muted">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No child bags scanned yet
+                            </li>
+                        {% endif %}
                     </ul>
                 </div>
             </div>
@@ -861,14 +878,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event handlers and utilities
     function loadScannedBags() {
-        fetch('/api/scanned-children?s={{ request.args.get("s") }}')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateScannedBagsList(data.children);
-                }
-            })
-            .catch(error => console.error('Error loading scanned bags:', error));
+        // Load existing child bags from template data - no API call needed
+        const existingBags = [
+            {% for child_bag in linked_child_bags %}
+            { qr_id: '{{ child_bag.qr_id }}' }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        if (existingBags.length > 0) {
+            updateScannedBagsList(existingBags);
+        }
     }
     
     function updateScannedBagsList(children) {

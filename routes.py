@@ -944,7 +944,23 @@ def process_child_scan():
         # Check if child already exists
         child_bag = Bag.query.filter_by(qr_id=qr_code).first()
         
-        if not child_bag:
+        if child_bag:
+            # Check if child is already linked to any parent
+            existing_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+            if existing_link:
+                if existing_link.parent_bag_id == parent_bag.id:
+                    return jsonify({
+                        'success': False, 
+                        'message': f'Child bag {qr_code} is already linked to this parent bag.'
+                    })
+                else:
+                    existing_parent = Bag.query.get(existing_link.parent_bag_id)
+                    existing_parent_qr = existing_parent.qr_id if existing_parent else 'Unknown'
+                    return jsonify({
+                        'success': False,
+                        'message': f'Child bag {qr_code} is already linked to parent bag {existing_parent_qr}. One child can only be linked to one parent.'
+                    })
+        else:
             # Create new child bag
             child_bag = Bag(
                 qr_id=qr_code,
@@ -953,15 +969,6 @@ def process_child_scan():
             )
             db.session.add(child_bag)
             db.session.flush()  # Get the ID
-        
-        # Check if link already exists
-        existing_link = Link.query.filter_by(
-            parent_bag_id=parent_bag.id,
-            child_bag_id=child_bag.id
-        ).first()
-        
-        if existing_link:
-            return jsonify({'success': False, 'message': f'{qr_code} already linked to parent'})
         
         # Create link
         link = Link(
@@ -1229,17 +1236,25 @@ def scan_child():
             if last_scan and last_scan.get('type') == 'parent':
                 parent_qr = last_scan.get('qr_id')
         
+        linked_child_bags = []
         if parent_qr:
             parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
             if parent_bag:
-                # Get count of linked child bags
+                # Get count of linked child bags and the actual linked bags
                 scanned_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                # Get existing linked child bags to display
+                linked_child_bags = db.session.query(Bag).join(
+                    Link, Bag.id == Link.child_bag_id
+                ).filter(
+                    Link.parent_bag_id == parent_bag.id,
+                    Bag.type == BagType.CHILD.value
+                ).all()
         
-        # Use ultra scanner template for enhanced child scanning
-        return render_template('scan_child_ultra.html', 
+        return render_template('scan_child.html', 
                              form=form, 
                              parent_bag=parent_bag, 
-                             scanned_child_count=scanned_child_count)
+                             scanned_child_count=scanned_child_count,
+                             linked_child_bags=linked_child_bags)
 
 @app.route('/scan/complete')
 @login_required
@@ -1258,8 +1273,13 @@ def scan_complete():
             flash('Parent bag not found.', 'error')
             return redirect(url_for('index'))
         
-        # Get all child bags linked to this parent
-        child_bags = Bag.query.filter_by(parent_id=parent_bag.id, type=BagType.CHILD.value).all()
+        # Get all child bags linked to this parent through Link table
+        child_bags = db.session.query(Bag).join(
+            Link, Bag.id == Link.child_bag_id
+        ).filter(
+            Link.parent_bag_id == parent_bag.id,
+            Bag.type == BagType.CHILD.value
+        ).all()
         scan_count = len(child_bags)
         
         # Store completion data in session

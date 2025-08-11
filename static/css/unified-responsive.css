@@ -122,16 +122,33 @@ body {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
 }
 
-/* Container and Layout - Mobile-first compact approach */
+/* Container and Layout - Ultra-compact mobile-first approach */
 .container,
 .container-fluid {
-    padding-left: var(--spacing-sm);
-    padding-right: var(--spacing-sm);
+    padding-left: var(--spacing-xs);
+    padding-right: var(--spacing-xs);
 }
 
 .content {
     flex: 1;
-    padding: var(--spacing-xs) 0;
+    padding: 0;
+}
+
+/* Reduce margins for compact display */
+.row {
+    margin-bottom: var(--spacing-xs);
+}
+
+.mb-2, .my-2 {
+    margin-bottom: var(--spacing-xs) !important;
+}
+
+.mb-3, .my-3 {
+    margin-bottom: var(--spacing-sm) !important;
+}
+
+.mb-4, .my-4 {
+    margin-bottom: var(--spacing-md) !important;
 }
 
 /* Cards - Mobile-first compact design */
@@ -139,7 +156,7 @@ body {
     border: 1px solid var(--gray-300);
     border-radius: var(--border-radius);
     background: var(--white);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
 }
