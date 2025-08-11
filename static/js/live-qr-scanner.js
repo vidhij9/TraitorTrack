@@ -54,24 +54,13 @@ class LiveQRScanner {
                     <!-- Simple controls -->
                     <div class="controls">
                         <button id="torch-btn" class="control-btn" title="Toggle Flash">💡</button>
-                        <button id="manual-btn" class="control-btn" title="Manual Entry">⌨️</button>
                     </div>
                     
                     <!-- Success feedback -->
                     <div class="success-flash" id="success-flash"></div>
                 </div>
                 
-                <!-- Manual entry modal -->
-                <div class="manual-modal" id="manual-modal" style="display: none;">
-                    <div class="modal-content">
-                        <h6>Enter QR Code</h6>
-                        <input type="text" id="manual-input" placeholder="Enter QR code value" class="form-control">
-                        <div class="modal-buttons">
-                            <button id="manual-submit" class="btn btn-primary">Submit</button>
-                            <button id="manual-close" class="btn btn-secondary">Cancel</button>
-                        </div>
-                    </div>
-                </div>
+                <!-- Manual entry removed - using main form only -->
             </div>
             
             <style>
@@ -273,29 +262,7 @@ class LiveQRScanner {
             this.toggleTorch();
         });
         
-        // Manual entry
-        document.getElementById('manual-btn').addEventListener('click', () => {
-            document.getElementById('manual-modal').style.display = 'flex';
-            setTimeout(() => document.getElementById('manual-input').focus(), 100);
-        });
-        
-        document.getElementById('manual-submit').addEventListener('click', () => {
-            const value = document.getElementById('manual-input').value.trim();
-            if (value) {
-                this.handleSuccess(value);
-                this.closeManualModal();
-            }
-        });
-        
-        document.getElementById('manual-close').addEventListener('click', () => {
-            this.closeManualModal();
-        });
-        
-        document.getElementById('manual-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('manual-submit').click();
-            }
-        });
+        // Manual entry removed - using main form only
     }
     
     async startScanning() {
@@ -497,10 +464,7 @@ class LiveQRScanner {
         }
     }
     
-    closeManualModal() {
-        document.getElementById('manual-modal').style.display = 'none';
-        document.getElementById('manual-input').value = '';
-    }
+    // Manual modal removed
     
     handleSuccess(qrText) {
         console.log('LiveQR: Success:', qrText);

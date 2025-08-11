@@ -895,8 +895,7 @@ def process_parent_scan():
             parent_bag = Bag(
                 qr_id=qr_code,
                 type=BagType.PARENT.value,
-                dispatch_area='Ultra Scanner Area',
-                created_by_user_id=current_user.id
+                dispatch_area=current_user.dispatch_area or 'Ultra Scanner Area'
             )
             db.session.add(parent_bag)
         else:
@@ -950,8 +949,7 @@ def process_child_scan():
             child_bag = Bag(
                 qr_id=qr_code,
                 type=BagType.CHILD.value,
-                dispatch_area=parent_bag.dispatch_area,
-                created_by_user_id=current_user.id
+                dispatch_area=parent_bag.dispatch_area
             )
             db.session.add(child_bag)
             db.session.flush()  # Get the ID
@@ -968,16 +966,14 @@ def process_child_scan():
         # Create link
         link = Link(
             parent_bag_id=parent_bag.id,
-            child_bag_id=child_bag.id,
-            created_by_user_id=current_user.id
+            child_bag_id=child_bag.id
         )
         db.session.add(link)
         
         # Create scan record
         scan = Scan(
             user_id=current_user.id,
-            bag_id=child_bag.id,
-            timestamp=datetime.utcnow()
+            bag_id=child_bag.id
         )
         db.session.add(scan)
         
