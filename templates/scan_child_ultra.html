@@ -283,9 +283,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="{{ url_for('static', filename='js/bulletproof-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/simple-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let ultraScanner = null;
@@ -495,37 +493,37 @@
             }
         });
         
-        // Initialize bulletproof scanner for child scanning
+        // Initialize simple scanner for child scanning
         function initializeScanner() {
             if (!ultraScanner) {
-                console.log('Creating BulletproofQRScanner for child scanning...');
-                ultraScanner = new BulletproofQRScanner('ultra-child-scanner-container');
+                console.log('Creating SimpleQRScanner for child scanning...');
+                ultraScanner = new SimpleQRScanner('ultra-child-scanner-container');
                 ultraScanner.setSuccessCallback(handleChildScanSuccess);
-                console.log('BulletproofQRScanner for child scanning initialized');
+                console.log('SimpleQRScanner for child scanning initialized');
             }
         }
         
-        // Launch bulletproof child scanner
-        function launchBulletproofChildScanner() {
-            console.log('Launching Bulletproof QR Scanner for child scanning...');
+        // Launch simple child scanner
+        function launchSimpleChildScanner() {
+            console.log('Launching Simple QR Scanner for child scanning...');
             
             // Hide manual controls
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
             
-            showMessage('primary', 'Bulletproof Scanner starting for child scanning - Universal compatibility...');
+            showMessage('success', 'Simple Scanner starting for child scanning - Native browser APIs...');
             
             // Initialize scanner
             initializeScanner();
             
             // Update status
             setTimeout(() => {
-                showMessage('success', 'Universal child scanner active - Multiple methods available');
+                showMessage('success', 'Child scanner ready - Camera, file upload, or manual entry available');
             }, 2000);
         }
         
         // Launch immediately
-        setTimeout(launchBulletproofChildScanner, 500);
+        setTimeout(launchSimpleChildScanner, 500);
         
         // Load existing scanned children
         const existingChildren = {{ scanned_children | tojson if scanned_children else '[]' }};

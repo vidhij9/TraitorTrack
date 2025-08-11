@@ -217,9 +217,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="{{ url_for('static', filename='js/bulletproof-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/simple-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -288,13 +286,13 @@
             form.submit();
         }
         
-        // Initialize bulletproof scanner
+        // Initialize simple scanner
         function initializeScanner() {
             if (!scanner) {
-                console.log('Creating BulletproofQRScanner...');
-                scanner = new BulletproofQRScanner('ultra-scanner-container');
+                console.log('Creating SimpleQRScanner...');
+                scanner = new SimpleQRScanner('ultra-scanner-container');
                 scanner.setSuccessCallback(handleScanSuccess);
-                console.log('BulletproofQRScanner initialized');
+                console.log('SimpleQRScanner initialized');
             }
         }
         
@@ -354,16 +352,16 @@
             }
         });
         
-        // Launch bulletproof scanner
-        function launchBulletproofScanner() {
-            console.log('Launching Bulletproof QR Scanner...');
+        // Launch simple scanner
+        function launchSimpleScanner() {
+            console.log('Launching Simple QR Scanner...');
             
-            // Hide manual controls - bulletproof scanner handles everything
+            // Hide manual controls - simple scanner has its own controls
             startCameraBtn.style.display = 'none';
             stopCameraBtn.style.display = 'none';
             
-            resultContainer.className = 'alert alert-primary';
-            resultContainer.innerHTML = '<i class="fas fa-shield-alt me-2"></i>Bulletproof Scanner starting - Will work on any device...';
+            resultContainer.className = 'alert alert-success';
+            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Simple Scanner starting - Native browser APIs only...';
             resultContainer.style.display = 'block';
             
             // Initialize scanner
@@ -371,12 +369,12 @@
             
             // Update status
             setTimeout(() => {
-                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Universal scanner active - Multiple methods available';
+                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Scanner ready - Camera, file upload, or manual entry available';
             }, 2000);
         }
         
         // Launch immediately
-        setTimeout(launchBulletproofScanner, 500);
+        setTimeout(launchSimpleScanner, 500);
         
         // Add enhancement indicator
         setTimeout(() => {
