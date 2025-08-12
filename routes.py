@@ -2600,7 +2600,6 @@ def api_delete_bag():
             
             message = f'Child bag {qr_code} deleted successfully'
         
-        bag_type = bag.type  # Store type before deletion
         app.logger.info(f"Deleted bag {qr_code} ({bag_type}) - optimized operation")
         
         return jsonify({
