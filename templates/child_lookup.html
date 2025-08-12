@@ -3,11 +3,9 @@
 {% block title %}Search Bags - traitor track{% endblock %}
 
 {% block head %}
-<!-- Ultra-fast QR Scanning Libraries -->
+<!-- QR Scanning Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
-<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/simple-qr-scanner.js') }}"></script>
 <!-- Ultra-fast QR scanner includes its own optimized styles -->
 {% endblock %}
 
@@ -273,23 +271,26 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastDetectedCode = null;
     let ultraFastScanner = null;
     
-    // Initialize the ultra-fast scanner with error handling
+    // Initialize the simple scanner with direct camera access
     function initializeScanner() {
         try {
-            // Check if required classes are available
-            if (typeof LiveQRScanner === 'undefined') {
-                throw new Error('LiveQRScanner not loaded');
+            console.log('Initializing SimpleQRScanner...');
+            
+            // Check if jsQR is loaded
+            if (typeof jsQR === 'undefined') {
+                throw new Error('jsQR library not loaded');
             }
             
-            if (typeof CameraPermissionManager === 'undefined') {
-                throw new Error('CameraPermissionManager not loaded');
+            // Check if SimpleQRScanner is available
+            if (typeof SimpleQRScanner === 'undefined') {
+                throw new Error('SimpleQRScanner not loaded');
             }
             
-            ultraFastScanner = new LiveQRScanner('ultra-fast-scanner');
+            ultraFastScanner = new SimpleQRScanner('ultra-fast-scanner');
             
             // Set up success callback for QR detection
             ultraFastScanner.setSuccessCallback((qrCode) => {
-                console.log('Ultra-fast scanner detected:', qrCode);
+                console.log('Scanner detected QR code:', qrCode);
                 
                 // Update UI with detected code
                 lastDetectedCode = qrCode.trim();
@@ -301,47 +302,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 resultContainer.className = 'alert alert-success';
                 resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code detected! Auto-searching...';
                 
-                // Auto-submit immediately for ultra-fast workflow
+                // Auto-submit for search
                 setTimeout(() => {
                     if (lastDetectedCode && lastDetectedCode.length >= 1) {
                         console.log('Auto-submitting detected QR code:', lastDetectedCode);
                         manualEntryForm.submit();
                     }
-                }, 800);
+                }, 1000);
             });
             
-            console.log('Ultra-fast scanner initialized successfully');
-            resultContainer.className = 'alert alert-success';
-            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Ultra-fast scanner ready! Point at any bag QR code.';
+            console.log('Scanner initialized successfully');
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Scanner starting... Please allow camera access if prompted.';
             
         } catch (error) {
-            console.error('Failed to initialize ultra-fast scanner:', error);
+            console.error('Failed to initialize scanner:', error);
             
-            // Show helpful error message with troubleshooting
-            resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = '<i class="fas fa-keyboard me-2"></i>Scanner loading... You can use manual entry below in the meantime.';
-            
-            // Retry after libraries load
-            setTimeout(() => {
-                if (typeof LiveQRScanner !== 'undefined' && typeof CameraPermissionManager !== 'undefined') {
-                    console.log('Retrying scanner initialization...');
-                    initializeScanner();
-                }
-            }, 2000);
+            // Show error message
+            resultContainer.className = 'alert alert-warning';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Scanner failed to load. Please use manual entry below.';
         }
     }
     
-    // Initialize with delay to ensure libraries are loaded
-    setTimeout(initializeScanner, 1000);
+    // Initialize scanner when page loads
+    setTimeout(initializeScanner, 500);
     
-    // Also retry initialization if elements are missing
+    // Retry if libraries not loaded
     const initRetryInterval = setInterval(() => {
-        if (typeof LiveQRScanner !== 'undefined' && typeof CameraPermissionManager !== 'undefined' && !ultraFastScanner) {
+        if (typeof SimpleQRScanner !== 'undefined' && typeof jsQR !== 'undefined' && !ultraFastScanner) {
             console.log('Retrying scanner initialization...');
             clearInterval(initRetryInterval);
             initializeScanner();
         }
-    }, 2000);
+    }, 1000);
     
     // Handle manual entry form submission
     manualEntryForm.addEventListener('submit', function(event) {
