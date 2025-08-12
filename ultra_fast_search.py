@@ -119,7 +119,7 @@ class UltraFastBagSearch:
                 bill_query = text("""
                     SELECT b.id, b.bill_id, b.status, b.created_at
                     FROM bill b
-                    INNER JOIN billbag bb ON bb.bill_id = b.id
+                    INNER JOIN bill_bag bb ON bb.bill_id = b.id
                     WHERE bb.bag_id = :bag_id
                     ORDER BY b.created_at DESC
                     LIMIT 10
@@ -214,6 +214,11 @@ class UltraFastBagSearch:
             
         except Exception as e:
             logger.error(f"Ultra-fast search error for '{qr_id}': {str(e)}")
+            # Rollback any failed transaction
+            try:
+                db.session.rollback()
+            except:
+                pass
             return None
     
     @staticmethod
@@ -325,6 +330,11 @@ class UltraFastBagSearch:
             
         except Exception as e:
             logger.error(f"Fuzzy search error for '{search_term}': {str(e)}")
+            # Rollback any failed transaction
+            try:
+                db.session.rollback()
+            except:
+                pass
             return []
     
     @staticmethod

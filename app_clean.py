@@ -205,11 +205,12 @@ def after_request(response):
 # Basic deployment configuration
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 year cache for static files
 
-# Add CSRF token to template context
+# Add CSRF token and current_user to template context
 @app.context_processor
 def inject_csrf_token():
     from flask_wtf.csrf import generate_csrf
-    return dict(csrf_token=generate_csrf)
+    from auth_utils import current_user
+    return dict(csrf_token=generate_csrf, current_user=current_user)
 
 # Handle CSRF errors for JSON API endpoints
 @app.errorhandler(400)
