@@ -94,111 +94,130 @@ class UltraFastBagSearch:
             additional_data = {}
             
             if result.type == BagType.PARENT.value:
-                # Load child bags using optimized composite index
-                child_query = text("""
-                    SELECT b.id, b.qr_id, b.name, b.created_at
-                    FROM bag b
-                    INNER JOIN link l ON l.child_bag_id = b.id
-                    WHERE l.parent_bag_id = :parent_id
-                    ORDER BY b.created_at DESC
-                    LIMIT 50
-                """)
+                try:
+                    # Load child bags using optimized composite index
+                    child_query = text("""
+                        SELECT b.id, b.qr_id, b.name, b.created_at
+                        FROM bag b
+                        INNER JOIN link l ON l.child_bag_id = b.id
+                        WHERE l.parent_bag_id = :parent_id
+                        ORDER BY b.created_at DESC
+                        LIMIT 50
+                    """)
+                    
+                    children = db.session.execute(child_query, {'parent_id': result.id}).fetchall()
+                    additional_data['child_bags'] = [
+                        {
+                            'id': child.id,
+                            'qr_id': child.qr_id,
+                            'name': child.name,
+                            'created_at': child.created_at
+                        }
+                        for child in children
+                    ]
+                except Exception as e:
+                    logger.debug(f"Could not load child bags: {str(e)}")
+                    additional_data['child_bags'] = []
                 
-                children = db.session.execute(child_query, {'parent_id': result.id}).fetchall()
-                additional_data['child_bags'] = [
-                    {
-                        'id': child.id,
-                        'qr_id': child.qr_id,
-                        'name': child.name,
-                        'created_at': child.created_at
-                    }
-                    for child in children
-                ]
+                try:
+                    # Load associated bills
+                    bill_query = text("""
+                        SELECT b.id, b.bill_id, b.status, b.created_at
+                        FROM bill b
+                        INNER JOIN bill_bag bb ON bb.bill_id = b.id
+                        WHERE bb.bag_id = :bag_id
+                        ORDER BY b.created_at DESC
+                        LIMIT 10
+                    """)
+                    
+                    bills = db.session.execute(bill_query, {'bag_id': result.id}).fetchall()
+                    additional_data['bills'] = [
+                        {
+                            'id': bill.id,
+                            'bill_id': bill.bill_id,
+                            'status': bill.status,
+                            'created_at': bill.created_at
+                        }
+                        for bill in bills
+                    ]
+                except Exception as e:
+                    logger.debug(f"Could not load bills: {str(e)}")
+                    additional_data['bills'] = []
                 
-                # Load associated bills
-                bill_query = text("""
-                    SELECT b.id, b.bill_id, b.status, b.created_at
-                    FROM bill b
-                    INNER JOIN bill_bag bb ON bb.bill_id = b.id
-                    WHERE bb.bag_id = :bag_id
-                    ORDER BY b.created_at DESC
+            elif result.type == BagType.CHILD.value and result.parent_id:
+                try:
+                    # Load parent bag information
+                    parent_query = text("""
+                        SELECT id, qr_id, name, dispatch_area, created_at
+                        FROM bag 
+                        WHERE id = :parent_id
+                    """)
+                    
+                    parent = db.session.execute(parent_query, {'parent_id': result.parent_id}).fetchone()
+                    if parent:
+                        additional_data['parent_bag'] = {
+                            'id': parent.id,
+                            'qr_id': parent.qr_id,
+                            'name': parent.name,
+                            'dispatch_area': parent.dispatch_area,
+                            'created_at': parent.created_at
+                        }
+                except Exception as e:
+                    logger.debug(f"Could not load parent bag: {str(e)}")
+                    
+                try:
+                    # Load sibling bags (other children of same parent)
+                    sibling_query = text("""
+                        SELECT b.id, b.qr_id, b.name, b.created_at
+                        FROM bag b
+                        INNER JOIN link l ON l.child_bag_id = b.id
+                        WHERE l.parent_bag_id = :parent_id AND b.id != :bag_id
+                        ORDER BY b.created_at DESC
+                        LIMIT 20
+                    """)
+                    
+                    siblings = db.session.execute(sibling_query, {
+                        'parent_id': result.parent_id,
+                        'bag_id': result.id
+                    }).fetchall()
+                    
+                    additional_data['sibling_bags'] = [
+                        {
+                            'id': sibling.id,
+                            'qr_id': sibling.qr_id,
+                            'name': sibling.name,
+                            'created_at': sibling.created_at
+                        }
+                        for sibling in siblings
+                    ]
+                except Exception as e:
+                    logger.debug(f"Could not load sibling bags: {str(e)}")
+                    additional_data['sibling_bags'] = []
+            
+            # OPTIMIZATION 3: Load recent scans efficiently
+            try:
+                scan_query = text("""
+                    SELECT s.id, s.timestamp, u.username, s.parent_bag_id, s.child_bag_id
+                    FROM scan s
+                    LEFT JOIN "user" u ON u.id = s.user_id
+                    WHERE s.parent_bag_id = :bag_id OR s.child_bag_id = :bag_id
+                    ORDER BY s.timestamp DESC
                     LIMIT 10
                 """)
                 
-                bills = db.session.execute(bill_query, {'bag_id': result.id}).fetchall()
-                additional_data['bills'] = [
+                scans = db.session.execute(scan_query, {'bag_id': result.id}).fetchall()
+                additional_data['scans'] = [
                     {
-                        'id': bill.id,
-                        'bill_id': bill.bill_id,
-                        'status': bill.status,
-                        'created_at': bill.created_at
+                        'id': scan.id,
+                        'timestamp': scan.timestamp,
+                        'username': scan.username,
+                        'scan_type': 'parent' if scan.parent_bag_id else 'child'
                     }
-                    for bill in bills
+                    for scan in scans
                 ]
-                
-            elif result.type == BagType.CHILD.value and result.parent_id:
-                # Load parent bag information
-                parent_query = text("""
-                    SELECT id, qr_id, name, dispatch_area, created_at
-                    FROM bag 
-                    WHERE id = :parent_id
-                """)
-                
-                parent = db.session.execute(parent_query, {'parent_id': result.parent_id}).fetchone()
-                if parent:
-                    additional_data['parent_bag'] = {
-                        'id': parent.id,
-                        'qr_id': parent.qr_id,
-                        'name': parent.name,
-                        'dispatch_area': parent.dispatch_area,
-                        'created_at': parent.created_at
-                    }
-                
-                # Load sibling bags (other children of same parent)
-                sibling_query = text("""
-                    SELECT b.id, b.qr_id, b.name, b.created_at
-                    FROM bag b
-                    INNER JOIN link l ON l.child_bag_id = b.id
-                    WHERE l.parent_bag_id = :parent_id AND b.id != :bag_id
-                    ORDER BY b.created_at DESC
-                    LIMIT 20
-                """)
-                
-                siblings = db.session.execute(sibling_query, {
-                    'parent_id': result.parent_id,
-                    'bag_id': result.id
-                }).fetchall()
-                
-                additional_data['sibling_bags'] = [
-                    {
-                        'id': sibling.id,
-                        'qr_id': sibling.qr_id,
-                        'name': sibling.name,
-                        'created_at': sibling.created_at
-                    }
-                    for sibling in siblings
-                ]
-            
-            # OPTIMIZATION 3: Load recent scans efficiently
-            scan_query = text("""
-                SELECT s.id, s.timestamp, u.username, s.scan_type
-                FROM scan s
-                LEFT JOIN "user" u ON u.id = s.user_id
-                WHERE s.parent_bag_id = :bag_id OR s.child_bag_id = :bag_id
-                ORDER BY s.timestamp DESC
-                LIMIT 10
-            """)
-            
-            scans = db.session.execute(scan_query, {'bag_id': result.id}).fetchall()
-            additional_data['scans'] = [
-                {
-                    'id': scan.id,
-                    'timestamp': scan.timestamp,
-                    'username': scan.username,
-                    'scan_type': scan.scan_type
-                }
-                for scan in scans
-            ]
+            except Exception as e:
+                logger.debug(f"Could not load scans: {str(e)}")
+                additional_data['scans'] = []
             
             # Combine all data
             final_result = {
@@ -275,8 +294,8 @@ class UltraFastBagSearch:
     @staticmethod
     def fuzzy_search_optimized(search_term: str, limit: int = 20) -> List[Dict[str, Any]]:
         """
-        High-performance fuzzy search with ranking
-        Uses PostgreSQL's full-text search capabilities
+        High-performance fuzzy search with simple LIKE matching
+        Works without requiring pg_trgm extension
         """
         _ensure_imports()
         start_time = time.time()
@@ -287,20 +306,23 @@ class UltraFastBagSearch:
             if len(search_term) < 2:
                 return []
             
-            # Use PostgreSQL's trigram similarity for fuzzy matching
+            # Simple fuzzy search using LIKE patterns
             fuzzy_query = text("""
-                SELECT id, qr_id, type, name, dispatch_area, created_at,
-                       similarity(qr_id, :search_term) as qr_similarity,
-                       similarity(COALESCE(name, ''), :search_term) as name_similarity
+                SELECT id, qr_id, type, name, dispatch_area, created_at
                 FROM bag 
                 WHERE (
-                    qr_id % :search_term 
-                    OR COALESCE(name, '') % :search_term
-                    OR UPPER(qr_id) LIKE UPPER(:wildcard_term)
+                    UPPER(qr_id) LIKE UPPER(:wildcard_term)
                     OR UPPER(COALESCE(name, '')) LIKE UPPER(:wildcard_term)
+                    OR UPPER(qr_id) LIKE UPPER(:prefix_term)
+                    OR UPPER(COALESCE(name, '')) LIKE UPPER(:prefix_term)
                 )
                 ORDER BY 
-                    GREATEST(similarity(qr_id, :search_term), similarity(COALESCE(name, ''), :search_term)) DESC,
+                    CASE 
+                        WHEN UPPER(qr_id) = UPPER(:search_term) THEN 1
+                        WHEN UPPER(qr_id) LIKE UPPER(:prefix_term) THEN 2
+                        WHEN UPPER(qr_id) LIKE UPPER(:wildcard_term) THEN 3
+                        ELSE 4
+                    END,
                     created_at DESC
                 LIMIT :limit
             """)
@@ -308,11 +330,22 @@ class UltraFastBagSearch:
             results = db.session.execute(fuzzy_query, {
                 'search_term': search_term,
                 'wildcard_term': f'%{search_term}%',
+                'prefix_term': f'{search_term}%',
                 'limit': limit
             }).fetchall()
             
             fuzzy_results = []
             for result in results:
+                # Calculate simple relevance score based on match type
+                if result.qr_id.upper() == search_term.upper():
+                    relevance = 1.0
+                elif result.qr_id.upper().startswith(search_term.upper()):
+                    relevance = 0.8
+                elif search_term.upper() in result.qr_id.upper():
+                    relevance = 0.6
+                else:
+                    relevance = 0.4
+                    
                 fuzzy_results.append({
                     'id': result.id,
                     'qr_id': result.qr_id,
@@ -320,7 +353,7 @@ class UltraFastBagSearch:
                     'name': result.name,
                     'dispatch_area': result.dispatch_area,
                     'created_at': result.created_at,
-                    'relevance_score': max(result.qr_similarity or 0, result.name_similarity or 0)
+                    'relevance_score': relevance
                 })
             
             search_time = (time.time() - start_time) * 1000
