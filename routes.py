@@ -1464,33 +1464,46 @@ def child_lookup():
         qr_id = None
     
     if qr_id:
-        from ultra_fast_search import ultra_search
-        import time
-        
-        start_time = time.time()
-        app.logger.info(f'Ultra-fast lookup request for QR ID: {qr_id}')
-        
-        # Use ultra-fast search engine for millisecond response
-        search_result = ultra_search.lightning_search_by_qr(qr_id)
-        
-        search_time_ms = (time.time() - start_time) * 1000
-        
-        if search_result:
-            # Ultra-fast search already provides all needed data optimally
-            bag_info = search_result
-            app.logger.info(f'Ultra-fast search SUCCESS: Found bag {qr_id} in {search_time_ms:.2f}ms')
-        else:
-            app.logger.info(f'Ultra-fast search: No bag found for "{qr_id}" in {search_time_ms:.2f}ms')
-            app.logger.info(f'Total bags in database: {Bag.query.count()}')
+        try:
+            from ultra_fast_search import ultra_search
+            import time
             
-            # Try fuzzy search as fallback for better user experience
-            fuzzy_results = ultra_search.fuzzy_search_optimized(qr_id, limit=5)
-            if fuzzy_results:
-                app.logger.info(f'Fuzzy search found {len(fuzzy_results)} similar results')
-                similar_qr_codes = ", ".join([r["qr_id"] for r in fuzzy_results[:3]])
-                flash(f'Bag "{qr_id}" not found. Did you mean: {similar_qr_codes}?', 'warning')
+            start_time = time.time()
+            app.logger.info(f'Ultra-fast lookup request for QR ID: {qr_id}')
+            
+            # Use ultra-fast search engine for millisecond response
+            search_result = ultra_search.lightning_search_by_qr(qr_id)
+            
+            search_time_ms = (time.time() - start_time) * 1000
+            
+            if search_result:
+                # Ultra-fast search already provides all needed data optimally
+                bag_info = search_result
+                app.logger.info(f'Ultra-fast search SUCCESS: Found bag {qr_id} in {search_time_ms:.2f}ms')
             else:
-                flash(f'Bag "{qr_id}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
+                app.logger.info(f'Ultra-fast search: No bag found for "{qr_id}" in {search_time_ms:.2f}ms')
+                
+                # Try fuzzy search as fallback for better user experience
+                try:
+                    fuzzy_results = ultra_search.fuzzy_search_optimized(qr_id, limit=5)
+                    if fuzzy_results:
+                        app.logger.info(f'Fuzzy search found {len(fuzzy_results)} similar results')
+                        similar_qr_codes = ", ".join([r["qr_id"] for r in fuzzy_results[:3]])
+                        flash(f'Bag "{qr_id}" not found. Did you mean: {similar_qr_codes}?', 'warning')
+                    else:
+                        flash(f'Bag "{qr_id}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
+                except Exception as e:
+                    app.logger.error(f'Fuzzy search error: {str(e)}')
+                    flash(f'Bag "{qr_id}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
+                    
+        except Exception as e:
+            app.logger.error(f'Bag lookup error for {qr_id}: {str(e)}')
+            # Rollback any failed transaction
+            try:
+                db.session.rollback()
+            except:
+                pass
+            flash('An error occurred while searching. Please try again.', 'error')
     
     return render_template('child_lookup.html', form=form, bag_info=bag_info)
 
