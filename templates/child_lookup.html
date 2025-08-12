@@ -8,42 +8,64 @@
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <style>
+/* Compact UI Styles */
+.card { margin-bottom: 0.75rem !important; }
+.card-header { padding: 0.5rem 0.75rem !important; }
+.card-body { padding: 0.75rem !important; }
+.card-footer { padding: 0.5rem 0.75rem !important; }
+.card-title { font-size: 1.1rem !important; margin-bottom: 0.5rem !important; }
+h2 { font-size: 1.3rem !important; }
+h4 { font-size: 1rem !important; }
+h5 { font-size: 0.9rem !important; }
+.fs-5 { font-size: 0.95rem !important; }
+.alert { padding: 0.5rem 0.75rem !important; margin-bottom: 0.5rem !important; }
+.btn { padding: 0.375rem 0.75rem !important; font-size: 0.85rem !important; }
+.btn-sm { padding: 0.25rem 0.5rem !important; font-size: 0.8rem !important; }
+.mb-4 { margin-bottom: 1rem !important; }
+.mb-3 { margin-bottom: 0.75rem !important; }
+.mb-2 { margin-bottom: 0.5rem !important; }
+.mt-4 { margin-top: 1rem !important; }
+.form-label { font-size: 0.85rem !important; margin-bottom: 0.25rem !important; }
+.form-text { font-size: 0.75rem !important; }
+.text-muted { font-size: 0.8rem !important; }
+p { margin-bottom: 0.25rem !important; }
+
 /* Ultra QR Scanner Styles */
 .ultra-scanner-main {
     position: relative;
     width: 100%;
-    min-height: 400px;
+    min-height: 250px;
     background-color: #000000;
-    border-radius: 8px;
+    border-radius: 6px;
     overflow: hidden;
 }
 
 /* Scanner responsiveness */
 @media (max-width: 768px) {
     .ultra-scanner-main {
-        min-height: 300px;
+        min-height: 200px;
     }
 }
 
 .scanner-controls {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 .scanner-info {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
 }
 
 /* Enhancement indicators */
 .enhancement-badge {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 8px;
+    right: 8px;
     background: rgba(0, 255, 0, 0.9);
     color: black;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.65rem;
     font-weight: bold;
     z-index: 100;
 }
@@ -222,13 +244,21 @@
                     {% if bag_info.type == 'child' and bag_info.parent_bag %}
                     <div class="card">
                         <div class="card-header bg-info bg-opacity-25 text-dark">
-                            <h5 class="mb-0"><i class="fas fa-box me-2"></i>Parent Bag</h5>
+                            <h5 class="mb-0"><i class="fas fa-box me-1"></i>Parent Bag</h5>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted mb-1">Parent QR Code</p>
-                            <p class="fw-bold fs-5">{{ bag_info.parent_bag.qr_id }}</p>
-                            <a href="{{ url_for('child_lookup') }}?qr_id={{ bag_info.parent_bag.qr_id }}" class="btn btn-outline-info btn-sm">
-                                <i class="fas fa-eye me-2"></i>View Parent
+                            <div class="row">
+                                <div class="col-6">
+                                    <p class="text-muted mb-1" style="font-size: 0.75rem;">Parent QR</p>
+                                    <p class="fw-bold" style="font-size: 0.9rem;">{{ bag_info.parent_bag.qr_id }}</p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="text-muted mb-1" style="font-size: 0.75rem;">Area</p>
+                                    <p class="fw-bold" style="font-size: 0.9rem;">{{ bag_info.parent_bag.dispatch_area or 'N/A' }}</p>
+                                </div>
+                            </div>
+                            <a href="{{ url_for('child_lookup') }}?qr_id={{ bag_info.parent_bag.qr_id }}" class="btn btn-outline-info btn-sm mt-2">
+                                <i class="fas fa-eye me-1"></i>View Parent
                             </a>
                         </div>
                     </div>
@@ -261,18 +291,33 @@
             
             <!-- Bills and Scans Summary -->
             <div class="row mt-4">
-                {% if bag_info.bills %}
+                {% if bag_info.bills or (bag_info.type == 'child' and bag_info.parent_bills) %}
                 <div class="col-md-6 mb-4">
                     <div class="card">
                         <div class="card-header bg-warning bg-opacity-25 text-dark">
-                            <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Bills ({{ bag_info.bills|length }})</h5>
+                            <h5 class="mb-0"><i class="fas fa-file-invoice me-1"></i>
+                                {% if bag_info.type == 'child' and bag_info.parent_bills %}
+                                    Parent Bills ({{ bag_info.parent_bills|length }})
+                                {% else %}
+                                    Bills ({{ bag_info.bills|length }})
+                                {% endif %}
+                            </h5>
                         </div>
                         <div class="card-body">
-                            {% for bill in bag_info.bills[:2] %}
-                            <p><strong>{{ bill.bill_id }}</strong> - {{ bill.created_at.strftime('%Y-%m-%d') }}</p>
-                            {% endfor %}
-                            {% if bag_info.bills|length > 2 %}
-                            <p class="text-muted">... and {{ bag_info.bills|length - 2 }} more</p>
+                            {% if bag_info.type == 'child' and bag_info.parent_bills %}
+                                {% for bill in bag_info.parent_bills[:3] %}
+                                <p style="font-size: 0.85rem;"><strong>{{ bill.bill_id }}</strong> - {{ bill.created_at.strftime('%Y-%m-%d') }}</p>
+                                {% endfor %}
+                                {% if bag_info.parent_bills|length > 3 %}
+                                <p class="text-muted">... and {{ bag_info.parent_bills|length - 3 }} more</p>
+                                {% endif %}
+                            {% elif bag_info.bills %}
+                                {% for bill in bag_info.bills[:3] %}
+                                <p style="font-size: 0.85rem;"><strong>{{ bill.bill_id }}</strong> - {{ bill.created_at.strftime('%Y-%m-%d') }}</p>
+                                {% endfor %}
+                                {% if bag_info.bills|length > 3 %}
+                                <p class="text-muted">... and {{ bag_info.bills|length - 3 }} more</p>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>

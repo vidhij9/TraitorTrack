@@ -162,6 +162,32 @@ class UltraFastBagSearch:
                             'dispatch_area': parent.dispatch_area,
                             'created_at': parent.created_at
                         }
+                        
+                        # Load parent's bills as well
+                        try:
+                            parent_bill_query = text("""
+                                SELECT b.id, b.bill_id, b.status, b.created_at
+                                FROM bill b
+                                INNER JOIN bill_bag bb ON bb.bill_id = b.id
+                                WHERE bb.bag_id = :parent_id
+                                ORDER BY b.created_at DESC
+                                LIMIT 10
+                            """)
+                            
+                            parent_bills = db.session.execute(parent_bill_query, {'parent_id': parent.id}).fetchall()
+                            if parent_bills:
+                                additional_data['parent_bills'] = [
+                                    {
+                                        'id': bill.id,
+                                        'bill_id': bill.bill_id,
+                                        'status': bill.status,
+                                        'created_at': bill.created_at
+                                    }
+                                    for bill in parent_bills
+                                ]
+                        except Exception as e:
+                            logger.debug(f"Could not load parent bills: {str(e)}")
+                            
                 except Exception as e:
                     logger.debug(f"Could not load parent bag: {str(e)}")
                     
