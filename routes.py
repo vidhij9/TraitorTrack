@@ -1464,80 +1464,33 @@ def child_lookup():
         qr_id = None
     
     if qr_id:
-        app.logger.info(f'Lookup request for QR ID: {qr_id}')
+        from ultra_fast_search import ultra_search
+        import time
         
-        # Try exact match first (most efficient)
-        bag = Bag.query.filter_by(qr_id=qr_id).first()
-        if not bag:
-            # Try case-insensitive lookup using SQLAlchemy's func.lower
-            bag = Bag.query.filter(func.lower(Bag.qr_id) == qr_id.lower()).first()
-        if not bag:
-            # Try with original form data (for backward compatibility)
-            original_qr = request.form.get('qr_id', '') if request.method == 'POST' else url_qr_id
-            if original_qr and original_qr != qr_id:
-                bag = Bag.query.filter_by(qr_id=original_qr).first()
+        start_time = time.time()
+        app.logger.info(f'Ultra-fast lookup request for QR ID: {qr_id}')
         
-        app.logger.info(f'Bag found: {bag.qr_id if bag else "None"}')
-        app.logger.info(f'Total bags in database: {Bag.query.count()}')
+        # Use ultra-fast search engine for millisecond response
+        search_result = ultra_search.lightning_search_by_qr(qr_id)
         
-        if bag:
-            # Get related information based on bag type
-            if bag.type == BagType.PARENT.value:
-                # Get child bags using explicit join conditions
-                child_bags = db.session.query(Bag).join(
-                    Link, Link.child_bag_id == Bag.id
-                ).filter(Link.parent_bag_id == bag.id).all()
-                
-                # Get bills this parent bag is linked to
-                bills = db.session.query(Bill).join(
-                    BillBag, BillBag.bill_id == Bill.id
-                ).filter(BillBag.bag_id == bag.id).all()
-                
-                bag_info = {
-                    'bag': bag,
-                    'type': 'parent',
-                    'child_bags': child_bags,
-                    'bills': bills,
-                    'parent_bag': None
-                }
-            else:  # Child bag
-                # Get parent bag
-                link = Link.query.filter_by(child_bag_id=bag.id).first()
-                parent_bag = link.parent_bag if link else None
-                
-                # Get all child bags in the same parent (siblings)
-                child_bags = []
-                if parent_bag:
-                    child_bags = db.session.query(Bag).join(
-                        Link, Link.child_bag_id == Bag.id
-                    ).filter(Link.parent_bag_id == parent_bag.id).all()
-                
-                # Get bills through parent bag
-                bills = []
-                if parent_bag:
-                    bills = db.session.query(Bill).join(
-                        BillBag, BillBag.bill_id == Bill.id
-                    ).filter(BillBag.bag_id == parent_bag.id).all()
-                
-                bag_info = {
-                    'bag': bag,
-                    'type': 'child',
-                    'child_bags': child_bags,
-                    'bills': bills,
-                    'parent_bag': parent_bag
-                }
-            
-            # Get scan history
-            if bag.type == BagType.PARENT.value:
-                scans = Scan.query.filter_by(parent_bag_id=bag.id).order_by(desc(Scan.timestamp)).limit(10).all()
-            else:
-                scans = Scan.query.filter_by(child_bag_id=bag.id).order_by(desc(Scan.timestamp)).limit(10).all()
-            
-            bag_info['scans'] = scans
+        search_time_ms = (time.time() - start_time) * 1000
+        
+        if search_result:
+            # Ultra-fast search already provides all needed data optimally
+            bag_info = search_result
+            app.logger.info(f'Ultra-fast search SUCCESS: Found bag {qr_id} in {search_time_ms:.2f}ms')
         else:
-            # More descriptive error message based on the searched QR code
-            original_qr = request.form.get('qr_id', qr_id)
-            flash(f'Bag "{original_qr}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
+            app.logger.info(f'Ultra-fast search: No bag found for "{qr_id}" in {search_time_ms:.2f}ms')
+            app.logger.info(f'Total bags in database: {Bag.query.count()}')
+            
+            # Try fuzzy search as fallback for better user experience
+            fuzzy_results = ultra_search.fuzzy_search_optimized(qr_id, limit=5)
+            if fuzzy_results:
+                app.logger.info(f'Fuzzy search found {len(fuzzy_results)} similar results')
+                similar_qr_codes = ", ".join([r["qr_id"] for r in fuzzy_results[:3]])
+                flash(f'Bag "{qr_id}" not found. Did you mean: {similar_qr_codes}?', 'warning')
+            else:
+                flash(f'Bag "{qr_id}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
     
     return render_template('child_lookup.html', form=form, bag_info=bag_info)
 
