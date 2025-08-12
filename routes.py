@@ -28,7 +28,7 @@ def validate_qr_code(qr_id):
     
     return True, "Valid QR code"
 
-from sqlalchemy import desc, func, and_, or_
+from sqlalchemy import desc, func, and_, or_, text
 from datetime import datetime, timedelta
 
 from app_clean import app, db, limiter, csrf
@@ -68,13 +68,13 @@ def user_management():
             try:
                 # Use direct database query to avoid join ambiguity
                 scan_count = db.session.execute(
-                    db.text("SELECT COUNT(*) FROM scan WHERE user_id = :user_id"),
+                    text("SELECT COUNT(*) FROM scan WHERE user_id = :user_id"),
                     {"user_id": user.id}
                 ).scalar() or 0
                 
                 # Get last scan timestamp
                 last_scan_result = db.session.execute(
-                    db.text("SELECT timestamp FROM scan WHERE user_id = :user_id ORDER BY timestamp DESC LIMIT 1"),
+                    text("SELECT timestamp FROM scan WHERE user_id = :user_id ORDER BY timestamp DESC LIMIT 1"),
                     {"user_id": user.id}
                 ).first()
                 
