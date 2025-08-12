@@ -66,10 +66,13 @@ class UltraFastBagSearch:
             
             # OPTIMIZATION 1: Direct index lookup with case-insensitive search
             # Uses the idx_bag_qr_id index for O(log n) performance
+            # Also join with Link table to get parent_bag_id for child bags
             bag_query = text("""
-                SELECT id, qr_id, type, name, dispatch_area, created_at, parent_id
-                FROM bag 
-                WHERE UPPER(qr_id) = UPPER(:qr_id)
+                SELECT b.id, b.qr_id, b.type, b.name, b.dispatch_area, b.created_at, b.parent_id,
+                       l.parent_bag_id as link_parent_id
+                FROM bag b
+                LEFT JOIN link l ON l.child_bag_id = b.id
+                WHERE UPPER(b.qr_id) = UPPER(:qr_id)
                 LIMIT 1
             """)
             
@@ -79,7 +82,8 @@ class UltraFastBagSearch:
                 logger.debug(f"Ultra-fast search: No bag found for QR '{qr_id}' in {(time.time() - start_time)*1000:.2f}ms")
                 return None
             
-            # Convert result to dictionary
+            # Convert result to dictionary - use link_parent_id if parent_id is null
+            effective_parent_id = result.parent_id or result.link_parent_id
             bag_data = {
                 'id': result.id,
                 'qr_id': result.qr_id,
@@ -87,7 +91,7 @@ class UltraFastBagSearch:
                 'name': result.name,
                 'dispatch_area': result.dispatch_area,
                 'created_at': result.created_at,
-                'parent_id': result.parent_id
+                'parent_id': effective_parent_id
             }
             
             # OPTIMIZATION 2: Parallel relationship loading based on bag type
@@ -144,7 +148,7 @@ class UltraFastBagSearch:
                     logger.debug(f"Could not load bills: {str(e)}")
                     additional_data['bills'] = []
                 
-            elif result.type == BagType.CHILD.value and result.parent_id:
+            elif result.type == BagType.CHILD.value and effective_parent_id:
                 try:
                     # Load parent bag information
                     parent_query = text("""
@@ -153,7 +157,7 @@ class UltraFastBagSearch:
                         WHERE id = :parent_id
                     """)
                     
-                    parent = db.session.execute(parent_query, {'parent_id': result.parent_id}).fetchone()
+                    parent = db.session.execute(parent_query, {'parent_id': effective_parent_id}).fetchone()
                     if parent:
                         additional_data['parent_bag'] = {
                             'id': parent.id,
@@ -203,7 +207,7 @@ class UltraFastBagSearch:
                     """)
                     
                     siblings = db.session.execute(sibling_query, {
-                        'parent_id': result.parent_id,
+                        'parent_id': effective_parent_id,
                         'bag_id': result.id
                     }).fetchall()
                     
