@@ -1469,9 +1469,9 @@ def child_lookup():
             import time
             
             start_time = time.time()
-            app.logger.info(f'Ultra-fast lookup request for QR ID: {qr_id}')
+            app.logger.info(f'Lookup request for QR ID: {qr_id}')
             
-            # Use ultra-fast search engine for millisecond response
+            # Use optimized search engine
             search_result = ultra_search.lightning_search_by_qr(qr_id)
             
             search_time_ms = (time.time() - start_time) * 1000
@@ -1479,9 +1479,9 @@ def child_lookup():
             if search_result:
                 # Ultra-fast search already provides all needed data optimally
                 bag_info = search_result
-                app.logger.info(f'Ultra-fast search SUCCESS: Found bag {qr_id} in {search_time_ms:.2f}ms')
+                app.logger.info(f'Search SUCCESS: Found bag {qr_id} in {search_time_ms:.2f}ms')
             else:
-                app.logger.info(f'Ultra-fast search: No bag found for "{qr_id}" in {search_time_ms:.2f}ms')
+                app.logger.info(f'Search: No bag found for "{qr_id}" in {search_time_ms:.2f}ms')
                 
                 # Try fuzzy search as fallback for better user experience
                 try:

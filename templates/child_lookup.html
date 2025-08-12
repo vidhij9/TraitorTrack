@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %}Search Bags - traitor track{% endblock %}
+{% block title %}Bag Search - TraceTrack{% endblock %}
 
 {% block head %}
 <!-- Load QR scanning libraries (same as scan_parent_ultra) -->
@@ -101,19 +101,20 @@
 }
 .container hr { margin: 0.3rem 0 !important; }
 
-/* Ultra QR Scanner Styles */
-.ultra-scanner-main {
+/* QR Scanner Styles */
+.scanner-main {
     position: relative;
     width: 100%;
     min-height: 250px;
-    background-color: #000000;
+    background-color: #1a1a1a;
     border-radius: 6px;
     overflow: hidden;
+    border: 2px solid #e5e5e5;
 }
 
 /* Scanner responsiveness */
 @media (max-width: 768px) {
-    .ultra-scanner-main {
+    .scanner-main {
         min-height: 200px;
     }
 }
@@ -127,18 +128,19 @@
     font-size: 0.75rem;
 }
 
-/* Enhancement indicators */
-.enhancement-badge {
+/* Status indicator */
+.status-badge {
     position: absolute;
     top: 8px;
     right: 8px;
-    background: rgba(0, 255, 0, 0.9);
-    color: black;
+    background: rgba(40, 167, 69, 0.9);
+    color: white;
     padding: 2px 6px;
-    border-radius: 10px;
+    border-radius: 8px;
     font-size: 0.65rem;
-    font-weight: bold;
+    font-weight: 500;
     z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 </style>
 {% endblock %}
@@ -150,13 +152,13 @@
             <div class="card">
                 <div class="card-body">
                     <h2 class="card-title mb-3">
-                        <i class="fas fa-search me-2"></i>Search Bags
+                        <i class="fas fa-search me-2"></i>Bag Search
                     </h2>
                     
-                    <p class="card-text">Scan or enter any bag QR code to view details and relationships</p>
+                    <p class="card-text">Scan or enter bag QR codes to view details and relationships</p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        Works with both parent and child bags - shows complete relationships and history.
+                        Supports all bag types with complete relationship tracking.
                     </div>
                 </div>
             </div>
@@ -167,11 +169,11 @@
         <div class="col-lg-6 mb-4 mb-lg-0">
             <div class="card">
                 <div class="card-header bg-primary bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Ultra-Fast QR Scanner</h4>
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
                 <div class="card-body p-0">
-                    <div id="ultra-scanner-container" class="ultra-scanner-main">
-                        <!-- Ultra QR Scanner will be initialized here -->
+                    <div id="scanner-container" class="scanner-main">
+                        <!-- QR Scanner will be initialized here -->
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center">
@@ -185,7 +187,7 @@
                     </div>
                     <div class="scanner-info">
                         <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Enhanced detection
+                            <i class="fas fa-info-circle me-1"></i>Live scanning
                         </small>
                     </div>
                 </div>
@@ -195,7 +197,7 @@
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header bg-success bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Search Result</h4>
+                    <h4 class="mb-0"><i class="fas fa-search me-2"></i>Search Result</h4>
                 </div>
                 <div class="card-body">
                     <div id="result-container" class="alert alert-info mb-3">
@@ -442,10 +444,10 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initializeScanner() {
         try {
             if (!scanner) {
-                console.log('Creating LiveQRScanner...');
-                scanner = new LiveQRScanner('ultra-scanner-container');
+                console.log('Creating QR Scanner...');
+                scanner = new LiveQRScanner('scanner-container');
                 scanner.setSuccessCallback(handleScanSuccess);
-                console.log('LiveQRScanner initialized');
+                console.log('QR Scanner initialized');
             }
         } catch (error) {
             console.error('Scanner initialization failed:', error);
