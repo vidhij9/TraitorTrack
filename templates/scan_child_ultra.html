@@ -147,15 +147,15 @@
 {% endblock %}
 
 {% block head %}
-<!-- Toast notification container - FIXED for better visibility -->
-<div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 99999;">
-    <div id="scan-toast" class="toast align-items-center text-white bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+<!-- Toast notification container - ULTRA-FAST & PROMINENT -->
+<div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 99999; margin-top: 20px;">
+    <div id="scan-toast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" 
+         style="min-width: 250px; background: linear-gradient(135deg, #28a745, #20c997); box-shadow: 0 8px 16px rgba(40, 167, 69, 0.4); animation: slideInBounce 0.3s ease-out;">
         <div class="d-flex">
-            <div class="toast-body fw-bold" id="toast-message" style="font-size: 16px;">
+            <div class="toast-body fw-bold text-center w-100" id="toast-message" style="font-size: 18px; padding: 12px;">
                 <i class="fas fa-check-circle me-2"></i>
-                Bag linked successfully!
+                Linked!
             </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
     </div>
 </div>
@@ -189,6 +189,41 @@
 
 .scanner-info {
     font-size: 0.85rem;
+}
+
+/* Ultra-fast toast animation */
+@keyframes slideInBounce {
+    0% {
+        transform: translateX(-50%) translateY(-100%) scale(0.8);
+        opacity: 0;
+    }
+    70% {
+        transform: translateX(-50%) translateY(5%) scale(1.05);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(-50%) translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+.toast.show {
+    animation: slideInBounce 0.3s ease-out;
+}
+
+.toast.hide {
+    animation: fadeOut 0.2s ease-out;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px) scale(0.9);
+    }
 }
 
 /* Progress indicator styles */
@@ -343,7 +378,7 @@
             completeCount: !!document.getElementById('complete-count')
         });
         
-        // OPTIMIZED Toast notification functions - faster with shorter delays
+        // ULTRA-FAST Toast notification - auto-disappears quickly
         function showToast(message, type = 'success') {
             const toast = document.getElementById('scan-toast');
             const toastMessage = document.getElementById('toast-message');
@@ -351,30 +386,30 @@
             // Set message and icon based on type
             let icon = 'fas fa-check-circle';
             let bgClass = 'bg-success';
-            let delay = 2000; // Faster default
+            let delay = 800; // Ultra-fast disappearing for success
             
             if (type === 'error') {
                 icon = 'fas fa-exclamation-triangle';
                 bgClass = 'bg-danger';
-                delay = 5000; // Much longer for errors to be visible
+                delay = 3000; // Longer for errors to be readable
             } else if (type === 'warning') {
                 icon = 'fas fa-clock';  
                 bgClass = 'bg-warning text-dark';
-                delay = 1500; // Very fast for processing messages
+                delay = 1000; // Fast for warnings
             }
             
             // Update toast appearance
-            toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+            toast.className = `toast align-items-center text-white ${bgClass} border-0 shadow-lg`;
             toastMessage.innerHTML = `<i class="${icon} me-2"></i>${message}`;
             
-            // Show toast with optimized timing
+            // Show toast with ultra-fast timing
             const bsToast = new bootstrap.Toast(toast, {
                 autohide: true,
                 delay: delay
             });
             bsToast.show();
             
-            return bsToast; // Return for potential dismissal
+            return bsToast;
         }
 
         // FIXED: Add child bag to list (prevent duplicates and update counts properly)
@@ -525,8 +560,8 @@
                     // SUCCESS: Add to UI list only after server confirms success
                     addChildToList(data.child_qr || qrText, data.child_name);
                     
-                    // Show confirmation toast with speed
-                    showToast(`✓ ${qrText} linked in ${Math.round(endTime - startTime)}ms`, 'success');
+                    // Show quick success message that auto-disappears
+                    showToast(`✓ ${qrText} linked!`, 'success');
                     window.scanPerformance.addScan(endTime - startTime);
                     
                     // Track for completion
