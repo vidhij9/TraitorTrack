@@ -505,10 +505,13 @@
                 // Note: Don't add to UI immediately - wait for server success to prevent duplicates
                 
                 // APPLE SPEED: Optimized fetch with minimal headers
-                const serverPromise = fetch('/process_child_scan_fast', {
+                const serverPromise = fetch('/process_child_scan', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ qr_code: qrText })
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({ qr_code: qrText })
                 });
                 
                 // APPLE SPEED: Wait for server response while UI updates
