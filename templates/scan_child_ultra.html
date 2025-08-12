@@ -378,17 +378,17 @@
             
             // Style based on type
             const innerDiv = notification.querySelector('div');
-            let delay = 1200; // Default delay
+            let delay = 70; // Ultra-fast 70ms flash
             
             if (type === 'error') {
                 innerDiv.style.background = 'linear-gradient(135deg, #dc3545, #c82333)';
-                delay = 3000;
+                delay = 3000; // Keep errors visible longer
             } else if (type === 'warning') {
                 innerDiv.style.background = 'linear-gradient(135deg, #ffc107, #e0a800)';
-                delay = 1500;
+                delay = 500; // Warnings still brief
             } else {
                 innerDiv.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
-                delay = 1200; // Slightly longer to ensure visibility
+                delay = 70; // Ultra-fast 70ms flash for success
             }
             
             // Show notification with animation
