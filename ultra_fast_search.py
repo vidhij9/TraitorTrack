@@ -10,9 +10,31 @@ import time
 import logging
 from sqlalchemy import text, func
 from sqlalchemy.orm import joinedload
-from app import db
-from models import Bag, BagType, Link, Scan, User
 from typing import Optional, Dict, List, Any
+
+# Import database and models - will be initialized when called
+db = None
+Bag = None
+BagType = None
+Link = None
+Scan = None
+User = None
+
+def _ensure_imports():
+    """Lazy import to avoid circular dependencies"""
+    global db, Bag, BagType, Link, Scan, User
+    if db is None:
+        # Import from the correct module structure
+        from app_clean import db as _db
+        from models import Bag as _Bag, BagType as _BagType, Link as _Link, Scan as _Scan, User as _User
+        
+        # Set the global references
+        db = _db
+        Bag = _Bag
+        BagType = _BagType
+        Link = _Link
+        Scan = _Scan
+        User = _User
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +54,7 @@ class UltraFastBagSearch:
         - Result caching for repeated searches
         - Optimized relationship loading
         """
+        _ensure_imports()
         start_time = time.time()
         
         try:
@@ -199,6 +222,7 @@ class UltraFastBagSearch:
         Bulk search optimization for multiple QR codes
         Uses batch processing for maximum efficiency
         """
+        _ensure_imports()
         start_time = time.time()
         
         try:
@@ -249,6 +273,7 @@ class UltraFastBagSearch:
         High-performance fuzzy search with ranking
         Uses PostgreSQL's full-text search capabilities
         """
+        _ensure_imports()
         start_time = time.time()
         
         try:
@@ -307,6 +332,7 @@ class UltraFastBagSearch:
         """
         Get search performance statistics
         """
+        _ensure_imports()
         try:
             stats_query = text("""
                 SELECT 
