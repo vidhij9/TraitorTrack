@@ -3,136 +3,12 @@
 {% block title %}Search Bags - traitor track{% endblock %}
 
 {% block head %}
+<!-- Ultra-fast QR Scanning Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<style>
-/* Enhanced QR Scanner Styles */
-.video-container {
-    position: relative;
-    width: 100%;
-    height: 0;
-    padding-bottom: 75%;
-    overflow: hidden;
-    background-color: #000000;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-}
-
-.video-container video {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.video-container canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-/* QR Scanner Overlay */
-.qr-scanner-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    pointer-events: none;
-    z-index: 10;
-}
-
-.qr-scanner-target {
-    width: 200px;
-    height: 200px;
-    position: relative;
-    border: none;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
-}
-
-/* Corner elements */
-.corner-tl, .corner-tr, .corner-bl, .corner-br {
-    position: absolute;
-    width: 30px;
-    height: 30px;
-    border: 4px solid #00FF00;
-}
-
-.corner-tl {
-    top: -4px;
-    left: -4px;
-    border-right: none;
-    border-bottom: none;
-    border-top-left-radius: 15px;
-}
-
-.corner-tr {
-    top: -4px;
-    right: -4px;
-    border-left: none;
-    border-bottom: none;
-    border-top-right-radius: 15px;
-}
-
-.corner-bl {
-    bottom: -4px;
-    left: -4px;
-    border-right: none;
-    border-top: none;
-    border-bottom-left-radius: 15px;
-}
-
-.corner-br {
-    bottom: -4px;
-    right: -4px;
-    border-left: none;
-    border-top: none;
-    border-bottom-right-radius: 15px;
-}
-
-/* Scanning animation line */
-.scanning-line {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #00FF00, transparent);
-    animation: scanning 2s linear infinite;
-}
-
-@keyframes scanning {
-    0% {
-        top: -2px;
-        opacity: 0;
-    }
-    10% {
-        opacity: 1;
-    }
-    90% {
-        opacity: 1;
-    }
-    100% {
-        top: 198px;
-        opacity: 0;
-    }
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .qr-scanner-target {
-        width: 150px;
-        height: 150px;
-    }
-}
-</style>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
+<!-- Ultra-fast QR scanner includes its own optimized styles -->
 {% endblock %}
 
 {% block content %}
@@ -159,31 +35,11 @@
         <div class="col-lg-6 mb-4 mb-lg-0">
             <div class="card">
                 <div class="card-header bg-primary bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Ultra-Fast QR Scanner</h4>
                 </div>
                 <div class="card-body p-0">
-                    <div class="video-container">
-                        <video id="video" playsinline class="d-none"></video>
-                        <canvas id="canvas"></canvas>
-                        <!-- Green scanning overlay -->
-                        <div class="qr-scanner-overlay" id="scanner-overlay">
-                            <div class="qr-scanner-target">
-                                <div class="corner-tl"></div>
-                                <div class="corner-tr"></div>
-                                <div class="corner-bl"></div>
-                                <div class="corner-br"></div>
-                                <div class="scanning-line" id="scanning-line"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer d-flex justify-content-between">
-                    <button id="start-camera" class="btn btn-primary">
-                        <i class="fas fa-play me-2"></i>Start Camera
-                    </button>
-                    <button id="stop-camera" class="btn btn-secondary" disabled>
-                        <i class="fas fa-stop me-2"></i>Stop Camera
-                    </button>
+                    <!-- Ultra-fast scanner container -->
+                    <div id="ultra-fast-scanner"></div>
                 </div>
             </div>
         </div>
@@ -394,51 +250,57 @@
 
 {% block scripts %}
 <script>
+// Ultra-Fast Search QR Scanner Implementation
 document.addEventListener('DOMContentLoaded', function() {
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const startCameraBtn = document.getElementById('start-camera');
-    const stopCameraBtn = document.getElementById('stop-camera');
-    const resultContainer = document.getElementById('result-container');
+    console.log('Search QR Scanner: Initializing ultra-fast scanner...');
+    
+    // Get form elements for manual entry
+    const manualQrCode = document.getElementById('manual-qr-code');
+    const manualEntryForm = document.getElementById('manual-entry-form');
     const searchSuccess = document.getElementById('search-success');
     const detectedQrValue = document.getElementById('detected-qr-value');
     const searchDetectedBtn = document.getElementById('search-detected-btn');
-    const manualQrCode = document.getElementById('manual-qr-code');
-    const manualEntryForm = document.getElementById('manual-entry-form');
-    const scannerOverlay = document.getElementById('scanner-overlay');
+    const resultContainer = document.getElementById('result-container');
     
-    let stream = null;
-    let scanning = false;
-    let canvasContext = canvas.getContext('2d');
     let lastDetectedCode = null;
+    let ultraFastScanner = null;
     
-    // Start camera when button is clicked  
-    startCameraBtn.addEventListener('click', startCamera);
-    
-    // Enhanced library check and camera initialization
-    function checkLibraryAndStartCamera() {
-        console.log('Checking jsQR library availability...');
+    // Initialize the ultra-fast scanner
+    try {
+        ultraFastScanner = new LiveQRScanner('ultra-fast-scanner');
         
-        if (typeof jsQR !== 'undefined') {
-            console.log('jsQR library loaded successfully');
-            resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Camera ready. Click "Start Camera" or scanner will start automatically...';
-            resultContainer.style.display = 'block';
+        // Set up success callback for QR detection
+        ultraFastScanner.setSuccessCallback((qrCode) => {
+            console.log('Ultra-fast scanner detected:', qrCode);
             
-            // Auto-start camera
+            // Update UI with detected code
+            lastDetectedCode = qrCode.trim();
+            detectedQrValue.textContent = lastDetectedCode;
+            manualQrCode.value = lastDetectedCode;
+            searchSuccess.classList.remove('d-none');
+            
+            // Update status
+            resultContainer.className = 'alert alert-success';
+            resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code detected! Review and click Search or it will auto-submit.';
+            
+            // Auto-submit after a short delay (optional)
             setTimeout(() => {
-                startCamera();
-            }, 500);
-        } else {
-            console.error('jsQR library not loaded, attempting reload...');
-            resultContainer.className = 'alert alert-warning';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library is loading. Please wait or use manual entry below.';
-            resultContainer.style.display = 'block';
-        }
+                if (lastDetectedCode && lastDetectedCode.length >= 2) {
+                    console.log('Auto-submitting detected QR code:', lastDetectedCode);
+                    manualEntryForm.submit();
+                }
+            }, 1500);
+        });
+        
+        console.log('Ultra-fast scanner initialized successfully');
+        
+    } catch (error) {
+        console.error('Failed to initialize ultra-fast scanner:', error);
+        
+        // Fallback message
+        resultContainer.className = 'alert alert-warning';
+        resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Scanner initialization failed. Please use manual entry below.';
     }
-    
-    // Check library availability with multiple attempts
-    setTimeout(checkLibraryAndStartCamera, 1000);
     
     // Handle manual entry form submission
     manualEntryForm.addEventListener('submit', function(event) {
@@ -446,299 +308,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const qrCode = manualQrCode.value.trim();
         
         if (qrCode) {
-            // Submit the form
+            console.log('Submitting search for:', qrCode);
             manualEntryForm.submit();
+        } else {
+            resultContainer.className = 'alert alert-warning';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter or scan a QR code first.';
         }
     });
     
     // Handle search detected button
     searchDetectedBtn.addEventListener('click', function() {
         if (lastDetectedCode) {
+            console.log('Searching detected QR code:', lastDetectedCode);
             manualQrCode.value = lastDetectedCode;
             manualEntryForm.submit();
         }
     });
     
-    // Stop camera when button is clicked
-    stopCameraBtn.addEventListener('click', stopCamera);
-    
-    async function startCamera() {
-        console.log('Starting Apple-like camera scanner...');
-        
-        // Clear any previous error messages
-        resultContainer.className = 'alert alert-info';
-        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting camera...';
-        resultContainer.style.display = 'block';
-        
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera not supported on this device.';
-            return;
-        }
-        
-        try {
-            // Apple-like camera constraints for optimal QR scanning
-            const constraints = {
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1920, min: 640 },
-                    height: { ideal: 1080, min: 480 },
-                    frameRate: { ideal: 30, min: 15 },
-                    focusMode: 'continuous',
-                    exposureMode: 'continuous',
-                    whiteBalanceMode: 'continuous'
-                }
-            };
-            
-            console.log('Requesting camera with optimal constraints...');
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-            
-            video.srcObject = stream;
-            video.setAttribute('playsinline', true);
-            video.setAttribute('autoplay', true);
-            video.muted = true;
-            
-            await new Promise((resolve, reject) => {
-                video.onloadedmetadata = () => {
-                    console.log('Video metadata loaded:', {
-                        videoWidth: video.videoWidth,
-                        videoHeight: video.videoHeight
-                    });
-                    
-                    // Set canvas to actual video dimensions for 1:1 reality mapping
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    
-                    resolve();
-                };
-                
-                video.onerror = reject;
-                video.play().catch(reject);
-            });
-            
-            startCameraBtn.disabled = true;
-            stopCameraBtn.disabled = false;
-            scanning = true;
-            
-            resultContainer.className = 'alert alert-success';
-            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active - Position QR code in scanning area';
-            
-            // Show scanning overlay
-            if (scannerOverlay) {
-                scannerOverlay.style.display = 'flex';
-            }
-            
-            // Start optimized scanning loop
-            optimizedScanQRCode();
-            
-        } catch (error) {
-            console.error('Camera initialization failed:', error);
-            resultContainer.className = 'alert alert-danger';
-            
-            let errorMessage = 'Camera access failed. ';
-            if (error.name === 'NotAllowedError') {
-                errorMessage += 'Please allow camera permissions and refresh the page.';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage += 'No camera found. Please check your device.';
-            } else if (error.name === 'OverconstrainedError') {
-                errorMessage += 'Camera settings not supported. Trying basic mode...';
-                // Fallback to basic constraints
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    video.srcObject = stream;
-                    await video.play();
-                    startCameraBtn.disabled = true;
-                    stopCameraBtn.disabled = false;
-                    scanning = true;
-                    optimizedScanQRCode();
-                    resultContainer.className = 'alert alert-success';
-                    resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active (basic mode)';
-                    return;
-                } catch (fallbackError) {
-                    errorMessage = 'Camera initialization completely failed.';
-                }
-            } else {
-                errorMessage += 'Please check permissions or try refreshing.';
-            }
-            
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + errorMessage;
-        }
-    }
-    
-    // Unified scanning function
-    let lastScanTime = 0;
-    function optimizedScanQRCode() {
-        if (!scanning) return;
-        
-        // Apple-like smooth scanning at 10fps for lag-free camera movement
-        const now = Date.now();
-        if (now - lastScanTime < 100) { // 100ms = 10fps
-            requestAnimationFrame(optimizedScanQRCode);
-            return;
-        }
-        lastScanTime = now;
-        
-        requestAnimationFrame(optimizedScanQRCode);
-        
-        if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
-            try {
-                // Clear canvas and draw current video frame
-                canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-                canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // Draw minimal scanning interface for performance
-                drawMinimalScanningInterface();
-                
-                // Extract smaller center region for faster processing
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-                const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
-                const startX = Math.max(0, centerX - scanSize/2);
-                const startY = Math.max(0, centerY - scanSize/2);
-                const width = Math.min(scanSize, canvas.width - startX);
-                const height = Math.min(scanSize, canvas.height - startY);
-                
-                const imageData = canvasContext.getImageData(startX, startY, width, height);
-                
-                // Multi-attempt QR detection for maximum accuracy
-                let code = null;
-                
-                // Try multiple detection approaches
-                const detectionMethods = [
-                    { inversionAttempts: "attemptBoth" },
-                    { inversionAttempts: "onlyInvert" },
-                    { inversionAttempts: "dontInvert" }
-                ];
-                
-                for (const method of detectionMethods) {
-                    code = jsQR(imageData.data, imageData.width, imageData.height, method);
-                    if (code && code.data && code.data.length >= 2) {
-                        console.log('QR detected with method:', method);
-                        break;
-                    }
-                }
-                
-                if (code && code.data) {
-                    // Keep QR data exactly as detected - only basic trim
-                    let qrData = code.data.trim();
-                    console.log('Final QR data:', JSON.stringify(qrData));
-                    
-                    // Skip if data is too short
-                    if (qrData.length < 2) {
-                        console.log('Skipping short QR code:', qrData);
-                        return;
-                    }
-                    
-                    // Instant visual feedback
-                    drawInstantDetectionHighlight(code, startX, startY);
-                    
-                    // Immediate haptic feedback
-                    if (navigator.vibrate) {
-                        navigator.vibrate(25);
-                    }
-                    
-                    // Process unique codes with instant feedback
-                    if (lastDetectedCode !== qrData) {
-                        lastDetectedCode = qrData;
-                        console.log('QR processed:', qrData);
-                        
-                        // Stop scanning to avoid multiple detections
-                        scanning = false;
-                        
-                        // Show detected QR code
-                        detectedQrValue.textContent = qrData;
-                        manualQrCode.value = qrData;
-                        searchSuccess.classList.remove('d-none');
-                        
-                        // Instant visual confirmation
-                        resultContainer.className = 'alert alert-success';
-                        resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code detected! Review and click Search.';
-                        
-                        // Reset for next scan after delay
-                        setTimeout(() => {
-                            scanning = true;
-                            requestAnimationFrame(optimizedScanQRCode);
-                        }, 2000);
-                    }
-                }
-            } catch (error) {
-                console.error('Scanning error:', error);
-            }
-        }
-    }
-    
-    function stopCamera() {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            video.srcObject = null;
-            scanning = false;
-            
-            startCameraBtn.disabled = false;
-            stopCameraBtn.disabled = true;
-            
-            // Hide scanning overlay
-            if (scannerOverlay) {
-                scannerOverlay.style.display = 'none';
-            }
-        }
-    }
-    
-    // Drawing functions
-    function drawMinimalScanningInterface() {
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const scanSize = Math.min(canvas.width, canvas.height) * 0.5;
-        
-        // Minimal corner brackets only
-        const cornerLength = 30;
-        const cornerThickness = 2;
-        
-        canvasContext.strokeStyle = '#00FF00';
-        canvasContext.lineWidth = cornerThickness;
-        canvasContext.lineCap = 'round';
-        
-        // Draw 4 corners quickly
-        const x1 = centerX - scanSize/2;
-        const y1 = centerY - scanSize/2;
-        const x2 = centerX + scanSize/2;
-        const y2 = centerY + scanSize/2;
-        
-        canvasContext.beginPath();
-        // Top-left
-        canvasContext.moveTo(x1, y1 + cornerLength);
-        canvasContext.lineTo(x1, y1);
-        canvasContext.lineTo(x1 + cornerLength, y1);
-        // Top-right
-        canvasContext.moveTo(x2 - cornerLength, y1);
-        canvasContext.lineTo(x2, y1);
-        canvasContext.lineTo(x2, y1 + cornerLength);
-        // Bottom-left
-        canvasContext.moveTo(x1, y2 - cornerLength);
-        canvasContext.lineTo(x1, y2);
-        canvasContext.lineTo(x1 + cornerLength, y2);
-        // Bottom-right
-        canvasContext.moveTo(x2 - cornerLength, y2);
-        canvasContext.lineTo(x2, y2);
-        canvasContext.lineTo(x2, y2 - cornerLength);
-        canvasContext.stroke();
-    }
-    
-    function drawInstantDetectionHighlight(code, offsetX, offsetY) {
-        if (!code.location) return;
-        
-        canvasContext.strokeStyle = '#00FF00';
-        canvasContext.lineWidth = 3;
-        canvasContext.fillStyle = 'rgba(0, 255, 0, 0.2)';
-        
-        canvasContext.beginPath();
-        canvasContext.moveTo(code.location.topLeftCorner.x + offsetX, code.location.topLeftCorner.y + offsetY);
-        canvasContext.lineTo(code.location.topRightCorner.x + offsetX, code.location.topRightCorner.y + offsetY);
-        canvasContext.lineTo(code.location.bottomRightCorner.x + offsetX, code.location.bottomRightCorner.y + offsetY);
-        canvasContext.lineTo(code.location.bottomLeftCorner.x + offsetX, code.location.bottomLeftCorner.y + offsetY);
-        canvasContext.closePath();
-        canvasContext.fill();
-        canvasContext.stroke();
-    }
+    console.log('Ultra-fast search scanner ready!');
 });
 </script>
 {% endblock %}
