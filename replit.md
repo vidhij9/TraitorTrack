@@ -6,6 +6,7 @@ TraceTrack is a comprehensive supply chain traceability platform designed for ag
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Camera permissions: Once granted on mobile devices, never ask again - implement persistent permission handling.
+Performance requirement: Search must return results in milliseconds for 400,000+ bags using ultra-fast scanning technology.
 
 ## System Architecture
 
@@ -36,7 +37,8 @@ Camera permissions: Once granted on mobile devices, never ask again - implement 
 - **Bill Management**: Streamlined bill creation and management with optimized queries and caching.
 - **Security**: Input validation (Bleach), CSRF protection, rate limiting on all API endpoints, secure session management.
 - **Performance**: Comprehensive optimization with significant improvements in scan response times, consolidated database queries, optimized connection pooling, intelligent caching.
-- **QR Scanning**: Ultra-fast scanner achieving sub-100ms response times, 60fps detection rate with dual-engine scanning (HTML5-QRCode + jsQR), 1920x1080 resolution, continuous autofocus/exposure/white balance, center-region optimization, parallel processing, smart duplicate prevention, and instant visual feedback. Exclusively live camera scanning, no manual entry.
+- **QR Scanning**: Ultra-fast scanner achieving sub-100ms response times, 60fps detection rate with dual-engine scanning (HTML5-QRCode + jsQR), 1920x1080 resolution, continuous autofocus/exposure/white balance, center-region optimization, parallel processing, smart duplicate prevention, and instant visual feedback. Exclusively live camera scanning with fallback manual entry. Search functionality upgraded with same ultra-fast LiveQRScanner technology for consistent performance across all scanning interfaces.
+- **Ultra-Fast Search Engine**: Specialized search system optimized for 400,000+ bags with millisecond response times using direct index-based lookups, bulk processing, PostgreSQL extensions (pg_trgm for fuzzy search), and optimized relationship loading.
 - **API Layer**: Clean, optimized API endpoints with proper rate limiting, response caching, and unified search functionality.
 - **Code Quality**: Centralized utilities for better maintainability and reduced redundancy.
 - **User Hierarchy**: Three-tier system with optimized permission checking:

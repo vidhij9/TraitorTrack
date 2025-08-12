@@ -19,6 +19,17 @@ def emergency_nav():
     from flask import render_template
     return render_template('emergency_nav.html')
 
+# Add test data creation endpoint
+@app.route('/create-test-data')
+def create_test_data():
+    """Create sample test data for ultra-fast search testing"""
+    try:
+        from create_test_data import create_sample_data
+        create_sample_data()
+        return "✓ Sample test data created successfully! Try searching for P000001 or C000001"
+    except Exception as e:
+        return f"Error creating test data: {str(e)}"
+
 # Add production deployment setup endpoint
 @app.route('/production-setup')
 def production_setup():
