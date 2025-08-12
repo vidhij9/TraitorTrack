@@ -504,50 +504,14 @@
             try {
                 // Note: Don't add to UI immediately - wait for server success to prevent duplicates
                 
-                // GET CSRF TOKEN - Same approach as parent scanner
-                let csrfToken = null;
-                
-                // Try meta tag first
-                const csrfMeta = document.querySelector('meta[name=csrf-token]');
-                if (csrfMeta) {
-                    csrfToken = csrfMeta.getAttribute('content');
-                }
-                
-                // Try existing form input if meta not found
-                if (!csrfToken) {
-                    const existingCsrf = document.querySelector('input[name="csrf_token"]');
-                    if (existingCsrf) {
-                        csrfToken = existingCsrf.value;
-                    }
-                }
-                
-                // Get CSRF token from cookie if still not found
-                if (!csrfToken) {
-                    const cookies = document.cookie.split(';');
-                    for (let cookie of cookies) {
-                        const [name, value] = cookie.trim().split('=');
-                        if (name === 'csrf_token') {
-                            csrfToken = decodeURIComponent(value);
-                            break;
-                        }
-                    }
-                }
-                
-                // Build form data with CSRF token
-                const formData = new URLSearchParams();
-                formData.append('qr_code', qrText);
-                if (csrfToken) {
-                    formData.append('csrf_token', csrfToken);
-                }
-                
-                // APPLE SPEED: Optimized fetch with minimal headers
+                // APPLE SPEED: Optimized fetch - no CSRF needed as route is exempted
                 const serverPromise = fetch('/process_child_scan', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: formData
+                    body: new URLSearchParams({ qr_code: qrText })
                 });
                 
                 // APPLE SPEED: Wait for server response while UI updates

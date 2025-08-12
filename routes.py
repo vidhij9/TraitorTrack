@@ -930,6 +930,7 @@ def process_parent_scan():
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan', methods=['POST'])
+@csrf.exempt
 @login_required
 def process_child_scan():
     """Process child bag scan from ultra scanner"""
