@@ -39,7 +39,15 @@
                 </div>
                 <div class="card-body p-0">
                     <!-- Ultra-fast scanner container -->
-                    <div id="ultra-fast-scanner"></div>
+                    <div id="ultra-fast-scanner" style="min-height: 400px; background: #000; position: relative;">
+                        <div class="scanner-placeholder text-center text-light py-5" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                            <i class="fas fa-camera fa-3x mb-3"></i>
+                            <p>Preparing camera...</p>
+                            <div class="spinner-border text-light" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -325,6 +333,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize with delay to ensure libraries are loaded
     setTimeout(initializeScanner, 1000);
+    
+    // Also retry initialization if elements are missing
+    const initRetryInterval = setInterval(() => {
+        if (typeof LiveQRScanner !== 'undefined' && typeof CameraPermissionManager !== 'undefined' && !ultraFastScanner) {
+            console.log('Retrying scanner initialization...');
+            clearInterval(initRetryInterval);
+            initializeScanner();
+        }
+    }, 2000);
     
     // Handle manual entry form submission
     manualEntryForm.addEventListener('submit', function(event) {
