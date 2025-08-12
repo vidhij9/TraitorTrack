@@ -2501,7 +2501,7 @@ def api_delete_child_scan():
 @csrf.exempt
 @login_required
 def api_delete_bag():
-    """Delete a bag and handle parent/child relationships"""
+    """Delete a bag and handle parent/child relationships - optimized for performance"""
     try:
         qr_code = request.form.get('qr_code')
         if not qr_code:
@@ -2517,59 +2517,86 @@ def api_delete_bag():
                 'message': 'Bag not found'
             })
         
+        from sqlalchemy import text
+        
         if bag.type == 'parent':
-            # Delete parent bag and all its linked child bags
-            links = Link.query.filter_by(parent_bag_id=bag.id).all()
-            child_count = len(links)
+            # Optimized parent bag deletion with bulk operations
             
-            # Delete all child bags and their links
-            for link in links:
-                child_bag = Bag.query.get(link.child_bag_id)
-                if child_bag:
-                    # Delete child bag scans
-                    child_scans = Scan.query.filter_by(child_bag_id=child_bag.id).all()
-                    for scan in child_scans:
-                        db.session.delete(scan)
-                    # Delete child bag
-                    db.session.delete(child_bag)
-                # Delete link
-                db.session.delete(link)
+            # Get child bag IDs for this parent
+            child_bag_ids = db.session.query(Link.child_bag_id).filter_by(parent_bag_id=bag.id).all()
+            child_ids = [id[0] for id in child_bag_ids]
+            child_count = len(child_ids)
             
-            # Delete parent bag scans
-            parent_scans = Scan.query.filter_by(parent_bag_id=bag.id).all()
-            for scan in parent_scans:
-                db.session.delete(scan)
+            # 1. Bulk delete all scans for child bags
+            if child_ids:
+                db.session.execute(
+                    text("DELETE FROM scan WHERE child_bag_id = ANY(:child_ids)"),
+                    {"child_ids": child_ids}
+                )
             
-            # Delete bill links if any
-            bill_links = BillBag.query.filter_by(bag_id=bag.id).all()
-            for bill_link in bill_links:
-                db.session.delete(bill_link)
+            # 2. Bulk delete scans for parent bag
+            db.session.execute(
+                text("DELETE FROM scan WHERE parent_bag_id = :parent_id"),
+                {"parent_id": bag.id}
+            )
             
-            # Delete parent bag
-            db.session.delete(bag)
+            # 3. Bulk delete bill links for this bag
+            db.session.execute(
+                text("DELETE FROM bill_bag WHERE bag_id = :bag_id"),
+                {"bag_id": bag.id}
+            )
+            
+            # 4. Bulk delete all links for this parent
+            db.session.execute(
+                text("DELETE FROM link WHERE parent_bag_id = :parent_id"),
+                {"parent_id": bag.id}
+            )
+            
+            # 5. Bulk delete all child bags
+            if child_ids:
+                db.session.execute(
+                    text("DELETE FROM bag WHERE id = ANY(:child_ids)"),
+                    {"child_ids": child_ids}
+                )
+            
+            # 6. Delete parent bag
+            db.session.execute(
+                text("DELETE FROM bag WHERE id = :bag_id"),
+                {"bag_id": bag.id}
+            )
+            
+            # Single commit for all operations
             db.session.commit()
             
             message = f'Parent bag {qr_code} and {child_count} linked child bags deleted successfully'
             
         else:
-            # Delete child bag only
-            # Remove link to parent
-            link = Link.query.filter_by(child_bag_id=bag.id).first()
-            if link:
-                db.session.delete(link)
+            # Optimized child bag deletion
             
-            # Delete child bag scans
-            child_scans = Scan.query.filter_by(child_bag_id=bag.id).all()
-            for scan in child_scans:
-                db.session.delete(scan)
+            # 1. Delete all scans for this child bag
+            db.session.execute(
+                text("DELETE FROM scan WHERE child_bag_id = :child_id"),
+                {"child_id": bag.id}
+            )
             
-            # Delete child bag
-            db.session.delete(bag)
+            # 2. Delete link to parent (if exists)
+            db.session.execute(
+                text("DELETE FROM link WHERE child_bag_id = :child_id"),
+                {"child_id": bag.id}
+            )
+            
+            # 3. Delete the child bag
+            db.session.execute(
+                text("DELETE FROM bag WHERE id = :bag_id"),
+                {"bag_id": bag.id}
+            )
+            
+            # Single commit for all operations
             db.session.commit()
             
             message = f'Child bag {qr_code} deleted successfully'
         
-        app.logger.info(f"Deleted bag {qr_code} ({bag.type})")
+        app.logger.info(f"Deleted bag {qr_code} ({bag.type}) - optimized operation")
         
         return jsonify({
             'success': True,
@@ -2578,10 +2605,10 @@ def api_delete_bag():
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f'Error deleting bag: {str(e)}')
+        app.logger.error(f'Error deleting bag {qr_code}: {str(e)}')
         return jsonify({
             'success': False,
-            'message': 'Error deleting bag'
+            'message': f'Error deleting bag: {str(e)}'
         }), 500
 
 @app.route('/edit-parent/<parent_qr>')
