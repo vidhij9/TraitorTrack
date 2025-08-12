@@ -3,10 +3,8 @@
 {% block title %}Search Bags - traitor track{% endblock %}
 
 {% block head %}
-<!-- QR Scanning Libraries -->
+<!-- QR Scanning Library -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="{{ url_for('static', filename='js/simple-qr-scanner.js') }}"></script>
-<!-- Ultra-fast QR scanner includes its own optimized styles -->
 {% endblock %}
 
 {% block content %}
@@ -256,85 +254,156 @@
 
 {% block scripts %}
 <script>
-// Ultra-Fast Search QR Scanner Implementation
+// Direct QR Scanner Implementation - No external dependencies
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Search QR Scanner: Initializing ultra-fast scanner...');
+    console.log('Initializing QR Scanner...');
     
-    // Get form elements for manual entry
+    // Get elements
     const manualQrCode = document.getElementById('manual-qr-code');
     const manualEntryForm = document.getElementById('manual-entry-form');
     const searchSuccess = document.getElementById('search-success');
     const detectedQrValue = document.getElementById('detected-qr-value');
-    const searchDetectedBtn = document.getElementById('search-detected-btn');
     const resultContainer = document.getElementById('result-container');
+    const scannerContainer = document.getElementById('ultra-fast-scanner');
     
-    let lastDetectedCode = null;
-    let ultraFastScanner = null;
+    let video = null;
+    let canvas = null;
+    let context = null;
+    let scanning = false;
+    let stream = null;
     
-    // Initialize the simple scanner with direct camera access
-    function initializeScanner() {
+    // Create scanner UI
+    function setupScanner() {
+        scannerContainer.innerHTML = `
+            <video id="qr-video" autoplay playsinline muted style="width: 100%; height: 400px; object-fit: cover; display: none;"></video>
+            <canvas id="qr-canvas" style="display: none;"></canvas>
+            <div id="scanner-status" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;">
+                <i class="fas fa-camera fa-3x mb-3"></i>
+                <p>Initializing camera...</p>
+            </div>
+        `;
+        
+        video = document.getElementById('qr-video');
+        canvas = document.getElementById('qr-canvas');
+        context = canvas.getContext('2d');
+    }
+    
+    // Update status
+    function updateStatus(message, type = 'info') {
+        const statusDiv = document.getElementById('scanner-status');
+        if (statusDiv) {
+            statusDiv.innerHTML = `
+                <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'camera'} fa-3x mb-3"></i>
+                <p>${message}</p>
+            `;
+        }
+        
+        resultContainer.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'}`;
+        resultContainer.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}`;
+    }
+    
+    // Start camera
+    async function startCamera() {
         try {
-            console.log('Initializing SimpleQRScanner...');
+            updateStatus('Requesting camera access...', 'info');
             
-            // Check if jsQR is loaded
-            if (typeof jsQR === 'undefined') {
-                throw new Error('jsQR library not loaded');
-            }
-            
-            // Check if SimpleQRScanner is available
-            if (typeof SimpleQRScanner === 'undefined') {
-                throw new Error('SimpleQRScanner not loaded');
-            }
-            
-            ultraFastScanner = new SimpleQRScanner('ultra-fast-scanner');
-            
-            // Set up success callback for QR detection
-            ultraFastScanner.setSuccessCallback((qrCode) => {
-                console.log('Scanner detected QR code:', qrCode);
-                
-                // Update UI with detected code
-                lastDetectedCode = qrCode.trim();
-                detectedQrValue.textContent = lastDetectedCode;
-                manualQrCode.value = lastDetectedCode;
-                searchSuccess.classList.remove('d-none');
-                
-                // Update status
-                resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code detected! Auto-searching...';
-                
-                // Auto-submit for search
-                setTimeout(() => {
-                    if (lastDetectedCode && lastDetectedCode.length >= 1) {
-                        console.log('Auto-submitting detected QR code:', lastDetectedCode);
-                        manualEntryForm.submit();
-                    }
-                }, 1000);
+            // Request camera
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false
             });
             
-            console.log('Scanner initialized successfully');
-            resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Scanner starting... Please allow camera access if prompted.';
+            video.srcObject = stream;
+            video.style.display = 'block';
+            
+            video.onloadedmetadata = () => {
+                video.play();
+                document.getElementById('scanner-status').style.display = 'none';
+                updateStatus('Camera active - Position QR code in frame', 'success');
+                scanning = true;
+                scanQR();
+            };
             
         } catch (error) {
-            console.error('Failed to initialize scanner:', error);
-            
-            // Show error message
-            resultContainer.className = 'alert alert-warning';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Scanner failed to load. Please use manual entry below.';
+            console.error('Camera error:', error);
+            updateStatus('Camera not accessible. Please use manual entry below.', 'error');
         }
     }
     
-    // Initialize scanner when page loads
-    setTimeout(initializeScanner, 500);
-    
-    // Retry if libraries not loaded
-    const initRetryInterval = setInterval(() => {
-        if (typeof SimpleQRScanner !== 'undefined' && typeof jsQR !== 'undefined' && !ultraFastScanner) {
-            console.log('Retrying scanner initialization...');
-            clearInterval(initRetryInterval);
-            initializeScanner();
+    // Scan for QR codes
+    function scanQR() {
+        if (!scanning || !video || video.readyState !== 4) {
+            if (scanning) {
+                requestAnimationFrame(scanQR);
+            }
+            return;
         }
-    }, 1000);
+        
+        // Set canvas size
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Check if jsQR is loaded and scan
+        if (typeof jsQR !== 'undefined') {
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            
+            if (code && code.data) {
+                console.log('QR Code detected:', code.data);
+                handleQRCode(code.data);
+                return;
+            }
+        }
+        
+        // Continue scanning
+        requestAnimationFrame(scanQR);
+    }
+    
+    // Handle detected QR code
+    function handleQRCode(qrCode) {
+        scanning = false;
+        
+        // Update UI
+        const trimmedCode = qrCode.trim();
+        detectedQrValue.textContent = trimmedCode;
+        manualQrCode.value = trimmedCode;
+        searchSuccess.classList.remove('d-none');
+        
+        updateStatus('QR Code detected! Auto-searching...', 'success');
+        
+        // Vibrate if supported
+        if (navigator.vibrate) {
+            navigator.vibrate(100);
+        }
+        
+        // Auto-submit
+        setTimeout(() => {
+            console.log('Submitting QR code:', trimmedCode);
+            manualEntryForm.submit();
+        }, 1000);
+    }
+    
+    // Initialize scanner
+    function initScanner() {
+        setupScanner();
+        
+        // Check if jsQR is loaded
+        if (typeof jsQR === 'undefined') {
+            updateStatus('QR library not loaded. Please use manual entry.', 'error');
+            return;
+        }
+        
+        // Start camera after a short delay
+        setTimeout(startCamera, 500);
+    }
+    
+    // Start initialization
+    initScanner();
     
     // Handle manual entry form submission
     manualEntryForm.addEventListener('submit', function(event) {
