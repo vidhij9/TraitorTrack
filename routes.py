@@ -2498,6 +2498,7 @@ def api_delete_child_scan():
         }), 500
 
 @app.route('/api/delete-bag', methods=['POST'])
+@csrf.exempt
 @login_required
 def api_delete_bag():
     """Delete a bag and handle parent/child relationships"""
