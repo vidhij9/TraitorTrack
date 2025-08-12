@@ -234,9 +234,12 @@ class LiveQRScanner {
     }
     
     async startScanning() {
-        console.log('LiveQR: Starting camera...');
+        console.log('LiveQR: Starting camera with enhanced fallback...');
         
         try {
+            // Show initial loading state
+            this.showStatus('Requesting camera access...', 'info');
+            
             // Check and request camera permission first
             const hasPermission = await this.permissionManager.requestCameraAccess();
             
@@ -247,13 +250,62 @@ class LiveQRScanner {
             // Show loading state
             this.showStatus('Initializing camera...', 'info');
             
-            // Try native camera first (more reliable)
-            await this.initializeNativeCamera();
+            // Try multiple initialization methods with timeout
+            await this.tryMultipleInitMethods();
             
         } catch (error) {
             console.error('LiveQR: Camera start failed:', error);
-            this.showStatus(`Camera error: ${error.message}. Try allowing camera access and refresh.`, 'error');
+            this.showStatus(`Camera error: ${error.message}. Try manual entry below.`, 'error');
+            this.showManualEntryPrompt();
         }
+    }
+    
+    async tryMultipleInitMethods() {
+        const methods = [
+            () => this.initializeNativeCamera(),
+            () => this.tryHtml5Scanner(),
+            () => this.initializeBasicCamera()
+        ];
+        
+        for (let i = 0; i < methods.length; i++) {
+            try {
+                console.log(`LiveQR: Trying initialization method ${i + 1}...`);
+                await Promise.race([
+                    methods[i](),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Method timeout')), 8000)
+                    )
+                ]);
+                console.log(`LiveQR: Method ${i + 1} succeeded`);
+                return; // Success, exit
+            } catch (error) {
+                console.log(`LiveQR: Method ${i + 1} failed:`, error.message);
+                if (i === methods.length - 1) {
+                    throw new Error('All camera initialization methods failed');
+                }
+            }
+        }
+    }
+    
+    async initializeBasicCamera() {
+        console.log('LiveQR: Trying basic camera initialization...');
+        
+        // Very basic camera constraints for compatibility
+        const constraints = {
+            video: {
+                facingMode: 'environment',
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            },
+            audio: false
+        };
+        
+        this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        this.video.srcObject = this.cameraStream;
+        await this.video.play();
+        
+        this.showStatus('Camera active! Point at QR code', 'success');
+        this.startDetection();
     }
     
     async tryHtml5Scanner() {
@@ -323,6 +375,7 @@ class LiveQRScanner {
         
         try {
             this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log('LiveQR: Camera stream obtained');
             this.video.srcObject = this.cameraStream;
             
             // Wait for video to be ready
@@ -523,6 +576,15 @@ class LiveQRScanner {
         
         this.showStatus('Camera stopped', 'info');
         console.log('LiveQR: Camera stopped');
+    }
+    
+    showManualEntryPrompt() {
+        // Update result container to encourage manual entry
+        const resultContainer = document.getElementById('result-container');
+        if (resultContainer) {
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-keyboard me-2"></i>Camera unavailable. Please use manual entry below.';
+        }
     }
 }
 
