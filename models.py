@@ -109,7 +109,7 @@ class Bag(db.Model):
     dispatch_area = db.Column(db.String(30), nullable=True)  # Area for area-based access control
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-    # Comprehensive indexes for high-performance queries on large datasets
+    # Ultra-optimized indexes for lightning-fast filtering
     __table_args__ = (
         db.Index('idx_bag_qr_id', 'qr_id'),
         db.Index('idx_bag_type', 'type'),
@@ -117,6 +117,11 @@ class Bag(db.Model):
         db.Index('idx_bag_type_created', 'type', 'created_at'),
         db.Index('idx_bag_name_search', 'name'),
         db.Index('idx_bag_parent_id', 'parent_id'),
+        # Ultra-fast filtering indexes for bag management page
+        db.Index('idx_bag_dispatch_area', 'dispatch_area'),
+        db.Index('idx_bag_type_dispatch', 'type', 'dispatch_area'),
+        # Composite indexes for common filter combinations
+        db.Index('idx_bag_type_area_created', 'type', 'dispatch_area', 'created_at'),
     )
     
     @property
@@ -163,8 +168,10 @@ class Link(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('child_links', lazy='dynamic', cascade='all, delete-orphan'))
     child_bag = db.relationship('Bag', foreign_keys=[child_bag_id], backref=db.backref('parent_links', lazy='dynamic', cascade='all, delete-orphan'))
-    # Composite index for faster parent-child relationship lookups
+    # Ultra-fast relationship lookup indexes
     __table_args__ = (
+        db.Index('idx_link_parent_id', 'parent_bag_id'),
+        db.Index('idx_link_child_id', 'child_bag_id'),
         db.Index('idx_link_parent_child', 'parent_bag_id', 'child_bag_id'),
         db.UniqueConstraint('parent_bag_id', 'child_bag_id', name='uq_parent_child'),
     )
@@ -200,8 +207,10 @@ class BillBag(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     bill = db.relationship('Bill', backref=db.backref('bag_links', lazy='dynamic', cascade='all, delete-orphan'))
     bag = db.relationship('Bag', backref=db.backref('bill_links', lazy='dynamic', cascade='all, delete-orphan'))
-    # Composite index for faster bill-bag relationship lookups
+    # Ultra-fast bill-bag relationship indexes
     __table_args__ = (
+        db.Index('idx_bill_bag_bill_id', 'bill_id'),
+        db.Index('idx_bill_bag_bag_id', 'bag_id'),
         db.UniqueConstraint('bill_id', 'bag_id', name='uq_bill_bag_new'),
     )
     

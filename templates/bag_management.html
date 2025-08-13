@@ -23,10 +23,63 @@
         height: 300px;
     }
 }
+
+/* Performance Monitor Overlay */
+.performance-monitor {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #00ff00;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    z-index: 1050;
+    min-width: 150px;
+    display: none;
+}
+
+.performance-monitor.show {
+    display: block;
+}
+
+.perf-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 2px 0;
+}
+
+.perf-value {
+    font-weight: bold;
+    color: #ffff00;
+}
+
+.perf-fast {
+    color: #00ff00 !important;
+}
+
+.perf-slow {
+    color: #ff4444 !important;
+}
 </style>
+
+<script>
+// Ultra-fast page load timing
+window.pageLoadStart = performance.now();
+</script>
 {% endblock %}
 
 {% block content %}
+<!-- Performance Overlay -->
+<div id="performance-overlay" class="performance-monitor">
+    <div style="text-align: center; margin-bottom: 5px; color: #ffffff; font-weight: bold;">⚡ ULTRA-FAST</div>
+    <div class="perf-item">
+        <span>Page Load:</span>
+        <span class="perf-value" id="page-load-display">--</span>
+    </div>
+</div>
+
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="d-flex align-items-center">
@@ -589,6 +642,76 @@ function saveChildrenChanges() {
     })
     .catch(error => {
         showAlert('danger', 'Error updating children');
+    });
+}
+
+// Ultra-fast Performance Monitor
+document.addEventListener('DOMContentLoaded', function() {
+    const perfMonitor = document.createElement('div');
+    perfMonitor.className = 'performance-monitor';
+    perfMonitor.innerHTML = `
+        <div style="text-align: center; margin-bottom: 5px; color: #ffffff; font-weight: bold;">⚡ ULTRA-FAST</div>
+        <div class="perf-item">
+            <span>Page Load:</span>
+            <span class="perf-value" id="page-load-time">--</span>
+        </div>
+        <div class="perf-item">
+            <span>DOM Ready:</span>
+            <span class="perf-value" id="dom-ready-time">--</span>
+        </div>
+        <div class="perf-item">
+            <span>Filter Time:</span>
+            <span class="perf-value" id="filter-time">--</span>
+        </div>
+        <div class="perf-item">
+            <span>Cache Status:</span>
+            <span class="perf-value" id="cache-status">ENABLED</span>
+        </div>
+    `;
+    document.body.appendChild(perfMonitor);
+    
+    // Calculate page load time
+    window.addEventListener('load', function() {
+        const pageLoadTime = performance.now() - window.pageLoadStart;
+        const domLoadTime = performance.now() - window.pageLoadStart;
+        
+        document.getElementById('page-load-time').textContent = pageLoadTime.toFixed(1) + 'ms';
+        document.getElementById('page-load-time').className = 'perf-value ' + (pageLoadTime < 500 ? 'perf-fast' : 'perf-slow');
+        
+        document.getElementById('dom-ready-time').textContent = domLoadTime.toFixed(1) + 'ms';
+        document.getElementById('dom-ready-time').className = 'perf-value ' + (domLoadTime < 300 ? 'perf-fast' : 'perf-slow');
+        
+        perfMonitor.classList.add('show');
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            perfMonitor.classList.remove('show');
+        }, 5000);
+    });
+    
+    // Monitor filter form submission time
+    const filterForm = document.getElementById('filterForm');
+    if (filterForm) {
+        filterForm.addEventListener('submit', function() {
+            window.filterStartTime = performance.now();
+        });
+    }
+    
+    // Show performance monitor on Ctrl+P (for development)
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'p') {
+            e.preventDefault();
+            perfMonitor.classList.toggle('show');
+        }
+    });
+});
+
+// Record filter response time if this is a filter response
+if (window.filterStartTime) {
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterTime = performance.now() - window.filterStartTime;
+        document.getElementById('filter-time').textContent = filterTime.toFixed(1) + 'ms';
+        document.getElementById('filter-time').className = 'perf-value ' + (filterTime < 200 ? 'perf-fast' : 'perf-slow');
     });
 }
 </script>

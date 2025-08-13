@@ -1,126 +1,174 @@
 """
-Optimized cache management - replaces cache_utils.py with better performance
+Ultra-fast caching system for supply chain platform
+Reduces database load and improves response times
 """
+
 import time
 import logging
+from typing import Dict, Any, Optional, Callable
 from functools import wraps
-from flask import request, jsonify
+import hashlib
+import json
 
 logger = logging.getLogger(__name__)
 
-class OptimizedCache:
-    """In-memory cache with TTL and size limits for optimal performance"""
+class UltraFastCache:
+    """In-memory cache with intelligent expiration for ultra-fast responses"""
     
-    def __init__(self, max_size=1000, default_ttl=300):
-        self.cache = {}
-        self.timestamps = {}
-        self.max_size = max_size
-        self.default_ttl = default_ttl
-    
-    def _is_expired(self, key):
-        """Check if cache entry is expired"""
-        if key not in self.timestamps:
-            return True
-        return time.time() - self.timestamps[key] > self.default_ttl
-    
-    def _cleanup_expired(self):
-        """Remove expired entries"""
-        current_time = time.time()
-        expired_keys = [
-            key for key, timestamp in self.timestamps.items()
-            if current_time - timestamp > self.default_ttl
-        ]
-        for key in expired_keys:
-            self.cache.pop(key, None)
-            self.timestamps.pop(key, None)
-    
-    def _make_room(self):
-        """Remove oldest entries if cache is full"""
-        if len(self.cache) >= self.max_size:
-            # Remove 20% of oldest entries
-            remove_count = int(self.max_size * 0.2)
-            oldest_keys = sorted(self.timestamps.items(), key=lambda x: x[1])[:remove_count]
-            for key, _ in oldest_keys:
-                self.cache.pop(key, None)
-                self.timestamps.pop(key, None)
-    
-    def get(self, key):
-        """Get value from cache"""
-        if key in self.cache and not self._is_expired(key):
-            return self.cache[key]
-        return None
-    
-    def set(self, key, value, ttl=None):
-        """Set value in cache"""
-        self._cleanup_expired()
-        self._make_room()
+    def __init__(self):
+        self._cache = {}
+        self._timestamps = {}
+        self._access_times = {}
         
-        self.cache[key] = value
-        self.timestamps[key] = time.time()
+    def _generate_key(self, prefix: str, **kwargs) -> str:
+        """Generate cache key from parameters"""
+        # Create sorted key from parameters for consistent hashing
+        params_str = json.dumps(kwargs, sort_keys=True, default=str)
+        key_hash = hashlib.md5(params_str.encode()).hexdigest()[:12]
+        return f"{prefix}:{key_hash}"
     
-    def delete(self, key):
-        """Delete key from cache"""
-        self.cache.pop(key, None)
-        self.timestamps.pop(key, None)
+    def get(self, key: str, max_age: int = 60) -> Optional[Any]:
+        """Get cached value if still valid"""
+        if key not in self._cache:
+            return None
+            
+        # Check if cache entry is still valid
+        age = time.time() - self._timestamps.get(key, 0)
+        if age > max_age:
+            # Clean up expired entry
+            self._cleanup_key(key)
+            return None
+        
+        # Update access time for LRU tracking
+        self._access_times[key] = time.time()
+        return self._cache[key]
     
-    def clear(self):
-        """Clear all cache"""
-        self.cache.clear()
-        self.timestamps.clear()
+    def set(self, key: str, value: Any) -> None:
+        """Set cache value with current timestamp"""
+        current_time = time.time()
+        self._cache[key] = value
+        self._timestamps[key] = current_time
+        self._access_times[key] = current_time
+        
+        # Auto-cleanup if cache gets too large
+        if len(self._cache) > 1000:
+            self._cleanup_old_entries()
     
-    def stats(self):
-        """Get cache statistics"""
-        return {
-            'size': len(self.cache),
-            'max_size': self.max_size,
-            'hit_ratio': getattr(self, '_hits', 0) / max(getattr(self, '_requests', 1), 1)
-        }
+    def _cleanup_key(self, key: str) -> None:
+        """Remove single key from all cache structures"""
+        self._cache.pop(key, None)
+        self._timestamps.pop(key, None)
+        self._access_times.pop(key, None)
+    
+    def _cleanup_old_entries(self) -> None:
+        """Clean up least recently used entries"""
+        if len(self._cache) <= 500:
+            return
+            
+        # Sort by access time and remove oldest 200 entries
+        sorted_keys = sorted(
+            self._access_times.keys(),
+            key=lambda k: self._access_times[k]
+        )
+        
+        for key in sorted_keys[:200]:
+            self._cleanup_key(key)
+    
+    def cache_query_result(self, prefix: str, max_age: int = 60):
+        """Decorator for caching query results"""
+        def decorator(func: Callable) -> Callable:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                # Generate cache key
+                cache_key = self._generate_key(prefix, args=args, kwargs=kwargs)
+                
+                # Try to get from cache first
+                cached_result = self.get(cache_key, max_age)
+                if cached_result is not None:
+                    logger.debug(f"Cache HIT for {prefix}: {cache_key}")
+                    return cached_result
+                
+                # Execute function and cache result
+                start_time = time.time()
+                result = func(*args, **kwargs)
+                execution_time = (time.time() - start_time) * 1000
+                
+                # Cache the result
+                self.set(cache_key, result)
+                logger.debug(f"Cache MISS for {prefix}: {cache_key} (executed in {execution_time:.2f}ms)")
+                
+                return result
+            return wrapper
+        return decorator
 
 # Global cache instance
-cache = OptimizedCache()
+ultra_cache = UltraFastCache()
 
-def cached_response(timeout=300, key_func=None):
-    """Decorator for caching API responses"""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Generate cache key
-            if key_func:
-                cache_key = key_func(*args, **kwargs)
-            else:
-                cache_key = f"{f.__name__}:{request.full_path}"
-            
-            # Try to get from cache
-            cached_result = cache.get(cache_key)
-            if cached_result:
-                cache._hits = getattr(cache, '_hits', 0) + 1
-                if isinstance(cached_result, dict):
-                    cached_result['cached'] = True
-                return cached_result
-            
-            # Execute function and cache result
-            cache._requests = getattr(cache, '_requests', 0) + 1
-            result = f(*args, **kwargs)
-            
-            # Cache successful responses
-            if hasattr(result, 'status_code') and result.status_code == 200:
-                cache.set(cache_key, result, timeout)
-            elif isinstance(result, (dict, list)):
-                cache.set(cache_key, result, timeout)
-            
-            return result
-        return decorated_function
-    return decorator
-
-def invalidate_cache(pattern=None):
-    """Invalidate cache entries matching pattern"""
-    if pattern:
-        keys_to_remove = [key for key in cache.cache.keys() if pattern in key]
+class QueryCache:
+    """Specialized cache for database queries"""
+    
+    @staticmethod
+    def cached_bag_stats(max_age: int = 30):
+        """Cache bag statistics for 30 seconds"""
+        return ultra_cache.cache_query_result("bag_stats", max_age)
+    
+    @staticmethod
+    def cached_filtered_bags(max_age: int = 15):
+        """Cache filtered bag results for 15 seconds"""
+        return ultra_cache.cache_query_result("filtered_bags", max_age)
+    
+    @staticmethod
+    def cached_bag_search(max_age: int = 120):
+        """Cache individual bag searches for 2 minutes"""
+        return ultra_cache.cache_query_result("bag_search", max_age)
+    
+    @staticmethod
+    def invalidate_bag_cache():
+        """Invalidate all bag-related cache entries"""
+        # Simple approach: clear keys that start with bag-related prefixes
+        keys_to_remove = []
+        for key in ultra_cache._cache.keys():
+            if any(prefix in key for prefix in ['bag_stats', 'filtered_bags', 'bag_search']):
+                keys_to_remove.append(key)
+        
         for key in keys_to_remove:
-            cache.delete(key)
-    else:
-        cache.clear()
+            ultra_cache._cleanup_key(key)
+        
+        logger.info(f"Invalidated {len(keys_to_remove)} bag cache entries")
 
-def cache_stats():
-    """Get cache statistics"""
-    return cache.stats()
+class ConnectionPoolOptimizer:
+    """Database connection pool optimization for faster queries"""
+    
+    @staticmethod
+    def optimize_query_performance():
+        """Apply PostgreSQL-specific optimizations"""
+        from app_clean import db
+        
+        try:
+            # Set session-level optimizations for faster queries
+            optimizations = [
+                "SET work_mem = '16MB'",  # More memory for sorting/hashing
+                "SET random_page_cost = 1.1",  # Assume faster storage
+                "SET effective_cache_size = '256MB'",  # Available cache
+                "SET shared_preload_libraries = 'pg_stat_statements'",  # Query stats
+            ]
+            
+            for opt in optimizations:
+                try:
+                    db.session.execute(opt)
+                except Exception as e:
+                    # Some settings might not be changeable at session level
+                    logger.debug(f"Could not apply optimization '{opt}': {e}")
+            
+            db.session.commit()
+            logger.info("Applied database performance optimizations")
+            
+        except Exception as e:
+            logger.error(f"Failed to apply database optimizations: {e}")
+            db.session.rollback()
+
+# Auto-apply optimizations on import
+try:
+    ConnectionPoolOptimizer.optimize_query_performance()
+except Exception as e:
+    logger.warning(f"Could not auto-apply optimizations: {e}")
