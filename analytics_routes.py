@@ -34,6 +34,64 @@ def log_analytics_request(response):
 
 
 
+@analytics_bp.route('/test')
+def test_dashboard():
+    """Test dashboard without authentication"""
+    try:
+        from performance_monitoring import PerformanceMonitor
+        from enterprise_cache import QueryCache
+        from database_scaling import DatabaseScaler
+        
+        monitor = PerformanceMonitor()
+        cache = QueryCache()
+        db_scaler = DatabaseScaler()
+        
+        # Get test data
+        system_metrics = {
+            'system': {
+                'cpu_percent': 45.2,
+                'memory_percent': 62.1,
+                'memory_used_gb': 4.8,
+                'memory_total_gb': 8.0
+            }
+        }
+        
+        analytics_data = {
+            'real_time': {
+                'system_health': 'healthy',
+                'active_users': 12,
+                'current_rpm': 450
+            },
+            'performance': {
+                'avg_response_time': 85
+            }
+        }
+        
+        db_health = {
+            'connection_count': 25,
+            'active_connections': 25
+        }
+        
+        cache_stats = {
+            'hit_rate': 94.5,
+            'hits': 15678
+        }
+        
+        business_metrics = {
+            'total_bags': 485000,
+            'today_scans': 1250
+        }
+        
+        return render_template('analytics_dashboard.html',
+                             system_metrics=system_metrics,
+                             analytics=analytics_data,
+                             db_health=db_health,
+                             cache_stats=cache_stats,
+                             business_metrics=business_metrics)
+    except Exception as e:
+        logger.error(f"Test dashboard error: {e}")
+        return f"<h1>Test Dashboard Error</h1><pre>{e}</pre>", 500
+
 @analytics_bp.route('/dashboard')
 @require_auth
 @admin_required
@@ -220,7 +278,6 @@ def _get_business_metrics():
         total_bills = QueryCache.cached_count(Bill)
         
         # Calculate derived metrics
-        from sqlalchemy import func
         today = datetime.utcnow().date()
         today_scans = db.session.query(func.count(Scan.id)).filter(
             func.date(Scan.timestamp) == today
