@@ -82,7 +82,7 @@ def test_dashboard():
             'today_scans': 1250
         }
         
-        return render_template('analytics_compact.html',
+        return render_template('analytics_dashboard_agri.html',
                              system_metrics=system_metrics,
                              analytics=analytics_data,
                              db_health=db_health,
@@ -107,7 +107,7 @@ def dashboard():
         # Get business metrics
         business_metrics = _get_business_metrics()
         
-        return render_template('analytics_compact.html',
+        return render_template('analytics_dashboard_agri.html',
                              system_metrics=system_metrics,
                              analytics=analytics_data,
                              db_health=db_health,
