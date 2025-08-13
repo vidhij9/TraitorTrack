@@ -141,6 +141,8 @@
         border-radius: 4px;
         padding: 8px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        height: 110px;
+        position: relative;
     }
     
     .chart-title {
@@ -150,8 +152,13 @@
         color: #2c3e50;
     }
     
+    .chart-container {
+        height: 80px;
+        position: relative;
+    }
+    
     .chart-box canvas {
-        max-height: 120px !important;
+        max-height: 80px !important;
     }
     
     /* Compact Alerts */
@@ -304,12 +311,16 @@
         <div class="chart-grid">
             <div class="chart-box">
                 <div class="chart-title">System Performance</div>
-                <canvas id="perfChart"></canvas>
+                <div class="chart-container">
+                    <canvas id="perfChart"></canvas>
+                </div>
             </div>
             
             <div class="chart-box">
                 <div class="chart-title">Scan Activity</div>
-                <canvas id="scanChart"></canvas>
+                <div class="chart-container">
+                    <canvas id="scanChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -355,12 +366,16 @@ function switchTab(tabName) {
     // Show selected tab
     document.getElementById(tabName).classList.add('active');
     
-    // Mark button as active
-    event.target.classList.add('active');
+    // Mark the correct button as active
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.textContent.toLowerCase() === tabName) {
+            btn.classList.add('active');
+        }
+    });
     
     // Initialize charts if charts tab
     if (tabName === 'charts' && !window.chartsInitialized) {
-        initCharts();
+        setTimeout(initCharts, 100);
         window.chartsInitialized = true;
     }
 }
@@ -370,6 +385,7 @@ function initCharts() {
     // Performance Chart
     const perfCtx = document.getElementById('perfChart');
     if (perfCtx) {
+        perfCtx.height = 80;
         new Chart(perfCtx, {
             type: 'line',
             data: {
@@ -378,16 +394,16 @@ function initCharts() {
                     label: 'CPU',
                     data: [45, 52, 48, {{ system_metrics.system.cpu_percent if system_metrics else 50 }}],
                     borderColor: '#3498db',
-                    borderWidth: 2,
+                    borderWidth: 1,
                     tension: 0.4,
-                    pointRadius: 2
+                    pointRadius: 1
                 }, {
-                    label: 'Memory',
+                    label: 'Mem',
                     data: [60, 62, 65, {{ system_metrics.system.memory_percent if system_metrics else 60 }}],
                     borderColor: '#e74c3c',
-                    borderWidth: 2,
+                    borderWidth: 1,
                     tension: 0.4,
-                    pointRadius: 2
+                    pointRadius: 1
                 }]
             },
             options: {
@@ -398,8 +414,9 @@ function initCharts() {
                         display: true,
                         position: 'bottom',
                         labels: {
-                            boxWidth: 10,
-                            font: { size: 9 }
+                            boxWidth: 8,
+                            padding: 5,
+                            font: { size: 8 }
                         }
                     }
                 },
@@ -407,10 +424,21 @@ function initCharts() {
                     y: {
                         beginAtZero: true,
                         max: 100,
-                        ticks: { font: { size: 9 } }
+                        ticks: { 
+                            font: { size: 8 },
+                            maxTicksLimit: 4
+                        },
+                        grid: {
+                            display: false
+                        }
                     },
                     x: {
-                        ticks: { font: { size: 9 } }
+                        ticks: { 
+                            font: { size: 8 }
+                        },
+                        grid: {
+                            display: false
+                        }
                     }
                 }
             }
@@ -420,6 +448,7 @@ function initCharts() {
     // Scan Activity Chart
     const scanCtx = document.getElementById('scanChart');
     if (scanCtx) {
+        scanCtx.height = 80;
         new Chart(scanCtx, {
             type: 'bar',
             data: {
@@ -440,10 +469,21 @@ function initCharts() {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { font: { size: 9 } }
+                        ticks: { 
+                            font: { size: 8 },
+                            maxTicksLimit: 4
+                        },
+                        grid: {
+                            display: false
+                        }
                     },
                     x: {
-                        ticks: { font: { size: 9 } }
+                        ticks: { 
+                            font: { size: 8 }
+                        },
+                        grid: {
+                            display: false
+                        }
                     }
                 }
             }
