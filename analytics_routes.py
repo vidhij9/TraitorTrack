@@ -105,23 +105,9 @@ def test_dashboard_old():
 @require_auth
 @admin_required
 def dashboard():
-    """Main analytics dashboard with real-time monitoring"""
+    """Main analytics dashboard with real-time monitoring - Modern version"""
     try:
-        # Get comprehensive analytics
-        system_metrics = monitor.get_system_metrics()
-        analytics_data = monitor.get_analytics_dashboard()
-        db_health = db_scaler.get_health_metrics()
-        cache_stats = cache.get_stats()
-        
-        # Get business metrics
-        business_metrics = _get_business_metrics()
-        
-        return render_template('analytics_dashboard_agri.html',
-                             system_metrics=system_metrics,
-                             analytics=analytics_data,
-                             db_health=db_health,
-                             cache_stats=cache_stats,
-                             business_metrics=business_metrics)
+        return render_template('analytics_modern.html')
     except Exception as e:
         logger.error(f"Analytics dashboard error: {e}")
         return render_template('error.html', error="Failed to load analytics dashboard", error_code=500), 500
