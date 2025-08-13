@@ -342,9 +342,11 @@ def _get_business_metrics():
         total_bills = QueryCache.cached_count(Bill)
         
         # Calculate derived metrics
-        today = datetime.utcnow().date()
+        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
         today_scans = db.session.query(func.count(Scan.id)).filter(
-            func.date(Scan.timestamp) == today
+            Scan.timestamp >= today,
+            Scan.timestamp < tomorrow
         ).scalar() or 0
         
         return {
