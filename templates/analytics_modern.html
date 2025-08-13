@@ -288,19 +288,29 @@
         box-shadow: var(--shadow-md);
         margin-bottom: 1rem;
         animation: fadeInUp 0.8s ease-out;
+        height: 120px;
+        overflow: hidden;
     }
 
     .chart-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.5rem;
+        height: 30px;
     }
 
     .chart-title {
-        font-size: 1rem;
+        font-size: 0.9rem;
         font-weight: 700;
         color: var(--text-primary);
+    }
+    
+    /* Force chart containers to be tiny */
+    .chart-card canvas {
+        max-height: 60px !important;
+        width: 100% !important;
+        height: 60px !important;
     }
 
     /* Status Blocks */
@@ -650,7 +660,7 @@
                 <h3 class="chart-title">Weekly Activity</h3>
                 <button class="btn btn-sm btn-outline-secondary" onclick="refreshCharts()">Refresh</button>
             </div>
-            <canvas id="weeklyChart" height="40"></canvas>
+            <canvas id="weeklyChart" style="max-height: 60px !important; height: 60px !important;"></canvas>
         </div>
     </div>
 
@@ -660,7 +670,7 @@
             <div class="chart-header">
                 <h3 class="chart-title">Hourly Performance</h3>
             </div>
-            <canvas id="hourlyChart" height="30"></canvas>
+            <canvas id="hourlyChart" style="max-height: 60px !important; height: 60px !important;"></canvas>
         </div>
     </div>
 
@@ -698,7 +708,7 @@
             <div class="chart-header">
                 <h3 class="chart-title">Monthly Trends</h3>
             </div>
-            <canvas id="monthlyChart" height="30"></canvas>
+            <canvas id="monthlyChart" style="max-height: 60px !important; height: 60px !important;"></canvas>
         </div>
     </div>
 </div>
@@ -776,21 +786,30 @@ function initWeeklyChart(data) {
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    enabled: false
                 }
             },
             scales: {
                 y: {
-                    beginAtZero: true,
-                    grid: {
-                        display: true,
-                        color: 'rgba(0,0,0,0.05)'
-                    }
+                    display: false,
+                    beginAtZero: true
                 },
                 x: {
-                    grid: {
-                        display: false
-                    }
+                    display: false
                 }
+            },
+            elements: {
+                line: {
+                    borderWidth: 1
+                },
+                point: {
+                    radius: 0
+                }
+            },
+            layout: {
+                padding: 0
             }
         }
     });
@@ -828,12 +847,22 @@ function initHourlyChart() {
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    enabled: false
                 }
             },
             scales: {
                 y: {
+                    display: false,
                     beginAtZero: true
+                },
+                x: {
+                    display: false
                 }
+            },
+            layout: {
+                padding: 0
             }
         }
     });
@@ -876,13 +905,31 @@ function initMonthlyChart() {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'top'
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
                 }
             },
             scales: {
                 y: {
+                    display: false,
                     beginAtZero: true
+                },
+                x: {
+                    display: false
                 }
+            },
+            elements: {
+                line: {
+                    borderWidth: 1
+                },
+                point: {
+                    radius: 0
+                }
+            },
+            layout: {
+                padding: 0
             }
         }
     });
