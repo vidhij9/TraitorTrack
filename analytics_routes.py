@@ -32,6 +32,8 @@ def log_analytics_request(response):
             logger.warning(f"Slow analytics request: {request.path} took {duration:.2f}s")
     return response
 
+
+
 @analytics_bp.route('/dashboard')
 @require_auth
 @admin_required
@@ -55,7 +57,7 @@ def dashboard():
                              business_metrics=business_metrics)
     except Exception as e:
         logger.error(f"Analytics dashboard error: {e}")
-        return render_template('error.html', error="Failed to load analytics dashboard"), 500
+        return render_template('error.html', error="Failed to load analytics dashboard", error_code=500), 500
 
 @analytics_bp.route('/api/metrics/realtime')
 @require_auth
@@ -218,6 +220,7 @@ def _get_business_metrics():
         total_bills = QueryCache.cached_count(Bill)
         
         # Calculate derived metrics
+        from sqlalchemy import func
         today = datetime.utcnow().date()
         today_scans = db.session.query(func.count(Scan.id)).filter(
             func.date(Scan.timestamp) == today
@@ -236,7 +239,16 @@ def _get_business_metrics():
         
     except Exception as e:
         logger.error(f"Failed to get business metrics: {e}")
-        return {}
+        return {
+            'total_bags': 0,
+            'parent_bags': 0,
+            'child_bags': 0,
+            'total_users': 0,
+            'total_scans': 0,
+            'total_bills': 0,
+            'today_scans': 0,
+            'link_rate': 0
+        }
 
 def _get_response_time_metrics(start_time):
     """Get response time metrics"""
