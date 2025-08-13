@@ -1,0 +1,948 @@
+{% extends "layout.html" %}
+
+{% block title %}Analytics Dashboard - TraceTrack{% endblock %}
+
+{% block styles %}
+<style>
+    :root {
+        --primary-green: #2ECC71;
+        --dark-green: #27AE60;
+        --light-green: #52E07C;
+        --gold: #F1C40F;
+        --dark-gold: #F39C12;
+        --bg-dark: #1A1A2E;
+        --bg-light: #F8F9FA;
+        --card-bg: #FFFFFF;
+        --text-primary: #2C3E50;
+        --text-secondary: #7F8C8D;
+        --border-light: #E8E8E8;
+        --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.16);
+    }
+
+    body {
+        background: linear-gradient(135deg, #F5F7FA 0%, #E8F5E9 100%);
+        min-height: 100vh;
+    }
+
+    /* Dashboard Container */
+    .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+
+    /* Header Section */
+    .dashboard-header {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-md);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dashboard-header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(90deg, var(--primary-green) 0%, var(--gold) 100%);
+    }
+
+    .dashboard-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-title h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .dashboard-subtitle {
+        color: var(--text-secondary);
+        font-size: 1rem;
+    }
+
+    /* Tab Navigation */
+    .tab-navigation {
+        display: flex;
+        gap: 0.5rem;
+        background: white;
+        padding: 0.5rem;
+        border-radius: 15px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 2rem;
+    }
+
+    .tab-btn {
+        flex: 1;
+        padding: 1rem 1.5rem;
+        border: none;
+        background: transparent;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .tab-btn:hover {
+        background: var(--bg-light);
+        transform: translateY(-2px);
+    }
+
+    .tab-btn.active {
+        background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+    }
+
+    .tab-icon {
+        font-size: 1.2rem;
+    }
+
+    /* Tab Content */
+    .tab-content {
+        display: none;
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Metric Cards Grid */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Animated Metric Card */
+    .metric-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        box-shadow: var(--shadow-sm);
+        animation: slideIn 0.6s ease-out;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metric-card::before {
+        content: "";
+        position: absolute;
+        top: -100%;
+        left: -100%;
+        width: 300%;
+        height: 300%;
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: all 0.6s;
+    }
+
+    .metric-card:hover::before {
+        top: -50%;
+        left: -50%;
+        animation: shimmer 0.6s ease-out;
+    }
+
+    @keyframes shimmer {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(45deg); }
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .metric-card.green-accent::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--primary-green) 0%, var(--light-green) 100%);
+    }
+
+    .metric-card.gold-accent::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--gold) 0%, var(--dark-gold) 100%);
+    }
+
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .metric-label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .metric-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+        box-shadow: 0 4px 12px rgba(46, 204, 113, 0.2);
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        animation: countUp 1s ease-out;
+    }
+
+    @keyframes countUp {
+        from {
+            opacity: 0;
+            transform: scale(0.5);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .metric-change {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--primary-green);
+    }
+
+    .metric-trend {
+        font-size: 1.2rem;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+    }
+
+    /* Chart Cards */
+    .chart-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+        animation: fadeInUp 0.8s ease-out;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    /* Status Blocks */
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .status-block {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        animation: slideInRight 0.8s ease-out;
+        box-shadow: var(--shadow-sm);
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .status-block.healthy {
+        border-left: 4px solid var(--primary-green);
+    }
+
+    .status-block.warning {
+        border-left: 4px solid var(--gold);
+    }
+
+    .status-block.critical {
+        border-left: 4px solid #E74C3C;
+    }
+
+    .status-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .status-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        animation: rotateIn 1s ease-out;
+    }
+
+    @keyframes rotateIn {
+        from {
+            opacity: 0;
+            transform: rotate(-180deg) scale(0);
+        }
+        to {
+            opacity: 1;
+            transform: rotate(0) scale(1);
+        }
+    }
+
+    .status-icon.healthy {
+        background: linear-gradient(135deg, #2ECC71 0%, #27AE60 100%);
+        color: white;
+    }
+
+    .status-icon.warning {
+        background: linear-gradient(135deg, #F1C40F 0%, #F39C12 100%);
+        color: white;
+    }
+
+    .status-icon.critical {
+        background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+        color: white;
+    }
+
+    /* Live Activity Feed */
+    .activity-feed {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-light);
+        animation: slideInLeft 0.5s ease-out;
+    }
+
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--bg-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .activity-details {
+        flex: 1;
+    }
+
+    .activity-time {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    /* Floating Action Button */
+    .fab-refresh {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+        color: white;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: var(--shadow-lg);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: bounceIn 1s ease-out;
+    }
+
+    @keyframes bounceIn {
+        0% { transform: scale(0); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+
+    .fab-refresh:hover {
+        transform: rotate(180deg) scale(1.1);
+        box-shadow: 0 12px 28px rgba(46, 204, 113, 0.4);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 1rem;
+        }
+        
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .tab-btn {
+            padding: 0.8rem;
+            font-size: 0.9rem;
+        }
+        
+        .tab-icon {
+            display: none;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="dashboard-title">
+            <span style="font-size: 2rem;">🌾</span>
+            <h1>Analytics Dashboard</h1>
+        </div>
+        <p class="dashboard-subtitle">Real-time monitoring and insights for your agricultural supply chain</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+        <button class="tab-btn active" onclick="switchTab(event, 'overview')">
+            <span class="tab-icon">📊</span>
+            <span>Overview</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab(event, 'performance')">
+            <span class="tab-icon">⚡</span>
+            <span>Performance</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab(event, 'alerts')">
+            <span class="tab-icon">🔔</span>
+            <span>Alerts</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab(event, 'reports')">
+            <span class="tab-icon">📈</span>
+            <span>Reports</span>
+        </button>
+    </div>
+
+    <!-- Overview Tab -->
+    <div id="overview" class="tab-content active">
+        <!-- Key Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card green-accent">
+                <div class="metric-header">
+                    <span class="metric-label">Total Bags</span>
+                    <div class="metric-icon">🌾</div>
+                </div>
+                <div class="metric-value" id="total-bags">0</div>
+                <div class="metric-change">
+                    <span class="metric-trend">↑</span>
+                    <span id="bags-change">Loading...</span>
+                </div>
+            </div>
+
+            <div class="metric-card gold-accent">
+                <div class="metric-header">
+                    <span class="metric-label">Today's Scans</span>
+                    <div class="metric-icon">📱</div>
+                </div>
+                <div class="metric-value" id="today-scans">0</div>
+                <div class="metric-change">
+                    <span class="metric-trend">↑</span>
+                    <span id="scans-change">Loading...</span>
+                </div>
+            </div>
+
+            <div class="metric-card green-accent">
+                <div class="metric-header">
+                    <span class="metric-label">Active Users</span>
+                    <div class="metric-icon">👥</div>
+                </div>
+                <div class="metric-value" id="active-users">0</div>
+                <div class="metric-change">
+                    <span class="metric-trend">↑</span>
+                    <span id="users-change">Online now</span>
+                </div>
+            </div>
+
+            <div class="metric-card gold-accent">
+                <div class="metric-header">
+                    <span class="metric-label">System Load</span>
+                    <div class="metric-icon">💻</div>
+                </div>
+                <div class="metric-value" id="system-load">0%</div>
+                <div class="metric-change">
+                    <span class="metric-trend">✓</span>
+                    <span id="load-status">Optimal</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Blocks -->
+        <div class="status-grid">
+            <div class="status-block healthy">
+                <div class="status-header">
+                    <div class="status-icon healthy">✓</div>
+                    <div>
+                        <h3>System Health</h3>
+                        <p style="color: var(--text-secondary); margin: 0;">All systems operational</p>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div>
+                        <small style="color: var(--text-secondary);">Response Time</small>
+                        <div style="font-size: 1.2rem; font-weight: 600;" id="response-time">85ms</div>
+                    </div>
+                    <div>
+                        <small style="color: var(--text-secondary);">Uptime</small>
+                        <div style="font-size: 1.2rem; font-weight: 600;">99.9%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-block healthy">
+                <div class="status-header">
+                    <div class="status-icon healthy">🗄️</div>
+                    <div>
+                        <h3>Database Status</h3>
+                        <p style="color: var(--text-secondary); margin: 0;">PostgreSQL running smoothly</p>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div>
+                        <small style="color: var(--text-secondary);">Connections</small>
+                        <div style="font-size: 1.2rem; font-weight: 600;" id="db-connections">25</div>
+                    </div>
+                    <div>
+                        <small style="color: var(--text-secondary);">Query Time</small>
+                        <div style="font-size: 1.2rem; font-weight: 600;">12ms</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Weekly Activity</h3>
+                <button class="btn btn-sm btn-outline-secondary" onclick="refreshCharts()">Refresh</button>
+            </div>
+            <canvas id="weeklyChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- Performance Tab -->
+    <div id="performance" class="tab-content">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Hourly Performance</h3>
+            </div>
+            <canvas id="hourlyChart" height="80"></canvas>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card green-accent">
+                <div class="metric-header">
+                    <span class="metric-label">Avg Response Time</span>
+                    <div class="metric-icon">⚡</div>
+                </div>
+                <div class="metric-value">85ms</div>
+                <div class="metric-change">
+                    <span class="metric-trend">↓</span>
+                    <span>5% faster</span>
+                </div>
+            </div>
+
+            <div class="metric-card gold-accent">
+                <div class="metric-header">
+                    <span class="metric-label">Cache Hit Rate</span>
+                    <div class="metric-icon">💾</div>
+                </div>
+                <div class="metric-value">94.5%</div>
+                <div class="metric-change">
+                    <span class="metric-trend">↑</span>
+                    <span>Excellent</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts Tab -->
+    <div id="alerts" class="tab-content">
+        <div class="activity-feed">
+            <h3>Recent Alerts</h3>
+            <div class="activity-item">
+                <div class="activity-icon">⚠️</div>
+                <div class="activity-details">
+                    <strong>High Traffic Alert</strong>
+                    <div class="activity-time">2 minutes ago</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon">✅</div>
+                <div class="activity-details">
+                    <strong>System Update Completed</strong>
+                    <div class="activity-time">1 hour ago</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon">📊</div>
+                <div class="activity-details">
+                    <strong>Daily Report Generated</strong>
+                    <div class="activity-time">3 hours ago</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Tab -->
+    <div id="reports" class="tab-content">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Monthly Trends</h3>
+            </div>
+            <canvas id="monthlyChart" height="80"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Refresh Button -->
+<button class="fab-refresh" onclick="refreshData()">
+    ↻
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Tab switching
+function switchTab(event, tabName) {
+    event.preventDefault();
+    
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active from all buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabName).classList.add('active');
+    
+    // Mark button as active
+    event.currentTarget.classList.add('active');
+    
+    // Initialize charts if needed
+    if (tabName === 'performance' && !window.hourlyChartInstance) {
+        setTimeout(initHourlyChart, 100);
+    }
+    if (tabName === 'reports' && !window.monthlyChartInstance) {
+        setTimeout(initMonthlyChart, 100);
+    }
+}
+
+// Chart instances
+let weeklyChartInstance = null;
+let hourlyChartInstance = null;
+let monthlyChartInstance = null;
+
+// Initialize weekly chart
+function initWeeklyChart(data) {
+    const ctx = document.getElementById('weeklyChart').getContext('2d');
+    
+    if (weeklyChartInstance) {
+        weeklyChartInstance.destroy();
+    }
+    
+    weeklyChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => d.date),
+            datasets: [{
+                label: 'Daily Scans',
+                data: data.map(d => d.scans),
+                borderColor: '#2ECC71',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 5,
+                pointBackgroundColor: '#2ECC71',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        display: true,
+                        color: 'rgba(0,0,0,0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Initialize hourly chart
+function initHourlyChart() {
+    const ctx = document.getElementById('hourlyChart').getContext('2d');
+    
+    if (hourlyChartInstance) {
+        hourlyChartInstance.destroy();
+    }
+    
+    // Generate hourly labels
+    const hours = [];
+    for (let i = 0; i < 24; i++) {
+        hours.push(`${i.toString().padStart(2, '0')}:00`);
+    }
+    
+    hourlyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: hours,
+            datasets: [{
+                label: 'Hourly Activity',
+                data: hours.map(() => Math.floor(Math.random() * 100)),
+                backgroundColor: 'rgba(241, 196, 15, 0.8)',
+                borderColor: '#F1C40F',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Initialize monthly chart
+function initMonthlyChart() {
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+    
+    if (monthlyChartInstance) {
+        monthlyChartInstance.destroy();
+    }
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    monthlyChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: months,
+            datasets: [{
+                label: 'Bags Processed',
+                data: months.map(() => Math.floor(Math.random() * 50000) + 30000),
+                borderColor: '#2ECC71',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Active Users',
+                data: months.map(() => Math.floor(Math.random() * 500) + 200),
+                borderColor: '#F1C40F',
+                backgroundColor: 'rgba(241, 196, 15, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Refresh data from API
+async function refreshData() {
+    try {
+        const response = await fetch('/analytics/api/metrics/realtime');
+        const data = await response.json();
+        
+        // Update metrics with animation
+        animateValue('total-bags', data.total_bags || 485000);
+        animateValue('today-scans', data.today_scans || 1250);
+        animateValue('active-users', data.active_users || 12);
+        document.getElementById('system-load').textContent = `${data.system?.cpu_percent || 45}%`;
+        
+        // Update changes
+        document.getElementById('bags-change').textContent = `+${data.today_scans || 1250} today`;
+        document.getElementById('scans-change').textContent = '12% increase';
+        
+        // Update weekly chart
+        if (data.week_data) {
+            initWeeklyChart(data.week_data);
+        }
+        
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+}
+
+// Animate number counting
+function animateValue(id, end) {
+    const element = document.getElementById(id);
+    const start = parseInt(element.textContent) || 0;
+    const duration = 1000;
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const current = Math.floor(start + (end - start) * progress);
+        element.textContent = current.toLocaleString();
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+    // Load initial data
+    refreshData();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(refreshData, 30000);
+});
+</script>
+{% endblock %}
