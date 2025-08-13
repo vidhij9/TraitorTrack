@@ -19,6 +19,7 @@ from email.mime.multipart import MIMEMultipart
 from flask import g, request, current_app
 from sqlalchemy import text, func
 from models import db, User, Bag, Scan, Bill
+from alert_config import alert_config
 
 logger = logging.getLogger(__name__)
 
@@ -190,9 +191,21 @@ class PerformanceMonitor:
         return severity_map.get(alert_type, 'info')
     
     def _send_alert_notification(self, alert):
-        """Send alert via email or webhook"""
-        # This would integrate with your notification system
-        # For now, just log it
+        """Send alert via email or webhook using alert_config"""
+        # Use the alert configuration system to send notifications
+        alert_type = alert['severity']
+        title = f"{alert['type'].replace('_', ' ').title()}"
+        message = f"Alert triggered at {alert['timestamp']}"
+        
+        # Add details to message
+        if alert['details']:
+            details_str = ", ".join([f"{k}: {v}" for k, v in alert['details'].items()])
+            message += f"\nDetails: {details_str}"
+        
+        # Send through configured channels
+        alert_config.send_alert(alert_type, title, message, alert['details'])
+        
+        # Also log it
         if alert['severity'] == 'critical':
             logger.critical(f"CRITICAL ALERT: {alert}")
         else:

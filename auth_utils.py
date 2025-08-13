@@ -19,7 +19,7 @@ def require_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not is_authenticated():
-            return redirect(url_for('login'))
+            return redirect('/login')
         return f(*args, **kwargs)
     return decorated_function
 
@@ -28,9 +28,9 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not is_authenticated():
-            return redirect(url_for('login'))
+            return redirect('/login')
         if not is_admin():
-            return redirect(url_for('index'))
+            return redirect('/')
         return f(*args, **kwargs)
     return decorated_function
 

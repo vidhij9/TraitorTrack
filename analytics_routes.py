@@ -4,12 +4,11 @@ Analytics and Monitoring Routes for Enterprise Dashboard
 
 import os
 import json
-from flask import Blueprint, render_template, jsonify, request, g
-from flask_login import login_required, current_user
+from flask import Blueprint, render_template, jsonify, request, g, session
 from datetime import datetime, timedelta
 from sqlalchemy import func, text
 from models import db, User, Bag, Scan, Bill
-from auth_utils import admin_required
+from auth_utils import admin_required, require_auth
 from performance_monitoring import monitor, DatabaseAnalytics, alert_manager
 from enterprise_cache import cache, QueryCache
 from database_scaling import db_scaler
@@ -34,7 +33,7 @@ def log_analytics_request(response):
     return response
 
 @analytics_bp.route('/dashboard')
-@login_required
+@require_auth
 @admin_required
 def dashboard():
     """Main analytics dashboard with real-time monitoring"""
@@ -59,7 +58,7 @@ def dashboard():
         return render_template('error.html', error="Failed to load analytics dashboard"), 500
 
 @analytics_bp.route('/api/metrics/realtime')
-@login_required
+@require_auth
 @admin_required
 def realtime_metrics():
     """API endpoint for real-time metrics updates"""
@@ -80,7 +79,7 @@ def realtime_metrics():
         return jsonify({'error': str(e)}), 500
 
 @analytics_bp.route('/api/metrics/performance')
-@login_required
+@require_auth
 @admin_required
 def performance_metrics():
     """Get detailed performance metrics"""
@@ -104,7 +103,7 @@ def performance_metrics():
         return jsonify({'error': str(e)}), 500
 
 @analytics_bp.route('/api/metrics/bags')
-@login_required
+@require_auth
 @admin_required
 @cache.cache('bag_metrics', ttl=300)
 def bag_metrics():
@@ -124,7 +123,7 @@ def bag_metrics():
         return jsonify({'error': str(e)}), 500
 
 @analytics_bp.route('/api/metrics/users')
-@login_required
+@require_auth
 @admin_required
 def user_metrics():
     """Get user activity and performance metrics"""
@@ -142,7 +141,7 @@ def user_metrics():
         return jsonify({'error': str(e)}), 500
 
 @analytics_bp.route('/api/alerts')
-@login_required
+@require_auth
 @admin_required
 def get_alerts():
     """Get system alerts"""
@@ -160,7 +159,7 @@ def get_alerts():
         return jsonify({'error': str(e)}), 500
 
 @analytics_bp.route('/api/alerts/acknowledge/<alert_id>', methods=['POST'])
-@login_required
+@require_auth
 @admin_required
 def acknowledge_alert(alert_id):
     """Acknowledge an alert"""
