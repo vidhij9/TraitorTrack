@@ -109,16 +109,30 @@
 
     .tab-content {
         display: none;
-        animation: fadeIn 0.3s;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
     }
 
     .tab-content.active {
         display: block;
+        opacity: 1;
+        animation: slideIn 0.4s ease-out;
+    }
+
+    @keyframes slideIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(20px); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0); 
+        }
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
 
     /* System Health Indicator */
@@ -203,24 +217,26 @@
     /* Metrics Cards Grid */
     .metrics-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.25rem;
         margin-bottom: 1.5rem;
     }
 
     .metric-card {
         background: white;
-        border-radius: 0.75rem;
-        padding: 1.25rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        transition: all 0.3s;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.12);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.05);
     }
 
     .metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1), 0 6px 6px rgba(0,0,0,0.1);
+        border-color: var(--agri-light-green);
     }
 
     .metric-card::before {
@@ -228,9 +244,9 @@
         position: absolute;
         top: 0;
         left: 0;
-        width: 4px;
-        height: 100%;
-        background: linear-gradient(135deg, var(--agri-green) 0%, var(--agri-light-green) 100%);
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--agri-green) 0%, var(--agri-light-green) 50%, var(--agri-gold) 100%);
     }
 
     .metric-card.warning::before { 
@@ -478,19 +494,19 @@
 
     <!-- Tab Navigation -->
     <div class="tab-navigation">
-        <button class="tab-btn active" onclick="switchTab('overview')">
+        <button class="tab-btn active" onclick="switchTab(event, 'overview')">
             <span class="tab-icon">📊</span>
             Overview
         </button>
-        <button class="tab-btn" onclick="switchTab('performance')">
+        <button class="tab-btn" onclick="switchTab(event, 'performance')">
             <span class="tab-icon">⚡</span>
             Performance
         </button>
-        <button class="tab-btn" onclick="switchTab('alerts')">
+        <button class="tab-btn" onclick="switchTab(event, 'alerts')">
             <span class="tab-icon">🔔</span>
             Alerts
         </button>
-        <button class="tab-btn" onclick="switchTab('reports')">
+        <button class="tab-btn" onclick="switchTab(event, 'reports')">
             <span class="tab-icon">📈</span>
             Reports
         </button>
@@ -743,10 +759,16 @@
 
 <script>
 // Tab switching with animation
-function switchTab(tabName) {
-    // Hide all tabs
+function switchTab(event, tabName) {
+    // Prevent default if event exists
+    if (event) {
+        event.preventDefault();
+    }
+    
+    // Hide all tabs with fade out
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
+        tab.style.display = 'none';
     });
     
     // Remove active from all buttons
@@ -754,19 +776,32 @@ function switchTab(tabName) {
         btn.classList.remove('active');
     });
     
-    // Show selected tab
-    document.getElementById(tabName).classList.add('active');
+    // Show selected tab with fade in
+    const selectedTab = document.getElementById(tabName);
+    if (selectedTab) {
+        setTimeout(() => {
+            selectedTab.style.display = 'block';
+            setTimeout(() => {
+                selectedTab.classList.add('active');
+            }, 10);
+        }, 10);
+    }
     
-    // Mark the correct button as active
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        if (btn.textContent.toLowerCase().includes(tabName)) {
-            btn.classList.add('active');
+    // Mark the clicked button as active
+    if (event && event.target) {
+        let button = event.target;
+        // Find the button element if clicked on icon or text
+        while (button && !button.classList.contains('tab-btn')) {
+            button = button.parentElement;
         }
-    });
+        if (button) {
+            button.classList.add('active');
+        }
+    }
     
     // Initialize charts if performance or reports tab
     if ((tabName === 'performance' || tabName === 'reports') && !window.chartsInitialized[tabName]) {
-        setTimeout(() => initCharts(tabName), 100);
+        setTimeout(() => initCharts(tabName), 200);
         window.chartsInitialized[tabName] = true;
     }
 }
@@ -1044,9 +1079,21 @@ function clearAlerts() {
 // Auto-refresh every 60 seconds
 setInterval(refreshData, 60000);
 
-// Initialize tooltips
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Add any initialization code here
+    // Ensure Overview tab is active on load
+    const overviewTab = document.getElementById('overview');
+    if (overviewTab) {
+        overviewTab.style.display = 'block';
+        overviewTab.style.opacity = '1';
+        overviewTab.classList.add('active');
+    }
+    
+    // Initialize any visible charts
+    const activeTabBtn = document.querySelector('.tab-btn.active');
+    if (activeTabBtn && activeTabBtn.textContent.includes('Overview')) {
+        // Overview tab is active, no charts to init
+    }
 });
 </script>
 {% endblock %}
