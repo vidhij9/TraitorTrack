@@ -1597,6 +1597,9 @@ def bag_management():
                     for key, value in data.items():
                         setattr(self, key, value)
                 
+                def get(self, key, default=None):
+                    return getattr(self, key, default)
+                
                 @property
                 def child_links(self):
                     # Return empty query for now - will be optimized later if needed
