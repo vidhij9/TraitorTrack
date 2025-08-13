@@ -12,6 +12,41 @@ import database_optimizer
 # Import all the main routes to ensure they're registered
 import routes
 
+# Import enterprise monitoring and optimization systems
+from performance_monitoring import monitor, alert_manager
+from enterprise_cache import cache, CacheWarmer
+from database_scaling import db_scaler
+from analytics_routes import analytics_bp
+
+# Register analytics blueprint
+app.register_blueprint(analytics_bp)
+
+# Initialize enterprise systems
+db_scaler.init_app(app)
+
+# Setup monitoring for all routes
+@app.before_request
+def before_request():
+    """Track all requests for monitoring"""
+    monitor.track_request(lambda: None)()
+
+# Warm cache on startup
+with app.app_context():
+    try:
+        cache.warm_cache()
+        CacheWarmer.warm_stats_cache()
+        logger.info("Cache warmed successfully")
+    except Exception as e:
+        logger.warning(f"Cache warming failed: {e}")
+    
+    # Setup database optimizations
+    try:
+        db_scaler.optimize_indexes()
+        db_scaler.setup_monitoring()
+        logger.info("Database optimizations applied")
+    except Exception as e:
+        logger.warning(f"Database optimization failed: {e}")
+
 # Emergency navigation route
 @app.route('/nav')
 def emergency_nav():

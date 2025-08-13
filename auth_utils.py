@@ -23,6 +23,17 @@ def require_auth(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def admin_required(f):
+    """Decorator to require admin role"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_authenticated():
+            return redirect(url_for('login'))
+        if not is_admin():
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def get_user_role():
     """Get current user role from session"""
     return session.get('user_role')
