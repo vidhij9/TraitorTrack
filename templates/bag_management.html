@@ -217,7 +217,7 @@ window.pageLoadStart = performance.now();
                         </tr>
                     </thead>
                     <tbody>
-                        {% for bag in bags %}
+                        {% for bag in bags.items %}
                         <tr>
                             <td>
                                 <div class="d-flex flex-column">
@@ -230,7 +230,7 @@ window.pageLoadStart = performance.now();
                                         {% endif %}
                                     </div>
                                     <small class="d-md-none text-muted mt-1">{{ bag.created_at.strftime('%m/%d') if bag.created_at else 'N/A' }}</small>
-                                    {% if bag.notes %}
+                                    {% if bag.get('notes') %}
                                     <small class="text-muted mt-1">{{ bag.notes[:30] }}{% if bag.notes|length > 30 %}...{% endif %}</small>
                                     {% endif %}
                                 </div>

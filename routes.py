@@ -1588,9 +1588,42 @@ def bag_management():
             dispatch_area=dispatch_area
         )
         
+        # Convert dictionary data back to Bag objects for template compatibility
+        bag_objects = []
+        for bag_dict in bags_data:
+            # Create a mock bag object with necessary properties
+            class MockBag:
+                def __init__(self, data):
+                    for key, value in data.items():
+                        setattr(self, key, value)
+                
+                @property
+                def child_links(self):
+                    # Return empty query for now - will be optimized later if needed
+                    class MockQuery:
+                        def count(self):
+                            return 0
+                    return MockQuery()
+                
+                @property
+                def parent_links(self):
+                    class MockQuery:
+                        def first(self):
+                            return None
+                    return MockQuery()
+                
+                @property
+                def bill_links(self):
+                    class MockQuery:
+                        def first(self):
+                            return None
+                    return MockQuery()
+            
+            bag_objects.append(MockBag(bag_dict))
+        
         # Create pagination object
         bags = OptimizedBagQueries.create_pagination_object(
-            bags_data, page, 20, total_filtered
+            bag_objects, page, 20, total_filtered
         )
         
         # Update filtered count in stats
