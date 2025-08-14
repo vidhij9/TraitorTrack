@@ -309,6 +309,9 @@ def inject_current_user():
         def is_biller(self):
             return self._is_authenticated and self.role == 'biller'
         
+        def is_dispatcher(self):
+            return self._is_authenticated and self.role == 'dispatcher'
+        
         def can_edit_bills(self):
             """Check if user can edit bills"""
             return self.is_admin() or self.is_biller()
