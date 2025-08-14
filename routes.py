@@ -2206,6 +2206,69 @@ def bag_details(qr_id):
                          is_parent=bag.type == BagType.PARENT.value,
                          link=bills[0] if bills else None)
 
+# User Profile Management
+@app.route('/profile')
+@login_required
+def user_profile():
+    """User profile page where users can view and edit their information"""
+    return render_template('user_profile.html', user=current_user)
+
+@app.route('/profile/edit', methods=['POST'])
+@login_required
+def edit_profile():
+    """Edit user profile - all users can edit their own profile"""
+    try:
+        # Get form data
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        current_password = request.form.get('current_password', '').strip()
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+        
+        # Validate username and email
+        if username and username != current_user.username:
+            # Check if username already exists
+            existing_user = User.query.filter(User.username == username, User.id != current_user.id).first()
+            if existing_user:
+                flash('Username already exists.', 'error')
+                return redirect(url_for('user_profile'))
+            current_user.username = username
+        
+        if email and email != current_user.email:
+            # Check if email already exists
+            existing_user = User.query.filter(User.email == email, User.id != current_user.id).first()
+            if existing_user:
+                flash('Email already exists.', 'error')
+                return redirect(url_for('user_profile'))
+            current_user.email = email
+        
+        # Handle password change
+        if new_password:
+            # Verify current password
+            if not current_password or not current_user.check_password(current_password):
+                flash('Current password is incorrect.', 'error')
+                return redirect(url_for('user_profile'))
+            
+            # Check password confirmation
+            if new_password != confirm_password:
+                flash('New passwords do not match.', 'error')
+                return redirect(url_for('user_profile'))
+            
+            # Set new password
+            current_user.set_password(new_password)
+            flash('Password changed successfully.', 'success')
+        
+        # Save changes
+        db.session.commit()
+        flash('Profile updated successfully.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Profile update error: {str(e)}')
+        flash('Failed to update profile. Please try again.', 'error')
+    
+    return redirect(url_for('user_profile'))
+
 # API endpoints for dashboard data
 @app.route('/api/stats')
 def api_dashboard_stats():

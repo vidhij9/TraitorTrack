@@ -121,7 +121,7 @@ class OptimizedBagQueries:
                     (SELECT COUNT(DISTINCT parent_bag_id) FROM link) as linked_parent_count,
                     (SELECT COUNT(DISTINCT child_bag_id) FROM link) as linked_child_count
                 FROM bag 
-                {where_clause.replace('filtered_bags', 'bag') if dispatch_area else ''}
+                {where_clause.replace('b.', '') if dispatch_area else ''}
             )
             SELECT 
                 fb.id, fb.qr_id, fb.type, fb.name, fb.dispatch_area, 

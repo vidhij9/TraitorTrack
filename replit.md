@@ -49,10 +49,10 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **API Layer**: Clean, optimized API endpoints with proper rate limiting, response caching, and unified search functionality.
 - **Code Quality**: Centralized utilities for better maintainability and reduced redundancy.
 - **Enterprise Monitoring & Alerting**: Comprehensive real-time monitoring system with ultra-compact analytics dashboard, automatic alerting via email/SMS/webhooks, performance tracking, system health monitoring, and detailed alerting configuration for 5+ million bags and 1000+ concurrent users. Dashboard optimized with tiny 60px charts, millisecond API response times, and minimal scrolling mobile design.
-- **User Hierarchy**: Three-tier system with optimized permission checking:
-    - **Admin**: Full system administration, user management, access to all data and performance monitoring.
-    - **Biller**: Bill creation/editing, access to all dispatch areas, optimized bulk operations.
-    - **Dispatcher**: Limited to assigned dispatch area with fast area-based filtering and optimized scanning workflows.
+- **User Hierarchy**: Three-tier system with clearly defined permissions:
+    - **Admin**: Full system administration - can do everything the website supports including user management, all data access, performance monitoring, and system configuration.
+    - **Biller**: Can do everything a dispatcher can PLUS view all bags from all locations (no area restrictions) and create/manage bills.
+    - **Dispatcher**: Can link bags, view bags (only from their assigned area/location), request admin assistance, change their password, and edit their profile.
 
 ## External Dependencies
 
