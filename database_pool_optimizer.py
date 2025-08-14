@@ -31,15 +31,15 @@ class DatabasePoolOptimizer:
         is_production = os.environ.get('ENVIRONMENT') == 'production'
         max_connections = int(os.environ.get('DB_MAX_CONNECTIONS', '100'))
         
-        # Configure pool based on expected load
+        # Configure pool based on expected load - reduced for better stability
         if is_production:
-            # Production: Use QueuePool with high limits
+            # Production: Use QueuePool with moderate limits
             pool_config = {
                 'poolclass': QueuePool,
-                'pool_size': 20,                # Base pool size
-                'max_overflow': 80,              # Additional connections when needed
-                'pool_timeout': 30,              # Wait up to 30 seconds for connection
-                'pool_recycle': 3600,           # Recycle connections after 1 hour
+                'pool_size': 5,                 # Reduced base pool size
+                'max_overflow': 10,              # Reduced overflow for stability
+                'pool_timeout': 10,              # Reduced timeout
+                'pool_recycle': 300,            # Recycle connections every 5 minutes
                 'pool_pre_ping': True,          # Test connections before use
                 'echo_pool': False,             # Don't log pool checkouts
             }
@@ -48,8 +48,8 @@ class DatabasePoolOptimizer:
             # Development: Use smaller pool
             pool_config = {
                 'poolclass': QueuePool,
-                'pool_size': 5,
-                'max_overflow': 10,
+                'pool_size': 3,
+                'max_overflow': 5,
                 'pool_timeout': 10,
                 'pool_recycle': 300,
                 'pool_pre_ping': True,
@@ -79,12 +79,9 @@ class DatabasePoolOptimizer:
         def set_connection_parameters(dbapi_conn, connection_record):
             """Set connection-level parameters for optimization"""
             with dbapi_conn.cursor() as cursor:
-                # Optimize for web application workload
-                cursor.execute("SET jit = off")  # Disable JIT for consistent performance
+                # Modest optimizations for web application workload
                 cursor.execute("SET random_page_cost = 1.1")  # Optimize for SSD
-                cursor.execute("SET effective_cache_size = '4GB'")
-                cursor.execute("SET work_mem = '16MB'")  # Per-operation memory
-                cursor.execute("SET maintenance_work_mem = '256MB'")
+                cursor.execute("SET work_mem = '4MB'")  # Reduced per-operation memory
                 
                 # Set connection info for monitoring
                 connection_record.info['pid'] = dbapi_conn.get_backend_pid()

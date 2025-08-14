@@ -218,32 +218,9 @@ class DatabaseScaler:
                     # Continue with other optimizations even if one fails
                     logger.warning(f"Index optimization warning: {e}")
             
-            # Configuration changes in separate transaction
-            try:
-                with self.write_session() as conn:
-                    config_queries = [
-                        "ALTER SYSTEM SET shared_buffers = '2GB'",
-                        "ALTER SYSTEM SET effective_cache_size = '6GB'",
-                        "ALTER SYSTEM SET maintenance_work_mem = '512MB'",
-                        "ALTER SYSTEM SET work_mem = '64MB'",
-                        "ALTER SYSTEM SET max_connections = 500",
-                        "ALTER SYSTEM SET random_page_cost = 1.1",
-                        "ALTER SYSTEM SET effective_io_concurrency = 200",
-                        "ALTER SYSTEM SET max_parallel_workers_per_gather = 4",
-                        "ALTER SYSTEM SET max_parallel_workers = 8"
-                    ]
-                    
-                    for config_query in config_queries:
-                        try:
-                            conn.execute(text(config_query))
-                        except Exception as e:
-                            logger.warning(f"Config optimization warning: {e}")
-                    
-                    conn.commit()
-                    logger.info("Database indexes and configuration optimized")
-                    
-            except Exception as e:
-                logger.warning(f"Failed to set database configuration: {e}")
+            # Configuration changes removed - ALTER SYSTEM requires superuser privileges
+            # and these aggressive settings were causing performance issues
+            logger.info("Database indexes optimized (configuration changes skipped)")
                 
         except Exception as e:
             logger.error(f"Failed to optimize indexes: {e}")

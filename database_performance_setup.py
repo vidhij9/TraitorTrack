@@ -94,48 +94,21 @@ def create_ultra_fast_indexes():
         return False
 
 def optimize_postgresql_for_scale():
-    """Configure PostgreSQL for handling 4+ lakh bags efficiently"""
+    """Configure PostgreSQL session settings for better performance"""
     try:
-        # High-performance settings for large scale operations
+        # Moderate session-level settings for better performance
         scale_optimizations = [
-            # Memory and connection optimization
-            "SET max_connections = 300",
-            "SET shared_buffers = '512MB'",
-            "SET effective_cache_size = '2GB'",
-            "SET maintenance_work_mem = '128MB'",
-            "SET work_mem = '8MB'",
-            
-            # Query optimization
+            # Session-level query optimization (these don't require superuser)
+            "SET work_mem = '4MB'",
             "SET random_page_cost = 1.1",
-            "SET effective_io_concurrency = 300", 
-            "SET default_statistics_target = 500",
             
-            # Write optimization
-            "SET wal_buffers = '32MB'",
-            "SET checkpoint_completion_target = 0.9",
-            "SET checkpoint_timeout = '15min'",
-            "SET max_wal_size = '4GB'",
-            "SET min_wal_size = '1GB'",
-            
-            # Vacuum and autovacuum optimization
-            "SET autovacuum_max_workers = 6",
-            "SET autovacuum_naptime = '30s'",
-            "SET autovacuum_vacuum_scale_factor = 0.1",
-            "SET autovacuum_analyze_scale_factor = 0.05",
-            
-            # Advanced query optimization
+            # Enable query optimizations
             "SET enable_seqscan = on",
             "SET enable_indexscan = on", 
             "SET enable_bitmapscan = on",
             "SET enable_hashjoin = on",
             "SET enable_mergejoin = on",
             "SET enable_nestloop = on",
-            
-            # Parallel processing
-            "SET max_parallel_workers_per_gather = 4",
-            "SET max_parallel_workers = 8",
-            "SET parallel_tuple_cost = 0.1",
-            "SET parallel_setup_cost = 1000.0",
         ]
         
         for setting in scale_optimizations:
@@ -146,7 +119,7 @@ def optimize_postgresql_for_scale():
                 logger.warning(f"Scale optimization not applied: {setting} - {str(e)}")
         
         db.session.commit()
-        logger.info("PostgreSQL scale optimization completed")
+        logger.info("PostgreSQL session optimization completed")
         return True
         
     except Exception as e:

@@ -95,7 +95,21 @@ class OptimizedBagQueries:
             WITH filtered_bags AS (
                 SELECT b.*, 
                        ROW_NUMBER() OVER (ORDER BY b.created_at DESC) as row_num,
-                       COUNT(*) OVER() as total_filtered
+                       COUNT(*) OVER() as total_filtered,
+                       -- Add link counts for each bag
+                       CASE 
+                           WHEN b.type = 'parent' THEN (SELECT COUNT(*) FROM link l WHERE l.parent_bag_id = b.id)
+                           ELSE 0
+                       END as linked_children_count,
+                       CASE 
+                           WHEN b.type = 'child' THEN (SELECT parent_bag_id FROM link l WHERE l.child_bag_id = b.id LIMIT 1)
+                           ELSE NULL
+                       END as linked_parent_id,
+                       -- Get bill info
+                       CASE 
+                           WHEN b.type = 'parent' THEN (SELECT bb.bill_id FROM bill_bag bb WHERE bb.bag_id = b.id LIMIT 1)
+                           ELSE NULL
+                       END as bill_id
                 FROM bag b
                 {where_clause}
             ),
@@ -112,7 +126,7 @@ class OptimizedBagQueries:
             SELECT 
                 fb.id, fb.qr_id, fb.type, fb.name, fb.dispatch_area, 
                 fb.created_at, fb.updated_at, fb.child_count, fb.parent_id,
-                fb.total_filtered,
+                fb.total_filtered, fb.linked_children_count, fb.linked_parent_id, fb.bill_id,
                 sd.total_bags, sd.parent_bags, sd.child_bags, 
                 sd.linked_parent_count, sd.linked_child_count
             FROM filtered_bags fb
@@ -173,7 +187,10 @@ class OptimizedBagQueries:
                     'created_at': row.created_at,
                     'updated_at': row.updated_at,
                     'child_count': row.child_count,
-                    'parent_id': row.parent_id
+                    'parent_id': row.parent_id,
+                    'linked_children_count': row.linked_children_count,
+                    'linked_parent_id': row.linked_parent_id,
+                    'bill_id': row.bill_id
                 }
                 bags_data.append(bag_dict)
             

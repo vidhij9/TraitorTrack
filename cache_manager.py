@@ -143,14 +143,13 @@ class ConnectionPoolOptimizer:
     def optimize_query_performance():
         """Apply PostgreSQL-specific optimizations"""
         from app_clean import db
+        from sqlalchemy import text
         
         try:
             # Set session-level optimizations for faster queries
             optimizations = [
-                "SET work_mem = '16MB'",  # More memory for sorting/hashing
-                "SET random_page_cost = 1.1",  # Assume faster storage
-                "SET effective_cache_size = '256MB'",  # Available cache
-                "SET shared_preload_libraries = 'pg_stat_statements'",  # Query stats
+                text("SET work_mem = '4MB'"),  # Reduced memory for stability
+                text("SET random_page_cost = 1.1"),  # Assume faster storage
             ]
             
             for opt in optimizations:
@@ -158,7 +157,7 @@ class ConnectionPoolOptimizer:
                     db.session.execute(opt)
                 except Exception as e:
                     # Some settings might not be changeable at session level
-                    logger.debug(f"Could not apply optimization '{opt}': {e}")
+                    logger.debug(f"Could not apply optimization: {e}")
             
             db.session.commit()
             logger.info("Applied database performance optimizations")

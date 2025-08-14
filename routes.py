@@ -1576,31 +1576,58 @@ def bag_management():
                 def __init__(self, data):
                     for key, value in data.items():
                         setattr(self, key, value)
+                    # Store link counts from the optimized query
+                    self._linked_children_count = data.get('linked_children_count', 0)
+                    self._linked_parent_id = data.get('linked_parent_id')
+                    self._bill_id = data.get('bill_id')
                 
                 def get(self, key, default=None):
                     return getattr(self, key, default)
                 
                 @property
                 def child_links(self):
-                    # Return empty query for now - will be optimized later if needed
+                    # Return a mock query with the actual count from the database
                     class MockQuery:
+                        def __init__(self, count):
+                            self._count = count
                         def count(self):
-                            return 0
-                    return MockQuery()
+                            return self._count
+                    return MockQuery(self._linked_children_count)
                 
                 @property
                 def parent_links(self):
+                    # Return mock query with parent link info
                     class MockQuery:
+                        def __init__(self, parent_id):
+                            self._parent_id = parent_id
                         def first(self):
+                            if self._parent_id:
+                                # Create a mock parent link
+                                class MockLink:
+                                    def __init__(self, parent_id):
+                                        # Get parent bag from database
+                                        from models import Bag
+                                        self.parent_bag = Bag.query.get(parent_id)
+                                return MockLink(self._parent_id)
                             return None
-                    return MockQuery()
+                    return MockQuery(self._linked_parent_id)
                 
                 @property
                 def bill_links(self):
+                    # Return mock query with bill link info  
                     class MockQuery:
+                        def __init__(self, bill_id):
+                            self._bill_id = bill_id
                         def first(self):
+                            if self._bill_id:
+                                # Create a mock bill link
+                                class MockBillLink:
+                                    def __init__(self, bill_id):
+                                        from models import Bill
+                                        self.bill = Bill.query.get(bill_id)
+                                return MockBillLink(self._bill_id)
                             return None
-                    return MockQuery()
+                    return MockQuery(self._bill_id)
             
             bag_objects.append(MockBag(bag_dict))
         

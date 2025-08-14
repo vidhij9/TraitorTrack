@@ -17,8 +17,13 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Authentication**: Centralized authentication utilities with unified current user object.
 - **API Design**: Ultra-fast RESTful endpoints with sub-10ms response times.
 - **Caching**: Multi-layer caching system (Redis + in-memory) with intelligent TTL management.
-- **Performance**: Sub-10ms API response times with enterprise-grade connection pooling (100+ connections).
+- **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
 - **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
+- **Recent Optimizations (August 14, 2025)**:
+  - Fixed parent bag linked count display in bag management
+  - Reduced aggressive database connection pooling (from 250 to 30 connections)
+  - Simplified database configuration settings for better stability
+  - Enhanced optimized query to include child/parent link counts
 
 ### Frontend Architecture
 - **UI Framework**: Bootstrap 5 with a responsive, mobile-first design.
