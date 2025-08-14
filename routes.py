@@ -2146,7 +2146,7 @@ def process_bill_parent_scan():
         response_data = {
             'success': True, 
             'message': f'Parent bag {qr_id} linked successfully!',
-            'parent_qr': qr_id,
+            'bag_qr': qr_id,  # Changed from parent_qr to bag_qr for consistency
             'linked_count': updated_bag_count,
             'expected_count': bill.parent_bag_count or 10,
             'remaining_bags': (bill.parent_bag_count or 10) - updated_bag_count
