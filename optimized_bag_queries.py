@@ -142,6 +142,8 @@ class OptimizedBagQueries:
         })
         
         try:
+            # Ensure clean transaction state
+            db.session.rollback()  # Clear any existing failed transactions
             result = db.session.execute(optimized_query, params).fetchall()
             
             if not result:
@@ -201,7 +203,18 @@ class OptimizedBagQueries:
             
         except Exception as e:
             logger.error(f"Optimized bag query failed: {str(e)}")
-            raise
+            # Ensure transaction is rolled back on error
+            db.session.rollback()
+            # Return safe defaults instead of raising
+            empty_stats = {
+                'total_bags': 0,
+                'parent_bags': 0,
+                'child_bags': 0,
+                'linked_bags': 0,
+                'unlinked_bags': 0,
+                'filtered_count': 0
+            }
+            return [], empty_stats, 0
     
     @staticmethod
     def create_pagination_object(bags_data, page, per_page, total_count):

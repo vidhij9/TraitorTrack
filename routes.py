@@ -1549,10 +1549,13 @@ def bag_management():
         except ValueError:
             date_error = "Invalid date format"
     
-    # Area-based filtering for dispatchers
+    # Area-based filtering for dispatchers ONLY (not for billers or admins)
     dispatch_area = None
     if current_user.is_dispatcher() and current_user.dispatch_area:
         dispatch_area = current_user.dispatch_area
+    # Explicitly ensure billers and admins don't get area filtering
+    elif current_user.is_biller() or current_user.is_admin():
+        dispatch_area = None
     
     try:
         # Use ultra-optimized query for lightning-fast results
