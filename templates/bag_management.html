@@ -319,6 +319,53 @@ function exportData(format) {
 
 // Manual filter submission for better performance
 document.addEventListener('DOMContentLoaded', function() {
+    // Track if page needs refresh
+    let lastUpdateTime = Date.now();
+    let isPageHidden = false;
+    
+    // Listen for page visibility changes
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            isPageHidden = true;
+        } else if (isPageHidden) {
+            // Page became visible after being hidden
+            isPageHidden = false;
+            const timeSinceUpdate = Date.now() - lastUpdateTime;
+            
+            // If more than 30 seconds have passed, check for updates
+            if (timeSinceUpdate > 30000) {
+                checkForUpdates();
+            }
+        }
+    });
+    
+    // Check for updates when returning to the page
+    async function checkForUpdates() {
+        try {
+            const response = await fetch('/api/v2/stats');
+            const data = await response.json();
+            
+            if (data.success) {
+                // Compare current stats with page stats
+                const currentStatsElement = document.querySelector('.text-muted small');
+                if (currentStatsElement) {
+                    const currentText = currentStatsElement.textContent;
+                    const newText = `${data.stats.total_bags} total • ${data.stats.parent_bags} parent • ${data.stats.child_bags} child`;
+                    
+                    // If stats have changed, show notification
+                    if (!currentText.includes(data.stats.total_bags.toString())) {
+                        showAlert('info', 'Page data has been updated. The statistics have been refreshed.');
+                        await updateBagStats();
+                    }
+                }
+                
+                lastUpdateTime = Date.now();
+            }
+        } catch (error) {
+            console.error('Error checking for updates:', error);
+        }
+    }
+    
     const dateFromInput = document.getElementById('date_from');
     const dateToInput = document.getElementById('date_to');
     
@@ -379,6 +426,36 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
     });
     
+    // Function to update stats after bag changes
+    async function updateBagStats() {
+        try {
+            const response = await fetch('/api/v2/stats');
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update top stats
+                const statsContainer = document.querySelector('.text-muted small');
+                if (statsContainer) {
+                    statsContainer.innerHTML = `
+                        <strong>${data.stats.total_bags}</strong> total • 
+                        <span class="text-info"><strong>${data.stats.parent_bags}</strong> parent</span> • 
+                        <span class="text-success"><strong>${data.stats.child_bags}</strong> child</span>
+                    `;
+                }
+                
+                // Update filtered count badge
+                const filteredBadge = document.querySelector('.badge.bg-secondary.ms-2');
+                if (filteredBadge) {
+                    // Count visible rows in the table
+                    const visibleRows = document.querySelectorAll('tbody tr').length;
+                    filteredBadge.textContent = `${visibleRows} found`;
+                }
+            }
+        } catch (error) {
+            console.error('Error updating stats:', error);
+        }
+    }
+
     // Handle delete bag button clicks
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('delete-bag-btn') || e.target.parentElement.classList.contains('delete-bag-btn')) {
@@ -392,6 +469,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (confirm(confirmMessage)) {
+                // Disable button to prevent double-click
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
                 // Send delete request
                 fetch('/api/delete-bag', {
                     method: 'POST',
@@ -401,19 +482,50 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token={{ csrf_token() }}`
                 })
                 .then(response => response.json())
-                .then(data => {
+                .then(async data => {
                     if (data.success) {
-                        // Remove the row from table
+                        // Remove the row from table with animation
                         const row = button.closest('tr');
-                        row.remove();
+                        row.style.transition = 'opacity 0.3s';
+                        row.style.opacity = '0';
+                        
+                        setTimeout(() => {
+                            row.remove();
+                            
+                            // Check if table is now empty
+                            const remainingRows = document.querySelectorAll('tbody tr').length;
+                            if (remainingRows === 0) {
+                                // Show empty state
+                                const tableContainer = document.querySelector('.table-responsive') || document.querySelector('table').parentElement;
+                                tableContainer.innerHTML = `
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No bags found</h5>
+                                        <p class="text-muted">Try adjusting your filters or scanning new bags.</p>
+                                        <a href="{{ url_for('scan_parent') }}" class="btn btn-primary">
+                                            <i class="fas fa-plus me-2"></i>Scan New Bags
+                                        </a>
+                                    </div>
+                                `;
+                            }
+                        }, 300);
+                        
+                        // Update statistics
+                        await updateBagStats();
                         
                         // Show success message
                         showAlert('success', data.message);
                     } else {
+                        // Re-enable button on error
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>';
                         showAlert('danger', data.message);
                     }
                 })
                 .catch(error => {
+                    // Re-enable button on error
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>';
                     showAlert('danger', 'Error deleting bag');
                 });
             }
@@ -581,20 +693,86 @@ function saveChildrenChanges() {
         body: submitData
     })
     .then(response => response.json())
-    .then(data => {
+    .then(async data => {
         if (data.success) {
             showAlert('success', data.message);
             bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
-            // Refresh the page to show updated data
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            
+            // Update the specific row for this parent bag
+            updateParentBagRow(parentQr, childQrs.length);
+            
+            // Update statistics
+            await updateBagStats();
         } else {
             showAlert('danger', data.message);
         }
     })
     .catch(error => {
         showAlert('danger', 'Error updating children');
+    });
+}
+
+function updateParentBagRow(parentQr, childCount) {
+    // Find the row for this parent bag
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const qrCell = row.querySelector('td:first-child strong');
+        if (qrCell && qrCell.textContent === parentQr) {
+            // Update the status column (3rd column)
+            const statusCell = row.querySelectorAll('td')[2];
+            if (statusCell) {
+                if (childCount > 0) {
+                    statusCell.innerHTML = `
+                        <span class="badge bg-success">Linked</span>
+                        <br><small class="text-muted">${childCount} child${childCount > 1 ? 'ren' : ''}</small>
+                    `;
+                } else {
+                    statusCell.innerHTML = `
+                        <span class="badge bg-danger">Unlinked</span>
+                        <br><small class="text-muted">0 children</small>
+                    `;
+                }
+                
+                // Add a highlight effect to show the row was updated
+                row.style.transition = 'background-color 0.3s';
+                row.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    row.style.backgroundColor = '';
+                }, 1500);
+            }
+        }
+    });
+}
+
+function updateParentBagRow(parentQr, childCount) {
+    // Find the row for this parent bag
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const qrCell = row.querySelector('td:first-child strong');
+        if (qrCell && qrCell.textContent === parentQr) {
+            // Update the status column (3rd column)
+            const statusCell = row.querySelectorAll('td')[2];
+            if (statusCell) {
+                if (childCount > 0) {
+                    statusCell.innerHTML = `
+                        <span class="badge bg-success">Linked</span>
+                        <br><small class="text-muted">${childCount} child${childCount > 1 ? 'ren' : ''}</small>
+                    `;
+                } else {
+                    statusCell.innerHTML = `
+                        <span class="badge bg-danger">Unlinked</span>
+                        <br><small class="text-muted">0 children</small>
+                    `;
+                }
+                
+                // Add a highlight effect to show the row was updated
+                row.style.transition = 'background-color 0.3s';
+                row.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    row.style.backgroundColor = '';
+                }, 1500);
+            }
+        }
     });
 }
 

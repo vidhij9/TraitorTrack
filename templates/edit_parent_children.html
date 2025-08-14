@@ -437,9 +437,27 @@ function saveChanges() {
     .then(data => {
         if (data.success) {
             showAlert('success', 'Parent bag children updated successfully!');
+            
+            // Update the current state
+            currentChildren = finalChildren;
+            childrenToRemove = [];
+            childrenToAdd = [];
+            
+            // Refresh the current children display
+            refreshCurrentChildrenDisplay();
+            
+            // Clear the new children section
+            document.getElementById('new-children').innerHTML = '';
+            
+            // Reset manual input
+            document.getElementById('manual-qr-input').value = '';
+            
+            // Show option to go back or continue editing
             setTimeout(() => {
-                window.location.href = "{{ url_for('bag_details', qr_id=parent_qr|urlencode) }}";
-            }, 1500);
+                if (confirm('Changes saved successfully! Would you like to return to the bag details page?')) {
+                    window.location.href = "{{ url_for('bag_details', qr_id=parent_qr|urlencode) }}";
+                }
+            }, 500);
         } else {
             showAlert('danger', data.message || 'Error updating children');
         }
@@ -448,6 +466,32 @@ function saveChanges() {
         showAlert('danger', 'Error saving changes');
         console.error('Error:', error);
     });
+}
+
+function refreshCurrentChildrenDisplay() {
+    const container = document.getElementById('current-children');
+    
+    if (currentChildren.length === 0) {
+        container.innerHTML = '<p class="text-muted">No child bags currently linked.</p>';
+    } else {
+        container.innerHTML = currentChildren.map(child => `
+            <div class="child-item" data-qr="${child}">
+                <div>
+                    <code>${child}</code>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-child-btn" data-qr="${child}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `).join('');
+        
+        // Re-attach event listeners for remove buttons
+        container.querySelectorAll('.remove-child-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                removeChild(this.dataset.qr);
+            });
+        });
+    }
 }
 
 function showAlert(type, message) {
