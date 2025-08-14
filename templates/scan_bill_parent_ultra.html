@@ -1,0 +1,597 @@
+{% extends "layout.html" %}
+{% block title %}Link Parent Bags to Bill - Ultra Scanner{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Bill Info Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-invoice me-2"></i>Bill #{{ bill.bill_id }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Bill ID:</strong> {{ bill.bill_id }}</p>
+                            <p class="mb-2"><strong>Description:</strong> {{ bill.description or 'No description' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Target Capacity:</strong> <span id="capacity-value">{{ bill.parent_bag_count }}</span> parent bags</p>
+                            <p class="mb-2"><strong>Created:</strong> {{ bill.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Capacity Change -->
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleCapacityEdit()">
+                            <i class="fas fa-edit me-1"></i>Change Capacity
+                        </button>
+                        <div id="capacity-edit" class="mt-2" style="display: none;">
+                            <div class="input-group" style="max-width: 300px;">
+                                <input type="number" id="new-capacity" class="form-control" value="{{ bill.parent_bag_count }}" min="1" max="1000">
+                                <button class="btn btn-success" onclick="updateCapacity()">Update</button>
+                                <button class="btn btn-secondary" onclick="toggleCapacityEdit()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scanner and Results Row -->
+            <div class="row">
+                <!-- Scanner Column -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-qrcode me-2"></i>Ultra QR Scanner
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="ultra-scanner-container" class="ultra-scanner-main">
+                                <!-- Ultra QR Scanner will be initialized here -->
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="scanner-controls">
+                                <button id="start-camera" class="btn btn-success">
+                                    <i class="fas fa-play me-2"></i>Start Scanner
+                                </button>
+                                <button id="stop-camera" class="btn btn-secondary" disabled>
+                                    <i class="fas fa-stop me-2"></i>Stop Scanner
+                                </button>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>World's fastest scanner with multi-engine detection
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Messages -->
+                    <div id="result-container" class="alert alert-info mt-3" style="display: none;">
+                        <i class="fas fa-info-circle me-2"></i>Initializing scanner...
+                    </div>
+                </div>
+
+                <!-- Linked Bags Column -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-link me-2"></i>Linked Parent Bags
+                            </h5>
+                            <span class="badge bg-white text-dark">
+                                <span id="bag-count">{{ linked_bags|length }}</span> / <span id="max-count">{{ bill.parent_bag_count }}</span>
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <!-- Progress Bar -->
+                            <div class="mb-3">
+                                <div class="progress" style="height: 25px;">
+                                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" 
+                                         style="width: {{ (linked_bags|length / bill.parent_bag_count * 100)|round }}%">
+                                        <span id="progress-text">{{ (linked_bags|length / bill.parent_bag_count * 100)|round }}%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Linked Bags List -->
+                            <div id="linked-bags-list" style="max-height: 400px; overflow-y: auto;">
+                                {% for bag in linked_bags %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center mb-2" data-qr="{{ bag.qr_id }}">
+                                    <div>
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        <strong>{{ bag.qr_id }}</strong>
+                                        <br>
+                                        <small class="text-muted">Linked {{ bag.created_at.strftime('%H:%M') }}</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="removeBag('{{ bag.qr_id }}')">
+                                        <i class="fas fa-unlink me-1"></i>Unlink
+                                    </button>
+                                </div>
+                                {% endfor %}
+                                <div id="bags-list-placeholder" {% if linked_bags %}style="display: none;"{% endif %}>
+                                    <p class="text-muted text-center">No parent bags linked yet. Start scanning!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-3 d-flex justify-content-between">
+                        <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-eye me-2"></i>View Bill
+                        </a>
+                        <a href="{{ url_for('bill_management') }}" class="btn btn-primary">
+                            <i class="fas fa-list me-2"></i>All Bills
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notifications -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="scan-toast" class="toast align-items-center border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                Message
+            </div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Ultra Scanner Styles */
+.ultra-scanner-main {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#video-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#canvas-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Scanner overlay with scanning area */
+#scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.scanning-area {
+    width: 250px;
+    height: 250px;
+    border: 3px solid #00ff00;
+    border-radius: 12px;
+    position: relative;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { border-color: #00ff00; box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }
+    50% { border-color: #00ff00; box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
+    100% { border-color: #00ff00; box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+}
+
+/* Scanner controls */
+.scanner-controls {
+    display: flex;
+    gap: 10px;
+}
+
+/* Toast styles */
+.toast {
+    min-width: 300px;
+}
+
+.toast.bg-success {
+    background-color: #198754 !important;
+    color: white;
+}
+
+.toast.bg-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.toast.bg-warning {
+    background-color: #ffc107 !important;
+    color: black;
+}
+
+.toast.bg-info {
+    background-color: #0dcaf0 !important;
+    color: black;
+}
+
+/* Progress bar animation */
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* List item animations */
+.list-group-item {
+    animation: slideIn 0.3s ease;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .ultra-scanner-main {
+        min-height: 300px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/qr-scanner.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let scanner = null;
+    let isScanning = false;
+    let processedCodes = new Set();
+    let lastScanTime = 0;
+    const SCAN_COOLDOWN = 1500; // 1.5 seconds between scans
+    
+    // UI Elements
+    const startBtn = document.getElementById('start-camera');
+    const stopBtn = document.getElementById('stop-camera');
+    const resultContainer = document.getElementById('result-container');
+    const bagCount = document.getElementById('bag-count');
+    const maxCount = document.getElementById('max-count');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    
+    // Show toast notification
+    function showToast(message, type = 'success', duration = 3000) {
+        const toast = document.getElementById('scan-toast');
+        const toastMessage = document.getElementById('toast-message');
+        
+        // Update toast style
+        toast.className = `toast align-items-center border-0 bg-${type}`;
+        
+        // Set message with icon
+        let icon = 'check-circle';
+        if (type === 'danger') icon = 'exclamation-circle';
+        else if (type === 'warning') icon = 'exclamation-triangle';
+        else if (type === 'info') icon = 'info-circle';
+        
+        toastMessage.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+        
+        // Show toast
+        const bsToast = new bootstrap.Toast(toast, { delay: duration });
+        bsToast.show();
+    }
+    
+    // Show status message
+    function showStatus(message, type = 'info') {
+        resultContainer.className = `alert alert-${type} mt-3`;
+        resultContainer.innerHTML = message;
+        resultContainer.style.display = 'block';
+    }
+    
+    // Process QR code scan
+    async function processScan(qrCode) {
+        const now = Date.now();
+        
+        // Check cooldown
+        if (now - lastScanTime < SCAN_COOLDOWN) {
+            return;
+        }
+        
+        // Check if already processed recently
+        if (processedCodes.has(qrCode)) {
+            return;
+        }
+        
+        lastScanTime = now;
+        processedCodes.add(qrCode);
+        
+        // Remove from processed codes after cooldown
+        setTimeout(() => {
+            processedCodes.delete(qrCode);
+        }, SCAN_COOLDOWN);
+        
+        try {
+            const response = await fetch('/process_bill_parent_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `bill_id={{ bill.id }}&qr_code=${encodeURIComponent(qrCode)}`
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Success feedback
+                showToast(data.message, 'success', 3000);
+                addBagToList(qrCode);
+                updateProgress();
+                
+                // Visual feedback
+                flashScannerBorder('success');
+            } else {
+                // Error feedback with appropriate duration
+                let toastType = 'danger';
+                let duration = 4000;
+                
+                if (data.message.includes('already linked to this bill')) {
+                    toastType = 'info';
+                    duration = 3000;
+                } else if (data.message.includes('already linked to different bill')) {
+                    toastType = 'warning';
+                    duration = 5000;
+                } else if (data.message.includes('not registered')) {
+                    toastType = 'danger';
+                    duration = 5000;
+                }
+                
+                showToast(data.message, toastType, duration);
+                flashScannerBorder('error');
+            }
+        } catch (error) {
+            console.error('Error processing scan:', error);
+            showToast('Network error. Please try again.', 'danger', 3000);
+        }
+    }
+    
+    // Add bag to list UI
+    function addBagToList(qrCode) {
+        // Hide placeholder
+        const placeholder = document.getElementById('bags-list-placeholder');
+        if (placeholder) {
+            placeholder.style.display = 'none';
+        }
+        
+        // Check if already in list
+        if (document.querySelector(`[data-qr="${qrCode}"]`)) {
+            return;
+        }
+        
+        // Create new list item
+        const listContainer = document.getElementById('linked-bags-list');
+        const newItem = document.createElement('div');
+        newItem.className = 'list-group-item d-flex justify-content-between align-items-center mb-2';
+        newItem.setAttribute('data-qr', qrCode);
+        
+        const now = new Date();
+        newItem.innerHTML = `
+            <div>
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <strong>${qrCode}</strong>
+                <br>
+                <small class="text-muted">Linked ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}</small>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeBag('${qrCode}')">
+                <i class="fas fa-unlink me-1"></i>Unlink
+            </button>
+        `;
+        
+        // Insert at top of list
+        listContainer.insertBefore(newItem, listContainer.firstChild);
+        
+        // Update count
+        const currentCount = parseInt(bagCount.textContent) + 1;
+        bagCount.textContent = currentCount;
+    }
+    
+    // Update progress bar
+    function updateProgress() {
+        const current = parseInt(bagCount.textContent);
+        const max = parseInt(maxCount.textContent);
+        const percentage = Math.round((current / max) * 100);
+        
+        progressBar.style.width = percentage + '%';
+        progressText.textContent = percentage + '%';
+        
+        // Change color based on progress
+        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+        if (percentage >= 100) {
+            progressBar.classList.add('bg-success');
+        } else if (percentage >= 75) {
+            progressBar.classList.add('bg-info');
+        } else if (percentage >= 50) {
+            progressBar.classList.add('bg-warning');
+        }
+    }
+    
+    // Flash scanner border for feedback
+    function flashScannerBorder(type) {
+        const scannerContainer = document.getElementById('ultra-scanner-container');
+        const originalStyle = scannerContainer.style.border;
+        
+        if (type === 'success') {
+            scannerContainer.style.border = '3px solid #00ff00';
+        } else {
+            scannerContainer.style.border = '3px solid #ff0000';
+        }
+        
+        setTimeout(() => {
+            scannerContainer.style.border = originalStyle;
+        }, 500);
+    }
+    
+    // Initialize Ultra QR Scanner
+    async function initScanner() {
+        try {
+            showStatus('<i class="fas fa-spinner fa-spin me-2"></i>Initializing ultra-fast scanner...', 'info');
+            
+            // Initialize the QR scanner with the container
+            scanner = new QRScanner('ultra-scanner-container');
+            
+            // Set up scan callback
+            scanner.onScan = (qrCode) => {
+                if (isScanning) {
+                    processScan(qrCode);
+                }
+            };
+            
+            // Start the scanner
+            await scanner.startCamera();
+            isScanning = true;
+            
+            // Update UI
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            showStatus('<i class="fas fa-camera me-2"></i>Scanner active - Position QR code in scanning area', 'success');
+            
+        } catch (error) {
+            console.error('Scanner initialization failed:', error);
+            showStatus(`<i class="fas fa-exclamation-circle me-2"></i>Camera error: ${error.message}`, 'danger');
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+    }
+    
+    // Stop scanner
+    function stopScanner() {
+        if (scanner) {
+            scanner.stopCamera();
+            isScanning = false;
+            
+            // Update UI
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            showStatus('<i class="fas fa-stop me-2"></i>Scanner stopped', 'secondary');
+        }
+    }
+    
+    // Remove bag function
+    window.removeBag = async function(qrCode) {
+        try {
+            const response = await fetch('/remove_bag_from_bill', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `bill_id={{ bill.id }}&parent_qr=${encodeURIComponent(qrCode)}`
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast(data.message, 'success');
+                
+                // Remove from UI
+                const item = document.querySelector(`[data-qr="${qrCode}"]`);
+                if (item) {
+                    item.remove();
+                }
+                
+                // Update count
+                const currentCount = parseInt(bagCount.textContent) - 1;
+                bagCount.textContent = currentCount;
+                
+                // Show placeholder if empty
+                if (currentCount === 0) {
+                    const placeholder = document.getElementById('bags-list-placeholder');
+                    if (placeholder) {
+                        placeholder.style.display = 'block';
+                    }
+                }
+                
+                updateProgress();
+            } else {
+                showToast(data.message, 'danger');
+            }
+        } catch (error) {
+            console.error('Error removing bag:', error);
+            showToast('Error removing bag', 'danger');
+        }
+    };
+    
+    // Toggle capacity edit
+    window.toggleCapacityEdit = function() {
+        const editDiv = document.getElementById('capacity-edit');
+        editDiv.style.display = editDiv.style.display === 'none' ? 'block' : 'none';
+    };
+    
+    // Update capacity
+    window.updateCapacity = async function() {
+        const newCapacity = document.getElementById('new-capacity').value;
+        
+        try {
+            const response = await fetch(`/bill/{{ bill.id }}/edit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `parent_bag_count=${newCapacity}&description={{ bill.description or '' }}`
+            });
+            
+            if (response.ok) {
+                showToast('Capacity updated successfully!', 'success');
+                document.getElementById('capacity-value').textContent = newCapacity;
+                document.getElementById('max-count').textContent = newCapacity;
+                updateProgress();
+                toggleCapacityEdit();
+            } else {
+                showToast('Error updating capacity', 'danger');
+            }
+        } catch (error) {
+            console.error('Error updating capacity:', error);
+            showToast('Error updating capacity', 'danger');
+        }
+    };
+    
+    // Event listeners
+    startBtn.addEventListener('click', initScanner);
+    stopBtn.addEventListener('click', stopScanner);
+    
+    // Auto-start scanner
+    setTimeout(() => {
+        initScanner();
+    }, 500);
+});
+</script>
+{% endblock %}
