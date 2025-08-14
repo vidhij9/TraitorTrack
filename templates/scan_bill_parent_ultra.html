@@ -5,6 +5,7 @@
 <!-- QR Scanner Libraries -->
 <script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bill-scanner.js') }}"></script>
 
 <style>
 /* Enhanced Scanner Container - matching bill_management.html style */
@@ -237,12 +238,15 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    let scanner = null;
-    let isScanning = false;
-    let lastScanTime = 0;
-    const SCAN_COOLDOWN = 1500; // 1.5 seconds between scans
-    
+// Global scanner variable
+let html5QrcodeScanner = null;
+
+// Wait for page to fully load
+window.addEventListener('load', function() {
+    initializeScanner();
+});
+
+function initializeScanner() {
     // UI Elements
     const startBtn = document.getElementById('start-camera');
     const stopBtn = document.getElementById('stop-camera');
@@ -251,6 +255,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const maxCount = document.getElementById('max-count');
     const progressBar = document.getElementById('progress-bar');
     const progressPercentage = document.getElementById('progress-percentage');
+    
+    let lastScanTime = 0;
+    const SCAN_COOLDOWN = 1500;
     
     // Show toast notification
     function showToast(message, type = 'success', duration = 3000) {
@@ -392,62 +399,74 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Initialize HTML5-QRCode Scanner
+    // Initialize Scanner
     async function initScanner() {
         try {
             showStatus('<i class="fas fa-spinner fa-spin me-2"></i>Initializing scanner...', 'info');
             
             // Check if Html5Qrcode is available
             if (typeof Html5Qrcode === 'undefined') {
-                throw new Error('QR scanner library not loaded');
+                // Try to load from CDN as fallback
+                showStatus('<i class="fas fa-spinner fa-spin me-2"></i>Loading scanner library...', 'warning');
+                
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+                    script.onload = function() {
+                        console.log('Scanner library loaded from CDN');
+                        resolve();
+                        // Retry initialization
+                        initScanner();
+                    };
+                    script.onerror = function() {
+                        showStatus('<i class="fas fa-exclamation-circle me-2"></i>Failed to load scanner library', 'danger');
+                        reject(new Error('Failed to load scanner library'));
+                    };
+                    document.head.appendChild(script);
+                });
             }
             
             // Create scanner instance
-            scanner = new Html5Qrcode("qr-reader");
+            html5QrcodeScanner = new Html5Qrcode("qr-reader");
             
             const config = {
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-                rememberLastUsedCamera: true
+                aspectRatio: 1.0
             };
             
-            // Try to start camera
-            await scanner.start(
-                { facingMode: "environment" }, // Use back camera
-                config,
-                onScanSuccess
-            );
-            
-            isScanning = true;
-            
-            // Update UI
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            showStatus('<i class="fas fa-camera me-2"></i>Scanner active - Position QR code in scanning area', 'success');
+            // Get available cameras
+            const cameras = await Html5Qrcode.getCameras();
+            if (cameras && cameras.length > 0) {
+                // Try to use back camera first
+                const backCamera = cameras.find(camera => 
+                    camera.label.toLowerCase().includes('back') || 
+                    camera.label.toLowerCase().includes('rear') ||
+                    camera.label.toLowerCase().includes('environment')
+                ) || cameras[0];
+                
+                await html5QrcodeScanner.start(
+                    backCamera.id,
+                    config,
+                    onScanSuccess,
+                    (errorMessage) => {
+                        // Ignore scan errors when no QR code is in view
+                        if (!errorMessage.includes('NotFoundException')) {
+                            console.warn('Scan error:', errorMessage);
+                        }
+                    }
+                );
+                
+                // Update UI
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                showStatus('<i class="fas fa-camera me-2"></i>Scanner active - Position QR code in view', 'success');
+            } else {
+                throw new Error('No cameras found on this device');
+            }
             
         } catch (error) {
             console.error('Scanner initialization failed:', error);
-            
-            // Try fallback to front camera
-            if (scanner && error.message.includes('facingMode')) {
-                try {
-                    await scanner.start(
-                        { facingMode: "user" }, // Use front camera
-                        config,
-                        onScanSuccess
-                    );
-                    
-                    isScanning = true;
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                    showStatus('<i class="fas fa-camera me-2"></i>Scanner active (front camera) - Position QR code', 'success');
-                    return;
-                } catch (fallbackError) {
-                    console.error('Fallback camera also failed:', fallbackError);
-                }
-            }
-            
             showStatus(`<i class="fas fa-exclamation-circle me-2"></i>Camera error: ${error.message}`, 'danger');
             startBtn.disabled = false;
             stopBtn.disabled = true;
@@ -456,10 +475,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Stop scanner
     async function stopScanner() {
-        if (scanner && isScanning) {
+        if (html5QrcodeScanner) {
             try {
-                await scanner.stop();
-                isScanning = false;
+                await html5QrcodeScanner.stop();
                 
                 // Update UI
                 startBtn.disabled = false;
@@ -563,6 +581,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         initScanner();
     }, 500);
-});
+}
+
+// Initialize when DOM is ready
+initializeScanner();
 </script>
 {% endblock %}
