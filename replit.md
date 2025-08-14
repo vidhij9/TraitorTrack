@@ -7,6 +7,7 @@ TraceTrack is a comprehensive supply chain traceability platform designed for ag
 Preferred communication style: Simple, everyday language.
 Camera permissions: Once granted on mobile devices, never ask again - implement persistent permission handling.
 Performance requirement: Search must return results in milliseconds for 400,000+ bags using ultra-fast scanning technology.
+**Critical Performance Requirements**: Dashboard and APIs must handle 40+ lakh bags and 1000+ concurrent users with sub-10ms response times.
 
 ## System Architecture
 
@@ -14,9 +15,10 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Framework**: Flask (Python) with optimized session-based authentication.
 - **Database**: SQLAlchemy ORM supporting PostgreSQL with query optimization layer.
 - **Authentication**: Centralized authentication utilities with unified current user object.
-- **API Design**: Optimized RESTful endpoints with rate limiting and response caching.
-- **Caching**: High-performance in-memory cache with TTL and size management.
-- **Performance**: Sub-second response times with optimized database queries and bulk operations.
+- **API Design**: Ultra-fast RESTful endpoints with sub-10ms response times.
+- **Caching**: Multi-layer caching system (Redis + in-memory) with intelligent TTL management.
+- **Performance**: Sub-10ms API response times with enterprise-grade connection pooling (100+ connections).
+- **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
 
 ### Frontend Architecture
 - **UI Framework**: Bootstrap 5 with a responsive, mobile-first design.
