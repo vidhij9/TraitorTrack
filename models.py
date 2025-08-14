@@ -138,14 +138,15 @@ class Bag(db.Model):
         """Get all child bags linked to this parent bag"""
         if self.type != BagType.PARENT.value:
             return []
-        return [link.child_bag for link in self.child_links]
+        links = Link.query.filter_by(parent_bag_id=self.id).all()
+        return [link.child_bag for link in links if link.child_bag]
     
     @property
     def parent_bag(self):
         """Get the parent bag this child bag is linked to"""
         if self.type != BagType.CHILD.value:
             return None
-        link = self.parent_links.first()
+        link = Link.query.filter_by(child_bag_id=self.id).first()
         return link.parent_bag if link else None
     
     @property
@@ -153,7 +154,7 @@ class Bag(db.Model):
         """Get the bill this bag is associated with (for parent bags)"""
         if self.type != BagType.PARENT.value:
             return None
-        bill_link = self.bill_links.first()
+        bill_link = BillBag.query.filter_by(bag_id=self.id).first()
         return bill_link.bill if bill_link else None
     
     def __repr__(self):
