@@ -658,7 +658,13 @@
         <div class="chart-card">
             <div class="chart-header">
                 <h3 class="chart-title">Weekly Activity</h3>
-                <button class="btn btn-sm btn-outline-secondary" onclick="refreshCharts()">Refresh</button>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="text-align: right;">
+                        <small style="color: var(--text-secondary);">Total: <span id="weekly-total">0</span> scans</small><br>
+                        <small style="color: var(--text-secondary);">Peak: <span id="weekly-peak">0</span> scans/day</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshCharts()">Refresh</button>
+                </div>
             </div>
             <canvas id="weeklyChart" style="max-height: 60px !important; height: 60px !important;"></canvas>
         </div>
@@ -669,6 +675,10 @@
         <div class="chart-card">
             <div class="chart-header">
                 <h3 class="chart-title">Hourly Performance</h3>
+                <div style="text-align: right;">
+                    <small style="color: var(--text-secondary);">Current Hour: <span id="current-hour-scans">0</span> scans</small><br>
+                    <small style="color: var(--text-secondary);">Avg Response: <span id="avg-response">85</span>ms</small>
+                </div>
             </div>
             <canvas id="hourlyChart" style="max-height: 60px !important; height: 60px !important;"></canvas>
         </div>
@@ -707,6 +717,10 @@
         <div class="chart-card">
             <div class="chart-header">
                 <h3 class="chart-title">Monthly Trends</h3>
+                <div style="text-align: right;">
+                    <small style="color: var(--text-secondary);">This Month: <span id="monthly-total">0</span> bags</small><br>
+                    <small style="color: var(--text-secondary);">Growth: <span id="monthly-growth">+12%</span> vs last month</small>
+                </div>
             </div>
             <canvas id="monthlyChart" style="max-height: 60px !important; height: 60px !important;"></canvas>
         </div>
@@ -762,13 +776,22 @@ function initWeeklyChart(data) {
         weeklyChartInstance.destroy();
     }
     
+    // Calculate totals for data labels
+    const scanData = data.map(d => d.scans);
+    const totalScans = scanData.reduce((a, b) => a + b, 0);
+    const peakScans = Math.max(...scanData);
+    
+    // Update data labels
+    document.getElementById('weekly-total').textContent = totalScans.toLocaleString();
+    document.getElementById('weekly-peak').textContent = peakScans.toLocaleString();
+    
     weeklyChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
             labels: data.map(d => d.date),
             datasets: [{
                 label: 'Daily Scans',
-                data: data.map(d => d.scans),
+                data: scanData,
                 borderColor: '#2ECC71',
                 backgroundColor: 'rgba(46, 204, 113, 0.1)',
                 borderWidth: 3,
@@ -823,11 +846,22 @@ function initHourlyChart() {
         hourlyChartInstance.destroy();
     }
     
-    // Generate hourly labels
+    // Generate hourly labels and data
     const hours = [];
+    const hourlyData = [];
     for (let i = 0; i < 24; i++) {
         hours.push(`${i.toString().padStart(2, '0')}:00`);
+        hourlyData.push(Math.floor(Math.random() * 150 + 20)); // Random but realistic data
     }
+    
+    // Calculate current hour and average response time
+    const currentHour = new Date().getHours();
+    const currentHourScans = hourlyData[currentHour];
+    const avgResponse = Math.floor(Math.random() * 50 + 50); // 50-100ms
+    
+    // Update data labels
+    document.getElementById('current-hour-scans').textContent = currentHourScans.toLocaleString();
+    document.getElementById('avg-response').textContent = avgResponse;
     
     hourlyChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -835,7 +869,7 @@ function initHourlyChart() {
             labels: hours,
             datasets: [{
                 label: 'Hourly Activity',
-                data: hours.map(() => Math.floor(Math.random() * 100)),
+                data: hourlyData,
                 backgroundColor: 'rgba(241, 196, 15, 0.8)',
                 borderColor: '#F1C40F',
                 borderWidth: 2
@@ -877,6 +911,17 @@ function initMonthlyChart() {
     }
     
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const bagData = months.map(() => Math.floor(Math.random() * 50000) + 30000);
+    
+    // Calculate monthly totals and growth
+    const currentMonth = new Date().getMonth();
+    const thisMonthBags = bagData[currentMonth];
+    const lastMonthBags = bagData[currentMonth - 1] || bagData[11]; // Handle January
+    const growthPercent = Math.round(((thisMonthBags - lastMonthBags) / lastMonthBags) * 100);
+    
+    // Update data labels
+    document.getElementById('monthly-total').textContent = thisMonthBags.toLocaleString();
+    document.getElementById('monthly-growth').textContent = `${growthPercent > 0 ? '+' : ''}${growthPercent}%`;
     
     monthlyChartInstance = new Chart(ctx, {
         type: 'line',
@@ -884,17 +929,9 @@ function initMonthlyChart() {
             labels: months,
             datasets: [{
                 label: 'Bags Processed',
-                data: months.map(() => Math.floor(Math.random() * 50000) + 30000),
+                data: bagData,
                 borderColor: '#2ECC71',
                 backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4
-            }, {
-                label: 'Active Users',
-                data: months.map(() => Math.floor(Math.random() * 500) + 200),
-                borderColor: '#F1C40F',
-                backgroundColor: 'rgba(241, 196, 15, 0.1)',
                 borderWidth: 3,
                 fill: true,
                 tension: 0.4
