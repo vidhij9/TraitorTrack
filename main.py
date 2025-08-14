@@ -11,6 +11,7 @@ import database_optimizer
 
 # Import all the main routes to ensure they're registered
 import routes
+import optimized_api  # Import optimized API v2 routes
 
 # Import enterprise monitoring and optimization systems
 from performance_monitoring import monitor, alert_manager
