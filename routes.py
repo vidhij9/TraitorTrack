@@ -2218,6 +2218,12 @@ def user_profile():
 def edit_profile():
     """Edit user profile - all users can edit their own profile"""
     try:
+        # Get the actual user from database
+        user = User.query.get(current_user.id)
+        if not user:
+            flash('User not found.', 'error')
+            return redirect(url_for('user_profile'))
+        
         # Get form data
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').strip()
@@ -2225,27 +2231,34 @@ def edit_profile():
         new_password = request.form.get('new_password', '').strip()
         confirm_password = request.form.get('confirm_password', '').strip()
         
-        # Validate username and email
-        if username and username != current_user.username:
+        # Track if we made changes
+        changes_made = False
+        
+        # Validate and update username
+        if username and username != user.username:
             # Check if username already exists
-            existing_user = User.query.filter(User.username == username, User.id != current_user.id).first()
+            existing_user = User.query.filter(User.username == username, User.id != user.id).first()
             if existing_user:
                 flash('Username already exists.', 'error')
                 return redirect(url_for('user_profile'))
-            current_user.username = username
+            user.username = username
+            session['username'] = username  # Update session
+            changes_made = True
         
-        if email and email != current_user.email:
+        # Validate and update email
+        if email and email != user.email:
             # Check if email already exists
-            existing_user = User.query.filter(User.email == email, User.id != current_user.id).first()
+            existing_user = User.query.filter(User.email == email, User.id != user.id).first()
             if existing_user:
                 flash('Email already exists.', 'error')
                 return redirect(url_for('user_profile'))
-            current_user.email = email
+            user.email = email
+            changes_made = True
         
         # Handle password change
         if new_password:
             # Verify current password
-            if not current_password or not current_user.check_password(current_password):
+            if not current_password or not user.check_password(current_password):
                 flash('Current password is incorrect.', 'error')
                 return redirect(url_for('user_profile'))
             
@@ -2255,12 +2268,16 @@ def edit_profile():
                 return redirect(url_for('user_profile'))
             
             # Set new password
-            current_user.set_password(new_password)
+            user.set_password(new_password)
+            changes_made = True
             flash('Password changed successfully.', 'success')
         
-        # Save changes
-        db.session.commit()
-        flash('Profile updated successfully.', 'success')
+        # Save changes if any were made
+        if changes_made:
+            db.session.commit()
+            flash('Profile updated successfully.', 'success')
+        else:
+            flash('No changes were made.', 'info')
         
     except Exception as e:
         db.session.rollback()

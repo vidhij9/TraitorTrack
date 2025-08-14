@@ -50,6 +50,16 @@ def get_dispatch_area():
     """Get current user's dispatch area"""
     return session.get('dispatch_area')
 
+def get_email():
+    """Get current user's email from database"""
+    user_id = get_user_id()
+    if user_id:
+        from models import User
+        user = User.query.get(user_id)
+        if user:
+            return user.email
+    return None
+
 def is_admin():
     """Check if current user is admin"""
     return session.get('user_role') == 'admin'
@@ -99,6 +109,10 @@ class CurrentUser:
         return get_dispatch_area()
     
     @property
+    def email(self):
+        return get_email()
+    
+    @property
     def is_authenticated(self):
         return is_authenticated()
     
@@ -119,6 +133,30 @@ class CurrentUser:
     
     def can_access_area(self, area):
         return can_access_area(area)
+    
+    def check_password(self, password):
+        """Check if the provided password is correct"""
+        from models import User
+        from werkzeug.security import check_password_hash
+        user_id = self.id
+        if user_id:
+            user = User.query.get(user_id)
+            if user and user.password_hash:
+                return check_password_hash(user.password_hash, password)
+        return False
+    
+    def set_password(self, password):
+        """Set a new password for the user"""
+        from models import User, db
+        from werkzeug.security import generate_password_hash
+        user_id = self.id
+        if user_id:
+            user = User.query.get(user_id)
+            if user:
+                user.password_hash = generate_password_hash(password)
+                db.session.commit()
+                return True
+        return False
 
 # Single instance to be used throughout the application
 current_user = CurrentUser()

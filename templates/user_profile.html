@@ -76,7 +76,7 @@
                 
                 <div class="info-row d-flex">
                     <span class="info-label">Email:</span>
-                    <span>{{ user.email }}</span>
+                    <span>{{ user.email if user.email else 'Not set' }}</span>
                 </div>
                 
                 <div class="info-row d-flex">
@@ -143,7 +143,7 @@
                     
                     <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email if user.email else '' }}" required>
                     </div>
                     
                     <hr>
