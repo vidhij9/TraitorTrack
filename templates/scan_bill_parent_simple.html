@@ -210,9 +210,9 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Load QR scanning libraries -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- Load QR scanning libraries from local files -->
+<script src="{{ url_for('static', filename='js/libs/html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/libs/jsQR.js') }}"></script>
 <script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 
