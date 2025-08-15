@@ -182,12 +182,19 @@ class FastQRScanner {
     
     async startCamera() {
         try {
-            // Simple camera constraints
+            // Enhanced camera constraints for tiny and damaged QR codes
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: 1920, min: 1280 },
+                    height: { ideal: 1080, min: 720 },
+                    // Add advanced constraints for better focus and exposure
+                    advanced: [
+                        { focusMode: 'continuous' },
+                        { exposureMode: 'continuous' },
+                        { whiteBalanceMode: 'continuous' },
+                        { torch: false } // Start with torch off
+                    ]
                 },
                 audio: false
             };
@@ -235,11 +242,22 @@ class FastQRScanner {
                     if (this.canvas.width > 0 && this.canvas.height > 0) {
                         this.context.drawImage(this.video, 0, 0);
                         
-                        // Single fast scan
+                        // Enhanced scanning for tiny and damaged codes
                         const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                            inversionAttempts: 'dontInvert' // Fast mode
+                        
+                        // Try multiple inversionAttempts for damaged codes
+                        let code = jsQR(imageData.data, imageData.width, imageData.height, {
+                            inversionAttempts: 'attemptBoth' // Better for damaged codes
                         });
+                        
+                        // If no code found, try with different settings for tiny codes
+                        if (!code && frameSkip % 6 === 0) { // Less frequent but more thorough
+                            // Apply simple contrast enhancement for damaged codes
+                            const enhanced = this.enhanceImage(imageData);
+                            code = jsQR(enhanced.data, enhanced.width, enhanced.height, {
+                                inversionAttempts: 'invertFirst'
+                            });
+                        }
                         
                         if (code && code.data) {
                             this.handleSuccess(code.data);
@@ -261,13 +279,35 @@ class FastQRScanner {
         const torchBtn = document.getElementById('torch-btn');
         this.torchEnabled = !this.torchEnabled;
         
+        // Try multiple methods for universal torch support
         try {
+            // Method 1: Standard constraints
             await track.applyConstraints({
                 advanced: [{ torch: this.torchEnabled }]
             });
             if (torchBtn) torchBtn.classList.toggle('active', this.torchEnabled);
-        } catch (e) {
-            console.log('FastQR: Torch not supported');
+            console.log('FastQR: Torch toggled via advanced constraints');
+        } catch (e1) {
+            try {
+                // Method 2: Direct constraint
+                await track.applyConstraints({ torch: this.torchEnabled });
+                if (torchBtn) torchBtn.classList.toggle('active', this.torchEnabled);
+                console.log('FastQR: Torch toggled via direct constraint');
+            } catch (e2) {
+                try {
+                    // Method 3: ImageCapture API for older devices
+                    const imageCapture = new ImageCapture(track);
+                    await imageCapture.setOptions({
+                        fillLightMode: this.torchEnabled ? 'flash' : 'off'
+                    });
+                    if (torchBtn) torchBtn.classList.toggle('active', this.torchEnabled);
+                    console.log('FastQR: Torch toggled via ImageCapture');
+                } catch (e3) {
+                    console.log('FastQR: Torch not supported on this device');
+                    // Show user message
+                    this.showStatus('Flashlight not available on this device', 'warning');
+                }
+            }
         }
     }
     
@@ -332,6 +372,29 @@ class FastQRScanner {
     resumeScanning() {
         this.isPaused = false;
         console.log('FastQR: Resumed');
+    }
+    
+    // Simple image enhancement for damaged codes
+    enhanceImage(imageData) {
+        const data = new Uint8ClampedArray(imageData.data);
+        const len = data.length;
+        
+        // Apply contrast and brightness adjustment
+        for (let i = 0; i < len; i += 4) {
+            // Convert to grayscale for better QR detection
+            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            
+            // Apply contrast (1.5x) and brightness (+10)
+            let enhanced = (gray - 128) * 1.5 + 128 + 10;
+            
+            // Clamp values
+            enhanced = Math.max(0, Math.min(255, enhanced));
+            
+            // Set all channels to enhanced grayscale
+            data[i] = data[i + 1] = data[i + 2] = enhanced;
+        }
+        
+        return { data, width: imageData.width, height: imageData.height };
     }
     
     async stop() {
