@@ -12,23 +12,21 @@
                         <i class="fas fa-qrcode me-2"></i>Scan Child Bags
                     </h2>
                     
-                    <div class="progress-container">
-                        <div class="progress-indicator">
-                            <div class="progress-step completed">
-                                <div class="progress-step-circle">
-                                    <i class="fas fa-check"></i>
+                    <!-- Progress Bar similar to bills management -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold">Scanning Progress</span>
+                                <span class="badge bg-primary">
+                                    <span id="child-count">{{ scanned_child_count }}</span> / 30 bags
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 25px;">
+                                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                                     role="progressbar" 
+                                     style="width: {{ (scanned_child_count / 30 * 100)|round }}%">
+                                    <span id="progress-percentage" class="fw-bold">{{ (scanned_child_count / 30 * 100)|round }}%</span>
                                 </div>
-                                <div class="progress-step-label">Scan Parent Bag</div>
-                            </div>
-                            <div class="progress-line completed-line"></div>
-                            <div class="progress-step active">
-                                <div class="progress-step-circle">2</div>
-                                <div class="progress-step-label">Scan Child Bags</div>
-                            </div>
-                            <div class="progress-line"></div>
-                            <div class="progress-step" id="complete-step" style="cursor: pointer;" onclick="window.completeScanning()">
-                                <div class="progress-step-circle" id="complete-circle">3</div>
-                                <div class="progress-step-label">Complete (<span id="complete-count">0</span>)</div>
                             </div>
                         </div>
                     </div>
@@ -37,7 +35,7 @@
                     <p class="card-text">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        Scanned <span id="child-count" class="fw-bold text-success">{{ scanned_child_count }}</span> child bags. Scanner optimized for rapid sequential scanning.
+                        You must scan exactly 30 child bags. Scanner optimized for rapid sequential scanning.
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -129,13 +127,14 @@
                     
                     <!-- Complete Scanning Button -->
                     <div class="mt-3 d-grid">
-                        <a href="{{ url_for('scan_complete') }}" 
-                           class="btn btn-success btn-lg fw-bold text-decoration-none"
-                           style="background: linear-gradient(135deg, #28a745, #20c997); border: none; padding: 15px;">
+                        <button id="complete-scanning-btn" 
+                           class="btn btn-success btn-lg fw-bold"
+                           style="background: linear-gradient(135deg, #28a745, #20c997); border: none; padding: 15px;"
+                           disabled>
                             <i class="fas fa-check-circle me-2"></i>
-                            Complete Scanning (<span id="complete-btn-count">0</span> bags)
-                            <small class="d-block" style="font-size: 11px; opacity: 0.8;">Click to finish</small>
-                        </a>
+                            <span id="complete-btn-text">Complete Scanning (0/30 bags)</span>
+                            <small class="d-block" style="font-size: 11px; opacity: 0.8;">Must scan exactly 30 bags</small>
+                        </button>
                     </div>
                     
 
@@ -211,72 +210,17 @@
     }
 }
 
-/* Progress indicator styles */
-.progress-container {
-    margin: 20px 0;
-}
-
-.progress-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.progress-step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
-}
-
-.progress-step-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+/* Progress bar styles */
+.progress {
+    border-radius: 10px;
     background-color: #e9ecef;
-    border: 2px solid #dee2e6;
+}
+
+.progress-bar {
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    color: #6c757d;
-    margin-bottom: 8px;
-}
-
-.progress-step.active .progress-step-circle {
-    background-color: #198754;
-    border-color: #198754;
-    color: white;
-}
-
-.progress-step.completed .progress-step-circle {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-    color: white;
-}
-
-.progress-step-label {
-    font-size: 0.875rem;
-    text-align: center;
-    color: #6c757d;
-}
-
-.progress-step.active .progress-step-label,
-.progress-step.completed .progress-step-label {
-    color: #198754;
-    font-weight: 600;
-}
-
-.progress-line {
-    width: 60px;
-    height: 2px;
-    background-color: #dee2e6;
-    margin: 0 10px;
-    margin-top: -20px;
-}
-
-.completed-line {
-    background-color: #0d6efd;
 }
 
 /* Child list styles - OPTIMIZED FOR SPEED */
@@ -347,6 +291,7 @@
         let scanner = null;
         let scannedChildren = [];
         let scannedQrCodes = new Set(); // Client-side duplicate prevention
+        const REQUIRED_BAGS = 30; // Exactly 30 bags required
         
         // Get UI elements
         const startCameraBtn = document.getElementById('start-camera');
@@ -358,10 +303,7 @@
         const resultContainer = document.getElementById('result-container');
         const childrenList = document.getElementById('children-list');
         const progressText = document.getElementById('child-count');
-        console.log('Elements found:', {
-            progressText: !!progressText,
-            completeCount: !!document.getElementById('complete-count')
-        });
+        console.log('Progress element found:', !!progressText);
         
         // Simple, visible notification system
         function showToast(message, type = 'success') {
@@ -452,16 +394,42 @@
             // Update progress counter based on actual list count
             const actualCount = childrenList.querySelectorAll('.list-group-item:not(.text-center)').length;
             
+            // Update all progress indicators
             const progressElement = document.getElementById('child-count');
             if (progressElement) progressElement.textContent = actualCount;
             
-            // Update complete count if element exists
-            const completeElement = document.getElementById('complete-count');
-            if (completeElement) completeElement.textContent = actualCount;
+            // Update progress bar
+            const progressBar = document.getElementById('progress-bar');
+            const percentage = Math.round((actualCount / REQUIRED_BAGS) * 100);
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+                const percentageSpan = document.getElementById('progress-percentage');
+                if (percentageSpan) percentageSpan.textContent = percentage + '%';
+            }
             
-            // Update complete button count
-            const completeBtnElement = document.getElementById('complete-btn-count');
-            if (completeBtnElement) completeBtnElement.textContent = actualCount;
+            // Update complete button
+            const completeBtn = document.getElementById('complete-scanning-btn');
+            const completeBtnText = document.getElementById('complete-btn-text');
+            if (completeBtnText) {
+                completeBtnText.textContent = `Complete Scanning (${actualCount}/${REQUIRED_BAGS} bags)`;
+            }
+            
+            // Enable/disable complete button based on count
+            if (completeBtn) {
+                if (actualCount === REQUIRED_BAGS) {
+                    completeBtn.disabled = false;
+                    completeBtn.classList.remove('btn-success');
+                    completeBtn.classList.add('btn-primary');
+                    showToast(`✓ All ${REQUIRED_BAGS} bags scanned! Click Complete to finish.`, 'success');
+                } else {
+                    completeBtn.disabled = true;
+                    completeBtn.classList.remove('btn-primary');
+                    completeBtn.classList.add('btn-success');
+                    if (actualCount > REQUIRED_BAGS) {
+                        showToast(`Too many bags! Remove ${actualCount - REQUIRED_BAGS} bag(s).`, 'error');
+                    }
+                }
+            }
             
             // Remove highlight animation faster
             setTimeout(() => {
@@ -508,6 +476,12 @@
                     
                     // Hide loading message since scanner is ready
                     resultContainer.style.display = 'none';
+                    
+                    // Ensure scanner is running
+                    if (scanner && scanner.start) {
+                        console.log('Starting child scanner...');
+                        await scanner.start();
+                    }
                 }
             } catch (error) {
                 console.error('Child scanner initialization failed:', error);
@@ -521,6 +495,7 @@
             console.log('ULTRA-FAST Child scan:', qrText);
             
             // Scanner is already paused by the LiveQRScanner handleSuccess method
+            console.log('Child scan detected:', qrText);
             
             // CLIENT-SIDE DUPLICATE PREVENTION
             if (scannedQrCodes.has(qrText)) {
@@ -574,9 +549,20 @@
                         processingTime: endTime - startTime
                     });
                     
-                    // Resume scanning for next bag after short delay
-                    if (scanner && scanner.resumeScanning) {
-                        setTimeout(() => scanner.resumeScanning(), 500);
+                    // Check if we've reached the limit
+                    const currentCount = childrenList.querySelectorAll('.list-group-item:not(.text-center)').length;
+                    if (currentCount >= REQUIRED_BAGS) {
+                        console.log(`Reached ${REQUIRED_BAGS} bags limit, stopping scanner`);
+                        showToast(`✓ All ${REQUIRED_BAGS} bags scanned! Click Complete to finish.`, 'success');
+                        // Don't resume scanning when limit reached
+                    } else {
+                        // Resume scanning for next bag after short delay
+                        if (scanner && scanner.resumeScanning) {
+                            setTimeout(() => {
+                                console.log('Resuming scanner after successful scan');
+                                scanner.resumeScanning();
+                            }, 300);  // Reduced delay for faster scanning
+                        }
                     }
                     
                 } else {
@@ -587,7 +573,10 @@
                     
                     // Resume scanning for retry
                     if (scanner && scanner.resumeScanning) {
-                        setTimeout(() => scanner.resumeScanning(), 1000);
+                        setTimeout(() => {
+                            console.log('Resuming scanner after error');
+                            scanner.resumeScanning();
+                        }, 1000);
                     }
                 }
                 
@@ -599,7 +588,10 @@
                 
                 // Resume scanning for retry
                 if (scanner && scanner.resumeScanning) {
-                    setTimeout(() => scanner.resumeScanning(), 1000);
+                    setTimeout(() => {
+                        console.log('Resuming scanner after network error');
+                        scanner.resumeScanning();
+                    }, 1000);
                 }
             }
         }
@@ -608,77 +600,61 @@
 
 
         
-        // COMPLETE BUTTON: Fixed function with thorough debugging
-        window.completeScanning = function() {
-            console.log('=== COMPLETE BUTTON CLICKED ===');
-            
-            // Get all possible count elements
-            const progressElement = document.getElementById('child-count');
-            const completeElement = document.getElementById('complete-count');
-            
-            console.log('Element check:', {
-                progressElement: !!progressElement,
-                completeElement: !!completeElement,
-                progressText: progressElement ? progressElement.textContent : 'ELEMENT NOT FOUND',
-                completeText: completeElement ? completeElement.textContent : 'ELEMENT NOT FOUND'
-            });
-            
-            // Try multiple ways to get count
-            let childCount = 0;
-            if (completeElement && completeElement.textContent) {
-                childCount = parseInt(completeElement.textContent) || 0;
-            } else if (progressElement && progressElement.textContent) {
-                childCount = parseInt(progressElement.textContent) || 0;
-            } else {
-                // Count from the actual list
-                const listItems = document.querySelectorAll('#children-list .list-group-item:not(.text-center)');
-                childCount = listItems.length;
-                console.log('Counted from list:', childCount, 'items');
-            }
-            
-            console.log('Final child count:', childCount);
-            
-            if (childCount > 0) {
-                console.log('✓ Proceeding with completion...');
+        // Complete button click handler
+        const completeBtn = document.getElementById('complete-scanning-btn');
+        if (completeBtn) {
+            completeBtn.addEventListener('click', function() {
+                const childCount = parseInt(document.getElementById('child-count').textContent) || 0;
                 
-                // Stop the scanner
-                if (window.scanner && typeof window.scanner.stop === 'function') {
-                    console.log('Stopping scanner...');
-                    try {
-                        window.scanner.stop();
-                    } catch (e) {
-                        console.log('Scanner stop warning:', e.message);
+                if (childCount === REQUIRED_BAGS) {
+                    console.log(`✓ Completing with exactly ${REQUIRED_BAGS} bags`);
+                    
+                    // Stop the scanner
+                    if (scanner && typeof scanner.stop === 'function') {
+                        try {
+                            scanner.stop();
+                        } catch (e) {
+                            console.log('Scanner stop warning:', e.message);
+                        }
                     }
-                } else if (scanner && typeof scanner.stop === 'function') {
-                    console.log('Stopping local scanner...');
-                    try {
-                        scanner.stop();
-                    } catch (e) {
-                        console.log('Local scanner stop warning:', e.message);
-                    }
+                    
+                    // Show completion message
+                    showToast(`Completing with ${REQUIRED_BAGS} bags...`, 'success');
+                    
+                    // Redirect to completion page
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("scan_complete") }}';
+                    }, 1500);
+                } else if (childCount < REQUIRED_BAGS) {
+                    showToast(`You need to scan ${REQUIRED_BAGS - childCount} more bag(s)`, 'warning');
+                } else {
+                    showToast(`Too many bags! You have ${childCount} but need exactly ${REQUIRED_BAGS}`, 'error');
                 }
-                
-                // Show completion message
-                showToast(`Completing with ${childCount} bags...`, 'success');
-                
-                // Redirect to completion page with delay
-                console.log('Redirecting to scan_complete...');
-                setTimeout(() => {
-                    console.log('Executing redirect now...');
-                    window.location.href = '{{ url_for("scan_complete") }}';
-                }, 1500);
-                
-            } else {
-                console.log('❌ No child bags found');
-                showToast('Please scan at least one child bag before completing', 'warning');
-            }
-        };
+            });
+        }
         
-        // SIMPLE COMPLETE FUNCTION: Direct link approach - no complex JavaScript needed
-        console.log('Complete button now uses direct link approach for reliability');
-
-        // SIMPLE APPROACH: Direct link navigation - no event listeners needed
-        console.log('Complete button uses direct navigation for maximum reliability');
+        // Check initial count and update UI
+        const initialCount = childrenList.querySelectorAll('.list-group-item:not(.text-center)').length;
+        if (initialCount > 0) {
+            // Update progress if there are already scanned bags
+            const progressBar = document.getElementById('progress-bar');
+            const percentage = Math.round((initialCount / REQUIRED_BAGS) * 100);
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+                const percentageSpan = document.getElementById('progress-percentage');
+                if (percentageSpan) percentageSpan.textContent = percentage + '%';
+            }
+            
+            const completeBtn = document.getElementById('complete-scanning-btn');
+            const completeBtnText = document.getElementById('complete-btn-text');
+            if (completeBtnText) {
+                completeBtnText.textContent = `Complete Scanning (${initialCount}/${REQUIRED_BAGS} bags)`;
+            }
+            
+            if (completeBtn) {
+                completeBtn.disabled = initialCount !== REQUIRED_BAGS;
+            }
+        }
 
         // Initialize scanner when document loads
         initializeScanner();

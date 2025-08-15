@@ -937,6 +937,11 @@ def process_child_scan():
         if not parent_bag:
             return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
         
+        # Check if we've reached the 30 bags limit
+        current_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        if current_child_count >= 30:
+            return jsonify({'success': False, 'message': f'Maximum limit of 30 child bags reached. Cannot add more.'})
+        
         # Check if bag already exists and validate its type
         existing_bag = Bag.query.filter_by(qr_id=qr_code).first()
         
@@ -1001,11 +1006,15 @@ def process_child_scan():
         
         db.session.commit()
         
+        # Get updated count
+        updated_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        
         return jsonify({
             'success': True,
-            'message': f'Child bag {qr_code} linked successfully!',
+            'message': f'Child bag {qr_code} linked successfully! ({updated_count}/30)',
             'child_qr': qr_code,
-            'parent_qr': parent_qr
+            'parent_qr': parent_qr,
+            'child_count': updated_count
         })
         
     except ValueError as e:
@@ -1394,6 +1403,11 @@ def scan_complete():
         links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
         app.logger.info(f'Links found: {[(link.id, link.child_bag_id) for link in links]}')
         
+        # Validate exactly 30 bags requirement
+        if scan_count != 30:
+            flash(f'Error: You have scanned {scan_count} bags but exactly 30 are required. Please continue scanning.', 'error')
+            return redirect(url_for('scan_child'))
+        
         # Store completion data in session
         session['last_scan'] = {
             'type': 'completed',
@@ -1401,6 +1415,8 @@ def scan_complete():
             'child_count': scan_count,
             'timestamp': datetime.utcnow().isoformat()
         }
+        
+        flash(f'Successfully completed! Parent bag {parent_qr} linked with exactly {scan_count} child bags.', 'success')
         
         return render_template('scan_complete.html', 
                              parent_bag=parent_bag, 
