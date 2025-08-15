@@ -606,12 +606,16 @@ function initializeScanner() {
         const newCapacity = document.getElementById('new-capacity').value;
         
         try {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
             const response = await fetch(`/bill/{{ bill.id }}/edit`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
                 },
-                body: `parent_bag_count=${newCapacity}&description={{ bill.description or '' }}&csrf_token={{ csrf_token() }}`
+                body: `parent_bag_count=${newCapacity}&description={{ bill.description or '' }}`
             });
             
             if (response.ok) {
