@@ -108,7 +108,7 @@ def analyze_table_statistics():
         tables = ['bag', 'scan', 'user', 'bill', 'billbag', 'link']
         
         for table in tables:
-            db.session.execute(text(f"ANALYZE {table}"))
+            db.session.execute(text(f'ANALYZE "{table}"'))
             logger.debug(f"Analyzed table: {table}")
         
         db.session.commit()
@@ -182,7 +182,7 @@ def vacuum_and_reindex():
         for table in tables:
             try:
                 # Vacuum analyze each table
-                db.session.execute(text(f"VACUUM ANALYZE {table}"))
+                db.session.execute(text(f'VACUUM ANALYZE "{table}"'))
                 logger.debug(f"Vacuumed table: {table}")
             except Exception as e:
                 logger.warning(f"Failed to vacuum table {table}: {str(e)}")
