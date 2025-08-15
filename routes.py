@@ -1735,12 +1735,21 @@ def bag_management():
                             self._parent_id = parent_id
                         def first(self):
                             if self._parent_id:
-                                # Create a mock parent link
+                                # Create a mock parent link with pre-fetched data
                                 class MockLink:
                                     def __init__(self, parent_id):
-                                        # Get parent bag from database
-                                        from models import Bag
-                                        self.parent_bag = Bag.query.get(parent_id)
+                                        # Create a mock parent bag object without database query
+                                        class MockParentBag:
+                                            def __init__(self, pid):
+                                                self.id = pid
+                                                self.qr_id = f"Parent_{pid}"  # Mock QR ID
+                                                self.bill_links = MockBillQuery()
+                                        
+                                        class MockBillQuery:
+                                            def first(self):
+                                                return None  # No bill by default
+                                        
+                                        self.parent_bag = MockParentBag(parent_id)
                                 return MockLink(self._parent_id)
                             return None
                     return MockQuery(self._linked_parent_id)
@@ -1753,11 +1762,15 @@ def bag_management():
                             self._bill_id = bill_id
                         def first(self):
                             if self._bill_id:
-                                # Create a mock bill link
+                                # Create a mock bill link without database query
                                 class MockBillLink:
                                     def __init__(self, bill_id):
-                                        from models import Bill
-                                        self.bill = Bill.query.get(bill_id)
+                                        # Create a mock bill object
+                                        class MockBill:
+                                            def __init__(self, bid):
+                                                self.id = bid
+                                                self.bill_id = f"BILL-{bid}"  # Mock bill ID
+                                        self.bill = MockBill(bill_id)
                                 return MockBillLink(self._bill_id)
                             return None
                     return MockQuery(self._bill_id)
