@@ -124,16 +124,6 @@
                         <div class="col-md-6 text-md-end">
                             <span class="text-muted">Target Capacity:</span> 
                             <strong><span id="capacity-value">{{ bill.parent_bag_count }}</span> parent bags</strong>
-                            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="toggleCapacityEdit()">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <div id="capacity-edit" class="mt-2" style="display: none;">
-                                <div class="input-group" style="max-width: 200px; display: inline-flex;">
-                                    <input type="number" id="new-capacity" class="form-control form-control-sm" value="{{ bill.parent_bag_count }}" min="1" max="1000">
-                                    <button class="btn btn-sm btn-success" onclick="updateCapacity()">Save</button>
-                                    <button class="btn btn-sm btn-secondary" onclick="toggleCapacityEdit()">Cancel</button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -595,43 +585,6 @@ function initializeScanner() {
         }
     };
     
-    // Toggle capacity edit
-    window.toggleCapacityEdit = function() {
-        const editDiv = document.getElementById('capacity-edit');
-        editDiv.style.display = editDiv.style.display === 'none' ? 'inline-block' : 'none';
-    };
-    
-    // Update capacity
-    window.updateCapacity = async function() {
-        const newCapacity = document.getElementById('new-capacity').value;
-        
-        try {
-            // Get CSRF token from meta tag
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            
-            const response = await fetch(`/bill/{{ bill.id }}/edit`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken
-                },
-                body: `parent_bag_count=${newCapacity}&description={{ bill.description or '' }}`
-            });
-            
-            if (response.ok) {
-                showToast('Capacity updated successfully!', 'success');
-                document.getElementById('capacity-value').textContent = newCapacity;
-                document.getElementById('max-count').textContent = newCapacity;
-                updateProgress();
-                toggleCapacityEdit();
-            } else {
-                showToast('Error updating capacity', 'danger');
-            }
-        } catch (error) {
-            console.error('Error updating capacity:', error);
-            showToast('Error updating capacity', 'danger');
-        }
-    };
     
     // Complete bill function
     window.completeBill = async function() {
