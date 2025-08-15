@@ -1810,6 +1810,9 @@ def create_bill():
             
             app.logger.info(f'Bill created successfully: {bill_id} with {parent_bag_count} parent bags')
             flash('Bill created successfully!', 'success')
+            
+            # Add debugging to check redirect
+            app.logger.info(f'Redirecting to scan_bill_parent with bill.id={bill.id}')
             return redirect(url_for('scan_bill_parent', bill_id=bill.id))
             
         except Exception as e:
@@ -2053,8 +2056,8 @@ def scan_bill_parent(bill_id):
     current_count = bill.bag_links.count()
     app.logger.info(f'Scan bill parent page - Bill {bill.id} has {current_count} linked bags')
     
-    # Use the simple scanner template that works reliably
-    return render_template('scan_bill_parent_simple.html', bill=bill, linked_bags=linked_bags)
+    # Use the ultra scanner template with LiveQRScanner
+    return render_template('scan_bill_parent_ultra.html', bill=bill, linked_bags=linked_bags)
 
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
