@@ -1541,7 +1541,8 @@ def scan_history():
 def bag_management():
     """Ultra-fast bag management with optimized filtering"""
     import time
-    from optimized_bag_queries import OptimizedBagQueries
+    from sqlalchemy import and_, or_, func
+    from models import Bag, Link, BillBag
     
     start_time = time.time()
     
@@ -1574,18 +1575,136 @@ def bag_management():
         dispatch_area = None
     
     try:
-        # Use ultra-optimized query for lightning-fast results
-        bags_data, stats, total_filtered = OptimizedBagQueries.get_filtered_bags_with_stats(
-            page=page,
-            per_page=20,
-            bag_type=bag_type,
-            search_query=search_query,
-            date_from=date_from,
-            date_to=date_to,
-            linked_status=linked_status,
-            bill_status=bill_status,
-            dispatch_area=dispatch_area
+        # Build optimized query with filters
+        query = db.session.query(
+            Bag.id,
+            Bag.qr_id,
+            Bag.type,
+            Bag.created_at,
+            Bag.created_by,
+            Bag.dispatch_area,
+            func.count(func.distinct(Link.child_bag_id)).filter(Link.parent_bag_id == Bag.id).label('linked_children_count'),
+            func.max(Link.parent_bag_id).filter(Link.child_bag_id == Bag.id).label('linked_parent_id'),
+            func.max(BillBag.bill_id).filter(BillBag.bag_id == Bag.id).label('bill_id')
+        ).outerjoin(
+            Link, or_(Link.parent_bag_id == Bag.id, Link.child_bag_id == Bag.id)
+        ).outerjoin(
+            BillBag, BillBag.bag_id == Bag.id
         )
+        
+        # Apply filters
+        filters = []
+        
+        # Type filter
+        if bag_type != 'all':
+            if bag_type == 'parent':
+                filters.append(Bag.type == BagType.PARENT.value)
+            elif bag_type == 'child':
+                filters.append(Bag.type == BagType.CHILD.value)
+        
+        # Search filter
+        if search_query:
+            filters.append(Bag.qr_id.ilike(f'%{search_query}%'))
+        
+        # Date range filter
+        if date_from and not date_error:
+            try:
+                from_date = datetime.strptime(date_from, '%Y-%m-%d')
+                filters.append(Bag.created_at >= from_date)
+            except ValueError:
+                pass
+        
+        if date_to and not date_error:
+            try:
+                to_date = datetime.strptime(date_to, '%Y-%m-%d')
+                # Add one day to include the entire end date
+                to_date = to_date + timedelta(days=1)
+                filters.append(Bag.created_at < to_date)
+            except ValueError:
+                pass
+        
+        # Area filter for dispatchers
+        if dispatch_area:
+            filters.append(Bag.dispatch_area == dispatch_area)
+        
+        # Apply all filters
+        if filters:
+            query = query.filter(and_(*filters))
+        
+        # Group by bag columns
+        query = query.group_by(
+            Bag.id,
+            Bag.qr_id,
+            Bag.type,
+            Bag.created_at,
+            Bag.created_by,
+            Bag.dispatch_area
+        )
+        
+        # Apply linked status filter using having clause
+        if linked_status == 'linked':
+            query = query.having(or_(
+                func.count(func.distinct(Link.child_bag_id)).filter(Link.parent_bag_id == Bag.id) > 0,
+                func.max(Link.parent_bag_id).filter(Link.child_bag_id == Bag.id) != None
+            ))
+        elif linked_status == 'not_linked':
+            query = query.having(and_(
+                func.count(func.distinct(Link.child_bag_id)).filter(Link.parent_bag_id == Bag.id) == 0,
+                func.max(Link.parent_bag_id).filter(Link.child_bag_id == Bag.id) == None
+            ))
+        
+        # Apply bill status filter using having clause
+        if bill_status == 'with_bill':
+            query = query.having(func.max(BillBag.bill_id).filter(BillBag.bag_id == Bag.id) != None)
+        elif bill_status == 'without_bill':
+            query = query.having(func.max(BillBag.bill_id).filter(BillBag.bag_id == Bag.id) == None)
+        
+        # Get total count before pagination
+        total_filtered = query.count()
+        
+        # Order by creation date (newest first)
+        query = query.order_by(Bag.created_at.desc())
+        
+        # Apply pagination
+        per_page = 20
+        offset = (page - 1) * per_page
+        bags_result = query.limit(per_page).offset(offset).all()
+        
+        # Convert results to dictionary format
+        bags_data = []
+        for row in bags_result:
+            bags_data.append({
+                'id': row.id,
+                'qr_id': row.qr_id,
+                'type': row.type,
+                'created_at': row.created_at,
+                'created_by': row.created_by,
+                'dispatch_area': row.dispatch_area,
+                'linked_children_count': row.linked_children_count or 0,
+                'linked_parent_id': row.linked_parent_id,
+                'bill_id': row.bill_id
+            })
+        
+        # Calculate stats
+        stats_query = db.session.query(
+            func.count(Bag.id).label('total_bags'),
+            func.count(Bag.id).filter(Bag.type == BagType.PARENT.value).label('parent_bags'),
+            func.count(Bag.id).filter(Bag.type == BagType.CHILD.value).label('child_bags')
+        )
+        
+        # Apply area filter for dispatchers to stats as well
+        if dispatch_area:
+            stats_query = stats_query.filter(Bag.dispatch_area == dispatch_area)
+        
+        stats_result = stats_query.first()
+        
+        stats = {
+            'total_bags': stats_result.total_bags or 0,
+            'parent_bags': stats_result.parent_bags or 0,
+            'child_bags': stats_result.child_bags or 0,
+            'linked_bags': db.session.query(func.count(func.distinct(Link.child_bag_id))).scalar() or 0,
+            'bags_with_bills': db.session.query(func.count(func.distinct(BillBag.bag_id))).scalar() or 0
+        }
         
         # Convert dictionary data back to Bag objects for template compatibility
         bag_objects = []

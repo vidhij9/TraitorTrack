@@ -8,8 +8,8 @@ from flask import request, g
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import database optimizer (available)
-import database_optimizer
+# Import database optimizer (disabled for stability)
+# import database_optimizer
 
 # Import all the main routes to ensure they're registered
 import routes
@@ -35,11 +35,11 @@ def after_request(response):
 # Warm cache on startup
 with app.app_context():
     try:
-        # Run database optimizations
-        optimization_results = database_optimizer.run_full_optimization()
-        logger.info(f"Database optimizations applied: {optimization_results}")
+        # Database optimizations disabled for stability
+        # optimization_results = database_optimizer.run_full_optimization()
+        logger.info("Database optimizations skipped for stability")
     except Exception as e:
-        logger.warning(f"Database optimization failed: {e}")
+        logger.warning(f"Database optimization skipped: {e}")
 
 # Emergency navigation route
 @app.route('/nav')
@@ -73,11 +73,11 @@ def production_setup():
         else:
             result = "✓ Admin user exists"
         
-        # Run database optimizations
+        # Database optimizations disabled for stability
         try:
-            optimization_results = database_optimizer.run_full_optimization()
-            optimizations_text = ", ".join([k for k, v in optimization_results.items() if v])
-            result += f"<br>✓ Database optimizations: {optimizations_text}"
+            # optimization_results = database_optimizer.run_full_optimization()
+            # optimizations_text = ", ".join([k for k, v in optimization_results.items() if v])
+            result += "<br>✓ Database optimizations: skipped for stability"
         except Exception as e:
             result += f"<br>⚠ Database optimization warning: {str(e)}"
         
