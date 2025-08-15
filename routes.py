@@ -1575,22 +1575,8 @@ def bag_management():
         dispatch_area = None
     
     try:
-        # Build optimized query with filters
-        query = db.session.query(
-            Bag.id,
-            Bag.qr_id,
-            Bag.type,
-            Bag.created_at,
-            Bag.created_by,
-            Bag.dispatch_area,
-            func.count(func.distinct(Link.child_bag_id)).filter(Link.parent_bag_id == Bag.id).label('linked_children_count'),
-            func.max(Link.parent_bag_id).filter(Link.child_bag_id == Bag.id).label('linked_parent_id'),
-            func.max(BillBag.bill_id).filter(BillBag.bag_id == Bag.id).label('bill_id')
-        ).outerjoin(
-            Link, or_(Link.parent_bag_id == Bag.id, Link.child_bag_id == Bag.id)
-        ).outerjoin(
-            BillBag, BillBag.bag_id == Bag.id
-        )
+        # Build simplified query for better stability
+        query = db.session.query(Bag)
         
         # Apply filters
         filters = []
@@ -1631,33 +1617,29 @@ def bag_management():
         if filters:
             query = query.filter(and_(*filters))
         
-        # Group by bag columns
-        query = query.group_by(
-            Bag.id,
-            Bag.qr_id,
-            Bag.type,
-            Bag.created_at,
-            Bag.created_by,
-            Bag.dispatch_area
-        )
-        
-        # Apply linked status filter using having clause
+        # Apply linked status filter
         if linked_status == 'linked':
-            query = query.having(or_(
-                func.count(func.distinct(Link.child_bag_id)).filter(Link.parent_bag_id == Bag.id) > 0,
-                func.max(Link.parent_bag_id).filter(Link.child_bag_id == Bag.id) != None
-            ))
+            # Get bags that have links (either as parent or child)
+            linked_bag_ids = db.session.query(Link.parent_bag_id).union(
+                db.session.query(Link.child_bag_id)
+            ).subquery()
+            query = query.filter(Bag.id.in_(linked_bag_ids))
         elif linked_status == 'not_linked':
-            query = query.having(and_(
-                func.count(func.distinct(Link.child_bag_id)).filter(Link.parent_bag_id == Bag.id) == 0,
-                func.max(Link.parent_bag_id).filter(Link.child_bag_id == Bag.id) == None
-            ))
+            # Get bags that don't have any links
+            linked_bag_ids = db.session.query(Link.parent_bag_id).union(
+                db.session.query(Link.child_bag_id)
+            ).subquery()
+            query = query.filter(~Bag.id.in_(linked_bag_ids))
         
-        # Apply bill status filter using having clause
+        # Apply bill status filter
         if bill_status == 'with_bill':
-            query = query.having(func.max(BillBag.bill_id).filter(BillBag.bag_id == Bag.id) != None)
+            # Get bags that have bills
+            bags_with_bills = db.session.query(BillBag.bag_id).distinct().subquery()
+            query = query.filter(Bag.id.in_(bags_with_bills))
         elif bill_status == 'without_bill':
-            query = query.having(func.max(BillBag.bill_id).filter(BillBag.bag_id == Bag.id) == None)
+            # Get bags that don't have bills
+            bags_with_bills = db.session.query(BillBag.bag_id).distinct().subquery()
+            query = query.filter(~Bag.id.in_(bags_with_bills))
         
         # Get total count before pagination
         total_filtered = query.count()
@@ -1670,40 +1652,53 @@ def bag_management():
         offset = (page - 1) * per_page
         bags_result = query.limit(per_page).offset(offset).all()
         
-        # Convert results to dictionary format
+        # Convert results to dictionary format with additional data
         bags_data = []
-        for row in bags_result:
+        for bag in bags_result:
+            # Get linked children count
+            linked_children_count = Link.query.filter_by(parent_bag_id=bag.id).count()
+            
+            # Get parent link if exists
+            parent_link = Link.query.filter_by(child_bag_id=bag.id).first()
+            linked_parent_id = parent_link.parent_bag_id if parent_link else None
+            
+            # Get bill if exists
+            bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
+            bill_id = bill_link.bill_id if bill_link else None
+            
             bags_data.append({
-                'id': row.id,
-                'qr_id': row.qr_id,
-                'type': row.type,
-                'created_at': row.created_at,
-                'created_by': row.created_by,
-                'dispatch_area': row.dispatch_area,
-                'linked_children_count': row.linked_children_count or 0,
-                'linked_parent_id': row.linked_parent_id,
-                'bill_id': row.bill_id
+                'id': bag.id,
+                'qr_id': bag.qr_id,
+                'type': bag.type,
+                'created_at': bag.created_at,
+                'name': bag.name,
+                'dispatch_area': bag.dispatch_area,
+                'linked_children_count': linked_children_count,
+                'linked_parent_id': linked_parent_id,
+                'bill_id': bill_id
             })
         
-        # Calculate stats
-        stats_query = db.session.query(
-            func.count(Bag.id).label('total_bags'),
-            func.count(Bag.id).filter(Bag.type == BagType.PARENT.value).label('parent_bags'),
-            func.count(Bag.id).filter(Bag.type == BagType.CHILD.value).label('child_bags')
-        )
-        
-        # Apply area filter for dispatchers to stats as well
+        # Calculate stats using simpler queries
+        base_stats_query = Bag.query
         if dispatch_area:
-            stats_query = stats_query.filter(Bag.dispatch_area == dispatch_area)
+            base_stats_query = base_stats_query.filter_by(dispatch_area=dispatch_area)
         
-        stats_result = stats_query.first()
+        total_bags = base_stats_query.count()
+        parent_bags = base_stats_query.filter_by(type=BagType.PARENT.value).count()
+        child_bags = base_stats_query.filter_by(type=BagType.CHILD.value).count()
+        
+        # Get linked bags count
+        linked_bags = db.session.query(func.count(func.distinct(Link.child_bag_id))).scalar() or 0
+        
+        # Get bags with bills count
+        bags_with_bills = db.session.query(func.count(func.distinct(BillBag.bag_id))).scalar() or 0
         
         stats = {
-            'total_bags': stats_result.total_bags or 0,
-            'parent_bags': stats_result.parent_bags or 0,
-            'child_bags': stats_result.child_bags or 0,
-            'linked_bags': db.session.query(func.count(func.distinct(Link.child_bag_id))).scalar() or 0,
-            'bags_with_bills': db.session.query(func.count(func.distinct(BillBag.bag_id))).scalar() or 0
+            'total_bags': total_bags,
+            'parent_bags': parent_bags,
+            'child_bags': child_bags,
+            'linked_bags': linked_bags,
+            'bags_with_bills': bags_with_bills
         }
         
         # Convert dictionary data back to Bag objects for template compatibility
@@ -1769,10 +1764,31 @@ def bag_management():
             
             bag_objects.append(MockBag(bag_dict))
         
-        # Create pagination object
-        bags = OptimizedBagQueries.create_pagination_object(
-            bag_objects, page, 20, total_filtered
-        )
+        # Create pagination object manually
+        class SimplePagination:
+            def __init__(self, items, page, per_page, total):
+                self.items = items
+                self.page = page
+                self.per_page = per_page
+                self.total = total
+                self.pages = (total + per_page - 1) // per_page if total > 0 else 1
+                self.has_prev = page > 1
+                self.has_next = page < self.pages
+                self.prev_num = page - 1 if self.has_prev else None
+                self.next_num = page + 1 if self.has_next else None
+            
+            def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+                last = 0
+                for num in range(1, self.pages + 1):
+                    if num <= left_edge or \
+                       (self.page - left_current - 1 < num < self.page + right_current) or \
+                       num > self.pages - right_edge:
+                        if last + 1 != num:
+                            yield None
+                        yield num
+                        last = num
+        
+        bags = SimplePagination(bag_objects, page, 20, total_filtered)
         
         # Update filtered count in stats
         stats['filtered_count'] = total_filtered
