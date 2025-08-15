@@ -460,6 +460,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleScanSuccess(qrCode) {
         console.log('Bag scanned:', qrCode);
         
+        // Scanner is already paused by the LiveQRScanner handleSuccess method
+        
         // Update UI
         detectedQrValue.textContent = qrCode;
         manualQrCode.value = qrCode;
@@ -588,12 +590,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Check if there's a result displayed (bag_info exists)
+    const hasResults = {% if bag_info %}true{% else %}false{% endif %};
+    
     // Start auto-initialization after page load
-    setTimeout(launchLiveScanner, 500);
+    setTimeout(() => {
+        launchLiveScanner().then(() => {
+            // If results are displayed, make sure scanner is ready for next scan
+            if (hasResults && scanner) {
+                console.log('Results displayed, scanner ready for next scan');
+                // Give a small delay before resuming to ensure user sees the result
+                setTimeout(() => {
+                    if (scanner && scanner.resumeScanning) {
+                        scanner.resumeScanning();
+                    }
+                }, 500);
+            }
+        });
+    }, 500);
     
     // Handle manual entry form submission
     if (manualEntryForm) {
         manualEntryForm.addEventListener('submit', function(event) {
+            // Pause scanner when manually submitting
+            if (scanner && scanner.pauseScanning) {
+                scanner.pauseScanning();
+            }
             const qrCode = manualQrCode.value.trim();
             
             if (!qrCode) {
@@ -610,6 +632,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const qrCode = detectedQrValue.textContent;
             if (qrCode) {
                 console.log('Searching detected QR code:', qrCode);
+                // Pause scanner before submitting
+                if (scanner && scanner.pauseScanning) {
+                    scanner.pauseScanning();
+                }
                 manualQrCode.value = qrCode;
                 manualEntryForm.submit();
             }
