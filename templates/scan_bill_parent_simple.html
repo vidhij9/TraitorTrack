@@ -210,11 +210,14 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Load Html5-QRCode from CDN with integrity check -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<!-- Load QR scanning libraries -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 
 <script>
-let html5QrcodeScanner;
+let scanner = null;
 let lastScanTime = 0;
 const SCAN_COOLDOWN = 1500;
 
@@ -224,49 +227,28 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeScanner() {
-    // Check if Html5QrcodeScanner is available
-    if (typeof Html5QrcodeScanner === 'undefined') {
-        showStatus('Scanner library not available. Please use manual entry.', 'warning');
-        return;
-    }
-    
     try {
-        // Create scanner with simple configuration
-        html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader",
-            { 
-                fps: 10,
-                qrbox: {width: 250, height: 250},
-                rememberLastUsedCamera: true,
-                showTorchButtonIfSupported: true
-            }
-        );
+        // Initialize the LiveQRScanner (same as scan management)
+        scanner = new LiveQRScanner('reader');
         
-        // Start scanning
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        // Set up scan callback
+        scanner.onSuccess = (qrCode) => {
+            const now = Date.now();
+            
+            // Check cooldown
+            if (now - lastScanTime < SCAN_COOLDOWN) {
+                return;
+            }
+            
+            lastScanTime = now;
+            processScan(qrCode);
+        };
+        
         showStatus('Scanner initialized. Position QR code in view.', 'success');
     } catch (error) {
         console.error('Scanner init error:', error);
         showStatus('Scanner initialization failed. Please use manual entry.', 'danger');
     }
-}
-
-function onScanSuccess(decodedText, decodedResult) {
-    const now = Date.now();
-    
-    // Check cooldown
-    if (now - lastScanTime < SCAN_COOLDOWN) {
-        return;
-    }
-    
-    lastScanTime = now;
-    
-    // Process the scan
-    processScan(decodedText);
-}
-
-function onScanFailure(error) {
-    // This is called when scanning fails - ignore it
 }
 
 function processScan(qrCode) {
