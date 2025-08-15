@@ -2,10 +2,6 @@
 {% block title %}Link Parent Bags to Bill - Ultra Scanner{% endblock %}
 
 {% block head %}
-<!-- QR Scanner Libraries -->
-<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/bill-scanner.js') }}"></script>
 
 <style>
 /* Enhanced Scanner Container - matching bill_management.html style */
@@ -237,16 +233,25 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-// Global scanner variable
-let html5QrcodeScanner = null;
+<!-- Load QR Scanner Libraries directly -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-// Wait for page to fully load
+<script>
+// Wait for libraries to fully load
 window.addEventListener('load', function() {
+    // Verify Html5Qrcode is loaded
+    if (typeof Html5Qrcode === 'undefined') {
+        document.getElementById('result-container').innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Scanner library failed to load. Please refresh the page.</div>';
+        document.getElementById('result-container').style.display = 'block';
+        return;
+    }
+    
     initializeScanner();
 });
 
 function initializeScanner() {
+    // Global scanner variable
+    let html5QrcodeScanner = null;
     // UI Elements
     const startBtn = document.getElementById('start-camera');
     const stopBtn = document.getElementById('stop-camera');
@@ -404,66 +409,39 @@ function initializeScanner() {
         try {
             showStatus('<i class="fas fa-spinner fa-spin me-2"></i>Initializing scanner...', 'info');
             
-            // Check if Html5Qrcode is available
-            if (typeof Html5Qrcode === 'undefined') {
-                // Try to load from CDN as fallback
-                showStatus('<i class="fas fa-spinner fa-spin me-2"></i>Loading scanner library...', 'warning');
-                
-                return new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-                    script.onload = function() {
-                        console.log('Scanner library loaded from CDN');
-                        resolve();
-                        // Retry initialization
-                        initScanner();
-                    };
-                    script.onerror = function() {
-                        showStatus('<i class="fas fa-exclamation-circle me-2"></i>Failed to load scanner library', 'danger');
-                        reject(new Error('Failed to load scanner library'));
-                    };
-                    document.head.appendChild(script);
-                });
-            }
-            
             // Create scanner instance
             html5QrcodeScanner = new Html5Qrcode("qr-reader");
             
             const config = {
                 fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
+                qrbox: { width: 250, height: 250 }
             };
             
-            // Get available cameras
-            const cameras = await Html5Qrcode.getCameras();
-            if (cameras && cameras.length > 0) {
-                // Try to use back camera first
-                const backCamera = cameras.find(camera => 
-                    camera.label.toLowerCase().includes('back') || 
-                    camera.label.toLowerCase().includes('rear') ||
-                    camera.label.toLowerCase().includes('environment')
-                ) || cameras[0];
-                
+            // Start with any available camera
+            await html5QrcodeScanner.start(
+                { facingMode: "environment" }, // Try back camera first
+                config,
+                onScanSuccess,
+                (errorMessage) => {
+                    // Silently ignore scan errors when no QR code is in view
+                }
+            ).catch(async (err) => {
+                console.log('Back camera failed, trying front camera');
+                // If back camera fails, try front camera
                 await html5QrcodeScanner.start(
-                    backCamera.id,
+                    { facingMode: "user" },
                     config,
                     onScanSuccess,
                     (errorMessage) => {
-                        // Ignore scan errors when no QR code is in view
-                        if (!errorMessage.includes('NotFoundException')) {
-                            console.warn('Scan error:', errorMessage);
-                        }
+                        // Silently ignore scan errors
                     }
                 );
-                
-                // Update UI
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                showStatus('<i class="fas fa-camera me-2"></i>Scanner active - Position QR code in view', 'success');
-            } else {
-                throw new Error('No cameras found on this device');
-            }
+            });
+            
+            // Update UI
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            showStatus('<i class="fas fa-camera me-2"></i>Scanner active - Position QR code in view', 'success');
             
         } catch (error) {
             console.error('Scanner initialization failed:', error);
