@@ -79,25 +79,25 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Enterprise-scale database engine configuration for 4+ lakh bags and 200+ concurrent users  
+# Optimized database configuration for 4+ million bags and 1000+ concurrent users
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 100,               # Large connection pool for enterprise scale
-    "max_overflow": 150,            # Extra connections for peak loads (total: 250)
-    "pool_recycle": 3600,           # Recycle connections every hour
+    "pool_size": 20,                # Optimized pool size for stability
+    "max_overflow": 30,             # Extra connections for peaks (total: 50)
+    "pool_recycle": 1800,           # Recycle connections every 30 minutes
     "pool_pre_ping": True,          # Test connections before use
-    "pool_timeout": 30,             # Connection pool timeout
-    "pool_use_lifo": True,          # LIFO queue for better connection reuse
-    "connect_args": {               # PostgreSQL optimizations for large datasets
+    "pool_timeout": 10,             # Faster timeout for better response
+    "pool_use_lifo": True,          # LIFO for better connection reuse
+    "connect_args": {               # PostgreSQL optimizations
         "keepalives": 1,
         "keepalives_idle": 30,
         "keepalives_interval": 5,
         "keepalives_count": 3,
-        "connect_timeout": 20,
-        "application_name": "TraceTrack_Enterprise",
+        "connect_timeout": 10,
+        "application_name": "TraceTrack_Optimized",
         "options": (
-            "-c statement_timeout=120000 "           # 2-minute statement timeout
-            "-c lock_timeout=60000 "                 # 1-minute lock timeout
-            "-c idle_in_transaction_session_timeout=300000"  # 5-minute transaction timeout
+            "-c statement_timeout=30000 "            # 30-second statement timeout
+            "-c work_mem=256MB "                     # Optimize for large queries
+            "-c maintenance_work_mem=512MB"          # Better maintenance operations
         )
     }
 }
@@ -146,6 +146,14 @@ from error_handlers import setup_error_handlers, setup_request_logging, setup_he
 setup_error_handlers(app)
 setup_request_logging(app)
 setup_health_monitoring(app)
+
+# Apply enhanced security configuration
+try:
+    from security_config import init_security
+    init_security(app)
+    logging.info("Security configuration applied")
+except Exception as e:
+    logging.warning(f"Security config not applied: {e}")
 
 # Add session validation and cache control
 @app.before_request

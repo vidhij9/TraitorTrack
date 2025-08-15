@@ -1,6 +1,8 @@
 # Import the working application with environment isolation
 from app_clean import app, db
 import logging
+import time
+from flask import request, g
 
 # Setup logging for production
 logging.basicConfig(level=logging.INFO)
@@ -11,41 +13,31 @@ import database_optimizer
 
 # Import all the main routes to ensure they're registered
 import routes
-import optimized_api  # Import optimized API v2 routes
-import ultra_fast_api  # Import ultra-fast API endpoints for 40+ lakh bags
-
-# Import enterprise monitoring and optimization systems
-from performance_monitoring import monitor, alert_manager
-from enterprise_cache import cache, CacheWarmer
-from database_scaling import db_scaler
-from analytics_routes import analytics_bp
-
-# Register analytics blueprint
-app.register_blueprint(analytics_bp)
-
-# Initialize enterprise systems
-db_scaler.init_app(app)
+import api  # Import consolidated API endpoints
+from optimized_cache import cache
+from performance_monitoring import monitor
 
 # Setup monitoring for all routes
 @app.before_request
 def before_request():
     """Track all requests for monitoring"""
-    monitor.track_request(lambda: None)()
+    g.request_start = time.time()
+
+@app.after_request
+def after_request(response):
+    """Log request performance"""
+    if hasattr(g, 'request_start'):
+        duration = time.time() - g.request_start
+        if duration > 0.5:
+            logger.warning(f"Slow request: {request.path} took {duration:.2f}s")
+    return response
 
 # Warm cache on startup
 with app.app_context():
     try:
-        cache.warm_cache()
-        CacheWarmer.warm_stats_cache()
-        logger.info("Cache warmed successfully")
-    except Exception as e:
-        logger.warning(f"Cache warming failed: {e}")
-    
-    # Setup database optimizations
-    try:
-        db_scaler.optimize_indexes()
-        db_scaler.setup_monitoring()
-        logger.info("Database optimizations applied")
+        # Run database optimizations
+        optimization_results = database_optimizer.run_full_optimization()
+        logger.info(f"Database optimizations applied: {optimization_results}")
     except Exception as e:
         logger.warning(f"Database optimization failed: {e}")
 
@@ -56,16 +48,7 @@ def emergency_nav():
     from flask import render_template
     return render_template('emergency_nav.html')
 
-# Add test data creation endpoint
-@app.route('/create-test-data')
-def create_test_data():
-    """Create sample test data for ultra-fast search testing"""
-    try:
-        from create_test_data import create_sample_data
-        create_sample_data()
-        return "✓ Sample test data created successfully! Try searching for P000001 or C000001"
-    except Exception as e:
-        return f"Error creating test data: {str(e)}"
+# Test data creation endpoint removed - not needed in production
 
 # Add production deployment setup endpoint
 @app.route('/production-setup')
@@ -100,7 +83,7 @@ def production_setup():
         
         # Clear cache for fresh start
         try:
-            from cache_utils import invalidate_cache
+            from optimized_cache import invalidate_cache
             invalidate_cache()
             result += "<br>✓ Application cache cleared"
         except Exception as e:

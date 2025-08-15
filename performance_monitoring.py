@@ -8,7 +8,7 @@ import time
 import psutil
 import logging
 import json
-import redis
+# Redis removed for simplification
 from datetime import datetime, timedelta
 from functools import wraps
 from collections import defaultdict, deque
@@ -19,7 +19,7 @@ from email.mime.multipart import MIMEMultipart
 from flask import g, request, current_app
 from sqlalchemy import text, func
 from models import db, User, Bag, Scan, Bill
-from alert_config import alert_config
+# Alert config simplified
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +40,6 @@ class PerformanceMonitor:
             'db_connections': 200,  # connections
         }
         self.alert_cooldown = {}  # Prevent alert spam
-        self.redis_client = None
-        self._init_redis()
-        
-    def _init_redis(self):
-        """Initialize Redis connection for distributed caching"""
-        try:
-            redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
-            self.redis_client = redis.from_url(redis_url, decode_responses=True)
-            self.redis_client.ping()
-            logger.info("Redis connection established for performance monitoring")
-        except Exception as e:
-            logger.warning(f"Redis not available, using in-memory monitoring: {e}")
-            self.redis_client = None
     
     def track_request(self, func):
         """Decorator to track request performance"""
@@ -123,11 +110,11 @@ class PerformanceMonitor:
             self.metrics['requests'].append(metric)
             
             # Store in Redis if available
-            if self.redis_client:
+            if None:
                 try:
                     key = f"metrics:request:{timestamp.strftime('%Y%m%d%H')}"
-                    self.redis_client.lpush(key, json.dumps(metric))
-                    self.redis_client.expire(key, 86400)  # Keep for 24 hours
+                    None.lpush(key, json.dumps(metric))
+                    None.expire(key, 86400)  # Keep for 24 hours
                 except Exception as e:
                     logger.error(f"Failed to store metric in Redis: {e}")
     
@@ -143,11 +130,11 @@ class PerformanceMonitor:
             
             self.metrics['db_queries'].append(metric)
             
-            if self.redis_client:
+            if None:
                 try:
                     key = f"metrics:db:{timestamp.strftime('%Y%m%d%H')}"
-                    self.redis_client.lpush(key, json.dumps(metric))
-                    self.redis_client.expire(key, 86400)
+                    None.lpush(key, json.dumps(metric))
+                    None.expire(key, 86400)
                 except Exception as e:
                     logger.error(f"Failed to store DB metric in Redis: {e}")
     
@@ -502,6 +489,18 @@ class PerformanceMonitor:
 
 # Global monitor instance
 monitor = PerformanceMonitor()
+
+# Simple alert manager for compatibility
+class AlertManager:
+    def __init__(self):
+        self.alerts = []
+    
+    def send_alert(self, alert_type, data):
+        """Simple alert logging"""
+        logger.warning(f"Alert: {alert_type} - {data}")
+        self.alerts.append({'type': alert_type, 'data': data, 'timestamp': datetime.now()})
+
+alert_manager = AlertManager()
 
 
 class DatabaseAnalytics:

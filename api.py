@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, desc
 from app_clean import app, db, limiter
 from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
-from cache_manager import cached_response, invalidate_cache
+from optimized_cache import cached, invalidate_cache, cache
 from query_optimizer import query_optimizer
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 @app.route('/api/bags/parent/list')
 @require_auth
 @limiter.limit("30 per minute")
-@cached_response(timeout=30)
+@cached(ttl=30, prefix='parent_bags')
 def get_all_parent_bags():
     """Optimized parent bags listing with pagination and search"""
     try:
@@ -71,7 +71,7 @@ def get_all_parent_bags():
 @app.route('/api/bags/<int:bag_id>/children')
 @require_auth
 @limiter.limit("60 per minute")
-@cached_response(timeout=60)
+@cached(ttl=60, prefix='api')
 def get_bag_children(bag_id):
     """Get all child bags for a specific parent bag"""
     try:
@@ -105,7 +105,7 @@ def get_bag_children(bag_id):
 @app.route('/api/dashboard/stats')
 @require_auth
 @limiter.limit("20 per minute")
-@cached_response(timeout=120)
+@cached(ttl=120, prefix='api')
 def get_dashboard_statistics():
     """Single optimized endpoint for all dashboard data"""
     try:
@@ -157,7 +157,7 @@ def get_dashboard_statistics():
 @app.route('/api/scans/recent')
 @require_auth
 @limiter.limit("30 per minute")
-@cached_response(timeout=60)
+@cached(ttl=60, prefix='api')
 def get_recent_scans():
     """Get recent scans with filtering options"""
     try:
@@ -326,7 +326,7 @@ def system_health():
             db_healthy = False
         
         # Cache statistics
-        from cache_manager import cache_stats
+        cache_stats = cache.get_stats()
         cache_info = cache_stats()
         
         return jsonify({
