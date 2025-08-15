@@ -145,7 +145,7 @@
                 </div>
                 <div class="card-body">
                     <!-- Scanner Container -->
-                    <div id="qr-reader" class="scanner-container mb-3"></div>
+                    <div id="bill-scanner-container" class="scanner-container mb-3"></div>
                     
                     <!-- Scanner Controls -->
                     <div class="text-center">
@@ -233,14 +233,18 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Load QR Scanner Libraries directly -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Load QR Scanner Libraries and LiveQRScanner -->
+<script src="{{ url_for('static', filename='js/libs/html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/libs/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
 
 <script>
 // Wait for libraries to fully load
 window.addEventListener('load', function() {
-    // Verify Html5Qrcode is loaded
-    if (typeof Html5Qrcode === 'undefined') {
+    // Verify LiveQRScanner is loaded
+    if (typeof LiveQRScanner === 'undefined') {
+        console.error('LiveQRScanner not loaded');
         document.getElementById('result-container').innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Scanner library failed to load. Please refresh the page.</div>';
         document.getElementById('result-container').style.display = 'block';
         return;
@@ -251,7 +255,7 @@ window.addEventListener('load', function() {
 
 function initializeScanner() {
     // Global scanner variable
-    let html5QrcodeScanner = null;
+    let scanner = null;
     // UI Elements
     const startBtn = document.getElementById('start-camera');
     const stopBtn = document.getElementById('stop-camera');
@@ -261,6 +265,7 @@ function initializeScanner() {
     const progressBar = document.getElementById('progress-bar');
     const progressPercentage = document.getElementById('progress-percentage');
     
+    let scannedBags = new Set(); // Track scanned bags to prevent duplicates
     let lastScanTime = 0;
     const SCAN_COOLDOWN = 1500;
     
@@ -292,33 +297,70 @@ function initializeScanner() {
         resultContainer.style.display = 'block';
     }
     
-    // Process QR code scan
-    function onScanSuccess(qrCode) {
+    // Process QR code scan with pause/resume
+    async function onScanSuccess(qrCode) {
         const now = Date.now();
+        console.log('Bill parent scan detected:', qrCode);
+        
+        // Scanner is already paused by LiveQRScanner handleSuccess
+        
+        // Check for duplicate scan
+        if (scannedBags.has(qrCode)) {
+            console.log('Duplicate scan detected:', qrCode);
+            showToast('Already scanned this bag!', 'info', 2000);
+            // Resume scanning for next bag
+            if (scanner && scanner.resumeScanning) {
+                setTimeout(() => {
+                    console.log('Resuming scanner after duplicate');
+                    scanner.resumeScanning();
+                }, 500);
+            }
+            return;
+        }
         
         // Check cooldown
         if (now - lastScanTime < SCAN_COOLDOWN) {
+            console.log('Scan cooldown active');
+            // Resume scanning after cooldown
+            if (scanner && scanner.resumeScanning) {
+                setTimeout(() => {
+                    scanner.resumeScanning();
+                }, SCAN_COOLDOWN - (now - lastScanTime));
+            }
             return;
         }
         
         lastScanTime = now;
         
         // Process the scan
-        fetch('/process_bill_parent_scan', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: `bill_id={{ bill.id }}&qr_code=${encodeURIComponent(qrCode)}`
-        })
-        .then(response => response.json())
-        .then(data => {
+        try {
+            const response = await fetch('/process_bill_parent_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `bill_id={{ bill.id }}&qr_code=${encodeURIComponent(qrCode)}`
+            });
+            
+            const data = await response.json();
+            
             if (data.success) {
+                // Add to scanned set
+                scannedBags.add(qrCode);
+                
                 // Success feedback
                 showToast(data.message, 'success', 3000);
                 addBagToList(data.bag_qr || qrCode);
                 updateProgress();
+                
+                // Resume scanning for next bag after short delay
+                if (scanner && scanner.resumeScanning) {
+                    setTimeout(() => {
+                        console.log('Resuming scanner after successful scan');
+                        scanner.resumeScanning();
+                    }, 300);
+                }
             } else {
                 // Error feedback with appropriate duration
                 let toastType = 'danger';
@@ -327,6 +369,8 @@ function initializeScanner() {
                 if (data.message.includes('already linked to this bill')) {
                     toastType = 'info';
                     duration = 3000;
+                    // Bag is already linked, add to set
+                    scannedBags.add(qrCode);
                 } else if (data.message.includes('already linked to different bill')) {
                     toastType = 'warning';
                     duration = 5000;
@@ -336,12 +380,27 @@ function initializeScanner() {
                 }
                 
                 showToast(data.message, toastType, duration);
+                
+                // Resume scanning for retry
+                if (scanner && scanner.resumeScanning) {
+                    setTimeout(() => {
+                        console.log('Resuming scanner after error');
+                        scanner.resumeScanning();
+                    }, 1000);
+                }
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error processing scan:', error);
             showToast('Network error. Please try again.', 'danger', 3000);
-        });
+            
+            // Resume scanning for retry
+            if (scanner && scanner.resumeScanning) {
+                setTimeout(() => {
+                    console.log('Resuming scanner after network error');
+                    scanner.resumeScanning();
+                }, 1000);
+            }
+        }
     }
     
     // Add bag to list UI
@@ -404,39 +463,23 @@ function initializeScanner() {
         }
     }
     
-    // Initialize Scanner
+    // Initialize Scanner with LiveQRScanner
     async function initScanner() {
         try {
             showStatus('<i class="fas fa-spinner fa-spin me-2"></i>Initializing scanner...', 'info');
             
-            // Create scanner instance
-            html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            if (!scanner) {
+                console.log('Creating LiveQRScanner for bill parent scanning...');
+                scanner = new LiveQRScanner('bill-scanner-container');
+                scanner.setSuccessCallback(onScanSuccess);
+                console.log('Bill LiveQRScanner initialized');
+                
+                // Make scanner globally accessible for debugging
+                window.billScanner = scanner;
+            }
             
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 }
-            };
-            
-            // Start with any available camera
-            await html5QrcodeScanner.start(
-                { facingMode: "environment" }, // Try back camera first
-                config,
-                onScanSuccess,
-                (errorMessage) => {
-                    // Silently ignore scan errors when no QR code is in view
-                }
-            ).catch(async (err) => {
-                console.log('Back camera failed, trying front camera');
-                // If back camera fails, try front camera
-                await html5QrcodeScanner.start(
-                    { facingMode: "user" },
-                    config,
-                    onScanSuccess,
-                    (errorMessage) => {
-                        // Silently ignore scan errors
-                    }
-                );
-            });
+            // Start scanner
+            await scanner.start();
             
             // Update UI
             startBtn.disabled = true;
@@ -453,9 +496,9 @@ function initializeScanner() {
     
     // Stop scanner
     async function stopScanner() {
-        if (html5QrcodeScanner) {
+        if (scanner) {
             try {
-                await html5QrcodeScanner.stop();
+                await scanner.stop();
                 
                 // Update UI
                 startBtn.disabled = false;
@@ -484,11 +527,14 @@ function initializeScanner() {
             if (data.success) {
                 showToast(data.message, 'success');
                 
-                // Remove from UI
+                // Remove from UI and scanned set
                 const item = document.querySelector(`[data-qr="${qrCode}"]`);
                 if (item) {
                     item.remove();
                 }
+                
+                // Remove from scanned set
+                scannedBags.delete(qrCode);
                 
                 // Update count
                 const currentCount = parseInt(bagCount.textContent) - 1;
