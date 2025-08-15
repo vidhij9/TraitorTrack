@@ -2037,8 +2037,8 @@ def scan_bill_parent(bill_id):
     current_count = bill.bag_links.count()
     app.logger.info(f'Scan bill parent page - Bill {bill.id} has {current_count} linked bags')
     
-    # Use the ultra scanner template for enhanced scanning
-    return render_template('scan_bill_parent_ultra.html', bill=bill, linked_bags=linked_bags)
+    # Use the simple scanner template that works reliably
+    return render_template('scan_bill_parent_simple.html', bill=bill, linked_bags=linked_bags)
 
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
