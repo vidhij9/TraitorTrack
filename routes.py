@@ -1723,15 +1723,37 @@ def bill_management():
     search_bill_id = request.args.get('search_bill_id', '').strip()
     status_filter = request.args.get('status_filter', 'all').strip()
     
-    # Build query
-    query = Bill.query
-    
-    # Apply bill ID search if provided
+    # Build query with prioritized search
     if search_bill_id:
-        query = query.filter(Bill.bill_id.contains(search_bill_id))
-    
-    # Get all bills first, then filter by status after calculating bag counts
-    bills = query.order_by(desc(Bill.created_at)).all()
+        # Optimized search with exact matches first, then partial matches by relevance
+        from sqlalchemy import case, func
+        
+        # Search with priority ordering:
+        # 1. Exact matches (highest priority)
+        # 2. Starts with search term (high priority) 
+        # 3. Contains search term (ordered by position)
+        exact_match = case(
+            (Bill.bill_id == search_bill_id, 1),
+            else_=0
+        )
+        starts_with = case(
+            (Bill.bill_id.like(f'{search_bill_id}%'), 1),
+            else_=0
+        )
+        position_in_id = func.strpos(func.lower(Bill.bill_id), func.lower(search_bill_id))
+        
+        # Get bills matching the search term
+        bills = Bill.query.filter(
+            Bill.bill_id.ilike(f'%{search_bill_id}%')
+        ).order_by(
+            exact_match.desc(),      # Exact matches first
+            starts_with.desc(),      # Then starts-with matches
+            position_in_id.asc(),    # Then by position (earlier = higher priority)
+            desc(Bill.created_at)    # Finally by creation date
+        ).all()
+    else:
+        # No search term - just get all bills ordered by creation date
+        bills = Bill.query.order_by(desc(Bill.created_at)).all()
     
     # Get parent bags count for each bill and apply status filter
     bill_data = []
