@@ -267,10 +267,10 @@ function initializeScanner() {
     
     let scannedBags = new Set(); // Track scanned bags to prevent duplicates
     let lastScanTime = 0;
-    const SCAN_COOLDOWN = 1500;
+    const SCAN_COOLDOWN = 500; // Reduced cooldown for faster scanning
     
-    // Show toast notification
-    function showToast(message, type = 'success', duration = 3000) {
+    // Show toast notification with optimized durations
+    function showToast(message, type = 'success', duration = 2000) {
         const toast = document.getElementById('scan-toast');
         const toastMessage = document.getElementById('toast-message');
         
@@ -308,12 +308,12 @@ function initializeScanner() {
         if (scannedBags.has(qrCode)) {
             console.log('Duplicate scan detected:', qrCode);
             showToast('Already scanned this bag!', 'info', 2000);
-            // Resume scanning for next bag
+            // Resume scanning instantly after duplicate
             if (scanner && scanner.resumeScanning) {
                 setTimeout(() => {
                     console.log('Resuming scanner after duplicate');
                     scanner.resumeScanning();
-                }, 500);
+                }, 50); // Near-instant resume for duplicates
             }
             return;
         }
@@ -354,12 +354,12 @@ function initializeScanner() {
                 addBagToList(data.bag_qr || qrCode);
                 updateProgress();
                 
-                // Resume scanning for next bag after short delay
+                // Resume scanning for next bag instantly
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after successful scan');
                         scanner.resumeScanning();
-                    }, 300);
+                    }, 100); // Ultra-fast 100ms resume
                 }
             } else {
                 // Error feedback with appropriate duration
@@ -368,37 +368,37 @@ function initializeScanner() {
                 
                 if (data.message.includes('already linked to this bill')) {
                     toastType = 'info';
-                    duration = 3000;
+                    duration = 1500; // Faster feedback
                     // Bag is already linked, add to set
                     scannedBags.add(qrCode);
                 } else if (data.message.includes('already linked to different bill')) {
                     toastType = 'warning';
-                    duration = 5000;
+                    duration = 2500; // Reduced duration
                 } else if (data.message.includes('not registered')) {
                     toastType = 'danger';
-                    duration = 5000;
+                    duration = 2500; // Reduced duration
                 }
                 
                 showToast(data.message, toastType, duration);
                 
-                // Resume scanning for retry
+                // Resume scanning for retry quickly
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after error');
                         scanner.resumeScanning();
-                    }, 1000);
+                    }, 500); // Faster resume after error
                 }
             }
         } catch (error) {
             console.error('Error processing scan:', error);
             showToast('Network error. Please try again.', 'danger', 3000);
             
-            // Resume scanning for retry
+            // Resume scanning for retry quickly
             if (scanner && scanner.resumeScanning) {
                 setTimeout(() => {
                     console.log('Resuming scanner after network error');
                     scanner.resumeScanning();
-                }, 1000);
+                }, 500); // Faster resume after network error
             }
         }
     }
@@ -601,10 +601,10 @@ function initializeScanner() {
     startBtn.addEventListener('click', initScanner);
     stopBtn.addEventListener('click', stopScanner);
     
-    // Auto-start scanner after page load
+    // Auto-start scanner immediately on page load
     setTimeout(() => {
         initScanner();
-    }, 500);
+    }, 100); // Start scanner super fast
 }
 
 // Initialize when DOM is ready

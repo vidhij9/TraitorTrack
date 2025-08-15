@@ -263,8 +263,8 @@ class LiveQRScanner {
     
     async tryMultipleInitMethods() {
         const methods = [
+            () => this.tryHtml5Scanner(), // Try Html5Qrcode first (better camera control)
             () => this.initializeNativeCamera(),
-            () => this.tryHtml5Scanner(),
             () => this.initializeBasicCamera()
         ];
         
@@ -289,14 +289,14 @@ class LiveQRScanner {
     }
     
     async initializeBasicCamera() {
-        console.log('LiveQR: Trying basic camera initialization...');
+        console.log('LiveQR: Trying basic camera initialization - back camera');
         
-        // Very basic camera constraints for compatibility
+        // Basic constraints but still force back camera
         const constraints = {
             video: {
-                facingMode: 'environment',
-                width: { ideal: 640 },
-                height: { ideal: 480 }
+                facingMode: { exact: 'environment' }, // FORCE back camera even in basic mode
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
             },
             audio: false
         };
@@ -322,22 +322,39 @@ class LiveQRScanner {
             throw new Error('No cameras found');
         }
         
-        // Use first available camera (prefer back if available)
-        let camera = cameras[0];
+        // ALWAYS prefer back camera - check all cameras for back camera
+        let camera = null;
         for (const cam of cameras) {
-            if (cam.label && cam.label.toLowerCase().includes('back')) {
-                camera = cam;
-                break;
+            console.log('LiveQR: Found camera:', cam.label || cam.id);
+            if (cam.label) {
+                const label = cam.label.toLowerCase();
+                // Check for back camera indicators
+                if (label.includes('back') || label.includes('rear') || 
+                    label.includes('environment') || label.includes('0')) {
+                    camera = cam;
+                    console.log('LiveQR: Selected back camera:', cam.label);
+                    break;
+                }
             }
         }
         
+        // If no back camera found, use the last camera (usually back on mobile)
+        if (!camera) {
+            camera = cameras[cameras.length - 1];
+            console.log('LiveQR: Using last camera as fallback:', camera.label || camera.id);
+        }
+        
         const config = {
-            fps: 60,  // APPLE SPEED: Maximum FPS
-            qrbox: { width: 250, height: 250 }, // APPLE SPEED: Larger detection box
+            fps: 60,  // Maximum FPS for instant detection
+            qrbox: { width: 300, height: 300 }, // Larger scan area for easier scanning
             aspectRatio: 1.0,
-            formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ], // SPEED: QR only
+            formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ], // QR only for speed
             experimentalFeatures: {
-                useBarCodeDetectorIfSupported: true // APPLE SPEED: Use native detection
+                useBarCodeDetectorIfSupported: true // Native detection for speed
+            },
+            videoConstraints: {
+                facingMode: { exact: 'environment' }, // FORCE back camera
+                frameRate: { ideal: 60, min: 30 }
             }
         };
         
@@ -364,18 +381,18 @@ class LiveQRScanner {
     }
     
     async initializeNativeCamera() {
-        console.log('LiveQR: Starting native camera');
+        console.log('LiveQR: Starting native camera - BACK CAMERA ONLY');
         
-        // Enhanced camera constraints for better compatibility
+        // Force back camera with strict constraints
         const constraints = {
             video: {
-                facingMode: { ideal: 'environment' },
-                width: { ideal: 1920, min: 1280 }, // APPLE SPEED: Higher resolution for better detection
+                facingMode: { exact: 'environment' }, // FORCE back camera
+                width: { ideal: 1920, min: 1280 },
                 height: { ideal: 1080, min: 720 },
-                frameRate: { ideal: 60, min: 30 }, // APPLE SPEED: 60fps for ultra-fast scanning
-                focusMode: 'continuous',           // APPLE SPEED: Continuous autofocus
-                exposureMode: 'continuous',        // APPLE SPEED: Continuous exposure
-                whiteBalanceMode: 'continuous'     // APPLE SPEED: Continuous white balance
+                frameRate: { ideal: 60, min: 30 },
+                focusMode: 'continuous',
+                exposureMode: 'continuous',
+                whiteBalanceMode: 'continuous'
             },
             audio: false
         };
@@ -412,10 +429,12 @@ class LiveQRScanner {
     }
     
     async tryFallbackCamera() {
-        console.log('LiveQR: Trying fallback camera settings');
+        console.log('LiveQR: Trying fallback camera settings - still preferring back');
         
         const fallbackConstraints = {
-            video: true,
+            video: {
+                facingMode: 'environment' // Still try for back camera
+            },
             audio: false
         };
         
@@ -588,22 +607,23 @@ class LiveQRScanner {
     }
     
     pauseScanning() {
-        console.log('LiveQR: Pausing scanner');
+        console.log('LiveQR: Pausing scanner - camera stays active for instant resume');
         this.isPaused = true;
         
         // Update scan text to show paused state
         const scanText = this.container.querySelector('.scan-text');
         if (scanText) {
-            scanText.textContent = 'Processing result...';
+            scanText.textContent = 'Processing...';
         }
         
-        // Don't stop the actual scanner, just pause processing
-        // This allows for quick resume without reinitializing the camera
-        console.log('LiveQR: Scanner paused (camera still active)');
+        // Camera stays completely active - just ignore scans
+        console.log('LiveQR: Processing paused, camera still running at full speed');
     }
     
     resumeScanning() {
-        console.log('LiveQR: Resuming scanner');
+        console.log('LiveQR: Resuming scanner - FAST mode');
+        
+        // Simply unpause - don't restart anything
         this.isPaused = false;
         
         // Update scan text back to normal
@@ -612,36 +632,10 @@ class LiveQRScanner {
             scanText.textContent = 'Position QR code in frame';
         }
         
-        // If using Html5Qrcode scanner, ensure it's running
-        if (this.scanner) {
-            // Check if Html5Qrcode scanner is actually running
-            if (this.scanner.getState && typeof this.scanner.getState === 'function') {
-                const state = this.scanner.getState();
-                console.log('LiveQR: Html5Qrcode state:', state);
-                
-                // Html5QrcodeState.SCANNING = 2
-                if (state !== 2 && state !== undefined) {
-                    console.log('LiveQR: Html5Qrcode scanner not running, attempting restart');
-                    // Scanner is stopped, try to restart it
-                    this.tryHtml5Scanner().catch(err => {
-                        console.error('LiveQR: Failed to restart Html5Qrcode:', err);
-                        // Fall back to native scanning if Html5Qrcode fails
-                        this.initializeNativeCamera();
-                    });
-                } else {
-                    console.log('LiveQR: Html5Qrcode scanner already running, just unpaused');
-                }
-            }
-            this.isScanning = true;
-        } else if (this.cameraStream) {
-            // For native scanning, just unpause
-            console.log('LiveQR: Native scanner unpaused');
-            this.isScanning = true;
-        } else {
-            // No scanner active, try to start one
-            console.log('LiveQR: No active scanner, starting...');
-            this.startScanning();
-        }
+        // Make sure scanning flag is true
+        this.isScanning = true;
+        
+        console.log('LiveQR: Scanner resumed instantly - camera still active');
     }
     
     async stop() {
