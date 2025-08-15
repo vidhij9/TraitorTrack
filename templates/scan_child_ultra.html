@@ -474,6 +474,9 @@
                     scanner.setSuccessCallback(handleChildScanSuccess);
                     console.log('Child LiveQRScanner initialized successfully');
                     
+                    // Make scanner available globally for debugging
+                    window.childScanner = scanner;
+                    
                     // Hide loading message since scanner is ready
                     resultContainer.style.display = 'none';
                     
@@ -481,6 +484,13 @@
                     if (scanner && scanner.start) {
                         console.log('Starting child scanner...');
                         await scanner.start();
+                        console.log('Child scanner started, isPaused:', scanner.isPaused);
+                    }
+                } else {
+                    console.log('Scanner already exists, ensuring it is active');
+                    if (scanner.isPaused) {
+                        console.log('Scanner is paused, resuming...');
+                        scanner.resumeScanning();
                     }
                 }
             } catch (error) {
@@ -493,9 +503,10 @@
         async function handleChildScanSuccess(qrText) {
             const startTime = performance.now();
             console.log('ULTRA-FAST Child scan:', qrText);
+            console.log('Scanner state - isPaused:', scanner?.isPaused, 'isScanning:', scanner?.isScanning);
             
             // Scanner is already paused by the LiveQRScanner handleSuccess method
-            console.log('Child scan detected:', qrText);
+            console.log('Child scan detected, processing:', qrText);
             
             // CLIENT-SIDE DUPLICATE PREVENTION
             if (scannedQrCodes.has(qrText)) {
@@ -503,7 +514,11 @@
                 showToast('Already scanned this bag!', 'error');
                 // Resume scanning for next bag
                 if (scanner && scanner.resumeScanning) {
-                    setTimeout(() => scanner.resumeScanning(), 200);
+                    console.log('Resuming scanner after duplicate detection');
+                    setTimeout(() => {
+                        scanner.resumeScanning();
+                        console.log('Scanner resumed after duplicate');
+                    }, 200);
                 }
                 return; // Stop processing
             }
@@ -558,10 +573,14 @@
                     } else {
                         // Resume scanning for next bag after short delay
                         if (scanner && scanner.resumeScanning) {
+                            console.log('Scheduling scanner resume after successful scan');
                             setTimeout(() => {
                                 console.log('Resuming scanner after successful scan');
                                 scanner.resumeScanning();
-                            }, 300);  // Reduced delay for faster scanning
+                                console.log('Scanner resume called, state:', scanner?.isPaused ? 'paused' : 'active');
+                            }, 300);  // Short delay for UI feedback
+                        } else {
+                            console.error('Scanner or resumeScanning method not available');
                         }
                     }
                     
@@ -573,10 +592,14 @@
                     
                     // Resume scanning for retry
                     if (scanner && scanner.resumeScanning) {
+                        console.log('Scheduling scanner resume after error');
                         setTimeout(() => {
                             console.log('Resuming scanner after error');
                             scanner.resumeScanning();
+                            console.log('Scanner resumed after error');
                         }, 1000);
+                    } else {
+                        console.error('Scanner not available for resume after error');
                     }
                 }
                 
@@ -588,10 +611,14 @@
                 
                 // Resume scanning for retry
                 if (scanner && scanner.resumeScanning) {
+                    console.log('Scheduling scanner resume after network error');
                     setTimeout(() => {
                         console.log('Resuming scanner after network error');
                         scanner.resumeScanning();
+                        console.log('Scanner resumed after network error');
                     }, 1000);
+                } else {
+                    console.error('Scanner not available for resume after network error');
                 }
             }
         }

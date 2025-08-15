@@ -349,10 +349,13 @@ class LiveQRScanner {
                 if (!this.isPaused) {
                     console.log('LiveQR: QR detected via Html5Qrcode:', decodedText);
                     this.handleSuccess(decodedText);
+                } else {
+                    console.log('LiveQR: QR detected but scanner is paused, ignoring:', decodedText);
                 }
             },
-            () => {
-                // Silent error handling
+            (errorMessage) => {
+                // Silent error handling for scan failures
+                // These are normal when no QR code is in view
             }
         );
         
@@ -451,11 +454,26 @@ class LiveQRScanner {
         let lastScanTime = 0;
         
         const scan = () => {
-            if (!this.isScanning || this.isPaused) return;
+            if (!this.isScanning) {
+                console.log('LiveQR: Native scanning stopped');
+                return;
+            }
+            
+            if (this.isPaused) {
+                // Keep the scan loop running but skip processing
+                requestAnimationFrame(scan);
+                return;
+            }
             
             frame++;
             // APPLE SPEED: Scan every frame for ultra-fast detection
             try {
+                // Ensure video is ready
+                if (!this.video || this.video.readyState !== 4) {
+                    requestAnimationFrame(scan);
+                    return;
+                }
+                
                 this.canvas.width = this.video.videoWidth;
                 this.canvas.height = this.video.videoHeight;
                 
@@ -477,7 +495,7 @@ class LiveQRScanner {
                         const now = Date.now();
                         // APPLE SPEED: Prevent duplicate scans within 200ms
                         if (code.data !== lastScan || (now - lastScanTime) > 200) {
-                            console.log('LiveQR: ULTRA-FAST QR detected:', code.data);
+                            console.log('LiveQR: ULTRA-FAST QR detected via jsQR:', code.data);
                             lastScan = code.data;
                             lastScanTime = now;
                             this.handleSuccess(code.data);
@@ -486,11 +504,15 @@ class LiveQRScanner {
                 }
             } catch (error) {
                 // Silent error handling for continuous scanning
+                if (frame % 100 === 0) {
+                    console.log('LiveQR: Native scan error (frame ' + frame + '):', error.message);
+                }
             }
             
             requestAnimationFrame(scan);
         };
         
+        console.log('LiveQR: Starting native scanning loop');
         scan();
     }
     
@@ -516,6 +538,7 @@ class LiveQRScanner {
     handleSuccess(qrText) {
         // Prevent multiple scans while processing
         if (this.isPaused) {
+            console.log('LiveQR: Scan ignored - scanner is paused');
             return;
         }
         
@@ -526,8 +549,10 @@ class LiveQRScanner {
         
         // Flash effect
         const flash = document.getElementById('success-flash');
-        flash.classList.add('show');
-        setTimeout(() => flash.classList.remove('show'), 200);
+        if (flash) {
+            flash.classList.add('show');
+            setTimeout(() => flash.classList.remove('show'), 200);
+        }
         
         // Haptic feedback
         if (navigator.vibrate) {
@@ -535,6 +560,7 @@ class LiveQRScanner {
         }
         
         if (this.onSuccess) {
+            // Call the success callback
             this.onSuccess(qrText);
         }
         
@@ -570,6 +596,10 @@ class LiveQRScanner {
         if (scanText) {
             scanText.textContent = 'Processing result...';
         }
+        
+        // Don't stop the actual scanner, just pause processing
+        // This allows for quick resume without reinitializing the camera
+        console.log('LiveQR: Scanner paused (camera still active)');
     }
     
     resumeScanning() {
@@ -580,6 +610,37 @@ class LiveQRScanner {
         const scanText = this.container.querySelector('.scan-text');
         if (scanText) {
             scanText.textContent = 'Position QR code in frame';
+        }
+        
+        // If using Html5Qrcode scanner, ensure it's running
+        if (this.scanner) {
+            // Check if Html5Qrcode scanner is actually running
+            if (this.scanner.getState && typeof this.scanner.getState === 'function') {
+                const state = this.scanner.getState();
+                console.log('LiveQR: Html5Qrcode state:', state);
+                
+                // Html5QrcodeState.SCANNING = 2
+                if (state !== 2 && state !== undefined) {
+                    console.log('LiveQR: Html5Qrcode scanner not running, attempting restart');
+                    // Scanner is stopped, try to restart it
+                    this.tryHtml5Scanner().catch(err => {
+                        console.error('LiveQR: Failed to restart Html5Qrcode:', err);
+                        // Fall back to native scanning if Html5Qrcode fails
+                        this.initializeNativeCamera();
+                    });
+                } else {
+                    console.log('LiveQR: Html5Qrcode scanner already running, just unpaused');
+                }
+            }
+            this.isScanning = true;
+        } else if (this.cameraStream) {
+            // For native scanning, just unpause
+            console.log('LiveQR: Native scanner unpaused');
+            this.isScanning = true;
+        } else {
+            // No scanner active, try to start one
+            console.log('LiveQR: No active scanner, starting...');
+            this.startScanning();
         }
     }
     
