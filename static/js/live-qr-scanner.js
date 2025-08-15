@@ -46,13 +46,9 @@ class LiveQRScanner {
         this.minZoom = 1;
         this.maxZoom = 1;
         
-        // Image enhancement for damaged codes
+        // Simplified settings for speed
         this.enhancementSettings = {
-            contrast: 1.5,
-            brightness: 1.1,
-            sharpness: true,
-            denoise: true,
-            adaptiveThreshold: true
+            enabled: false // Disable by default for speed
         };
         
         // Permission manager
@@ -84,18 +80,9 @@ class LiveQRScanner {
     }
     
     async loadExternalLibraries() {
-        // Load ZXing if not already loaded for additional scanning capability
-        // Using the browser bundle version which includes all necessary components
-        if (typeof ZXing === 'undefined' && !document.querySelector('script[src*="zxing"]')) {
-            try {
-                // Use the correct browser bundle URL
-                await this.loadScript('https://unpkg.com/@zxing/browser@latest/umd/index.min.js');
-                console.log('LiveQR: ZXing library loaded successfully');
-            } catch (e) {
-                console.log('LiveQR: ZXing library could not be loaded - continuing with jsQR only');
-                // Scanner will still work with jsQR, ZXing is optional
-            }
-        }
+        // Skip loading external libraries for speed
+        // jsQR is already loaded and sufficient
+        return;
     }
     
     loadScript(src) {
@@ -392,10 +379,8 @@ class LiveQRScanner {
     
     async tryMultipleInitMethods() {
         const methods = [
-            () => this.initializeOptimalCamera(), // Try optimal settings first
-            () => this.tryHtml5Scanner(), // Try Html5Qrcode (better camera control)
-            () => this.initializeNativeCamera(),
-            () => this.initializeBasicCamera()
+            () => this.initializeOptimalCamera(), // Fast camera init
+            () => this.initializeBasicCamera() // Fallback
         ];
         
         for (let i = 0; i < methods.length; i++) {
@@ -419,19 +404,16 @@ class LiveQRScanner {
     }
     
     async initializeOptimalCamera() {
-        console.log('LiveQR: Trying optimal camera settings for tiny & damaged QR codes');
+        console.log('LiveQR: Fast camera initialization');
         
-        // Optimal constraints for tiny QR codes and maximum quality
+        // Balanced constraints for speed
         const constraints = {
             video: {
                 facingMode: { exact: 'environment' },
-                width: { ideal: 3840, min: 1920 }, // 4K resolution for tiny codes
-                height: { ideal: 2160, min: 1080 },
-                frameRate: { ideal: 60, min: 30 }, // High FPS for fast scanning
-                focusMode: { ideal: 'continuous' }, // Auto-focus for varying distances
-                exposureMode: { ideal: 'continuous' },
-                whiteBalanceMode: { ideal: 'continuous' },
-                resizeMode: 'none' // No downscaling
+                width: { ideal: 1280 }, // Lower resolution for speed
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 }, // Standard FPS
+                focusMode: { ideal: 'continuous' }
             },
             audio: false
         };
@@ -731,48 +713,14 @@ class LiveQRScanner {
         try {
             this.torchEnabled = !this.torchEnabled;
             
-            // Method 1: Standard torch control
+            // Simple torch control - only try standard method
             if (track.applyConstraints) {
-                try {
-                    await track.applyConstraints({
-                        advanced: [{ torch: this.torchEnabled }]
-                    });
-                    console.log(`LiveQR: Torch ${this.torchEnabled ? 'ON' : 'OFF'} via constraints`);
-                    if (torchBtn) torchBtn.classList.toggle('active', this.torchEnabled);
-                    return;
-                } catch (e) {
-                    console.log('LiveQR: Standard torch method failed');
-                }
-            }
-            
-            // Method 2: ImageCapture API (works on more Android devices)
-            if (this.imageCapture) {
-                try {
-                    const photoSettings = {
-                        fillLightMode: this.torchEnabled ? 'flash' : 'off'
-                    };
-                    // Take a photo to trigger the flash
-                    if (this.torchEnabled) {
-                        await this.imageCapture.takePhoto(photoSettings);
-                    }
-                    console.log(`LiveQR: Torch ${this.torchEnabled ? 'ON' : 'OFF'} via ImageCapture`);
-                    if (torchBtn) torchBtn.classList.toggle('active', this.torchEnabled);
-                    return;
-                } catch (e) {
-                    console.log('LiveQR: ImageCapture torch method failed');
-                }
-            }
-            
-            // Method 3: iOS-specific handling
-            if (this.isIOS()) {
-                await this.toggleTorchIOS();
+                await track.applyConstraints({
+                    advanced: [{ torch: this.torchEnabled }]
+                });
+                console.log(`LiveQR: Torch ${this.torchEnabled ? 'ON' : 'OFF'}`);
                 if (torchBtn) torchBtn.classList.toggle('active', this.torchEnabled);
-                return;
             }
-            
-            // Method 4: Re-initialize stream with torch setting (last resort)
-            await this.reinitializeStreamWithTorch();
-            if (torchBtn) torchBtn.classList.toggle('active', this.torchEnabled);
             
         } catch (error) {
             console.error('LiveQR: Failed to toggle torch:', error);
@@ -873,16 +821,8 @@ class LiveQRScanner {
     }
     
     startMultiEngineScan() {
-        // Start multiple scanning engines in parallel for best results
-        this.startJsQRScanning(); // Primary scanner - always available
-        
-        // Try to start ZXing if available (optional enhancement)
-        if (typeof ZXing !== 'undefined' || typeof window.ZXingBrowser !== 'undefined') {
-            this.startZXingScanning();
-        } else {
-            console.log('LiveQR: ZXing not available, using jsQR only (still world-class!)');
-        }
-        
+        // Only use jsQR for speed
+        this.startJsQRScanning();
         this.isScanning = true;
     }
     
@@ -896,23 +836,27 @@ class LiveQRScanner {
             return;
         }
         
-        let frame = 0;
+        let skipFrames = 0;
         
         const scan = () => {
             if (!this.isScanning) return;
             
             if (!this.isPaused && this.video.readyState === 4) {
-                frame++;
-                
-                // Update canvas size
-                this.canvas.width = this.video.videoWidth;
-                this.canvas.height = this.video.videoHeight;
-                
-                if (this.canvas.width > 0 && this.canvas.height > 0) {
-                    this.context.drawImage(this.video, 0, 0);
+                // Skip frames for performance (scan every 2nd frame)
+                skipFrames++;
+                if (skipFrames % 2 === 0) {
+                    // Update canvas size only if changed
+                    if (this.canvas.width !== this.video.videoWidth) {
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                    }
                     
-                    // Multi-strategy scanning for maximum success rate
-                    this.scanWithMultipleStrategies();
+                    if (this.canvas.width > 0 && this.canvas.height > 0) {
+                        this.context.drawImage(this.video, 0, 0);
+                        
+                        // Single fast scan
+                        this.scanWithMultipleStrategies();
+                    }
                 }
             }
             
@@ -924,19 +868,8 @@ class LiveQRScanner {
     }
     
     scanWithMultipleStrategies() {
-        // Strategy 1: Full frame scan (for well-positioned codes)
-        this.scanFullFrame();
-        
-        // Strategy 2: Center region scan (faster)
+        // Only use the fastest strategy - center region scan
         this.scanCenterRegion();
-        
-        // Strategy 3: Enhanced image scan (for damaged codes)
-        if (this.enhancementSettings.adaptiveThreshold) {
-            this.scanEnhancedImage();
-        }
-        
-        // Strategy 4: Multi-scale scan (for tiny 5mm codes)
-        this.scanMultiScale();
     }
     
     scanFullFrame() {
@@ -951,15 +884,13 @@ class LiveQRScanner {
     }
     
     scanCenterRegion() {
-        const centerSize = 0.6; // 60% center region
-        const x = Math.floor(this.canvas.width * (1 - centerSize) / 2);
-        const y = Math.floor(this.canvas.height * (1 - centerSize) / 2);
-        const width = Math.floor(this.canvas.width * centerSize);
-        const height = Math.floor(this.canvas.height * centerSize);
+        // Use full frame for speed (no cropping overhead)
+        const width = this.canvas.width;
+        const height = this.canvas.height;
         
-        const imageData = this.context.getImageData(x, y, width, height);
+        const imageData = this.context.getImageData(0, 0, width, height);
         const code = jsQR(imageData.data, width, height, {
-            inversionAttempts: 'dontInvert' // Faster
+            inversionAttempts: 'dontInvert' // Skip inversion for speed
         });
         
         if (code && code.data) {

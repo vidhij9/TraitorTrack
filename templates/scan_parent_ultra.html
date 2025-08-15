@@ -12,25 +12,6 @@
                         <i class="fas fa-qrcode me-2"></i>Scan Parent Bag
                     </h2>
                     
-                    <div class="progress-container">
-                        <div class="progress-indicator">
-                            <div class="progress-step active">
-                                <div class="progress-step-circle">1</div>
-                                <div class="progress-step-label">Scan Parent Bag</div>
-                            </div>
-                            <div class="progress-line"></div>
-                            <div class="progress-step">
-                                <div class="progress-step-circle">2</div>
-                                <div class="progress-step-label">Scan Child Bags</div>
-                            </div>
-                            <div class="progress-line"></div>
-                            <div class="progress-step">
-                                <div class="progress-step-circle">3</div>
-                                <div class="progress-step-label">Complete</div>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <p class="card-text">Position QR code in the scanning area for automatic detection.</p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
@@ -131,63 +112,6 @@
     font-size: 0.85rem;
 }
 
-/* Progress indicator styles */
-.progress-container {
-    margin: 20px 0;
-}
-
-.progress-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.progress-step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
-}
-
-.progress-step-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: #e9ecef;
-    border: 2px solid #dee2e6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    color: #6c757d;
-    margin-bottom: 8px;
-}
-
-.progress-step.active .progress-step-circle {
-    background-color: #198754;
-    border-color: #198754;
-    color: white;
-}
-
-.progress-step-label {
-    font-size: 0.875rem;
-    text-align: center;
-    color: #6c757d;
-}
-
-.progress-step.active .progress-step-label {
-    color: #198754;
-    font-weight: 600;
-}
-
-.progress-line {
-    width: 60px;
-    height: 2px;
-    background-color: #dee2e6;
-    margin: 0 10px;
-    margin-top: -20px;
-}
-
 /* Enhancement indicators */
 .enhancement-badge {
     position: absolute;
@@ -208,7 +132,7 @@
 <script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
 <script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
-<script src="{{ url_for('static', filename='js/live-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fast-qr-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
