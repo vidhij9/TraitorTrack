@@ -8,7 +8,7 @@
     
     // Configuration
     const API_CONFIG = {
-        statsEndpoint: '/api/v3/dashboard/ultra',
+        statsEndpoint: '/api/stats',
         fallbackStatsEndpoint: '/api/stats',
         scansEndpoint: '/api/scans',
         refreshInterval: 30000, // 30 seconds
@@ -74,39 +74,18 @@
      */
     async function updateStats() {
         try {
-            // Try ultra-fast endpoint first
-            let data;
-            try {
-                data = await fetchWithRetry(API_CONFIG.statsEndpoint);
-            } catch (error) {
-                console.warn('Ultra-fast endpoint failed, trying fallback:', error);
-                // Fallback to regular endpoint
-                data = await fetchWithRetry(API_CONFIG.fallbackStatsEndpoint);
-            }
+            // Fetch stats from API
+            let data = await fetchWithRetry(API_CONFIG.statsEndpoint);
             
             // Cache the data
             dataCache.stats = data;
             dataCache.lastUpdate = Date.now();
             
-            // Update UI based on endpoint response format
-            if (data.stats) {
-                // Ultra-fast endpoint format
-                updateElementSafely('total-parent-bags', data.stats.bags?.parent || 0);
-                updateElementSafely('total-child-bags', data.stats.bags?.child || 0);
-                updateElementSafely('total-bills', data.stats.bills?.total || 0);
-                updateElementSafely('total-scans', data.stats.scans?.total || 0);
-                
-                // Update recent activity if available
-                if (data.recent_activity) {
-                    updateRecentActivity(data.recent_activity);
-                }
-            } else if (data.statistics) {
-                // Fallback endpoint format
-                updateElementSafely('total-parent-bags', data.statistics.total_parent_bags || 0);
-                updateElementSafely('total-child-bags', data.statistics.total_child_bags || 0);
-                updateElementSafely('total-bills', data.statistics.total_bills || 0);
-                updateElementSafely('total-scans', data.statistics.total_scans || 0);
-            }
+            // Update UI with stats data
+            updateElementSafely('total-parent-bags', data.parent_bags || 0);
+            updateElementSafely('total-child-bags', data.child_bags || 0);
+            updateElementSafely('total-bills', data.active_bills || 0);
+            updateElementSafely('total-scans', data.recent_scans || 0);
             
             // Show success indicator
             showStatusIndicator('success');

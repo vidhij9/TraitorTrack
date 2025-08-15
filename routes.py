@@ -2442,26 +2442,38 @@ def api_dashboard_stats():
 
 @app.route('/api/scans')
 def api_recent_scans():
-    """Get recent scans for dashboard"""
+    """Get recent scans for dashboard - optimized with single query"""
     try:
-        limit = request.args.get('limit', 20, type=int)
-        scans = Scan.query.order_by(desc(Scan.timestamp)).limit(limit).all()
+        limit = min(request.args.get('limit', 20, type=int), 50)
+        
+        # Use a single optimized query with joins to avoid N+1 queries
+        scans_query = db.session.query(
+            Scan.id,
+            Scan.timestamp,
+            Scan.parent_bag_id,
+            Scan.child_bag_id,
+            func.coalesce(Bag.qr_id, 'Unknown').label('product_qr'),
+            func.coalesce(Bag.name, 'Unknown Product').label('product_name'),
+            func.coalesce(User.username, 'Unknown').label('username')
+        ).outerjoin(
+            Bag, or_(Scan.parent_bag_id == Bag.id, Scan.child_bag_id == Bag.id)
+        ).outerjoin(
+            User, Scan.user_id == User.id
+        ).order_by(
+            desc(Scan.timestamp)
+        ).limit(limit)
+        
+        scans = scans_query.all()
         
         scan_data = []
         for scan in scans:
-            bag = None
-            if scan.parent_bag_id:
-                bag = Bag.query.get(scan.parent_bag_id)
-            elif scan.child_bag_id:
-                bag = Bag.query.get(scan.child_bag_id)
-            
             scan_data.append({
                 'id': scan.id,
                 'timestamp': scan.timestamp.isoformat() if scan.timestamp else None,
-                'product_qr': bag.qr_id if bag else 'Unknown',
-                'product_name': bag.name if bag else 'Unknown Product',
+                'product_qr': scan.product_qr,
+                'product_name': scan.product_name,
                 'type': 'parent' if scan.parent_bag_id else 'child',
-                'username': scan.scanned_by.username if scan.scanned_by else 'Unknown'
+                'username': scan.username
             })
         
         return jsonify({
@@ -2469,6 +2481,7 @@ def api_recent_scans():
             'scans': scan_data
         })
     except Exception as e:
+        logging.error(f"Error fetching scans: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
