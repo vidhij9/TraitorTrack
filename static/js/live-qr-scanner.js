@@ -65,7 +65,13 @@ class LiveQRScanner {
     }
     
     async init() {
-        await this.loadExternalLibraries();
+        // Try to load external libraries but don't fail if they can't load
+        try {
+            await this.loadExternalLibraries();
+        } catch (e) {
+            console.log('LiveQR: External libraries could not be loaded, continuing with built-in scanners');
+        }
+        
         this.setupUI();
         this.setupElements();
         this.setupControls();
@@ -79,11 +85,15 @@ class LiveQRScanner {
     
     async loadExternalLibraries() {
         // Load ZXing if not already loaded for additional scanning capability
+        // Using the browser bundle version which includes all necessary components
         if (typeof ZXing === 'undefined' && !document.querySelector('script[src*="zxing"]')) {
             try {
-                await this.loadScript('https://unpkg.com/@zxing/library@latest');
+                // Use the correct browser bundle URL
+                await this.loadScript('https://unpkg.com/@zxing/browser@latest/umd/index.min.js');
+                console.log('LiveQR: ZXing library loaded successfully');
             } catch (e) {
-                console.log('LiveQR: ZXing library could not be loaded');
+                console.log('LiveQR: ZXing library could not be loaded - continuing with jsQR only');
+                // Scanner will still work with jsQR, ZXing is optional
             }
         }
     }
@@ -92,8 +102,15 @@ class LiveQRScanner {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
+            script.crossOrigin = 'anonymous'; // Add CORS support
+            script.onload = () => {
+                console.log(`LiveQR: Successfully loaded script from ${src}`);
+                resolve();
+            };
+            script.onerror = (error) => {
+                console.error(`LiveQR: Failed to load script from ${src}`, error);
+                reject(error);
+            };
             document.head.appendChild(script);
         });
     }
@@ -857,8 +874,15 @@ class LiveQRScanner {
     
     startMultiEngineScan() {
         // Start multiple scanning engines in parallel for best results
-        this.startJsQRScanning();
-        this.startZXingScanning();
+        this.startJsQRScanning(); // Primary scanner - always available
+        
+        // Try to start ZXing if available (optional enhancement)
+        if (typeof ZXing !== 'undefined' || typeof window.ZXingBrowser !== 'undefined') {
+            this.startZXingScanning();
+        } else {
+            console.log('LiveQR: ZXing not available, using jsQR only (still world-class!)');
+        }
+        
         this.isScanning = true;
     }
     
@@ -1094,21 +1118,40 @@ class LiveQRScanner {
     }
     
     async startZXingScanning() {
-        if (typeof ZXing === 'undefined') return;
+        // Check if ZXing is available
+        if (typeof ZXing === 'undefined') {
+            console.log('LiveQR: ZXing not available, skipping ZXing scanner');
+            return;
+        }
         
         try {
-            const codeReader = new ZXing.BrowserQRCodeReader();
+            // Check for the correct ZXing object structure
+            let codeReader;
+            
+            // Try different ZXing API structures
+            if (ZXing.BrowserQRCodeReader) {
+                codeReader = new ZXing.BrowserQRCodeReader();
+            } else if (window.ZXingBrowser && window.ZXingBrowser.BrowserQRCodeReader) {
+                codeReader = new window.ZXingBrowser.BrowserQRCodeReader();
+            } else {
+                console.log('LiveQR: ZXing loaded but BrowserQRCodeReader not found');
+                return;
+            }
+            
             this.scanners.zxing = codeReader;
             
-            await codeReader.decodeFromVideoDevice(null, this.video, (result, err) => {
+            // Use the video element for decoding
+            await codeReader.decodeFromVideoDevice(undefined, this.video, (result, err) => {
                 if (result && !this.isPaused) {
                     this.handleDetection(result.text, 'ZXing');
                 }
+                // Ignore errors as they're normal when no QR code is visible
             });
             
-            console.log('LiveQR: ZXing scanning started');
+            console.log('LiveQR: ZXing scanning started successfully');
         } catch (error) {
-            console.log('LiveQR: ZXing initialization failed:', error);
+            console.log('LiveQR: ZXing initialization failed (non-critical):', error.message);
+            // Continue without ZXing - jsQR will still work
         }
     }
     
