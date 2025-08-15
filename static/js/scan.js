@@ -21,6 +21,7 @@ function initializeScanner() {
     }
     
     let html5QrCode;
+    let isPaused = false;  // Flag to pause scanning temporarily
     
     // Initialize scanner on button click
     startScannerBtn.addEventListener('click', startScanner);
@@ -36,6 +37,9 @@ function initializeScanner() {
             alert('QR Scanner library not loaded. Please refresh the page.');
             return;
         }
+        
+        // Reset pause flag when starting
+        isPaused = false;
         
         // Update button states
         startScannerBtn.style.display = 'none';
@@ -115,6 +119,9 @@ function initializeScanner() {
     
     function stopScanner() {
         if (html5QrCode && html5QrCode.isScanning) {
+            // Pause scanning
+            isPaused = true;
+            
             html5QrCode.stop().then(() => {
                 console.log('QR Code scanning stopped.');
                 // Reset button states
@@ -130,12 +137,25 @@ function initializeScanner() {
     }
     
     function onScanSuccess(decodedText, decodedResult) {
+        // Prevent multiple scans while processing
+        if (isPaused) {
+            return;
+        }
+        
+        // Pause scanning immediately
+        isPaused = true;
+        
         // Stop scanning after successful scan
         stopScanner();
         
         // Set the QR ID in the form and show the result
         qrIdInput.value = decodedText;
         showScanResult(decodedText);
+        
+        // Resume after a delay (if scanner is restarted)
+        setTimeout(() => {
+            isPaused = false;
+        }, 2000);
     }
     
     function onScanFailure(error) {

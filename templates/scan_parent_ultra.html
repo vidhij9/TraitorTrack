@@ -242,6 +242,8 @@
         function handleScanSuccess(qrCode) {
             console.log('Parent bag scanned:', qrCode);
             
+            // Scanner is already paused by the LiveQRScanner handleSuccess method
+            
             // Update UI
             parentQrValue.textContent = qrCode;
             scanChildLink.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
@@ -376,6 +378,13 @@
             
             // Initialize and auto-start scanner
             await initializeScanner();
+            
+            // If we're returning from child scanning, resume scanner
+            if (scanner && scanner.resumeScanning) {
+                setTimeout(() => {
+                    scanner.resumeScanning();
+                }, 500);
+            }
         }
         
         // Launch with delay to ensure DOM is ready

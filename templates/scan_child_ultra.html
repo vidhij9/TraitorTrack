@@ -520,10 +520,16 @@
             const startTime = performance.now();
             console.log('ULTRA-FAST Child scan:', qrText);
             
+            // Scanner is already paused by the LiveQRScanner handleSuccess method
+            
             // CLIENT-SIDE DUPLICATE PREVENTION
             if (scannedQrCodes.has(qrText)) {
                 console.log('CLIENT-SIDE DUPLICATE DETECTED:', qrText);
                 showToast('Already scanned this bag!', 'error');
+                // Resume scanning for next bag
+                if (scanner && scanner.resumeScanning) {
+                    setTimeout(() => scanner.resumeScanning(), 200);
+                }
                 return; // Stop processing
             }
             
@@ -568,11 +574,21 @@
                         processingTime: endTime - startTime
                     });
                     
+                    // Resume scanning for next bag after short delay
+                    if (scanner && scanner.resumeScanning) {
+                        setTimeout(() => scanner.resumeScanning(), 500);
+                    }
+                    
                 } else {
                     // ERROR: Remove from scanned set on server error and show message
                     scannedQrCodes.delete(qrText);
                     console.log('SCAN ERROR:', data.message);
                     showToast(data.message || 'Failed to link bag', 'error');
+                    
+                    // Resume scanning for retry
+                    if (scanner && scanner.resumeScanning) {
+                        setTimeout(() => scanner.resumeScanning(), 1000);
+                    }
                 }
                 
             } catch (error) {
@@ -580,6 +596,11 @@
                 scannedQrCodes.delete(qrText);
                 console.error('Ultra-fast scan error:', error);
                 showToast(`Network error: ${error.message}`, 'error');
+                
+                // Resume scanning for retry
+                if (scanner && scanner.resumeScanning) {
+                    setTimeout(() => scanner.resumeScanning(), 1000);
+                }
             }
         }
         
