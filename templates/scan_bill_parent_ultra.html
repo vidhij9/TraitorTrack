@@ -85,12 +85,20 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <h2 class="card-title mb-0">
-                            <i class="fas fa-qrcode me-2"></i>Scan Parent Bags for Bill #{{ bill.bill_id }}
+                            <i class="fas fa-qrcode me-2"></i>{{ 'Edit Bill #' + bill.bill_id if is_completed else 'Scan Parent Bags for Bill #' + bill.bill_id }}
+                            {% if is_completed %}
+                                <span class="badge bg-success ms-2">Completed</span>
+                            {% endif %}
                         </h2>
                         <div>
                             <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-outline-primary btn-sm px-2 py-1">
                                 <i class="fas fa-eye me-1"></i>View Bill
                             </a>
+                            {% if is_completed %}
+                            <button id="reopen-bill-btn" class="btn btn-outline-warning btn-sm px-2 py-1">
+                                <i class="fas fa-edit me-1"></i>Reopen for Editing
+                            </button>
+                            {% endif %}
                             <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary btn-sm px-2 py-1">
                                 <i class="fas fa-arrow-left me-1"></i>All Bills
                             </a>
@@ -141,6 +149,9 @@
                 <div class="card-header bg-success bg-opacity-25 text-dark">
                     <h4 class="mb-0">
                         <i class="fas fa-qrcode me-2"></i>Ultra QR Scanner
+                        {% if is_completed %}
+                            <small class="text-muted">(Bill Completed - Can Still Edit)</small>
+                        {% endif %}
                     </h4>
                 </div>
                 <div class="card-body">
@@ -191,8 +202,24 @@
                         </div>
                     </div>
 
+                    <!-- Complete Bill Button -->
+                    <div class="mb-3">
+                        {% if not is_completed %}
+                        <button id="complete-bill-btn" class="btn btn-success w-100 fw-bold" style="padding: 12px;">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <span id="complete-btn-text">Complete Bill</span>
+                            <small class="d-block" style="font-size: 11px; opacity: 0.9;">Can complete with any number of bags</small>
+                        </button>
+                        {% else %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Bill Completed!</strong> You can still add or remove bags if needed.
+                        </div>
+                        {% endif %}
+                    </div>
+
                     <!-- Linked Bags List -->
-                    <div id="linked-bags-list" style="max-height: 350px; overflow-y: auto;">
+                    <div id="linked-bags-list" style="max-height: 300px; overflow-y: auto;">
                         {% for bag in linked_bags %}
                         <div class="list-group-item d-flex justify-content-between align-items-center mb-2" data-qr="{{ bag.qr_id }}">
                             <div>
@@ -443,7 +470,7 @@ function initializeScanner() {
         bagCount.textContent = currentCount;
     }
     
-    // Update progress bar
+    // Update progress bar and complete button
     function updateProgress() {
         const current = parseInt(bagCount.textContent);
         const max = parseInt(maxCount.textContent);
@@ -460,6 +487,12 @@ function initializeScanner() {
             progressBar.classList.add('bg-info');
         } else if (percentage >= 50) {
             progressBar.classList.add('bg-warning');
+        }
+        
+        // Update complete button text
+        const completeBtnText = document.getElementById('complete-btn-text');
+        if (completeBtnText) {
+            completeBtnText.textContent = `Complete Bill (${current}/${max} bags)`;
         }
     }
     
@@ -597,9 +630,87 @@ function initializeScanner() {
         }
     };
     
+    // Complete bill function
+    window.completeBill = async function() {
+        const currentCount = parseInt(bagCount.textContent);
+        
+        if (currentCount === 0) {
+            showToast('Please scan at least one parent bag before completing.', 'warning');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/complete_bill', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `bill_id={{ bill.id }}`
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast(`Bill completed with ${currentCount} bags!`, 'success', 3000);
+                
+                // Redirect to bill management after short delay
+                setTimeout(() => {
+                    window.location.href = '/bills';
+                }, 2000);
+            } else {
+                showToast(data.message || 'Error completing bill', 'danger');
+            }
+        } catch (error) {
+            console.error('Error completing bill:', error);
+            showToast('Error completing bill', 'danger');
+        }
+    };
+    
+    // Reopen bill function
+    window.reopenBill = async function() {
+        try {
+            const response = await fetch('/reopen_bill', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `bill_id={{ bill.id }}`
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('Bill reopened for editing!', 'success');
+                // Reload page to update UI
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showToast(data.message || 'Error reopening bill', 'danger');
+            }
+        } catch (error) {
+            console.error('Error reopening bill:', error);
+            showToast('Error reopening bill', 'danger');
+        }
+    };
+    
     // Event listeners
     startBtn.addEventListener('click', initScanner);
     stopBtn.addEventListener('click', stopScanner);
+    
+    // Complete bill button listener
+    const completeBillBtn = document.getElementById('complete-bill-btn');
+    if (completeBillBtn) {
+        completeBillBtn.addEventListener('click', completeBill);
+    }
+    
+    // Reopen bill button listener
+    const reopenBillBtn = document.getElementById('reopen-bill-btn');
+    if (reopenBillBtn) {
+        reopenBillBtn.addEventListener('click', reopenBill);
+    }
     
     // Auto-start scanner immediately on page load
     setTimeout(() => {

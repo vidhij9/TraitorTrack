@@ -2056,19 +2056,97 @@ def scan_bill_parent(bill_id):
     current_count = bill.bag_links.count()
     app.logger.info(f'Scan bill parent page - Bill {bill.id} has {current_count} linked bags')
     
+    # Check if bill is completed
+    is_completed = bill.status == 'completed'
+    
     # Use the ultra scanner template with LiveQRScanner
-    return render_template('scan_bill_parent_ultra.html', bill=bill, linked_bags=linked_bags)
+    return render_template('scan_bill_parent_ultra.html', bill=bill, linked_bags=linked_bags, is_completed=is_completed)
 
+
+@app.route('/complete_bill', methods=['POST'])
+@csrf.exempt
+@login_required
+def complete_bill():
+    """Complete a bill regardless of capacity - admin and biller access"""
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
+            hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
+        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
+    
+    bill_id = request.form.get('bill_id', type=int)
+    
+    if not bill_id:
+        return jsonify({'success': False, 'message': 'Bill ID is required.'})
+    
+    try:
+        # Get the bill
+        bill = Bill.query.get_or_404(bill_id)
+        
+        # Update bill status to completed
+        bill.status = 'completed'
+        
+        # Count current linked bags
+        linked_count = bill.bag_links.count()
+        
+        db.session.commit()
+        
+        app.logger.info(f'Bill {bill.bill_id} completed with {linked_count} bags (capacity was {bill.parent_bag_count})')
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Bill completed successfully with {linked_count} bags!',
+            'linked_count': linked_count,
+            'expected_count': bill.parent_bag_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Complete bill error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error completing bill.'})
+
+@app.route('/reopen_bill', methods=['POST'])
+@csrf.exempt
+@login_required
+def reopen_bill():
+    """Reopen a completed bill for editing - admin and biller access"""
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
+            hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
+        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
+    
+    bill_id = request.form.get('bill_id', type=int)
+    
+    if not bill_id:
+        return jsonify({'success': False, 'message': 'Bill ID is required.'})
+    
+    try:
+        # Get the bill
+        bill = Bill.query.get_or_404(bill_id)
+        
+        # Update bill status to active/in progress
+        bill.status = 'active'
+        
+        db.session.commit()
+        
+        app.logger.info(f'Bill {bill.bill_id} reopened for editing')
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Bill reopened for editing!'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Reopen bill error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error reopening bill.'})
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
 @csrf.exempt
 @login_required
 def process_bill_parent_scan():
-    """Process a parent bag scan for bill linking - admin and employee access"""
+    """Process a parent bag scan for bill linking - admin and biller access (works for completed bills too)"""
     app.logger.info(f'Process bill parent scan - CSRF token present: {request.form.get("csrf_token") is not None}')
     
     if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
-            hasattr(current_user, 'role') and current_user.role in ['admin', 'biller', 'dispatcher']):
+            hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
         return jsonify({'success': False, 'message': 'Access restricted to admin and employee users.'})
     
     bill_id = request.form.get('bill_id')
