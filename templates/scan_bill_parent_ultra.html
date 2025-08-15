@@ -208,7 +208,6 @@
                         <button id="complete-bill-btn" class="btn btn-success w-100 fw-bold" style="padding: 12px;">
                             <i class="fas fa-check-circle me-2"></i>
                             <span id="complete-btn-text">Complete Bill</span>
-                            <small class="d-block" style="font-size: 11px; opacity: 0.9;">Can complete with any number of bags</small>
                         </button>
                         {% else %}
                         <div class="alert alert-success mb-3">
@@ -612,7 +611,7 @@ function initializeScanner() {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `parent_bag_count=${newCapacity}&description={{ bill.description or '' }}`
+                body: `parent_bag_count=${newCapacity}&description={{ bill.description or '' }}&csrf_token={{ csrf_token() }}`
             });
             
             if (response.ok) {
