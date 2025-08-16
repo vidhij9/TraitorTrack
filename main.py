@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # Import all the main routes to ensure they're registered
 import routes
 import api  # Import consolidated API endpoints
+import api_optimized  # Import optimized high-performance API endpoints
 from optimized_cache import cache
 from performance_monitoring import monitor
 

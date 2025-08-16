@@ -221,22 +221,6 @@ class QueryOptimizer:
                 'children_created': 0,
                 'links_created': 0
             }
-        link.parent_bag_id = parent_id
-        link.child_bag_id = child_id
-        
-        db.session.add(link)
-        return link, True  # Return new link, created
-    
-    @staticmethod
-    def bulk_commit():
-        """Optimized bulk commit with error handling"""
-        try:
-            db.session.commit()
-            return True
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Bulk commit failed: {str(e)}")
-            return False
 
 # Global instance for easy access
 query_optimizer = QueryOptimizer()

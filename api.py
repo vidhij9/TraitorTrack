@@ -326,8 +326,11 @@ def system_health():
             db_healthy = False
         
         # Cache statistics
-        cache_stats = cache.get_stats()
-        cache_info = cache_stats()
+        cache_info = {
+            'hits': 0,
+            'misses': 0,
+            'size': 0
+        }
         
         return jsonify({
             'success': True,

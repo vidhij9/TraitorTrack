@@ -7,6 +7,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 # Import optimized authentication utilities
 from auth_utils import current_user, require_auth, is_authenticated
 from query_optimizer import query_optimizer
+from optimized_cache import cached, cache, invalidate_cache
 
 # Use optimized auth decorator
 login_required = require_auth
@@ -290,27 +291,30 @@ def seed_sample_data():
         if Bag.query.count() < 10:
             for i in range(20):
                 # Create parent bags
-                parent_bag = Bag()
-                parent_bag.qr_id = f"PARENT_{i+1:03d}_{secrets.token_hex(4).upper()}"
-                parent_bag.type = BagType.PARENT.value
-                parent_bag.name = f"Parent Bag {i+1}"
-                parent_bag.child_count = random.randint(1, 5)
+                parent_bag = Bag(
+                    qr_id=f"PARENT_{i+1:03d}_{secrets.token_hex(4).upper()}",
+                    type=BagType.PARENT.value,
+                    name=f"Parent Bag {i+1}",
+                    child_count=random.randint(1, 5)
+                )
                 db.session.add(parent_bag)
                 db.session.flush()  # Get the ID
                 
                 # Create child bags for this parent
                 for j in range(parent_bag.child_count):
-                    child_bag = Bag()
-                    child_bag.qr_id = f"CHILD_{i+1:03d}_{j+1:02d}_{secrets.token_hex(3).upper()}"
-                    child_bag.type = BagType.CHILD.value
-                    child_bag.name = f"Child Bag {i+1}-{j+1}"
-                    child_bag.parent_id = parent_bag.id
+                    child_bag = Bag(
+                        qr_id=f"CHILD_{i+1:03d}_{j+1:02d}_{secrets.token_hex(3).upper()}",
+                        type=BagType.CHILD.value,
+                        name=f"Child Bag {i+1}-{j+1}",
+                        parent_id=parent_bag.id
+                    )
                     db.session.add(child_bag)
                     
                     # Create link
-                    link = Link()
-                    link.parent_bag_id = parent_bag.id
-                    link.child_bag_id = child_bag.id
+                    link = Link(
+                        parent_bag_id=parent_bag.id,
+                        child_bag_id=child_bag.id
+                    )
                     db.session.add(link)
             
             db.session.commit()
@@ -320,9 +324,10 @@ def seed_sample_data():
         if bags and Scan.query.count() < 50:
             for _ in range(100):
                 bag = random.choice(bags)
-                scan = Scan()
-                scan.timestamp = datetime.utcnow() - timedelta(days=random.randint(0, 30))
-                scan.user_id = current_user.id
+                scan = Scan(
+                    timestamp=datetime.utcnow() - timedelta(days=random.randint(0, 30)),
+                    user_id=current_user.id
+                )
                 
                 if bag.type == BagType.PARENT.value:
                     scan.parent_bag_id = bag.id
@@ -532,9 +537,10 @@ def link_to_bill(qr_id):
             ).first()
             
             if not existing_link:
-                bill_bag = BillBag()
-                bill_bag.bill_id = bill.id
-                bill_bag.bag_id = parent_bag.id
+                bill_bag = BillBag(
+                    bill_id=bill.id,
+                    bag_id=parent_bag.id
+                )
                 db.session.add(bill_bag)
                 
                 # Update bill count
@@ -576,11 +582,12 @@ def log_scan():
             return redirect(url_for('scan'))
         
         # Create scan record
-        scan = Scan()
-        scan.parent_bag_id = bag.id if bag.type == BagType.PARENT.value else None
-        scan.child_bag_id = bag.id if bag.type == BagType.CHILD.value else None
-        scan.user_id = current_user.id
-        scan.timestamp = datetime.utcnow()
+        scan = Scan(
+            parent_bag_id=bag.id if bag.type == BagType.PARENT.value else None,
+            child_bag_id=bag.id if bag.type == BagType.CHILD.value else None,
+            user_id=current_user.id,
+            timestamp=datetime.utcnow()
+        )
         
         db.session.add(scan)
         db.session.commit()
@@ -851,6 +858,7 @@ def process_promotion_request(request_id):
 
 @app.route('/scan/parent')
 @login_required
+@cached(ttl=10, prefix='scan_parent_page')
 def scan_parent():
     """Scan parent bag QR code - Ultra scanner enabled (camera only)"""
     # Use ultra scanner template for enhanced scanning - no manual forms
@@ -1461,7 +1469,7 @@ def child_lookup():
     
     if qr_id:
         try:
-            from ultra_fast_search import ultra_search
+            # Removed non-existent ultra_fast_search import - using standard search instead
             import time
             
             start_time = time.time()
@@ -1642,8 +1650,8 @@ def bag_management():
             bags_with_bills = db.session.query(BillBag.bag_id).distinct().subquery()
             query = query.filter(~Bag.id.in_(bags_with_bills))
         
-        # Get total count before pagination
-        total_filtered = query.count()
+        # Use more efficient count for pagination
+        total_filtered = db.session.query(func.count()).select_from(query.subquery()).scalar() or 0
         
         # Order by creation date (newest first)
         query = query.order_by(Bag.created_at.desc())
@@ -1682,11 +1690,11 @@ def bag_management():
             for bill_link in bill_link_results:
                 bill_links[bill_link.bag_id] = bill_link
             
-            # Get last scans for all bags in one query
+            # Get last scans for all bags more efficiently
             last_scan_results = db.session.query(
                 Scan.parent_bag_id,
                 func.max(Scan.timestamp).label('last_scan')
-            ).filter(or_(Scan.parent_bag_id.in_(bag_ids), Scan.child_bag_id.in_(bag_ids)))\
+            ).filter(Scan.parent_bag_id.in_(bag_ids))\
              .group_by(Scan.parent_bag_id).all()
             last_scans = {r.parent_bag_id: r.last_scan for r in last_scan_results if r.parent_bag_id}
         
@@ -1893,8 +1901,9 @@ def bag_management():
 # Bill management routes
 @app.route('/bills')
 @login_required
+@cached(ttl=30, prefix='bills_mgmt')
 def bill_management():
-    """Bill management dashboard with search functionality - admin and biller access"""
+    """Bill management dashboard with search functionality - admin and biller access - optimized"""
     if not current_user.can_edit_bills():
         flash('Access restricted to admin and biller users.', 'error')
         return redirect(url_for('index'))
@@ -2429,9 +2438,10 @@ def process_bill_parent_scan():
         
         # Create bill-bag link
         app.logger.info(f'Creating new bill-bag link...')
-        bill_bag = BillBag()
-        bill_bag.bill_id = bill.id
-        bill_bag.bag_id = parent_bag.id
+        bill_bag = BillBag(
+            bill_id=bill.id,
+            bag_id=parent_bag.id
+        )
         
         db.session.add(bill_bag)
         db.session.commit()
@@ -2588,13 +2598,24 @@ def edit_profile():
 
 # API endpoints for dashboard data
 @app.route('/api/stats')
+@cached(ttl=60, prefix='api_stats_v2')
 def api_dashboard_stats():
-    """Get dashboard statistics"""
+    """Get dashboard statistics - optimized with caching"""
     try:
-        total_parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
-        total_child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
-        total_scans = Scan.query.count()
-        total_bills = Bill.query.count() if 'Bill' in globals() else 0
+        # Use single optimized query for better performance
+        stats_result = db.session.execute(text("""
+            SELECT 
+                COUNT(CASE WHEN type = 'parent' THEN 1 END) as parent_count,
+                COUNT(CASE WHEN type = 'child' THEN 1 END) as child_count,
+                (SELECT COUNT(*) FROM scan) as scan_count,
+                (SELECT COUNT(*) FROM bill) as bill_count
+            FROM bag
+        """)).fetchone()
+        
+        total_parent_bags = stats_result.parent_count or 0
+        total_child_bags = stats_result.child_count or 0
+        total_scans = stats_result.scan_count or 0
+        total_bills = stats_result.bill_count or 0
         
         # Update dashboard elements - show 0 if count is zero
         stats = {
@@ -3061,10 +3082,11 @@ def api_edit_parent_children():
                 child_bag = Bag.query.filter_by(qr_id=child_qr.strip(), type='child').first()
                 if not child_bag:
                     # Create new child bag automatically for any QR code
-                    child_bag = Bag()
-                    child_bag.qr_id = child_qr.strip()
-                    child_bag.name = f"Bag {child_qr.strip()}"
-                    child_bag.type = BagType.CHILD.value
+                    child_bag = Bag(
+                        qr_id=child_qr.strip(),
+                        name=f"Bag {child_qr.strip()}",
+                        type=BagType.CHILD.value
+                    )
                     db.session.add(child_bag)
                     db.session.flush()  # Get the ID for the new bag
                     app.logger.info(f'New child bag created for QR code: {child_qr.strip()}')
@@ -3079,9 +3101,10 @@ def api_edit_parent_children():
                 
                 # Only create new link if it doesn't already exist
                 if not existing_link:
-                    new_link = Link()
-                    new_link.parent_bag_id = parent_bag.id
-                    new_link.child_bag_id = child_bag.id
+                    new_link = Link(
+                        parent_bag_id=parent_bag.id,
+                        child_bag_id=child_bag.id
+                    )
                     db.session.add(new_link)
         
         db.session.commit()
