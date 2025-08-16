@@ -183,22 +183,16 @@ def after_request(response):
     """Add security headers and cache control"""
     from flask import session, request
     
-    # Add comprehensive security headers
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    
-    # Add Content Security Policy - Fixed for Font Awesome and data URIs
-    csp = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
-        "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
-        "img-src 'self' data: blob: https:; "
-        "connect-src 'self';"
-    )
-    response.headers['Content-Security-Policy'] = csp
+    # Security headers are now applied via security_config.py to avoid conflicts
+    # Only add headers not already set by security_config
+    if 'X-Content-Type-Options' not in response.headers:
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+    if 'X-Frame-Options' not in response.headers:
+        response.headers['X-Frame-Options'] = 'DENY'
+    if 'X-XSS-Protection' not in response.headers:
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+    if 'Strict-Transport-Security' not in response.headers:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     
     # Check if user is authenticated
     if session.get('logged_in') or session.get('auth_session_id'):
