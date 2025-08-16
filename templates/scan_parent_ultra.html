@@ -119,8 +119,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Ultimate Scanner with multi-library support and fallbacks -->
-<script src="{{ url_for('static', filename='js/ultimate-scanner.js') }}"></script>
+<!-- Working Scanner - Simple and Reliable -->
+<script src="{{ url_for('static', filename='js/working-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -138,8 +138,9 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Use UltimateScanner with all advanced features
-                window.scanner = new UltimateScanner('simple-scanner-container', handleScanSuccess, 'parent');
+                // Use WorkingScanner for reliable scanning
+                // Switch to EnhancedScanner if you need preprocessing
+                window.scanner = new WorkingScanner('simple-scanner-container', handleScanSuccess, 'parent');
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
