@@ -260,3 +260,27 @@ class PromotionRequest(db.Model):
     
     def __repr__(self):
         return f"<PromotionRequest {self.id}: {self.requested_by.username} - {self.status}>"
+
+class AuditLog(db.Model):
+    """Model for tracking all system changes and actions"""
+    __tablename__ = 'audit_log'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(50), nullable=False)  # e.g., 'create_bill', 'link_bag', 'delete_bill'
+    entity_type = db.Column(db.String(20), nullable=False)  # e.g., 'bill', 'bag', 'link'
+    entity_id = db.Column(db.Integer, nullable=True)  # ID of the affected entity
+    details = db.Column(db.Text, nullable=True)  # JSON string with additional details
+    ip_address = db.Column(db.String(45), nullable=True)  # Support IPv6
+    user = db.relationship('User', backref=db.backref('audit_logs', lazy='dynamic'))
+    
+    # Indexes for fast audit trail queries
+    __table_args__ = (
+        db.Index('idx_audit_timestamp', 'timestamp'),
+        db.Index('idx_audit_user', 'user_id'),
+        db.Index('idx_audit_action', 'action'),
+        db.Index('idx_audit_entity', 'entity_type', 'entity_id'),
+    )
+    
+    def __repr__(self):
+        return f"<AuditLog {self.id}: {self.action} by user {self.user_id} at {self.timestamp}>"

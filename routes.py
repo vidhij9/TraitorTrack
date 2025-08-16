@@ -33,7 +33,7 @@ from sqlalchemy import desc, func, and_, or_, text
 from datetime import datetime, timedelta
 
 from app_clean import app, db, limiter, csrf
-from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus
+from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus, AuditLog
 from forms import LoginForm, RegistrationForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
@@ -44,6 +44,23 @@ import secrets
 import random
 import time
 import logging
+
+# Helper function for audit logging
+def log_audit(action, entity_type, entity_id=None, details=None):
+    """Log an audit trail entry"""
+    try:
+        audit = AuditLog(
+            user_id=current_user.id,
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            details=json.dumps(details) if details else None,
+            ip_address=request.remote_addr
+        )
+        db.session.add(audit)
+        # Note: commit should be done by the calling function
+    except Exception as e:
+        app.logger.error(f'Audit logging failed: {str(e)}')
 
 # Analytics route removed as requested
 
@@ -881,13 +898,19 @@ def process_parent_scan():
         parent_bag = Bag.query.filter_by(qr_id=qr_code).first()
         
         if not parent_bag:
-            # Create new parent bag
+            # FIX: Create new parent bag with validation
+            # Validate QR code length before creating
+            if len(qr_code) > 255:
+                flash(f'QR code is too long (maximum 255 characters).', 'error')
+                return redirect(url_for('scan_parent'))
+            
             parent_bag = Bag(
                 qr_id=qr_code,
                 type=BagType.PARENT.value,
                 dispatch_area=current_user.dispatch_area or 'Ultra Scanner Area'
             )
             db.session.add(parent_bag)
+            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) created new parent bag {qr_code}')
         else:
             # CRITICAL: Check if bag is already a child - cannot be converted to parent
             if parent_bag.type == BagType.CHILD.value:
@@ -900,13 +923,15 @@ def process_parent_scan():
         
         db.session.commit()
         
-        # Store in session for child scanning
+        # FIX: Store in session with timestamp for validation
         session['current_parent_qr'] = qr_code
+        session['parent_scan_time'] = datetime.utcnow().isoformat()
         session['last_scan'] = {
             'type': 'parent',
             'qr_id': qr_code,
             'timestamp': datetime.utcnow().isoformat()
         }
+        session.permanent = True  # Ensure session persists
         
         flash(f'Parent bag {qr_code} processed successfully!', 'success')
         return redirect(url_for('scan_child'))
@@ -932,8 +957,15 @@ def process_child_scan():
         if len(qr_code) < 3:
             return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
         
-        # Get parent from session
+        # FIX: Improved session handling with fallback
+        # Get parent from session with multiple fallback options
         parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            # Try to get from last_scan as fallback
+            last_scan = session.get('last_scan')
+            if last_scan and last_scan.get('type') == 'parent':
+                parent_qr = last_scan.get('qr_id')
+        
         if not parent_qr:
             return jsonify({'success': False, 'message': 'No parent bag selected. Please scan a parent bag first.'})
         
@@ -1185,18 +1217,19 @@ def process_child_scan_fast():
         if qr_id == parent_qr:
             return jsonify({'success': False, 'message': 'Cannot link to itself'})
         
-        # Single optimized database call
-        parent_bag = query_optimizer.get_bag_by_qr(parent_qr, BagType.PARENT.value)
+        # FIX: Use transaction with locking for child scanning
+        # Single optimized database call with lock
+        parent_bag = Bag.query.with_for_update().filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
         if not parent_bag:
             return jsonify({'success': False, 'message': 'Parent bag not found'})
         
-        # Check/create child bag
-        child_bag = query_optimizer.get_bag_by_qr(qr_id)
+        # Check/create child bag with lock
+        child_bag = Bag.query.with_for_update().filter_by(qr_id=qr_id).first()
         if child_bag:
             if child_bag.type == BagType.PARENT.value:
                 return jsonify({'success': False, 'message': f'{qr_id} is already a parent bag'})
-            # DUPLICATE PREVENTION: Check if already linked to any parent
-            existing_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+            # DUPLICATE PREVENTION: Check if already linked to any parent with lock
+            existing_link = Link.query.with_for_update().filter_by(child_bag_id=child_bag.id).first()
             if existing_link:
                 if existing_link.parent_bag_id == parent_bag.id:
                     return jsonify({'success': False, 'message': f'Already linked to current parent'})
@@ -1543,6 +1576,78 @@ def scan_history():
     return render_template('scan_history.html', scans=scans, search_query=search_query, stats=stats)
 
 
+
+@app.route('/bag/<int:bag_id>/delete', methods=['POST'])
+@login_required
+def delete_bag(bag_id):
+    """Delete a bag with validation - admin only"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        # Use transaction with locking
+        bag = Bag.query.with_for_update().get_or_404(bag_id)
+        
+        # Check if bag is linked to a bill
+        if bag.type == BagType.PARENT.value:
+            bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
+            if bill_link:
+                bill = Bill.query.get(bill_link.bill_id)
+                return jsonify({
+                    'success': False, 
+                    'message': f'Cannot delete. This parent bag is linked to bill "{bill.bill_id if bill else "unknown"}". Remove it from the bill first.'
+                })
+            
+            # Check if parent has child bags
+            child_links = Link.query.filter_by(parent_bag_id=bag.id).count()
+            if child_links > 0:
+                return jsonify({
+                    'success': False,
+                    'message': f'Cannot delete. This parent bag has {child_links} child bags linked to it. Remove all children first.'
+                })
+        
+        if bag.type == BagType.CHILD.value:
+            # Check if child is linked to a parent
+            parent_link = Link.query.filter_by(child_bag_id=bag.id).first()
+            if parent_link:
+                parent = Bag.query.get(parent_link.parent_bag_id)
+                return jsonify({
+                    'success': False,
+                    'message': f'Cannot delete. This child bag is linked to parent "{parent.qr_id if parent else "unknown"}". Remove the link first.'
+                })
+        
+        # Check for scan history
+        scan_count = Scan.query.filter(
+            or_(Scan.parent_bag_id == bag.id, Scan.child_bag_id == bag.id)
+        ).count()
+        
+        # If bag has scan history, warn but allow deletion
+        if scan_count > 0:
+            app.logger.warning(f'Deleting bag {bag.qr_id} with {scan_count} scan records')
+        
+        # Log audit before deletion
+        log_audit('delete_bag', 'bag', bag.id, {
+            'qr_id': bag.qr_id,
+            'type': bag.type,
+            'scan_count': scan_count
+        })
+        
+        # Delete the bag (cascade will handle scan records)
+        db.session.delete(bag)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Bag {bag.qr_id} deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Bag deletion error: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': f'Error deleting bag: {str(e)}'
+        })
 
 @app.route('/bags')
 @login_required
@@ -2004,17 +2109,26 @@ def create_bill():
                 flash(error_message or 'Invalid bill ID', 'error')
                 return render_template('create_bill.html')
             
-            # Validate parent bag count
-            if parent_bag_count < 1 or parent_bag_count > 50:
+            # FIX: Validate parent bag count with stricter limits and type checking
+            if not isinstance(parent_bag_count, int) or parent_bag_count < 1 or parent_bag_count > 50:
                 flash('Number of parent bags must be between 1 and 50.', 'error')
                 return render_template('create_bill.html')
             
-            # Create new bill
+            # FIX: Check for duplicate bill IDs
+            existing_bill = Bill.query.filter_by(bill_id=bill_id).first()
+            if existing_bill:
+                flash(f'Bill ID "{bill_id}" already exists. Please use a different ID.', 'error')
+                return render_template('create_bill.html')
+            
+            # Create new bill with transaction
             bill = Bill()
             bill.bill_id = bill_id
             bill.description = ''
             bill.parent_bag_count = parent_bag_count
             bill.status = 'new'
+            
+            # FIX: Add audit log
+            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) created bill {bill_id} with capacity {parent_bag_count}')
             
             db.session.add(bill)
             db.session.commit()
@@ -2042,10 +2156,18 @@ def delete_bill(bill_id):
         flash('Admin access required to delete bills.', 'error')
         return redirect(url_for('bill_management'))
     try:
-        bill = Bill.query.get_or_404(bill_id)
+        # FIX: Use transaction with proper locking
+        bill = Bill.query.with_for_update().get_or_404(bill_id)
+        
+        # FIX: Store linked bag IDs for audit before deletion
+        linked_bags = BillBag.query.filter_by(bill_id=bill.id).all()
+        linked_bag_ids = [link.bag_id for link in linked_bags]
         
         # Delete all bag links first
         BillBag.query.filter_by(bill_id=bill.id).delete()
+        
+        # FIX: Add audit log before deletion
+        app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) deleted bill {bill.bill_id} which had {len(linked_bag_ids)} linked bags')
         
         # Delete the bill
         db.session.delete(bill)
@@ -2154,8 +2276,16 @@ def edit_bill(bill_id):
             # Always update description (can be empty)
             bill.description = description
             
-            # Update parent bag count if valid
+            # FIX: Validate parent bag count against existing links
             if parent_bag_count and parent_bag_count > 0:
+                # Check if new count is less than existing linked bags
+                current_linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
+                if parent_bag_count < current_linked_count:
+                    flash(f'Cannot set capacity to {parent_bag_count}. Bill already has {current_linked_count} linked bags.', 'error')
+                    return redirect(url_for('edit_bill', bill_id=bill_id))
+                if parent_bag_count > 100:
+                    flash('Maximum capacity is 100 parent bags.', 'error')
+                    return redirect(url_for('edit_bill', bill_id=bill_id))
                 bill.parent_bag_count = parent_bag_count
             
             # Check if anything actually changed
@@ -2202,9 +2332,12 @@ def remove_bag_from_bill():
             flash('Parent bag not found.', 'error')
             return redirect(url_for('scan_bill_parent', bill_id=bill_id))
         
-        # Find and remove the bill-bag link
-        bill_bag = BillBag.query.filter_by(bill_id=bill_id, bag_id=parent_bag.id).first()
+        # FIX: Use transaction for removing bag from bill
+        # Find and remove the bill-bag link with proper locking
+        bill_bag = BillBag.query.with_for_update().filter_by(bill_id=bill_id, bag_id=parent_bag.id).first()
         if bill_bag:
+            # FIX: Add audit log for removal
+            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) removed bag {parent_bag.qr_id} from bill ID {bill_id}')
             db.session.delete(bill_bag)
             db.session.commit()
             flash(f'Parent bag {parent_qr} removed from bill successfully.', 'success')
@@ -2369,20 +2502,24 @@ def process_bill_parent_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'QR code missing.'})
     
+    # FIX: Use database transaction with row locking to prevent race conditions
     try:
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
         
-        bill = Bill.query.get_or_404(bill_id)
+        # Start transaction with FOR UPDATE lock on bill
+        bill = Bill.query.with_for_update().get_or_404(bill_id)
         qr_id = sanitize_input(qr_code).strip()  # Don't force uppercase to preserve original format
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
-        # Quick validation - only check length and basic format
-        if len(qr_id) < 2 or qr_id.startswith('http'):
-            return jsonify({'success': False, 'message': 'Invalid QR code format'})
+        # FIX: Enhanced validation for QR codes
+        if len(qr_id) < 2 or len(qr_id) > 255:
+            return jsonify({'success': False, 'message': 'Invalid QR code length (must be 2-255 characters)'})
+        if qr_id.startswith('http'):
+            return jsonify({'success': False, 'message': 'Invalid QR code format (URLs not allowed)'})
         
-        # Direct parent bag lookup - optimized for speed
-        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        # Direct parent bag lookup with lock
+        parent_bag = Bag.query.with_for_update().filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
         
         if not parent_bag:
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
@@ -2390,11 +2527,17 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
         
+        # FIX: Check current bill capacity (after potential edits)
+        current_capacity = bill.parent_bag_count
+        if current_capacity <= 0 or current_capacity > 100:
+            app.logger.error(f'Invalid bill capacity: {current_capacity}')
+            return jsonify({'success': False, 'message': 'Bill has invalid capacity configuration'})
+        
         # Log bill details for debugging
         app.logger.info(f'Bill ID: {bill.id}, Bill parent_bag_count: {bill.parent_bag_count}')
         
-        # Quick duplicate and capacity checks in single query
-        existing_links = BillBag.query.filter(
+        # FIX: Use SELECT FOR UPDATE to lock existing links during check
+        existing_links = BillBag.query.with_for_update().filter(
             (BillBag.bill_id == bill.id) | (BillBag.bag_id == parent_bag.id)
         ).all()
         
@@ -2422,18 +2565,22 @@ def process_bill_parent_scan():
         
         if already_linked_to_bill:
             app.logger.info(f'Returning error: already linked to this bill')
+            db.session.rollback()
             return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill. It was scanned before.'})
         
         if linked_to_other_bill:
             other_bill = Bill.query.get(linked_to_other_bill)
             other_bill_id = other_bill.bill_id if other_bill else linked_to_other_bill
             app.logger.info(f'Returning error: already linked to bill {linked_to_other_bill}')
+            db.session.rollback()
             return jsonify({'success': False, 'message': f'⚠️ Parent bag "{qr_id}" is already linked to different bill "{other_bill_id}". Remove it from that bill first.'})
         
         app.logger.info(f'Final results - Bill bag count: {bill_bag_count}, Already linked: {already_linked_to_bill}, Other bill: {linked_to_other_bill}')
         
+        # FIX: Recheck capacity with current bill state
         if bill_bag_count >= bill.parent_bag_count:
             app.logger.info(f'Returning error: bill capacity exceeded {bill_bag_count} >= {bill.parent_bag_count}')
+            db.session.rollback()
             return jsonify({'success': False, 'message': f'Bill already has maximum {bill.parent_bag_count} parent bags.'})
         
         # Create bill-bag link
@@ -2442,6 +2589,9 @@ def process_bill_parent_scan():
             bill_id=bill.id,
             bag_id=parent_bag.id
         )
+        
+        # FIX: Add audit log entry
+        app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
         
         db.session.add(bill_bag)
         db.session.commit()
