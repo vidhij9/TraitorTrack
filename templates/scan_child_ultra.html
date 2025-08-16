@@ -3,7 +3,7 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Fast QR Scanning Library -->
+<!-- Extreme QR Scanning Library -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <style>
@@ -115,7 +115,7 @@
                     <p class="card-text mt-3">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>📷 Simple Scanner:</strong> Just point at QR code. Scan exactly 30 child bags.
+                        <strong>🔍 Extreme Scanner:</strong> Handles blur, dim lights, crushed QR codes. Scan exactly 30 child bags.
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -203,25 +203,6 @@
                         </button>
                     </div>
                     
-                    <!-- Manual Entry Option -->
-                    <div class="card mt-3">
-                        <div class="card-body">
-                            <h6 class="card-subtitle mb-2 text-muted">Manual Entry</h6>
-                            <form id="manual-child-form">
-                                <div class="input-group">
-                                    <input type="text" 
-                                           class="form-control" 
-                                           id="manual-child-input"
-                                           placeholder="Enter child QR code..."
-                                           pattern="[A-Za-z0-9\-]+"
-                                           required>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-plus me-1"></i>Add
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -238,8 +219,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Ultra Fast Scanner -->
-<script src="{{ url_for('static', filename='js/ultra-fast-scanner.js') }}"></script>
+<!-- Extreme Scanner for Worst Cases -->
+<script src="{{ url_for('static', filename='js/extreme-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -259,8 +240,6 @@
         const completeBtn = document.getElementById('complete-scanning-btn');
         const completeBtnText = document.getElementById('complete-btn-text');
         const scannerStatus = document.getElementById('scanner-status');
-        const manualForm = document.getElementById('manual-child-form');
-        const manualInput = document.getElementById('manual-child-input');
         
         // Initialize existing scanned bags
         {% if linked_child_bags %}
@@ -274,17 +253,17 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                scanner = new UltraFastScanner('simple-scanner-container', handleChildScanSuccess);
+                scanner = new ExtremeScanner('simple-scanner-container', handleChildScanSuccess);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '📷 Scanner ready - Point at child bag QR codes';
+                resultContainer.innerHTML = '🔍 Extreme Scanner ready - Works in worst conditions';
                 
             } catch (error) {
                 console.error('Scanner error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '❌ Camera not available. Use manual entry below.';
+                resultContainer.innerHTML = '❌ Camera initializing... Extreme scanner loading.';
             }
         }
         
@@ -432,15 +411,6 @@
             }, 2000);
         }
         
-        // Handle manual entry
-        manualForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const qrCode = manualInput.value.trim();
-            if (qrCode) {
-                handleChildScanSuccess(qrCode);
-                manualInput.value = '';
-            }
-        });
         
         // Complete scanning button
         completeBtn.addEventListener('click', function() {

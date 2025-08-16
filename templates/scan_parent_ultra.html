@@ -3,7 +3,7 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Fast QR Scanning Library -->
+<!-- Extreme QR Scanning Library -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <style>
@@ -56,7 +56,8 @@
                     </h2>
                     
                     <div class="alert alert-success" style="font-size: 18px; padding: 15px;">
-                        <strong>📷 Simple Scanner - Just point camera at QR code</strong>
+                        <strong>🔍 Extreme Scanner - Handles blur, dim lights, crushed QR codes</strong>
+                        <br><small>Advanced multi-processing for worst-case scenarios</small>
                     </div>
                 </div>
             </div>
@@ -110,27 +111,6 @@
                         </div>
                     </div>
                     
-                    <!-- Manual Entry Option -->
-                    <div class="card mt-3">
-                        <div class="card-body">
-                            <h6 class="card-subtitle mb-2 text-muted">Manual Entry</h6>
-                            <form id="manual-entry-form" method="POST" action="/process_parent_scan">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <div class="input-group">
-                                    <input type="text" 
-                                           class="form-control" 
-                                           name="qr_code" 
-                                           id="manual-qr-input"
-                                           placeholder="Enter QR code manually..."
-                                           pattern="[A-Za-z0-9\-]+"
-                                           required>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-check me-1"></i>Submit
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -139,8 +119,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Ultra Fast Scanner -->
-<script src="{{ url_for('static', filename='js/ultra-fast-scanner.js') }}"></script>
+<!-- Extreme Scanner for Worst Cases -->
+<script src="{{ url_for('static', filename='js/extreme-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -152,24 +132,23 @@
         const scanChildLink = document.getElementById('scan-child-link');
         const resultContainer = document.getElementById('result-container');
         const scannerStatus = document.getElementById('scanner-status');
-        const manualForm = document.getElementById('manual-entry-form');
         
         // Initialize Simple Fast Scanner
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
                 
-                scanner = new UltraFastScanner('simple-scanner-container', handleScanSuccess);
+                scanner = new ExtremeScanner('simple-scanner-container', handleScanSuccess);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '📷 Scanner ready - Point at QR code';
+                resultContainer.innerHTML = '🔍 Extreme Scanner ready - Works in worst conditions';
                 
             } catch (error) {
                 console.error('Scanner error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '❌ Camera not available. Use manual entry below.';
+                resultContainer.innerHTML = '❌ Camera initializing... Extreme scanner loading.';
             }
         }
         
@@ -261,11 +240,6 @@
             form.submit();
         }
         
-        // Handle manual entry form submission
-        manualForm.addEventListener('submit', function(e) {
-            // Form will submit normally with CSRF token already included
-            updateStatus('Processing...', 'info');
-        });
         
         // Start scanner automatically
         setTimeout(() => {
