@@ -71,8 +71,25 @@
                     <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
                 <div class="card-body p-0">
-                    <div id="simple-scanner-container" class="scanner-main">
+                    <div id="simple-scanner-container" class="scanner-main" style="position:relative;">
                         <!-- Simple Fast Scanner loads here -->
+                    </div>
+                    
+                    <!-- Manual torch/flashlight controls -->
+                    <div class="text-center p-3" style="background: #f8f9fa;">
+                        <button id="manual-torch" class="btn btn-warning btn-lg" style="display:none;">
+                            <i class="fas fa-lightbulb"></i> Turn On Flashlight
+                        </button>
+                        <div class="mt-2">
+                            <small class="text-muted" id="torch-hint" style="display:none;">
+                                Use flashlight for better scanning in low light conditions
+                            </small>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-info">
+                                <i class="fas fa-info-circle"></i> Tip: Hold camera steady and ensure QR code is well-lit
+                            </small>
+                        </div>
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center">
@@ -272,9 +289,61 @@
         }
         
         
+        // Setup torch/flashlight control
+        function setupTorchControl() {
+            const torchBtn = document.getElementById('manual-torch');
+            const torchHint = document.getElementById('torch-hint');
+            let torchEnabled = false;
+            
+            if (torchBtn) {
+                // Check if device has torch capability
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(stream => {
+                        const track = stream.getVideoTracks()[0];
+                        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                        
+                        if (capabilities.torch) {
+                            torchBtn.style.display = 'inline-block';
+                            torchHint.style.display = 'block';
+                            
+                            torchBtn.addEventListener('click', async () => {
+                                torchEnabled = !torchEnabled;
+                                
+                                // Try to toggle torch on current scanner
+                                if (scanner && scanner.toggleTorch) {
+                                    scanner.toggleTorch();
+                                } else if (track) {
+                                    // Direct torch control
+                                    try {
+                                        await track.applyConstraints({
+                                            advanced: [{ torch: torchEnabled }]
+                                        });
+                                    } catch (e) {
+                                        console.log('Failed to toggle torch:', e);
+                                    }
+                                }
+                                
+                                // Update button text
+                                torchBtn.innerHTML = torchEnabled ? 
+                                    '<i class="fas fa-lightbulb"></i> Turn Off Flashlight' : 
+                                    '<i class="fas fa-lightbulb"></i> Turn On Flashlight';
+                                torchBtn.className = torchEnabled ? 
+                                    'btn btn-secondary btn-lg' : 
+                                    'btn btn-warning btn-lg';
+                            });
+                        }
+                        
+                        // Clean up test stream
+                        stream.getTracks().forEach(t => t.stop());
+                    })
+                    .catch(e => console.log('Torch check failed:', e));
+            }
+        }
+        
         // Start scanner automatically
         setTimeout(() => {
             initializeScanner();
+            setupTorchControl();
         }, 500);
         
         // Cleanup on page unload

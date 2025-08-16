@@ -10,13 +10,17 @@ class InstantScanner {
         this.scanning = false;
         this.lastScan = '';
         this.scanCount = 0;
+        this.torchSupported = false;
+        this.torchEnabled = false;
         
-        // Ultra-fast performance settings
+        // Optimized settings for detection accuracy
         this.frameSkip = 0;
-        this.targetFPS = 60; // Higher FPS for faster scanning
-        this.scanRegionSize = 0.6; // Scan center 60% for optimal balance
+        this.targetFPS = 30; // Balanced FPS for quality
+        this.scanRegionSize = 0.7; // Larger scan region
         this.lastFrameTime = performance.now();
         this.fpsFrames = [];
+        this.processCanvas = null;
+        this.processCtx = null;
         
         this.init();
     }
@@ -38,6 +42,11 @@ class InstantScanner {
                 <div id="scan-status" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#0f0;font-weight:bold;font-size:14px;background:rgba(0,0,0,0.7);padding:8px;">
                     Initializing...
                 </div>
+                
+                <!-- Torch button -->
+                <button id="torch-toggle" style="position:absolute;top:10px;right:10px;padding:10px 15px;background:rgba(255,255,255,0.9);border:none;border-radius:5px;cursor:pointer;display:none;">
+                    💡 Light
+                </button>
             </div>
         `;
         
@@ -51,6 +60,7 @@ class InstantScanner {
         this.status = document.getElementById('scan-status');
         
         this.startCamera();
+        this.setupTorchButton();
     }
     
     async startCamera() {
@@ -59,9 +69,14 @@ class InstantScanner {
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 640 },  // Lower resolution for speed
-                    height: { ideal: 480 },
-                    frameRate: { ideal: 60, min: 30 }  // Higher FPS
+                    width: { ideal: 1280 },  // Higher resolution for better detection
+                    height: { ideal: 720 },
+                    frameRate: { ideal: 30 },  // Balanced FPS
+                    // Add focus constraints
+                    focusMode: { ideal: 'continuous' },
+                    focusDistance: { ideal: 0.3 },  // Medium distance focus
+                    exposureMode: { ideal: 'continuous' },
+                    whiteBalanceMode: { ideal: 'continuous' }
                 }
             };
             
@@ -70,19 +85,53 @@ class InstantScanner {
             
             this.video.srcObject = stream;
             
-            // Apply performance optimizations
+            // Apply enhanced camera optimizations for better focus and lighting
             const track = stream.getVideoTracks()[0];
-            if (track && track.applyConstraints) {
-                try {
-                    await track.applyConstraints({
+            if (track) {
+                const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                console.log('Camera capabilities:', capabilities);
+                
+                // Apply multiple constraint attempts for better compatibility
+                const constraintSets = [
+                    // Best quality settings
+                    {
                         advanced: [
                             { focusMode: 'continuous' },
+                            { focusDistance: 0.3 },
                             { exposureMode: 'continuous' },
-                            { whiteBalanceMode: 'continuous' }
+                            { exposureCompensation: 0 },
+                            { whiteBalanceMode: 'continuous' },
+                            { iso: 400 },
+                            { brightness: 128 },
+                            { contrast: 128 },
+                            { saturation: 128 },
+                            { sharpness: 128 }
                         ]
-                    });
-                } catch (e) {
-                    console.log('InstantScanner: Advanced constraints not supported');
+                    },
+                    // Fallback settings
+                    {
+                        focusMode: 'continuous',
+                        exposureMode: 'continuous',
+                        whiteBalanceMode: 'continuous'
+                    },
+                    // Minimal settings
+                    { focusMode: 'continuous' }
+                ];
+                
+                for (const constraints of constraintSets) {
+                    try {
+                        await track.applyConstraints(constraints);
+                        console.log('Applied camera constraints:', constraints);
+                        break;
+                    } catch (e) {
+                        console.log('Constraint set failed, trying next:', e.message);
+                    }
+                }
+                
+                // Check and enable torch if available
+                if (capabilities.torch) {
+                    this.torchSupported = true;
+                    console.log('Torch/flashlight available');
                 }
             }
             
@@ -90,9 +139,19 @@ class InstantScanner {
             await this.video.play();
             this.status.textContent = 'Ready - Point at QR Code';
             
-            // Set optimal canvas size immediately
-            this.canvas.width = 640;
-            this.canvas.height = 480;
+            // Set higher resolution canvas for better detection
+            this.canvas.width = 1280;
+            this.canvas.height = 720;
+            
+            // Create processing canvas for image enhancement
+            this.processCanvas = document.createElement('canvas');
+            this.processCanvas.width = 800;
+            this.processCanvas.height = 600;
+            this.processCtx = this.processCanvas.getContext('2d', {
+                willReadFrequently: true,
+                alpha: false
+            });
+            
             this.startScanning();
             
         } catch (err) {
@@ -134,26 +193,92 @@ class InstantScanner {
                 const vh = this.video.videoHeight;
                 
                 if (vw && vh) {
-                    // Draw video directly at optimized resolution
+                    // Draw video to canvas
                     this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
                     
-                    // Get center region for faster processing
-                    const regionPixelSize = Math.floor(this.canvas.width * this.scanRegionSize);
-                    const offsetX = Math.floor((this.canvas.width - regionPixelSize) / 2);
-                    const offsetY = Math.floor((this.canvas.height - regionPixelSize) / 2);
+                    // Multi-strategy scanning for better detection
+                    let detected = false;
                     
-                    // Get image data from center region only
-                    const imageData = this.ctx.getImageData(offsetX, offsetY, regionPixelSize, regionPixelSize);
-                    
-                    // Try to decode QR code
-                    if (typeof jsQR !== 'undefined') {
-                        // Ultra-fast single-pass scan
-                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                            inversionAttempts: 'dontInvert' // Fastest option - no retries
+                    // Strategy 1: Full frame scan with auto-brightness
+                    if (!detected && this.scanCount % 2 === 0) {
+                        const fullData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                        const enhanced = this.enhanceImageQuality(fullData);
+                        
+                        const code = jsQR(enhanced.data, enhanced.width, enhanced.height, {
+                            inversionAttempts: 'attemptBoth'  // Try both normal and inverted
                         });
                         
                         if (code && code.data) {
                             this.handleScan(code.data);
+                            detected = true;
+                        }
+                    }
+                    
+                    // Strategy 2: Center region with contrast enhancement
+                    if (!detected) {
+                        const regionSize = Math.floor(this.canvas.width * 0.7);  // Larger scan region
+                        const offsetX = Math.floor((this.canvas.width - regionSize) / 2);
+                        const offsetY = Math.floor((this.canvas.height - regionSize) / 2);
+                        
+                        // Draw to process canvas for enhancement
+                        this.processCtx.drawImage(
+                            this.canvas, 
+                            offsetX, offsetY, regionSize, regionSize,
+                            0, 0, this.processCanvas.width, this.processCanvas.height
+                        );
+                        
+                        const processData = this.processCtx.getImageData(
+                            0, 0, this.processCanvas.width, this.processCanvas.height
+                        );
+                        
+                        // Apply adaptive enhancement
+                        this.adaptiveEnhance(processData);
+                        
+                        const code = jsQR(processData.data, processData.width, processData.height, {
+                            inversionAttempts: 'dontInvert'  // Fast scan
+                        });
+                        
+                        if (code && code.data) {
+                            this.handleScan(code.data);
+                            detected = true;
+                        }
+                    }
+                    
+                    // Strategy 3: Multiple small regions for tiny QR codes
+                    if (!detected && this.scanCount % 5 === 0) {
+                        const regions = [
+                            { x: 0.25, y: 0.25 },  // Top-left
+                            { x: 0.5, y: 0.25 },   // Top-center
+                            { x: 0.75, y: 0.25 },  // Top-right
+                            { x: 0.25, y: 0.5 },   // Middle-left
+                            { x: 0.5, y: 0.5 },    // Center
+                            { x: 0.75, y: 0.5 },   // Middle-right
+                            { x: 0.25, y: 0.75 },  // Bottom-left
+                            { x: 0.5, y: 0.75 },   // Bottom-center
+                            { x: 0.75, y: 0.75 }   // Bottom-right
+                        ];
+                        
+                        const regionSize = Math.floor(this.canvas.width * 0.3);
+                        
+                        for (const region of regions) {
+                            if (detected) break;
+                            
+                            const x = Math.floor(this.canvas.width * region.x - regionSize/2);
+                            const y = Math.floor(this.canvas.height * region.y - regionSize/2);
+                            
+                            if (x >= 0 && y >= 0 && x + regionSize <= this.canvas.width && y + regionSize <= this.canvas.height) {
+                                const regionData = this.ctx.getImageData(x, y, regionSize, regionSize);
+                                
+                                const code = jsQR(regionData.data, regionData.width, regionData.height, {
+                                    inversionAttempts: 'onlyInvert'  // Try inverted for damaged codes
+                                });
+                                
+                                if (code && code.data) {
+                                    this.handleScan(code.data);
+                                    detected = true;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -168,12 +293,85 @@ class InstantScanner {
         requestAnimationFrame(() => this.scanLoop());
     }
     
+    // Image enhancement for better QR detection
+    enhanceImageQuality(imageData) {
+        const data = new Uint8ClampedArray(imageData.data);
+        const len = data.length;
+        
+        // Calculate histogram for auto-brightness
+        const histogram = new Array(256).fill(0);
+        for (let i = 0; i < len; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            histogram[Math.floor(gray)]++;
+        }
+        
+        // Find optimal brightness range
+        let cumulative = 0;
+        let minVal = 0, maxVal = 255;
+        const totalPixels = len / 4;
+        
+        for (let i = 0; i < 256; i++) {
+            cumulative += histogram[i];
+            if (cumulative > totalPixels * 0.05) {
+                minVal = i;
+                break;
+            }
+        }
+        
+        cumulative = 0;
+        for (let i = 255; i >= 0; i--) {
+            cumulative += histogram[i];
+            if (cumulative > totalPixels * 0.05) {
+                maxVal = i;
+                break;
+            }
+        }
+        
+        // Apply auto-levels and contrast
+        const range = maxVal - minVal || 1;
+        const contrastFactor = 255 / range;
+        
+        for (let i = 0; i < len; i += 4) {
+            // Convert to grayscale
+            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            
+            // Apply auto-levels
+            let adjusted = (gray - minVal) * contrastFactor;
+            
+            // Apply slight sharpening
+            adjusted = adjusted * 1.1 - 0.05 * 255;
+            
+            // Clamp and set
+            adjusted = Math.max(0, Math.min(255, adjusted));
+            data[i] = data[i+1] = data[i+2] = adjusted;
+        }
+        
+        return { data, width: imageData.width, height: imageData.height };
+    }
+    
+    // Adaptive enhancement for varying lighting conditions
+    adaptiveEnhance(imageData) {
+        const data = imageData.data;
+        const len = data.length;
+        
+        // Apply adaptive thresholding for better contrast
+        for (let i = 0; i < len; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            
+            // Adaptive threshold based on local area
+            const threshold = 128;  // Simple threshold, could be made adaptive
+            const value = gray > threshold ? 255 : 0;
+            
+            data[i] = data[i+1] = data[i+2] = value;
+        }
+    }
+    
     handleScan(data) {
         // Deduplicate
         if (data === this.lastScan) return;
         
         const now = Date.now();
-        if (this.lastScanTime && (now - this.lastScanTime) < 200) return;  // Shorter delay
+        if (this.lastScanTime && (now - this.lastScanTime) < 300) return;  // Slightly longer delay for stability
         
         this.lastScan = data;
         this.lastScanTime = now;
@@ -203,9 +401,45 @@ class InstantScanner {
         }, 500);
     }
     
+    setupTorchButton() {
+        const torchBtn = document.getElementById('torch-toggle');
+        if (torchBtn) {
+            torchBtn.addEventListener('click', () => this.toggleTorch());
+        }
+    }
+    
+    async toggleTorch() {
+        if (!this.torchSupported || !this.video || !this.video.srcObject) return;
+        
+        const track = this.video.srcObject.getVideoTracks()[0];
+        if (!track) return;
+        
+        this.torchEnabled = !this.torchEnabled;
+        
+        try {
+            await track.applyConstraints({
+                advanced: [{ torch: this.torchEnabled }]
+            });
+            
+            const torchBtn = document.getElementById('torch-toggle');
+            if (torchBtn) {
+                torchBtn.style.background = this.torchEnabled ? '#ffd700' : 'rgba(255,255,255,0.9)';
+                torchBtn.textContent = this.torchEnabled ? '💡 Light ON' : '💡 Light';
+            }
+            
+            console.log('Torch toggled:', this.torchEnabled);
+        } catch (e) {
+            console.log('Failed to toggle torch:', e);
+        }
+    }
+    
     stop() {
         this.scanning = false;
         if (this.video && this.video.srcObject) {
+            // Turn off torch before stopping
+            if (this.torchEnabled) {
+                this.toggleTorch();
+            }
             this.video.srcObject.getTracks().forEach(track => track.stop());
         }
     }

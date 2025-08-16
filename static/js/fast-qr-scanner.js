@@ -19,12 +19,13 @@ class FastQRScanner {
         this.lastScanTime = 0;
         this.torchEnabled = false;
         
-        // Ultra-fast optimizations
-        this.targetWidth = 640;  // Lower resolution for speed
-        this.targetHeight = 480;
-        this.scanRegion = 0.6;   // Focus on center 60%
+        // Balanced optimizations for accuracy and speed
+        this.targetWidth = 1280;  // Higher resolution for better detection
+        this.targetHeight = 720;
+        this.scanRegion = 0.7;   // Larger scan region
         this.frameCount = 0;
         this.fpsFrames = [];
+        this.torchSupported = false;
         
         console.log('FastQR: Initializing Ultra-Fast Mode');
         this.init();
@@ -54,7 +55,7 @@ class FastQRScanner {
                 </div>
                 
                 <div class="controls">
-                    <button id="torch-btn" class="control-btn" title="Flashlight">💡</button>
+                    <button id="torch-btn" class="control-btn" title="Flashlight" style="display:none;">💡</button>
                 </div>
                 
                 <div class="success-flash" id="success-flash"></div>
@@ -194,15 +195,23 @@ class FastQRScanner {
     
     async startCamera() {
         try {
-            // Optimized constraints for ultra-fast scanning
+            // Enhanced constraints for better focus and detection
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: this.targetWidth },
-                    height: { ideal: this.targetHeight },
-                    frameRate: { ideal: 60, min: 30 }, // Higher FPS
-                    resizeMode: 'crop-and-scale',
-                    aspectRatio: 4/3
+                    width: { ideal: 1280 },  // Higher resolution for accuracy
+                    height: { ideal: 720 },
+                    frameRate: { ideal: 30 },  // Balanced FPS
+                    // Advanced focus and exposure settings
+                    focusMode: { ideal: 'continuous' },
+                    focusDistance: { ideal: 0.3 },
+                    exposureMode: { ideal: 'continuous' },
+                    exposureCompensation: { ideal: 0 },
+                    whiteBalanceMode: { ideal: 'continuous' },
+                    brightness: { ideal: 128 },
+                    contrast: { ideal: 128 },
+                    saturation: { ideal: 128 },
+                    sharpness: { ideal: 128 }
                 },
                 audio: false
             };
@@ -223,19 +232,56 @@ class FastQRScanner {
                 };
             });
             
-            // Apply performance optimizations
+            // Apply comprehensive camera optimizations
             const track = this.cameraStream.getVideoTracks()[0];
-            if (track && track.applyConstraints) {
-                try {
-                    await track.applyConstraints({
+            if (track) {
+                const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                console.log('FastQR: Camera capabilities:', capabilities);
+                
+                // Multiple constraint attempts for better compatibility
+                const constraintSets = [
+                    // High quality settings for better detection
+                    {
                         advanced: [
                             { focusMode: 'continuous' },
+                            { focusDistance: 0.3 },  // Medium distance
                             { exposureMode: 'continuous' },
-                            { whiteBalanceMode: 'continuous' }
+                            { exposureCompensation: 0 },
+                            { whiteBalanceMode: 'continuous' },
+                            { iso: 400 },  // Better low-light performance
+                            { brightness: 128 },
+                            { contrast: 130 },  // Slightly higher contrast
+                            { saturation: 120 },
+                            { sharpness: 130 }  // Better edge detection
                         ]
-                    });
-                } catch (e) {
-                    console.log('FastQR: Advanced constraints not supported');
+                    },
+                    // Standard settings
+                    {
+                        focusMode: 'continuous',
+                        exposureMode: 'continuous',
+                        whiteBalanceMode: 'continuous'
+                    },
+                    // Minimal fallback
+                    { focusMode: 'continuous' }
+                ];
+                
+                for (const constraints of constraintSets) {
+                    try {
+                        await track.applyConstraints(constraints);
+                        console.log('FastQR: Applied constraints:', constraints);
+                        break;
+                    } catch (e) {
+                        console.log('FastQR: Constraint failed, trying next');
+                    }
+                }
+                
+                // Check torch availability
+                if (capabilities.torch) {
+                    this.torchSupported = true;
+                    const torchBtn = document.getElementById('torch-btn');
+                    if (torchBtn) {
+                        torchBtn.style.display = 'block';
+                    }
                 }
             }
             
@@ -274,33 +320,81 @@ class FastQRScanner {
             
             if (!this.isPaused && this.video.readyState === 4) {
                 // Scan EVERY frame for maximum speed - no skipping!
-                // Use fixed canvas size for consistent performance
-                if (this.canvas.width !== this.targetWidth) {
-                    this.canvas.width = this.targetWidth;
-                    this.canvas.height = this.targetHeight;
+                // Update canvas size if needed
+                if (this.canvas.width !== this.video.videoWidth) {
+                    this.canvas.width = Math.min(this.video.videoWidth, 1280);
+                    this.canvas.height = Math.min(this.video.videoHeight, 720);
                 }
                 
                 if (this.canvas.width > 0 && this.canvas.height > 0) {
-                    // Draw at lower resolution for speed
-                    this.context.drawImage(this.video, 0, 0, this.targetWidth, this.targetHeight);
+                    // Draw video frame
+                    this.context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
                     
-                    // Get center region for faster processing
-                    const regionSize = Math.floor(this.targetWidth * this.scanRegion);
-                    const offsetX = Math.floor((this.targetWidth - regionSize) / 2);
-                    const offsetY = Math.floor((this.targetHeight - regionSize) / 2);
+                    let detected = false;
                     
-                    const imageData = this.context.getImageData(
-                        offsetX, offsetY, 
-                        regionSize, regionSize
-                    );
+                    // Strategy 1: Full frame with auto-enhancement (every 2 frames)
+                    if (!detected && this.frameCount % 2 === 0) {
+                        const fullData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                        const enhanced = this.enhanceForDetection(fullData);
+                        
+                        const code = jsQR(enhanced.data, enhanced.width, enhanced.height, {
+                            inversionAttempts: 'attemptBoth'  // Try both normal and inverted
+                        });
+                        
+                        if (code && code.data) {
+                            this.handleSuccess(code.data);
+                            detected = true;
+                        }
+                    }
                     
-                    // Ultra-fast single scan - no enhancements, no retries
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: 'dontInvert' // Fastest option
-                    });
+                    // Strategy 2: Center region with adaptive processing
+                    if (!detected) {
+                        const regionSize = Math.floor(this.canvas.width * this.scanRegion);
+                        const offsetX = Math.floor((this.canvas.width - regionSize) / 2);
+                        const offsetY = Math.floor((this.canvas.height - regionSize) / 2);
+                        
+                        const regionData = this.context.getImageData(
+                            offsetX, offsetY, regionSize, regionSize
+                        );
+                        
+                        // Apply adaptive thresholding for better contrast
+                        this.applyAdaptiveThreshold(regionData);
+                        
+                        const code = jsQR(regionData.data, regionData.width, regionData.height, {
+                            inversionAttempts: 'dontInvert'  // Fast scan
+                        });
+                        
+                        if (code && code.data) {
+                            this.handleSuccess(code.data);
+                            detected = true;
+                        }
+                    }
                     
-                    if (code && code.data) {
-                        this.handleSuccess(code.data);
+                    // Strategy 3: Grid scan for multiple QR codes (every 5 frames)
+                    if (!detected && this.frameCount % 5 === 0) {
+                        const gridSize = 3;  // 3x3 grid
+                        const cellWidth = Math.floor(this.canvas.width / gridSize);
+                        const cellHeight = Math.floor(this.canvas.height / gridSize);
+                        
+                        for (let row = 0; row < gridSize && !detected; row++) {
+                            for (let col = 0; col < gridSize && !detected; col++) {
+                                const x = col * cellWidth;
+                                const y = row * cellHeight;
+                                
+                                const cellData = this.context.getImageData(
+                                    x, y, cellWidth, cellHeight
+                                );
+                                
+                                const code = jsQR(cellData.data, cellData.width, cellData.height, {
+                                    inversionAttempts: 'onlyInvert'  // Try inverted
+                                });
+                                
+                                if (code && code.data) {
+                                    this.handleSuccess(code.data);
+                                    detected = true;
+                                }
+                            }
+                        }
                     }
                     
                     this.frameCount++;
@@ -353,9 +447,9 @@ class FastQRScanner {
     }
     
     handleSuccess(qrText) {
-        // Prevent duplicate scans (shorter delay for faster response)
+        // Prevent duplicate scans with reasonable delay
         const now = Date.now();
-        if (qrText === this.lastScan && (now - this.lastScanTime) < 200) {
+        if (qrText === this.lastScan && (now - this.lastScanTime) < 500) {
             return;
         }
         
@@ -366,8 +460,9 @@ class FastQRScanner {
         this.lastScan = qrText;
         this.lastScanTime = now;
         
-        // Don't pause for continuous scanning
-        // this.pauseScanning();
+        // Brief pause for stability
+        this.pauseScanning();
+        setTimeout(() => this.resumeScanning(), 300);
         
         // Visual feedback
         const flash = document.getElementById('success-flash');
@@ -415,27 +510,112 @@ class FastQRScanner {
         console.log('FastQR: Resumed');
     }
     
-    // Simple image enhancement for damaged codes
-    enhanceImage(imageData) {
+    // Enhanced image processing for better QR detection
+    enhanceForDetection(imageData) {
         const data = new Uint8ClampedArray(imageData.data);
         const len = data.length;
         
-        // Apply contrast and brightness adjustment
+        // Calculate histogram for auto-levels
+        const histogram = new Array(256).fill(0);
+        let totalPixels = 0;
+        
         for (let i = 0; i < len; i += 4) {
-            // Convert to grayscale for better QR detection
-            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            histogram[Math.floor(gray)]++;
+            totalPixels++;
+        }
+        
+        // Find effective range (ignore outliers)
+        let cumulative = 0;
+        let minLevel = 0, maxLevel = 255;
+        
+        for (let i = 0; i < 256; i++) {
+            cumulative += histogram[i];
+            if (cumulative > totalPixels * 0.02) {  // Skip bottom 2%
+                minLevel = i;
+                break;
+            }
+        }
+        
+        cumulative = 0;
+        for (let i = 255; i >= 0; i--) {
+            cumulative += histogram[i];
+            if (cumulative > totalPixels * 0.02) {  // Skip top 2%
+                maxLevel = i;
+                break;
+            }
+        }
+        
+        // Apply auto-levels and enhanced contrast
+        const range = maxLevel - minLevel || 1;
+        const scale = 255 / range;
+        
+        for (let i = 0; i < len; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
             
-            // Apply contrast (1.5x) and brightness (+10)
-            let enhanced = (gray - 128) * 1.5 + 128 + 10;
+            // Auto-levels
+            let adjusted = (gray - minLevel) * scale;
             
-            // Clamp values
-            enhanced = Math.max(0, Math.min(255, enhanced));
+            // Boost contrast for QR codes
+            adjusted = adjusted > 127 ? 
+                127 + (adjusted - 127) * 1.2 :  // Brighten lights
+                adjusted * 0.8;  // Darken darks
             
-            // Set all channels to enhanced grayscale
-            data[i] = data[i + 1] = data[i + 2] = enhanced;
+            // Apply sharpening
+            adjusted = adjusted * 1.15 - 0.075 * 255;
+            
+            // Clamp and apply
+            adjusted = Math.max(0, Math.min(255, adjusted));
+            data[i] = data[i+1] = data[i+2] = adjusted;
         }
         
         return { data, width: imageData.width, height: imageData.height };
+    }
+    
+    // Adaptive threshold for varying lighting
+    applyAdaptiveThreshold(imageData) {
+        const data = imageData.data;
+        const width = imageData.width;
+        const height = imageData.height;
+        
+        // Create grayscale copy
+        const gray = new Uint8Array(width * height);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            gray[j] = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+        }
+        
+        // Apply adaptive threshold
+        const blockSize = 15;  // Size of local area
+        const c = 10;  // Constant subtracted from mean
+        
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const idx = y * width + x;
+                
+                // Calculate local mean
+                let sum = 0, count = 0;
+                const halfBlock = Math.floor(blockSize / 2);
+                
+                for (let dy = -halfBlock; dy <= halfBlock; dy++) {
+                    for (let dx = -halfBlock; dx <= halfBlock; dx++) {
+                        const ny = y + dy;
+                        const nx = x + dx;
+                        
+                        if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                            sum += gray[ny * width + nx];
+                            count++;
+                        }
+                    }
+                }
+                
+                const threshold = (sum / count) - c;
+                const value = gray[idx] > threshold ? 255 : 0;
+                
+                // Apply to image data
+                const dataIdx = idx * 4;
+                data[dataIdx] = data[dataIdx + 1] = data[dataIdx + 2] = value;
+            }
+        }
     }
     
     async stop() {
