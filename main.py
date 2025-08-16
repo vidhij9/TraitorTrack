@@ -17,6 +17,7 @@ import api  # Import consolidated API endpoints
 import api_optimized  # Import optimized high-performance API endpoints
 import routes_fast  # Ultra-fast scanning routes
 import routes_ultra_fast  # Instant scanning for 100+ concurrent users
+import routes_scanner_advanced  # Advanced server-side QR processing
 from optimized_cache import cache
 from performance_monitoring import monitor
 
