@@ -67,7 +67,7 @@ def log_audit(action, entity_type, entity_id=None, details=None):
 @app.route('/user_management')
 @login_required
 def user_management():
-    """User management dashboard for admins"""
+    """User management dashboard for admins with enhanced role statistics"""
     try:
         # Debug logging for admin check
         import logging
@@ -79,16 +79,58 @@ def user_management():
         
         users = User.query.order_by(User.created_at.desc()).all()
         
-        # Simplified user data without scan statistics to avoid database issues
+        # Enhanced user data with role-specific information
         user_data = []
         for user in users:
+            # Get user's recent activity
+            recent_scan = Scan.query.filter_by(user_id=user.id).order_by(Scan.timestamp.desc()).first()
+            scan_count = Scan.query.filter_by(user_id=user.id).count()
+            
+            # Get role-specific stats
+            role_stats = {}
+            if user.role == UserRole.BILLER.value:
+                # Count bills this biller is associated with
+                role_stats['active_bills'] = Bill.query.filter(Bill.status.in_(['new', 'processing'])).count()
+            elif user.role == UserRole.DISPATCHER.value:
+                # Count bags in their area
+                if user.dispatch_area:
+                    role_stats['area_bags'] = Bag.query.filter_by(dispatch_area=user.dispatch_area).count()
+                else:
+                    role_stats['area_bags'] = 0
+            
             user_data.append({
                 'user': user,
-                'scan_count': 0,  # Temporarily set to 0 to avoid database query issues
-                'last_scan': None  # Temporarily set to None
+                'scan_count': scan_count,
+                'last_scan': recent_scan.timestamp if recent_scan else None,
+                'role_stats': role_stats,
+                'can_change_role': user.id != current_user.id  # Can't change own role
             })
         
-        return render_template('user_management.html', user_data=user_data)
+        # Get system role statistics
+        role_counts = {
+            'admins': User.query.filter_by(role=UserRole.ADMIN.value).count(),
+            'billers': User.query.filter_by(role=UserRole.BILLER.value).count(),
+            'dispatchers': User.query.filter_by(role=UserRole.DISPATCHER.value).count()
+        }
+        
+        # Get dispatch areas with user counts
+        from models import DispatchArea
+        dispatch_areas = []
+        for area in DispatchArea:
+            area_count = User.query.filter_by(
+                role=UserRole.DISPATCHER.value,
+                dispatch_area=area.value
+            ).count()
+            dispatch_areas.append({
+                'name': area.value,
+                'display': area.value.replace('_', ' ').title(),
+                'count': area_count
+            })
+        
+        return render_template('user_management.html', 
+                             user_data=user_data,
+                             role_counts=role_counts,
+                             dispatch_areas=dispatch_areas)
         
     except Exception as e:
         app.logger.error(f"User management error: {e}")
@@ -110,6 +152,129 @@ def get_user_details(user_id):
         'role': user.role
     })
 
+@app.route('/admin/users/<int:user_id>/change-role', methods=['POST'])
+@login_required
+def change_user_role(user_id):
+    """Change user role with comprehensive validation and real-world handling"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    user = User.query.with_for_update().get_or_404(user_id)
+    new_role = request.form.get('new_role')
+    dispatch_area = request.form.get('dispatch_area')
+    
+    try:
+        # Validate new role
+        if new_role not in [UserRole.ADMIN.value, UserRole.BILLER.value, UserRole.DISPATCHER.value]:
+            return jsonify({'success': False, 'message': 'Invalid role specified'})
+        
+        old_role = user.role
+        
+        # REAL-WORLD SCENARIO 1: Prevent removing the last admin
+        if old_role == UserRole.ADMIN.value and new_role != UserRole.ADMIN.value:
+            admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+            if admin_count <= 1:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Cannot change role. This is the last admin account. Promote another user to admin first.',
+                    'critical': True
+                })
+        
+        # REAL-WORLD SCENARIO 2: Check for pending work when changing from biller
+        if old_role == UserRole.BILLER.value and new_role != UserRole.BILLER.value:
+            # Check for incomplete bills assigned to this user
+            from sqlalchemy import exists
+            incomplete_bills = Bill.query.filter(
+                Bill.status.in_(['new', 'processing'])
+            ).count()
+            if incomplete_bills > 0:
+                return jsonify({
+                    'success': False,
+                    'message': f'User has {incomplete_bills} incomplete bills. Please reassign or complete them first.',
+                    'warning': True,
+                    'incomplete_count': incomplete_bills
+                })
+        
+        # REAL-WORLD SCENARIO 3: Handle dispatcher area requirements
+        if new_role == UserRole.DISPATCHER.value:
+            if not dispatch_area:
+                return jsonify({
+                    'success': False,
+                    'message': 'Dispatch area is required for dispatcher role',
+                    'require_input': 'dispatch_area'
+                })
+            # Check if area already has too many dispatchers
+            area_dispatchers = User.query.filter_by(
+                role=UserRole.DISPATCHER.value,
+                dispatch_area=dispatch_area
+            ).count()
+            if area_dispatchers >= 10:  # Limit dispatchers per area
+                return jsonify({
+                    'success': False,
+                    'message': f'Area {dispatch_area} already has {area_dispatchers} dispatchers. Maximum limit is 10.',
+                    'warning': True
+                })
+        
+        # REAL-WORLD SCENARIO 4: Clear sensitive data when demoting from admin
+        if old_role == UserRole.ADMIN.value and new_role != UserRole.ADMIN.value:
+            # Log this critical change
+            log_audit('demote_admin', 'user', user.id, {
+                'username': user.username,
+                'old_role': old_role,
+                'new_role': new_role,
+                'demoted_by': current_user.username
+            })
+        
+        # REAL-WORLD SCENARIO 5: Handle active sessions
+        if user.id == current_user.id:
+            return jsonify({
+                'success': False,
+                'message': 'Cannot change your own role. Ask another admin to change it for you.',
+                'self_change': True
+            })
+        
+        # Store old values for audit
+        old_dispatch_area = user.dispatch_area
+        
+        # Apply role change
+        user.role = new_role
+        
+        # Update dispatch area based on new role
+        if new_role == UserRole.DISPATCHER.value:
+            user.dispatch_area = dispatch_area
+        else:
+            user.dispatch_area = None  # Clear for non-dispatchers
+        
+        # Log the role change
+        log_audit('role_change', 'user', user.id, {
+            'username': user.username,
+            'old_role': old_role,
+            'new_role': new_role,
+            'old_area': old_dispatch_area,
+            'new_area': user.dispatch_area,
+            'changed_by': current_user.username
+        })
+        
+        db.session.commit()
+        
+        # REAL-WORLD SCENARIO 6: Force logout for role changes
+        # Clear user's session if they're logged in (security measure)
+        # Note: In production, you'd invalidate their session token
+        
+        return jsonify({
+            'success': True,
+            'message': f'Role successfully changed from {old_role} to {new_role}',
+            'old_role': old_role,
+            'new_role': new_role,
+            'user_id': user.id,
+            'username': user.username
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Role change error for user {user_id}: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error changing role: {str(e)}'})
+
 @app.route('/admin/users/<int:user_id>/edit', methods=['POST'])
 @login_required
 def edit_user(user_id):
@@ -125,11 +290,36 @@ def edit_user(user_id):
         role = request.form.get('role')
         dispatch_area = request.form.get('dispatch_area')
         
-        if username:
+        # Store old values for comparison
+        old_username = user.username
+        old_email = user.email
+        old_role = user.role
+        
+        # Validate username uniqueness if changed
+        if username and username != old_username:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                flash('Username already exists.', 'error')
+                return redirect(url_for('user_management'))
             user.username = username
-        if email:
+        
+        # Validate email uniqueness if changed
+        if email and email != old_email:
+            existing_email = User.query.filter_by(email=email).first()
+            if existing_email:
+                flash('Email already exists.', 'error')
+                return redirect(url_for('user_management'))
             user.email = email
-        if role and role in [UserRole.ADMIN.value, UserRole.BILLER.value, UserRole.DISPATCHER.value]:
+        
+        # Handle role change with validation
+        if role and role != old_role:
+            # Use the comprehensive role change logic
+            if old_role == UserRole.ADMIN.value and role != UserRole.ADMIN.value:
+                admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+                if admin_count <= 1:
+                    flash('Cannot change role. This is the last admin account.', 'error')
+                    return redirect(url_for('user_management'))
+            
             user.role = role
             # Update dispatch area based on role
             if role == UserRole.DISPATCHER.value:
@@ -139,7 +329,18 @@ def edit_user(user_id):
                 user.dispatch_area = dispatch_area
             else:
                 user.dispatch_area = None  # Clear dispatch area for non-dispatchers
-            
+        
+        # Log the changes
+        if username != old_username or email != old_email or role != old_role:
+            log_audit('user_edit', 'user', user.id, {
+                'changed_fields': {
+                    'username': username != old_username,
+                    'email': email != old_email,
+                    'role': role != old_role
+                },
+                'edited_by': current_user.username
+            })
+        
         db.session.commit()
         flash('User updated successfully!', 'success')
         return redirect(url_for('user_management'))
@@ -152,11 +353,11 @@ def edit_user(user_id):
 @app.route('/admin/users/<int:user_id>/promote', methods=['POST'])
 @login_required
 def promote_user(user_id):
-    """Promote user to admin - only admins can do this"""
+    """Promote user to admin with validation - only admins can do this"""
     if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
-    user = User.query.get_or_404(user_id)
+    user = User.query.with_for_update().get_or_404(user_id)
     
     try:
         if user.role == UserRole.ADMIN.value:
@@ -164,11 +365,25 @@ def promote_user(user_id):
             
         if user.id == current_user.id:
             return jsonify({'success': False, 'message': 'Cannot promote yourself'})
-            
+        
+        old_role = user.role
+        old_area = user.dispatch_area
+        
+        # Clear dispatch area when promoting to admin
         user.role = UserRole.ADMIN.value
+        user.dispatch_area = None
+        
+        # Log the promotion
+        log_audit('promote_to_admin', 'user', user.id, {
+            'username': user.username,
+            'old_role': old_role,
+            'old_area': old_area,
+            'promoted_by': current_user.username
+        })
+        
         db.session.commit()
         
-        return jsonify({'success': True, 'message': f'{user.username} promoted to admin'})
+        return jsonify({'success': True, 'message': f'{user.username} promoted to admin from {old_role}'})
         
     except Exception as e:
         db.session.rollback()
@@ -177,27 +392,65 @@ def promote_user(user_id):
 @app.route('/admin/users/<int:user_id>/demote', methods=['POST'])
 @login_required
 def demote_user(user_id):
-    """Demote admin to employee - only admins can do this, cannot demote yourself"""
+    """Demote user with validation - only admins can do this"""
     if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
-    user = User.query.get_or_404(user_id)
+    user = User.query.with_for_update().get_or_404(user_id)
+    new_role = request.form.get('new_role', UserRole.DISPATCHER.value)
+    dispatch_area = request.form.get('dispatch_area')
     
     try:
-        if user.role == UserRole.DISPATCHER.value:
-            return jsonify({'success': False, 'message': 'User is already an employee'})
-            
         if user.id == current_user.id:
             return jsonify({'success': False, 'message': 'Cannot demote yourself'})
-            
-        user.role = UserRole.DISPATCHER.value
+        
+        # Check if this is the last admin
+        if user.role == UserRole.ADMIN.value:
+            admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+            if admin_count <= 1:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Cannot demote the last admin. Promote another user first.',
+                    'critical': True
+                })
+        
+        old_role = user.role
+        
+        # Validate new role
+        if new_role not in [UserRole.BILLER.value, UserRole.DISPATCHER.value]:
+            return jsonify({'success': False, 'message': 'Invalid demotion role'})
+        
+        # Handle dispatcher area requirement
+        if new_role == UserRole.DISPATCHER.value and not dispatch_area:
+            return jsonify({
+                'success': False,
+                'message': 'Dispatch area required for dispatcher role',
+                'require_area': True
+            })
+        
+        user.role = new_role
+        user.dispatch_area = dispatch_area if new_role == UserRole.DISPATCHER.value else None
+        
+        # Log the demotion
+        log_audit('demote_user', 'user', user.id, {
+            'username': user.username,
+            'old_role': old_role,
+            'new_role': new_role,
+            'new_area': user.dispatch_area,
+            'demoted_by': current_user.username
+        })
+        
         db.session.commit()
         
-        return jsonify({'success': True, 'message': f'{user.username} demoted to employee'})
+        return jsonify({
+            'success': True, 
+            'message': f'{user.username} changed from {old_role} to {new_role}',
+            'new_role': new_role
+        })
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': f'Error demoting user: {str(e)}'})
+        return jsonify({'success': False, 'message': f'Error changing user role: {str(e)}'})
 
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required

@@ -99,6 +99,37 @@
             </div>
         </div>
     </div>
+    
+    <!-- Role Statistics -->
+    <div class="row mb-3">
+        <div class="col-md-4 mb-2">
+            <div class="card border-warning">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-1">Admins</h6>
+                    <h3 class="mb-0 text-warning">{{ role_counts.admins if role_counts else 0 }}</h3>
+                    <small class="text-muted">Full system access</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card border-info">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-1">Billers</h6>
+                    <h3 class="mb-0 text-info">{{ role_counts.billers if role_counts else 0 }}</h3>
+                    <small class="text-muted">Bill management</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card border-secondary">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-1">Dispatchers</h6>
+                    <h3 class="mb-0 text-secondary">{{ role_counts.dispatchers if role_counts else 0 }}</h3>
+                    <small class="text-muted">Bag operations</small>
+                </div>
+            </div>
+        </div>
+    </div>
 
 
 
@@ -154,9 +185,20 @@
                             </td>
                             <td>{{ data.user.email }}</td>
                             <td>
-                                <span class="badge {% if data.user.is_admin() %}bg-warning{% else %}bg-secondary{% endif %}">
+                                <span class="badge 
+                                    {% if data.user.role == 'admin' %}bg-warning
+                                    {% elif data.user.role == 'biller' %}bg-info
+                                    {% else %}bg-secondary{% endif %}">
                                     {{ data.user.role.title() }}
+                                    {% if data.user.role == 'dispatcher' and data.user.dispatch_area %}
+                                        <small>({{ data.user.dispatch_area }})</small>
+                                    {% endif %}
                                 </span>
+                                {% if data.user.role == 'biller' and data.role_stats and data.role_stats.active_bills %}
+                                    <br><small class="text-muted">{{ data.role_stats.active_bills }} active bills</small>
+                                {% elif data.user.role == 'dispatcher' and data.role_stats and data.role_stats.area_bags %}
+                                    <br><small class="text-muted">{{ data.role_stats.area_bags }} area bags</small>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if data.user.verified %}
@@ -183,13 +225,14 @@
                                     <button class="btn btn-outline-primary" onclick="editUser({{ data.user.id }})" title="Edit User">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    {% if not data.user.is_admin() %}
-                                        <button class="btn btn-outline-warning" onclick="promoteUser({{ data.user.id }})" title="Promote to Admin">
-                                            <i class="fas fa-user-shield"></i>
+                                    {% if data.can_change_role %}
+                                        <button class="btn btn-outline-success" onclick="openRoleChangeModal({{ data.user.id }}, '{{ data.user.username }}', '{{ data.user.role }}', '{{ data.user.dispatch_area or '' }}')" title="Change Role">
+                                            <i class="fas fa-exchange-alt"></i>
                                         </button>
-                                    {% else %}
-                                        <button class="btn btn-outline-info" onclick="demoteUser({{ data.user.id }})" title="Demote to Employee">
-                                            <i class="fas fa-user"></i>
+                                    {% endif %}
+                                    {% if not data.user.is_admin() and data.user.id != current_user.id %}
+                                        <button class="btn btn-outline-warning" onclick="promoteUser({{ data.user.id }})" title="Quick Promote to Admin">
+                                            <i class="fas fa-user-shield"></i>
                                         </button>
                                     {% endif %}
                                     {% if data.user.id != current_user.id %}
@@ -259,6 +302,68 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Role Change Modal -->
+<div class="modal fade" id="roleChangeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Change User Role</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="roleChangeForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Changing role for: <span id="roleChangeUsername"></span></strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Current Role</label>
+                        <div class="form-control bg-light" id="currentRole"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="new_role" class="form-label">New Role</label>
+                        <select class="form-select" id="new_role" name="new_role" required>
+                            <option value="">Select new role...</option>
+                            <option value="admin">Admin - Full system access</option>
+                            <option value="biller">Biller - Bill management + all dispatcher permissions</option>
+                            <option value="dispatcher">Dispatcher - Bag operations only</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="roleChangeDispatchAreaContainer" style="display: none;">
+                        <label for="role_change_dispatch_area" class="form-label">Dispatch Area (Required for Dispatchers)</label>
+                        <select class="form-select" id="role_change_dispatch_area" name="dispatch_area">
+                            <option value="">Select Area</option>
+                            <option value="lucknow">Lucknow</option>
+                            <option value="indore">Indore</option>
+                            <option value="jaipur">Jaipur</option>
+                            <option value="hisar">Hisar</option>
+                            <option value="sri_ganganagar">Sri Ganganagar</option>
+                            <option value="sangaria">Sangaria</option>
+                            <option value="bathinda">Bathinda</option>
+                            <option value="raipur">Raipur</option>
+                            <option value="ranchi">Ranchi</option>
+                            <option value="akola">Akola</option>
+                        </select>
+                    </div>
+                    
+                    <div class="alert alert-warning mb-0" id="roleChangeWarning" style="display: none;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span id="roleChangeWarningText"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Change Role</button>
                 </div>
             </form>
         </div>
@@ -450,5 +555,96 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Live search
 document.getElementById('userSearch').addEventListener('input', filterUsers);
+
+// Role change functionality
+function openRoleChangeModal(userId, username, currentRole, currentArea) {
+    document.getElementById('roleChangeUsername').textContent = username;
+    document.getElementById('currentRole').textContent = currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
+    
+    // Set form action
+    document.getElementById('roleChangeForm').action = `/admin/users/${userId}/change-role`;
+    
+    // Reset form
+    document.getElementById('new_role').value = '';
+    document.getElementById('role_change_dispatch_area').value = currentArea || '';
+    document.getElementById('roleChangeDispatchAreaContainer').style.display = 'none';
+    document.getElementById('roleChangeWarning').style.display = 'none';
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('roleChangeModal')).show();
+}
+
+// Handle new role selection
+document.getElementById('new_role').addEventListener('change', function() {
+    const newRole = this.value;
+    const dispatchContainer = document.getElementById('roleChangeDispatchAreaContainer');
+    const warning = document.getElementById('roleChangeWarning');
+    const warningText = document.getElementById('roleChangeWarningText');
+    
+    // Show/hide dispatch area selector
+    if (newRole === 'dispatcher') {
+        dispatchContainer.style.display = 'block';
+    } else {
+        dispatchContainer.style.display = 'none';
+    }
+    
+    // Show role-specific warnings
+    if (newRole === 'admin') {
+        warningText.textContent = 'Admin users have full system access including user management and all data.';
+        warning.style.display = 'block';
+    } else if (newRole === 'biller') {
+        warningText.textContent = 'Billers can create and manage bills and access all bag data from all areas.';
+        warning.style.display = 'block';
+    } else if (newRole === 'dispatcher') {
+        warningText.textContent = 'Dispatchers can only link bags and view data from their assigned area.';
+        warning.style.display = 'block';
+    } else {
+        warning.style.display = 'none';
+    }
+});
+
+// Handle role change form submission
+document.getElementById('roleChangeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const newRole = document.getElementById('new_role').value;
+    const dispatchArea = document.getElementById('role_change_dispatch_area').value;
+    
+    // Validate dispatcher area requirement
+    if (newRole === 'dispatcher' && !dispatchArea) {
+        alert('Please select a dispatch area for the dispatcher role.');
+        return;
+    }
+    
+    // Confirm the change
+    if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+        return;
+    }
+    
+    // Submit the form
+    fetch(this.action, {
+        method: 'POST',
+        body: new FormData(this),
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Error changing user role');
+            if (data.critical) {
+                // Critical error - close modal
+                bootstrap.Modal.getInstance(document.getElementById('roleChangeModal')).hide();
+            }
+        }
+    })
+    .catch(error => {
+        alert('Error changing user role');
+        console.error(error);
+    });
+});
 </script>
 {% endblock %}
