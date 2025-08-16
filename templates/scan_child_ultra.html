@@ -115,7 +115,7 @@
                     <p class="card-text mt-3">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>🎯 Bulletproof Scanner:</strong> Works in any condition. Scan exactly 30 child bags.
+                        <strong>✅ QR Scanner Ready:</strong> Scan exactly 30 child bags.
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -219,8 +219,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Bulletproof Scanner -->
-<script src="{{ url_for('static', filename='js/bulletproof-scanner.js') }}"></script>
+<!-- Final Scanner -->
+<script src="{{ url_for('static', filename='js/final-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -253,17 +253,17 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                scanner = new BulletproofScanner('simple-scanner-container', handleChildScanSuccess);
+                scanner = new FinalScanner('simple-scanner-container', handleChildScanSuccess);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '🎯 Scanner ready - Point at QR code';
+                resultContainer.innerHTML = '✅ Scanner ready - Point at child bag QR codes';
                 
             } catch (error) {
                 console.error('Scanner error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '❌ Camera initializing... Please wait.';
+                resultContainer.innerHTML = '❌ Check camera permissions and refresh';
             }
         }
         

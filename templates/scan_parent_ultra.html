@@ -56,8 +56,8 @@
                     </h2>
                     
                     <div class="alert alert-success" style="font-size: 18px; padding: 15px;">
-                        <strong>🎯 Bulletproof Scanner - Works in any condition</strong>
-                        <br><small>Point camera at QR code - handles blur, dim lights, damaged codes</small>
+                        <strong>✅ QR Scanner Ready</strong>
+                        <br><small>Point camera directly at QR code</small>
                     </div>
                 </div>
             </div>
@@ -119,8 +119,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Bulletproof Scanner -->
-<script src="{{ url_for('static', filename='js/bulletproof-scanner.js') }}"></script>
+<!-- Final Scanner -->
+<script src="{{ url_for('static', filename='js/final-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -138,17 +138,17 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                scanner = new BulletproofScanner('simple-scanner-container', handleScanSuccess);
+                scanner = new FinalScanner('simple-scanner-container', handleScanSuccess);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '🎯 Scanner ready - Point at QR code';
+                resultContainer.innerHTML = '✅ Scanner ready - Point at QR code';
                 
             } catch (error) {
                 console.error('Scanner error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '❌ Camera initializing... Please wait.';
+                resultContainer.innerHTML = '❌ Check camera permissions and refresh';
             }
         }
         
