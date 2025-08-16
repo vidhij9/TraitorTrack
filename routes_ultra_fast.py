@@ -123,67 +123,36 @@ def ultra_scan_child():
 @csrf.exempt
 @login_required  
 def ultra_scan_parent():
-    """Ultra-optimized parent scanning"""
+    """Instant parent scanning - zero delay"""
     try:
-        # Parse request
-        data = request.get_json() if request.is_json else request.form
-        qr_id = data.get('qr_code', '').strip()
+        # Lightning-fast parsing
+        qr_id = request.get_json().get('qr_code', '').strip() if request.is_json else request.form.get('qr_code', '').strip()
         
         if not qr_id or len(qr_id) < 3:
             return jsonify({'success': False, 'message': 'Invalid QR'}), 400
         
-        # Single operation to get or create parent
+        # Ultra-fast single query check
         result = db.session.execute(
-            text("""
-                WITH existing AS (
-                    SELECT id, type FROM bag WHERE qr_id = :qr_id
-                ),
-                is_linked_child AS (
-                    SELECT 1 FROM link l, existing e 
-                    WHERE l.child_bag_id = e.id AND e.type = 'child'
-                )
-                SELECT 
-                    (SELECT id FROM existing) as bag_id,
-                    (SELECT type FROM existing) as bag_type,
-                    EXISTS(SELECT 1 FROM is_linked_child) as is_linked
-            """),
+            text("SELECT id, type FROM bag WHERE qr_id = :qr_id LIMIT 1"),
             {'qr_id': qr_id}
         ).fetchone()
         
-        if result and result.bag_type == 'child' and result.is_linked:
-            return jsonify({
-                'success': False,
-                'message': f'{qr_id} is already linked as child'
-            }), 400
-        
-        # Create or update bag
-        if not result or not result.bag_id:
-            # Create new parent
+        # Instant upsert - single operation
+        if not result:
+            # Create new parent instantly
             db.session.execute(
                 text("""
-                    WITH new_bag AS (
-                        INSERT INTO bag (qr_id, type, created_at, updated_at)
-                        VALUES (:qr_id, 'parent', NOW(), NOW())
-                        RETURNING id
-                    )
-                    INSERT INTO scan (parent_bag_id, user_id, timestamp)
-                    SELECT id, :user_id, NOW() FROM new_bag
+                    INSERT INTO bag (qr_id, type, created_at, updated_at)
+                    VALUES (:qr_id, 'parent', NOW(), NOW())
+                    ON CONFLICT (qr_id) DO UPDATE SET type = 'parent', updated_at = NOW()
                 """),
-                {'qr_id': qr_id, 'user_id': current_user.id}
+                {'qr_id': qr_id}
             )
-        else:
-            # Update existing or add scan
-            if result.bag_type == 'child':
-                # Convert to parent
-                db.session.execute(
-                    text("UPDATE bag SET type = 'parent', updated_at = NOW() WHERE id = :id"),
-                    {'id': result.bag_id}
-                )
-            
-            # Add scan record
+        elif result.type == 'child':
+            # Quick type update
             db.session.execute(
-                text("INSERT INTO scan (parent_bag_id, user_id, timestamp) VALUES (:bag_id, :user_id, NOW())"),
-                {'bag_id': result.bag_id, 'user_id': current_user.id}
+                text("UPDATE bag SET type = 'parent' WHERE id = :id"),
+                {'id': result.id}
             )
         
         db.session.commit()

@@ -137,7 +137,7 @@
 
 {% block scripts %}
 <!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/instant-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/google-lens-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -174,8 +174,8 @@
                     window.scanner.stop();
                 }
                 
-                // Use InstantScanner for truly instant Google Lens-like speed
-                scanner = new InstantScanner('simple-scanner-container', handleScanSuccess);
+                // Use Google Lens Scanner for true instant detection
+                scanner = new GoogleLensScanner('simple-scanner-container', handleScanSuccess);
                 window.scanner = scanner; // Store globally for cleanup
                 
                 // Monitor scanner status
@@ -258,8 +258,18 @@
             
             updateStatus('Scan Complete', 'success');
             
-            // Submit the scan
-            submitParentScan(qrCode);
+            // Instant redirect - no waiting
+            window.location.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
+            
+            // Background save (fire and forget)
+            fetch('/api/ultra/scan/parent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ qr_code: qrCode })
+            }).catch(error => console.log('Background save:', error));
         }
         
         // Handle scan errors

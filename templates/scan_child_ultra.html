@@ -237,7 +237,7 @@
 
 {% block scripts %}
 <!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/instant-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/google-lens-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -289,8 +289,8 @@
                     window.scanner.stop();
                 }
                 
-                // Use InstantScanner for truly instant Google Lens-like speed
-                scanner = new InstantScanner('simple-scanner-container', handleChildScanSuccess);
+                // Use Google Lens Scanner for true instant detection
+                scanner = new GoogleLensScanner('simple-scanner-container', handleChildScanSuccess);
                 window.scanner = scanner; // Store globally for cleanup
                 
                 // Monitor scanner status
