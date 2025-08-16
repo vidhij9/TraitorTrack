@@ -79,23 +79,23 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Ultra-fast database configuration for 100+ concurrent users
+# Stable database configuration for reliable connections
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 25,                # Increased for 100+ concurrent users
-    "max_overflow": 50,              # More overflow connections (total: 75)
-    "pool_recycle": 3600,           # Recycle every hour
+    "pool_size": 15,                # Reduced for stability
+    "max_overflow": 25,             # More conservative (total: 40)
+    "pool_recycle": 1800,           # Recycle every 30 minutes
     "pool_pre_ping": True,          # Enable pre-ping for reliability
-    "pool_timeout": 2,              # Ultra-fast timeout
+    "pool_timeout": 10,             # More generous timeout
     "echo": False,                  # No SQL logging
     "echo_pool": False,             # No pool logging
-    "connect_args": {               # Optimized PostgreSQL settings
+    "connect_args": {               # Robust PostgreSQL settings
         "keepalives": 1,
-        "keepalives_idle": 30,
-        "keepalives_interval": 10,
-        "keepalives_count": 5,
-        "connect_timeout": 2,
-        "application_name": "TraceTrack_Instant",
-        "options": "-c statement_timeout=5000"  # 5 second query timeout
+        "keepalives_idle": 60,      # Longer idle time
+        "keepalives_interval": 30,   # Less frequent keepalives
+        "keepalives_count": 3,       # Fewer retries
+        "connect_timeout": 10,       # Longer connection timeout
+        "application_name": "TraceTrack_Stable",
+        "options": "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=60000"  # 30s query, 60s idle timeout
     }
 }
 
