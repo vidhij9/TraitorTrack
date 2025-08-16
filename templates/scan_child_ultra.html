@@ -3,8 +3,8 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Extreme QR Scanning Library -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- jsQR Library - REQUIRED for scanning -->
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -219,8 +219,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Working Scanner - Simple and Reliable -->
-<script src="{{ url_for('static', filename='js/working-scanner.js') }}"></script>
+<!-- Basic Scanner - Guaranteed to Work -->
+<script src="{{ url_for('static', filename='js/basic-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -253,9 +253,8 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Use WorkingScanner for reliable scanning
-                // Switch to EnhancedScanner if you need preprocessing  
-                window.scanner = new WorkingScanner('simple-scanner-container', handleChildScanSuccess, 'child');
+                // Use BasicScanner - simplest possible implementation
+                window.scanner = new BasicScanner('simple-scanner-container', handleChildScanSuccess);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';

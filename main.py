@@ -48,6 +48,13 @@ def emergency_nav():
     from flask import render_template
     return render_template('emergency_nav.html')
 
+# QR Scanner test route
+@app.route('/test-scanner')
+def test_scanner():
+    """Test page for QR scanner functionality"""
+    from flask import render_template
+    return render_template('test_scanner.html')
+
 # Test data creation endpoint removed - not needed in production
 
 # Add production deployment setup endpoint
