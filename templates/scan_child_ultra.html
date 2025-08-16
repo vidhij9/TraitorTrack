@@ -237,7 +237,7 @@
 
 {% block scripts %}
 <!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/lightning-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -284,8 +284,8 @@
                     throw new Error('Camera access denied. Please allow camera access and refresh.');
                 }
                 
-                // Use LightningScanner for instant speed + accuracy
-                scanner = new LightningScanner('simple-scanner-container', handleChildScanSuccess);
+                // Use InstantScanner for truly instant Google Lens-like speed
+                scanner = new InstantScanner('simple-scanner-container', handleChildScanSuccess);
                 
                 // Monitor scanner status
                 setTimeout(() => {
@@ -298,8 +298,8 @@
                         // Try fallback scanner
                         console.log('Switching to fallback scanner');
                         if (scanner && scanner.stop) scanner.stop();
-                        // LightningScanner optimizes for speed + accuracy
-                        console.log('LightningScanner handles detection efficiently');
+                        // InstantScanner provides instant detection
+                        console.log('InstantScanner handles detection instantly');
                     }
                 }, 2000);
                 
