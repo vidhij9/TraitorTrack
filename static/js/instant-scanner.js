@@ -134,23 +134,16 @@ class InstantScanner {
                 const vh = this.video.videoHeight;
                 
                 if (vw && vh) {
-                    // Calculate center region
-                    const regionSize = this.scanRegionSize;
-                    const sx = vw * (1 - regionSize) / 2;
-                    const sy = vh * (1 - regionSize) / 2;
-                    const sw = vw * regionSize;
-                    const sh = vh * regionSize;
-                    
                     // Draw video directly at optimized resolution
                     this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
                     
                     // Get center region for faster processing
-                    const regionSize = Math.floor(this.canvas.width * this.scanRegionSize);
-                    const offsetX = Math.floor((this.canvas.width - regionSize) / 2);
-                    const offsetY = Math.floor((this.canvas.height - regionSize) / 2);
+                    const regionPixelSize = Math.floor(this.canvas.width * this.scanRegionSize);
+                    const offsetX = Math.floor((this.canvas.width - regionPixelSize) / 2);
+                    const offsetY = Math.floor((this.canvas.height - regionPixelSize) / 2);
                     
                     // Get image data from center region only
-                    const imageData = this.ctx.getImageData(offsetX, offsetY, regionSize, regionSize);
+                    const imageData = this.ctx.getImageData(offsetX, offsetY, regionPixelSize, regionPixelSize);
                     
                     // Try to decode QR code
                     if (typeof jsQR !== 'undefined') {

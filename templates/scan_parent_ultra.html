@@ -138,26 +138,50 @@
             try {
                 updateStatus('Starting...', 'info');
                 
+                // Check if jsQR is loaded
+                if (typeof jsQR === 'undefined') {
+                    console.error('jsQR library not loaded');
+                    throw new Error('QR scanning library not loaded');
+                }
+                
+                // Request camera permissions first
+                try {
+                    await navigator.mediaDevices.getUserMedia({ video: true });
+                } catch (permError) {
+                    console.error('Camera permission denied:', permError);
+                    throw new Error('Camera access denied. Please allow camera access and refresh.');
+                }
+                
                 // Use InstantScanner for ultra-fast performance
                 scanner = new InstantScanner('simple-scanner-container', handleScanSuccess);
                 
-                // Fallback to QRScannerFallback if InstantScanner fails
+                // Monitor scanner status
                 setTimeout(() => {
-                    if (!scanner || document.getElementById('scan-status').textContent.includes('Error')) {
+                    const scanStatus = document.getElementById('scan-status');
+                    if (scanStatus && scanStatus.textContent.includes('Ready')) {
+                        updateStatus('Ready', 'success');
+                        resultContainer.className = 'alert alert-success';
+                        resultContainer.innerHTML = '✅ Scanner ready - Point at QR code';
+                    } else if (scanStatus && scanStatus.textContent.includes('Error')) {
+                        // Try fallback scanner
                         console.log('Switching to fallback scanner');
+                        if (scanner && scanner.stop) scanner.stop();
                         scanner = new QRScannerFallback('simple-scanner-container', handleScanSuccess);
                     }
-                }, 3000);
-                
-                updateStatus('Ready', 'success');
-                resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '✅ Scanner ready - Point at QR code';
+                }, 2000);
                 
             } catch (error) {
-                console.error('Scanner error:', error);
+                console.error('Scanner initialization error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '❌ Check camera permissions and refresh';
+                resultContainer.innerHTML = `❌ ${error.message || 'Check camera permissions and refresh'}`;
+                
+                // Try to provide helpful error messages
+                if (error.message.includes('getUserMedia')) {
+                    resultContainer.innerHTML = '❌ Camera not available. Please check browser permissions.';
+                } else if (error.message.includes('https')) {
+                    resultContainer.innerHTML = '❌ Camera requires secure connection (HTTPS).';
+                }
             }
         }
         
