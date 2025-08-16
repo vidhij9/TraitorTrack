@@ -1542,7 +1542,8 @@ def bag_management():
     """Ultra-fast bag management with optimized filtering"""
     import time
     from sqlalchemy import and_, or_, func
-    from models import Bag, Link, BillBag
+    from sqlalchemy.orm import joinedload, selectinload
+    from models import Bag, Link, BillBag, Bill
     
     start_time = time.time()
     
@@ -1650,132 +1651,163 @@ def bag_management():
         # Apply pagination
         per_page = 20
         offset = (page - 1) * per_page
-        bags_result = query.limit(per_page).offset(offset).all()
         
-        # Convert results to dictionary format with additional data
+        # No eager loading needed for performance - we'll use a single optimized query
+        
+        # Get bag IDs first for batch queries
+        bags_result = query.limit(per_page).offset(offset).all()
+        bag_ids = [bag.id for bag in bags_result]
+        
+        # Batch fetch all relationships in 3 queries instead of N queries
+        child_counts = {}
+        parent_links = {}
+        bill_links = {}
+        last_scans = {}
+        
+        if bag_ids:
+            # Get child counts for all parent bags in one query
+            child_count_results = db.session.query(
+                Link.parent_bag_id,
+                func.count(Link.child_bag_id).label('count')
+            ).filter(Link.parent_bag_id.in_(bag_ids)).group_by(Link.parent_bag_id).all()
+            child_counts = {r.parent_bag_id: r.count for r in child_count_results}
+            
+            # Get parent links for all child bags in one query
+            parent_link_results = Link.query.filter(Link.child_bag_id.in_(bag_ids)).all()
+            for link in parent_link_results:
+                parent_links[link.child_bag_id] = link
+            
+            # Get bill links for all bags in one query
+            bill_link_results = BillBag.query.filter(BillBag.bag_id.in_(bag_ids)).all()
+            for bill_link in bill_link_results:
+                bill_links[bill_link.bag_id] = bill_link
+            
+            # Get last scans for all bags in one query
+            last_scan_results = db.session.query(
+                Scan.parent_bag_id,
+                func.max(Scan.timestamp).label('last_scan')
+            ).filter(or_(Scan.parent_bag_id.in_(bag_ids), Scan.child_bag_id.in_(bag_ids)))\
+             .group_by(Scan.parent_bag_id).all()
+            last_scans = {r.parent_bag_id: r.last_scan for r in last_scan_results if r.parent_bag_id}
+        
+        # Create optimized bag data using batch-fetched relationships
         bags_data = []
         for bag in bags_result:
-            # Get linked children count
-            linked_children_count = Link.query.filter_by(parent_bag_id=bag.id).count()
-            
-            # Get parent link if exists
-            parent_link = Link.query.filter_by(child_bag_id=bag.id).first()
-            linked_parent_id = parent_link.parent_bag_id if parent_link else None
-            
-            # Get bill if exists
-            bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
-            bill_id = bill_link.bill_id if bill_link else None
-            
-            bags_data.append({
+            bag_data = {
                 'id': bag.id,
                 'qr_id': bag.qr_id,
                 'type': bag.type,
                 'created_at': bag.created_at,
                 'name': bag.name,
                 'dispatch_area': bag.dispatch_area,
-                'linked_children_count': linked_children_count,
-                'linked_parent_id': linked_parent_id,
-                'bill_id': bill_id
-            })
+                'notes': getattr(bag, 'notes', None),
+                'linked_children_count': child_counts.get(bag.id, 0),
+                'linked_parent_id': parent_links.get(bag.id).parent_bag_id if bag.id in parent_links else None,
+                'bill_id': bill_links.get(bag.id).bill_id if bag.id in bill_links else None,
+                'last_scan_time': last_scans.get(bag.id)
+            }
+            bags_data.append(bag_data)
         
-        # Calculate stats using simpler queries
-        base_stats_query = Bag.query
+        # Use single optimized query for all stats
+        stats_query = db.session.query(
+            func.count(Bag.id).label('total'),
+            func.sum(func.cast(Bag.type == BagType.PARENT.value, db.Integer)).label('parents'),
+            func.sum(func.cast(Bag.type == BagType.CHILD.value, db.Integer)).label('children')
+        )
+        
         if dispatch_area:
-            base_stats_query = base_stats_query.filter_by(dispatch_area=dispatch_area)
+            stats_query = stats_query.filter(Bag.dispatch_area == dispatch_area)
         
-        total_bags = base_stats_query.count()
-        parent_bags = base_stats_query.filter_by(type=BagType.PARENT.value).count()
-        child_bags = base_stats_query.filter_by(type=BagType.CHILD.value).count()
+        stats_result = stats_query.first()
         
-        # Get linked bags count
-        linked_bags = db.session.query(func.count(func.distinct(Link.child_bag_id))).scalar() or 0
-        
-        # Get bags with bills count
-        bags_with_bills = db.session.query(func.count(func.distinct(BillBag.bag_id))).scalar() or 0
+        total_bags = stats_result.total or 0
+        parent_bags = stats_result.parents or 0
+        child_bags = stats_result.children or 0
         
         stats = {
             'total_bags': total_bags,
             'parent_bags': parent_bags,
             'child_bags': child_bags,
-            'linked_bags': linked_bags,
-            'bags_with_bills': bags_with_bills
+            'filtered_count': total_filtered
         }
         
-        # Convert dictionary data back to Bag objects for template compatibility
-        bag_objects = []
-        for bag_dict in bags_data:
-            # Create a mock bag object with necessary properties
-            class MockBag:
-                def __init__(self, data):
-                    for key, value in data.items():
-                        setattr(self, key, value)
-                    # Store link counts from the optimized query
-                    self._linked_children_count = data.get('linked_children_count', 0)
-                    self._linked_parent_id = data.get('linked_parent_id')
-                    self._bill_id = data.get('bill_id')
-                
-                def get(self, key, default=None):
-                    return getattr(self, key, default)
-                
-                @property
-                def child_links(self):
-                    # Return a mock query with the actual count from the database
-                    class MockQuery:
-                        def __init__(self, count):
-                            self._count = count
-                        def count(self):
-                            return self._count
-                    return MockQuery(self._linked_children_count)
-                
-                @property
-                def parent_links(self):
-                    # Return mock query with parent link info
-                    class MockQuery:
-                        def __init__(self, parent_id):
-                            self._parent_id = parent_id
-                        def first(self):
-                            if self._parent_id:
-                                # Create a mock parent link with pre-fetched data
-                                class MockLink:
-                                    def __init__(self, parent_id):
-                                        # Create a mock parent bag object without database query
-                                        class MockParentBag:
-                                            def __init__(self, pid):
-                                                self.id = pid
-                                                self.qr_id = f"Parent_{pid}"  # Mock QR ID
-                                                self.bill_links = MockBillQuery()
-                                        
-                                        class MockBillQuery:
-                                            def first(self):
-                                                return None  # No bill by default
-                                        
-                                        self.parent_bag = MockParentBag(parent_id)
-                                return MockLink(self._parent_id)
-                            return None
-                    return MockQuery(self._linked_parent_id)
-                
-                @property
-                def bill_links(self):
-                    # Return mock query with bill link info  
-                    class MockQuery:
-                        def __init__(self, bill_id):
-                            self._bill_id = bill_id
-                        def first(self):
-                            if self._bill_id:
-                                # Create a mock bill link without database query
-                                class MockBillLink:
-                                    def __init__(self, bill_id):
-                                        # Create a mock bill object
-                                        class MockBill:
-                                            def __init__(self, bid):
-                                                self.id = bid
-                                                self.bill_id = f"BILL-{bid}"  # Mock bill ID
-                                        self.bill = MockBill(bill_id)
-                                return MockBillLink(self._bill_id)
-                            return None
-                    return MockQuery(self._bill_id)
+        # Convert dictionary data to template-compatible MockBag objects
+        class TemplateBag:
+            def __init__(self, data):
+                self.__dict__.update(data)
+                self._linked_children_count = data.get('linked_children_count', 0)
+                self._linked_parent_id = data.get('linked_parent_id')
+                self._bill_id = data.get('bill_id')
             
-            bag_objects.append(MockBag(bag_dict))
+            @property
+            def child_links(self):
+                class MockQuery:
+                    def __init__(self, count):
+                        self._count = count
+                    def count(self):
+                        return self._count
+                return MockQuery(self._linked_children_count)
+            
+            @property
+            def parent_links(self):
+                class MockQuery:
+                    def __init__(self, parent_id, bill_id=None):
+                        self._parent_id = parent_id
+                        self._bill_id = bill_id
+                    def first(self):
+                        if self._parent_id:
+                            class MockLink:
+                                def __init__(self, parent_id, bill_id):
+                                    class MockParentBag:
+                                        def __init__(self, pid, bid):
+                                            self.id = pid
+                                            self.qr_id = f"Parent_{pid}"
+                                            class MockBillLinks:
+                                                def __init__(self, bid):
+                                                    self._bid = bid
+                                                def first(self):
+                                                    if self._bid:
+                                                        class MockBill:
+                                                            def __init__(self, bid):
+                                                                self.bill_id = f"BILL-{bid}"
+                                                        class MockBillLink:
+                                                            def __init__(self, bid):
+                                                                self.bill = MockBill(bid)
+                                                        return MockBillLink(self._bid)
+                                                    return None
+                                            self.bill_links = MockBillLinks(bid)
+                                    self.parent_bag = MockParentBag(parent_id, bill_id)
+                            return MockLink(self._parent_id, self._bill_id)
+                        return None
+                return MockQuery(self._linked_parent_id, self._bill_id)
+            
+            @property
+            def bill_links(self):
+                class MockQuery:
+                    def __init__(self, bill_id):
+                        self._bill_id = bill_id
+                    def first(self):
+                        if self._bill_id:
+                            class MockBillLink:
+                                def __init__(self, bill_id):
+                                    class MockBill:
+                                        def __init__(self, bid):
+                                            self.bill_id = f"BILL-{bid}"
+                                    self.bill = MockBill(bill_id)
+                            return MockBillLink(self._bill_id)
+                        return None
+                return MockQuery(self._bill_id)
+            
+            @property
+            def last_scan(self):
+                if hasattr(self, 'last_scan_time') and self.last_scan_time:
+                    class MockScan:
+                        def __init__(self, timestamp):
+                            self.timestamp = timestamp
+                    return MockScan(self.last_scan_time)
+                return None
+        
+        bag_objects = [TemplateBag(bag_dict) for bag_dict in bags_data]
         
         # Create pagination object manually
         class SimplePagination:
