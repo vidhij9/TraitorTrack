@@ -26,6 +26,10 @@ class InstantScanner {
     }
     
     init() {
+        // Clear any existing content to prevent duplicates
+        this.container.innerHTML = '';
+        
+        // Create fresh scanner UI
         this.container.innerHTML = `
             <div style="position:relative;width:100%;max-width:640px;margin:0 auto;">
                 <video id="instant-video" autoplay playsinline muted 
@@ -351,6 +355,11 @@ class InstantScanner {
         
         if (this.video) {
             this.video.srcObject = null;
+        }
+        
+        // Clear the container to prevent duplicate UI elements
+        if (this.container) {
+            this.container.innerHTML = '';
         }
     }
 }
