@@ -35,7 +35,7 @@
                     <p class="card-text mt-3">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>World-Class Technology:</strong> Superior to Google Lens - handles dim lights, blur, crushed plastic. Works on ALL devices. Scan exactly 30 child bags.
+                        <strong>📷 SIMPLE SCANNER:</strong> Just point at QR code. Scan exactly 30 child bags.
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -55,8 +55,8 @@
                     <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
                 </div>
                 <div class="card-body p-0">
-                    <div id="world-class-scanner-container" class="scanner-main">
-                        <!-- World-Class QR Scanner will be initialized here -->
+                    <div id="simple-scanner-container" class="scanner-main">
+                        <!-- Simple Fast Scanner loads here -->
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center">
@@ -157,26 +157,19 @@
 </div>
 {% endblock %}
 
-{% block head %}
-<!-- Font Awesome for Icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-<!-- Load Multiple QR Code Scanning Libraries for Maximum Compatibility -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+{% block head %>
+<!-- Fast QR Scanning Library -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
-/* World-Class Scanner Styles */
+/* Simple Scanner Styles */
 .scanner-main {
     position: relative;
     width: 100%;
     min-height: 450px;
-    background-color: #000;
     border-radius: 8px;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 /* Scanner responsiveness */
@@ -257,8 +250,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- World-Class QR Scanner Implementation -->
-<script src="{{ url_for('static', filename='js/world-class-scanner.js') }}"></script>
+<!-- Simple Fast Scanner -->
+<script src="{{ url_for('static', filename='js/simple-fast-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -288,29 +281,18 @@
             {% endfor %}
         {% endif %}
         
-        // Initialize World-Class QR Scanner
+        // Initialize Simple Fast Scanner
         async function initializeScanner() {
             try {
-                // Check camera availability
-                const cameraAvailable = await WorldClassScanner.isCameraAvailable();
-                if (!cameraAvailable) {
-                    updateStatus('No camera found', 'warning');
-                    resultContainer.className = 'alert alert-warning';
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>No camera detected. Please use manual entry below.';
-                    return;
-                }
+                updateStatus('Starting...', 'info');
                 
-                updateStatus('Initializing world-class scanner...', 'info');
-                
-                scanner = new WorldClassScanner('world-class-scanner-container', {
-                    scanDebounce: 1500, // Longer debounce for child scanning
-                    onSuccess: handleChildScanSuccess,
-                    onError: handleScanError
+                scanner = new SimpleFastScanner('simple-scanner-container', {
+                    onSuccess: handleChildScanSuccess
                 });
                 
-                updateStatus('Scanner Active', 'success');
+                updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>World-class scanner active! Works in ANY condition - dim light, blur, crushed plastic.';
+                resultContainer.innerHTML = '📷 Scanner ready - Point at child bag QR codes';
                 
             } catch (error) {
                 console.error('Scanner initialization failed:', error);
