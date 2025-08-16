@@ -15,7 +15,7 @@
                     <p class="card-text">Position QR code in the scanning area for automatic detection.</p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        Enhanced scanner with auto-focus and advanced detection capabilities.
+                        <strong>Google Lens Technology:</strong> Works with blurred, damaged, crushed QR codes at any angle or lighting condition.
                     </div>
                 </div>
             </div>
@@ -81,12 +81,13 @@
 {% endblock %}
 
 {% block head %}
-<!-- Load QR scanning libraries -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Load Google Lens-like QR scanning libraries -->
+<script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
 
 <style>
-/* Ultra QR Scanner Styles */
+/* Google Lens Scanner Styles */
 .ultra-scanner-main {
     position: relative;
     width: 100%;
@@ -94,6 +95,53 @@
     background-color: #000000;
     border-radius: 8px;
     overflow: hidden;
+}
+
+.scanner-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.scan-region {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    height: 250px;
+    border: 3px solid #00ff00;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); }
+    50% { box-shadow: 0 0 40px rgba(0, 255, 0, 0.8); }
+    100% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); }
+}
+
+.performance-stats {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #00ff00;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 12px;
+    z-index: 100;
 }
 
 /* Scanner responsiveness */
@@ -129,13 +177,17 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
-<script src="{{ url_for('static', filename='js/fast-qr-scanner.js') }}"></script>
+<!-- Google Lens-like Scanner Implementation -->
+<script src="{{ url_for('static', filename='js/google-lens-scanner.js') }}"></script>
 <script>
+// Set QrScanner worker path
+if (typeof QrScanner !== 'undefined') {
+    QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js';
+}
+
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
+        let videoElement = null;
         
         // Get UI elements
         const startCameraBtn = document.getElementById('start-camera');
@@ -143,17 +195,63 @@
         const scanSuccess = document.getElementById('scan-success');
         const parentQrValue = document.getElementById('parent-qr-value');
         const scanChildLink = document.getElementById('scan-child-link');
-
         const resultContainer = document.getElementById('result-container');
+        const scannerContainer = document.getElementById('ultra-scanner-container');
         
-        // Initialize scanner with proper error handling
+        // Create video element and overlay
+        function createVideoElements() {
+            // Clear container
+            scannerContainer.innerHTML = '';
+            
+            // Create video element
+            videoElement = document.createElement('video');
+            videoElement.className = 'scanner-video';
+            videoElement.setAttribute('playsinline', true);
+            videoElement.setAttribute('autoplay', true);
+            videoElement.muted = true;
+            
+            // Create overlay with scan region
+            const overlay = document.createElement('div');
+            overlay.className = 'scanner-overlay';
+            overlay.innerHTML = '<div class="scan-region"></div><div class="performance-stats" id="perf-stats"></div>';
+            
+            scannerContainer.appendChild(videoElement);
+            scannerContainer.appendChild(overlay);
+        }
+        
+        // Initialize Google Lens-like scanner
         async function initializeScanner() {
             try {
+                createVideoElements();
+                
                 if (!scanner) {
-                    console.log('Creating LiveQRScanner...');
-                    scanner = new LiveQRScanner('ultra-scanner-container');
-                    scanner.setSuccessCallback(handleScanSuccess);
-                    console.log('LiveQRScanner initialized');
+                    console.log('Creating Google Lens Scanner...');
+                    scanner = new GoogleLensScanner(videoElement, {
+                        fps: 30,
+                        multiEngine: true,
+                        enhanceImage: true,
+                        adaptiveScan: true
+                    });
+                    
+                    // Set success callback
+                    scanner.onScanSuccess = handleScanSuccess;
+                    
+                    console.log('Google Lens Scanner initialized');
+                    
+                    // Update performance stats periodically
+                    setInterval(() => {
+                        if (scanner && scanner.isScanning) {
+                            const stats = scanner.getPerformanceStats();
+                            const perfElement = document.getElementById('perf-stats');
+                            if (perfElement) {
+                                perfElement.innerHTML = `
+                                    Engines: ${stats.engines.join(', ')}<br>
+                                    Success Rate: ${stats.successRate.toFixed(1)}%<br>
+                                    Total Scans: ${stats.totalScans}
+                                `;
+                            }
+                        }
+                    }, 1000);
                 }
             } catch (error) {
                 console.error('Scanner initialization failed:', error);
@@ -237,20 +335,34 @@
         startCameraBtn.addEventListener('click', async function() {
             try {
                 if (!scanner) {
-                    initializeScanner();
+                    await initializeScanner();
                 }
                 
-                console.log('Starting scanner...');
+                console.log('Starting Google Lens scanner...');
+                
+                // Get camera stream
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+                
+                videoElement.srcObject = stream;
+                await videoElement.play();
+                
+                // Start scanning
                 await scanner.start();
                 
                 // Update button states
                 startCameraBtn.disabled = true;
                 stopCameraBtn.disabled = false;
-                startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Camera Active';
+                startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Google Lens Active';
                 
                 // Update result container
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active! Position QR codes in the scanning area.';
+                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Google Lens Scanner active! Works with damaged, blurred, or crushed QR codes at any angle.';
                 resultContainer.style.display = 'block';
                 
             } catch (error) {
@@ -265,7 +377,15 @@
         // Stop camera event
         stopCameraBtn.addEventListener('click', async function() {
             if (scanner) {
-                await scanner.stop();
+                scanner.stop();
+                
+                // Stop video stream
+                if (videoElement && videoElement.srcObject) {
+                    const stream = videoElement.srcObject;
+                    const tracks = stream.getTracks();
+                    tracks.forEach(track => track.stop());
+                    videoElement.srcObject = null;
+                }
                 
                 // Update button states
                 startCameraBtn.disabled = false;
@@ -281,9 +401,9 @@
         
 
         
-        // Launch live scanner with proper initialization
-        async function launchLiveScanner() {
-            console.log('Launching Live QR Scanner...');
+        // Launch Google Lens scanner
+        async function launchGoogleLensScanner() {
+            console.log('Launching Google Lens Scanner...');
             
             // Check camera support first
             const cameraSupported = await checkCameraSupport();
@@ -293,26 +413,21 @@
             
             // Show loading state
             resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading camera...';
+            resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading Google Lens Scanner...';
             resultContainer.style.display = 'block';
             
-            // Hide manual controls initially
-            startCameraBtn.style.display = 'none';
-            stopCameraBtn.style.display = 'none';
+            // Enable manual controls
+            startCameraBtn.disabled = false;
+            stopCameraBtn.disabled = true;
             
-            // Initialize and auto-start scanner
-            await initializeScanner();
-            
-            // If we're returning from child scanning, resume scanner
-            if (scanner && scanner.resumeScanning) {
-                setTimeout(() => {
-                    scanner.resumeScanning();
-                }, 500);
-            }
+            // Auto-start scanner
+            setTimeout(() => {
+                startCameraBtn.click();
+            }, 500);
         }
         
         // Launch with delay to ensure DOM is ready
-        setTimeout(launchLiveScanner, 300);
+        setTimeout(launchGoogleLensScanner, 300);
     });
 </script>
 {% endblock %}
