@@ -1,7 +1,7 @@
 /**
- * Fast QR Scanner - Optimized for Speed
- * ======================================
- * Minimal, blazing-fast QR scanner
+ * Fast QR Scanner - Ultra Fast Google Lens Speed
+ * ===============================================
+ * Optimized for maximum scanning performance
  */
 
 class FastQRScanner {
@@ -19,7 +19,14 @@ class FastQRScanner {
         this.lastScanTime = 0;
         this.torchEnabled = false;
         
-        console.log('FastQR: Initializing');
+        // Ultra-fast optimizations
+        this.targetWidth = 640;  // Lower resolution for speed
+        this.targetHeight = 480;
+        this.scanRegion = 0.6;   // Focus on center 60%
+        this.frameCount = 0;
+        this.fpsFrames = [];
+        
+        console.log('FastQR: Initializing Ultra-Fast Mode');
         this.init();
     }
     
@@ -170,7 +177,12 @@ class FastQRScanner {
     setupElements() {
         this.video = document.getElementById(`${this.containerId}-video`);
         this.canvas = document.getElementById(`${this.containerId}-canvas`);
-        this.context = this.canvas.getContext('2d');
+        // Optimize context for performance
+        this.context = this.canvas.getContext('2d', {
+            willReadFrequently: true,
+            alpha: false,
+            desynchronized: true
+        });
     }
     
     setupControls() {
@@ -182,24 +194,27 @@ class FastQRScanner {
     
     async startCamera() {
         try {
-            // Enhanced camera constraints for tiny and damaged QR codes
+            // Optimized constraints for ultra-fast scanning
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 1920, min: 1280 },
-                    height: { ideal: 1080, min: 720 },
-                    // Add advanced constraints for better focus and exposure
-                    advanced: [
-                        { focusMode: 'continuous' },
-                        { exposureMode: 'continuous' },
-                        { whiteBalanceMode: 'continuous' },
-                        { torch: false } // Start with torch off
-                    ]
+                    width: { ideal: this.targetWidth },
+                    height: { ideal: this.targetHeight },
+                    frameRate: { ideal: 60, min: 30 }, // Higher FPS
+                    resizeMode: 'crop-and-scale',
+                    aspectRatio: 4/3
                 },
                 audio: false
             };
             
-            this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints)
+                .catch(() => {
+                    // Fallback to simpler constraints
+                    return navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' }, 
+                        audio: false 
+                    });
+                });
             this.video.srcObject = this.cameraStream;
             
             await new Promise((resolve) => {
@@ -207,6 +222,22 @@ class FastQRScanner {
                     this.video.play().then(resolve);
                 };
             });
+            
+            // Apply performance optimizations
+            const track = this.cameraStream.getVideoTracks()[0];
+            if (track && track.applyConstraints) {
+                try {
+                    await track.applyConstraints({
+                        advanced: [
+                            { focusMode: 'continuous' },
+                            { exposureMode: 'continuous' },
+                            { whiteBalanceMode: 'continuous' }
+                        ]
+                    });
+                } catch (e) {
+                    console.log('FastQR: Advanced constraints not supported');
+                }
+            }
             
             this.isScanning = true;
             this.startScanning();
@@ -224,45 +255,55 @@ class FastQRScanner {
             return;
         }
         
-        let frameSkip = 0;
+        let lastFrameTime = performance.now();
         
         const scan = () => {
             if (!this.isScanning) return;
             
+            // FPS tracking
+            const currentTime = performance.now();
+            const deltaTime = currentTime - lastFrameTime;
+            lastFrameTime = currentTime;
+            
+            if (this.fpsFrames.length < 30) {
+                this.fpsFrames.push(1000 / deltaTime);
+            } else {
+                this.fpsFrames.shift();
+                this.fpsFrames.push(1000 / deltaTime);
+            }
+            
             if (!this.isPaused && this.video.readyState === 4) {
-                // Scan every 3rd frame for performance
-                frameSkip++;
-                if (frameSkip % 3 === 0) {
-                    // Update canvas size only if needed
-                    if (this.canvas.width !== this.video.videoWidth) {
-                        this.canvas.width = this.video.videoWidth;
-                        this.canvas.height = this.video.videoHeight;
+                // Scan EVERY frame for maximum speed - no skipping!
+                // Use fixed canvas size for consistent performance
+                if (this.canvas.width !== this.targetWidth) {
+                    this.canvas.width = this.targetWidth;
+                    this.canvas.height = this.targetHeight;
+                }
+                
+                if (this.canvas.width > 0 && this.canvas.height > 0) {
+                    // Draw at lower resolution for speed
+                    this.context.drawImage(this.video, 0, 0, this.targetWidth, this.targetHeight);
+                    
+                    // Get center region for faster processing
+                    const regionSize = Math.floor(this.targetWidth * this.scanRegion);
+                    const offsetX = Math.floor((this.targetWidth - regionSize) / 2);
+                    const offsetY = Math.floor((this.targetHeight - regionSize) / 2);
+                    
+                    const imageData = this.context.getImageData(
+                        offsetX, offsetY, 
+                        regionSize, regionSize
+                    );
+                    
+                    // Ultra-fast single scan - no enhancements, no retries
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'dontInvert' // Fastest option
+                    });
+                    
+                    if (code && code.data) {
+                        this.handleSuccess(code.data);
                     }
                     
-                    if (this.canvas.width > 0 && this.canvas.height > 0) {
-                        this.context.drawImage(this.video, 0, 0);
-                        
-                        // Enhanced scanning for tiny and damaged codes
-                        const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                        
-                        // Try multiple inversionAttempts for damaged codes
-                        let code = jsQR(imageData.data, imageData.width, imageData.height, {
-                            inversionAttempts: 'attemptBoth' // Better for damaged codes
-                        });
-                        
-                        // If no code found, try with different settings for tiny codes
-                        if (!code && frameSkip % 6 === 0) { // Less frequent but more thorough
-                            // Apply simple contrast enhancement for damaged codes
-                            const enhanced = this.enhanceImage(imageData);
-                            code = jsQR(enhanced.data, enhanced.width, enhanced.height, {
-                                inversionAttempts: 'invertFirst'
-                            });
-                        }
-                        
-                        if (code && code.data) {
-                            this.handleSuccess(code.data);
-                        }
-                    }
+                    this.frameCount++;
                 }
             }
             
@@ -312,9 +353,9 @@ class FastQRScanner {
     }
     
     handleSuccess(qrText) {
-        // Prevent duplicate scans
+        // Prevent duplicate scans (shorter delay for faster response)
         const now = Date.now();
-        if (qrText === this.lastScan && (now - this.lastScanTime) < 500) {
+        if (qrText === this.lastScan && (now - this.lastScanTime) < 200) {
             return;
         }
         
@@ -325,8 +366,8 @@ class FastQRScanner {
         this.lastScan = qrText;
         this.lastScanTime = now;
         
-        // Pause scanning
-        this.pauseScanning();
+        // Don't pause for continuous scanning
+        // this.pauseScanning();
         
         // Visual feedback
         const flash = document.getElementById('success-flash');
@@ -335,9 +376,9 @@ class FastQRScanner {
             setTimeout(() => flash.classList.remove('show'), 200);
         }
         
-        // Haptic feedback
+        // Shorter haptic feedback
         if (navigator.vibrate) {
-            navigator.vibrate(100);
+            navigator.vibrate(50);
         }
         
         if (this.onSuccess) {
