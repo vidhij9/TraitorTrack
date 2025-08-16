@@ -12,7 +12,7 @@
                         <i class="fas fa-qrcode me-2"></i>Scan Child Bags
                     </h2>
                     
-                    <!-- Progress Bar similar to bills management -->
+                    <!-- Progress Bar -->
                     <div class="row">
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -32,10 +32,10 @@
                     </div>
                     
                     {% if parent_bag %}
-                    <p class="card-text">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
+                    <p class="card-text mt-3">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Google Lens Technology:</strong> Works with damaged, blurred, or crushed QR codes. Scan exactly 30 child bags.
+                        <strong>Ultra-Fast Technology:</strong> Works with damaged, blurred, or crushed QR codes. Scan exactly 30 child bags.
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -60,14 +60,14 @@
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center">
-                    <div class="scanner-controls">
-                        <span class="badge bg-success">
-                            <i class="fas fa-camera me-1"></i>Live Scanner Active
+                    <div class="scanner-status">
+                        <span id="scanner-status" class="badge bg-info">
+                            <i class="fas fa-spinner fa-spin me-1"></i>Initializing...
                         </span>
                     </div>
                     <div class="scanner-info">
                         <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Google Lens Detection
+                            <i class="fas fa-info-circle me-1"></i>Point at QR code
                         </small>
                     </div>
                 </div>
@@ -80,23 +80,9 @@
                     <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Results</h4>
                 </div>
                 <div class="card-body">
-                    <div id="result-container" class="alert alert-info mb-3" style="display: none;">
+                    <div id="result-container" class="alert alert-info mb-3">
                         <i class="fas fa-info-circle me-2"></i>
                         Ready to scan child bags...
-                    </div>
-                    
-                    <div id="scan-success" class="scan-result alert alert-success d-none">
-                        <h5><i class="fas fa-check-circle me-2"></i>Scanning Complete</h5>
-                        <p class="mb-3">Total: <span id="child-qr-value" class="fw-bold"></span></p>
-                        <p class="mb-3">Parent: <span id="parent-qr-display" class="fw-bold text-primary">{{ parent_bag.qr_id if parent_bag else 'None' }}</span></p>
-                        <div class="d-grid gap-2">
-                            <button id="scan-another" class="btn btn-success">
-                                <i class="fas fa-plus me-2"></i>Continue Scanning
-                            </button>
-                            <a href="{{ url_for('index') }}" class="btn btn-primary">
-                                <i class="fas fa-home me-2"></i>Return to Dashboard
-                            </a>
-                        </div>
                     </div>
                     
                     <!-- Scanned children list -->
@@ -117,7 +103,7 @@
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                <div class="text-center text-muted py-3">
+                                <div class="text-center text-muted py-3" id="empty-list-message">
                                     <i class="fas fa-qrcode fa-2x mb-2 opacity-50"></i>
                                     <p class="mb-0">No child bags scanned yet</p>
                                 </div>
@@ -132,90 +118,58 @@
                            style="background: linear-gradient(135deg, #28a745, #20c997); border: none; padding: 15px;"
                            disabled>
                             <i class="fas fa-check-circle me-2"></i>
-                            <span id="complete-btn-text">Complete Scanning (0/30 bags)</span>
+                            <span id="complete-btn-text">Complete Scanning ({{ scanned_child_count }}/30 bags)</span>
                             <small class="d-block" style="font-size: 11px; opacity: 0.8;">Must scan exactly 30 bags</small>
                         </button>
                     </div>
                     
-
+                    <!-- Manual Entry Option -->
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Manual Entry</h6>
+                            <form id="manual-child-form">
+                                <div class="input-group">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="manual-child-input"
+                                           placeholder="Enter child QR code..."
+                                           pattern="[A-Za-z0-9\-]+"
+                                           required>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-plus me-1"></i>Add
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Custom Success Notification - More Visible -->
+<!-- Success Notification -->
 <div id="success-notification" style="display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 99999; min-width: 300px;">
     <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 8px 24px rgba(40, 167, 69, 0.5); text-align: center; font-weight: bold; font-size: 18px;">
         <i class="fas fa-check-circle me-2"></i>
         <span id="success-message">Linked!</span>
     </div>
 </div>
-
 {% endblock %}
 
 {% block head %}
-<!-- Load Google Lens-like QR scanning libraries -->
-<script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://unpkg.com/@zxing/library@latest"></script>
+<!-- Load HTML5 QR Code Scanner -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
-/* Google Lens Scanner Styles */
+/* Ultra Scanner Styles */
 .ultra-scanner-main {
     position: relative;
     width: 100%;
     min-height: 400px;
-    background-color: #000000;
+    background-color: #f8f9fa;
     border-radius: 8px;
     overflow: hidden;
-}
-
-.scanner-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.scanner-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-
-.scan-region {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 250px;
-    height: 250px;
-    border: 3px solid #00ff00;
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); }
-    50% { box-shadow: 0 0 40px rgba(0, 255, 0, 0.8); }
-    100% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); }
-}
-
-.performance-stats {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.7);
-    color: #00ff00;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-family: monospace;
-    font-size: 12px;
-    z-index: 100;
 }
 
 /* Scanner responsiveness */
@@ -225,53 +179,26 @@
     }
 }
 
-.scanner-controls {
+.scanner-status {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    align-items: center;
 }
 
 .scanner-info {
     font-size: 0.85rem;
 }
 
-/* Simple notification animations */
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
+/* Override HTML5 QR Scanner styles */
+#ultra-child-scanner-container-scanner {
+    border: none !important;
 }
 
-@keyframes slideUp {
-    from {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-20px);
-    }
-}
-
-/* Progress bar styles */
-.progress {
+#ultra-child-scanner-container-scanner__scan_region {
+    border: 2px solid #28a745 !important;
     border-radius: 10px;
-    background-color: #e9ecef;
 }
 
-.progress-bar {
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Child list styles - OPTIMIZED FOR SPEED */
+/* Child list styles */
 .list-group-item {
     border: 1px solid #dee2e6;
     margin-bottom: 2px;
@@ -296,142 +223,204 @@
     }
 }
 
-/* Quick scan feedback */
-.scan-feedback {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(25, 135, 84, 0.9);
-    color: white;
-    padding: 20px 30px;
-    border-radius: 10px;
-    font-size: 18px;
-    font-weight: bold;
-    z-index: 9999;
-    animation: fadeInOut 1s ease-in-out;
+/* Notification animations */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
 }
 
-@keyframes fadeInOut {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-    50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-}
-
-/* Scanner controls */
-.scanner-controls .btn {
-    margin-right: 0.5rem;
-}
-
-.scanner-info {
-    font-style: italic;
+@keyframes slideUp {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
 }
 </style>
 {% endblock %}
 
 {% block scripts %}
-<!-- Load Google Lens-like QR scanning libraries -->
-<script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://unpkg.com/@zxing/library@latest"></script>
-<!-- Google Lens-like Scanner Implementation -->
-<script src="{{ url_for('static', filename='js/google-lens-scanner.js') }}"></script>
+<!-- Ultra QR Scanner Implementation -->
+<script src="{{ url_for('static', filename='js/ultra-qr-scanner.js') }}"></script>
 <script>
-// Set QrScanner worker path
-if (typeof QrScanner !== 'undefined') {
-    QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js';
-}
-
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
-        let videoElement = null;
-        let scannedChildren = [];
-        let scannedQrCodes = new Set(); // Client-side duplicate prevention
-        const REQUIRED_BAGS = 30; // Exactly 30 bags required
+        let scannedQrCodes = new Set(); // Track scanned codes
+        const REQUIRED_BAGS = 30;
+        let isProcessing = false;
+        
+        // Get initial count from server
+        let currentCount = {{ scanned_child_count }};
         
         // Get UI elements
-        const startCameraBtn = document.getElementById('start-camera');
-        const stopCameraBtn = document.getElementById('stop-camera');
-        const scanSuccess = document.getElementById('scan-success');
-        const childQrValue = document.getElementById('child-qr-value');
-        const scanAnotherBtn = document.getElementById('scan-another');
-
         const resultContainer = document.getElementById('result-container');
         const childrenList = document.getElementById('children-list');
         const progressText = document.getElementById('child-count');
-        console.log('Progress element found:', !!progressText);
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const completeBtn = document.getElementById('complete-scanning-btn');
+        const completeBtnText = document.getElementById('complete-btn-text');
+        const scannerStatus = document.getElementById('scanner-status');
+        const manualForm = document.getElementById('manual-child-form');
+        const manualInput = document.getElementById('manual-child-input');
         
-        // Simple, visible notification system
-        function showToast(message, type = 'success') {
-            const notification = document.getElementById('success-notification');
-            const messageSpan = document.getElementById('success-message');
-            
-            // Clear any existing timeout
-            if (window.notificationTimeout) {
-                clearTimeout(window.notificationTimeout);
-            }
-            
-            // Set message
-            messageSpan.textContent = message;
-            
-            // Style based on type
-            const innerDiv = notification.querySelector('div');
-            let delay = 70; // Ultra-fast 70ms flash
-            
-            if (type === 'error') {
-                innerDiv.style.background = 'linear-gradient(135deg, #dc3545, #c82333)';
-                delay = 3000; // Keep errors visible longer
-            } else if (type === 'warning') {
-                innerDiv.style.background = 'linear-gradient(135deg, #ffc107, #e0a800)';
-                delay = 500; // Warnings still brief
-            } else {
-                innerDiv.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
-                delay = 70; // Ultra-fast 70ms flash for success
-            }
-            
-            // Show notification with animation
-            notification.style.display = 'block';
-            notification.style.animation = 'slideDown 0.3s ease-out';
-            
-            // Hide after delay
-            window.notificationTimeout = setTimeout(() => {
-                notification.style.animation = 'slideUp 0.3s ease-out';
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 300);
-            }, delay);
-            
-            // Haptic feedback if available
-            if (navigator.vibrate) {
-                navigator.vibrate(50);
-            }
-        }
-
-        // FIXED: Add child bag to list (prevent duplicates and update counts properly)
-        function addChildToList(childQr, childName = null) {
-            const childrenList = document.getElementById('children-list');
-            
-            // CHECK FOR DUPLICATES: Don't add if already in list
-            const existingItems = childrenList.querySelectorAll('.list-group-item');
-            for (let item of existingItems) {
-                const spanElement = item.querySelector('span.fw-bold');
-                if (spanElement && spanElement.textContent === childQr) {
-                    console.log('Item already in UI list, skipping add:', childQr);
-                    return; // Don't add duplicate
+        // Initialize existing scanned bags
+        {% if linked_child_bags %}
+            {% for child_bag in linked_child_bags %}
+                scannedQrCodes.add('{{ child_bag.qr_id }}');
+            {% endfor %}
+        {% endif %}
+        
+        // Initialize Ultra QR Scanner
+        async function initializeScanner() {
+            try {
+                // Check camera availability
+                const cameraAvailable = await UltraQRScanner.isCameraAvailable();
+                if (!cameraAvailable) {
+                    updateStatus('No camera found', 'warning');
+                    resultContainer.className = 'alert alert-warning';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>No camera detected. Please use manual entry below.';
+                    return;
+                }
+                
+                updateStatus('Starting camera...', 'info');
+                
+                scanner = new UltraQRScanner('ultra-child-scanner-container', {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    onSuccess: handleChildScanSuccess,
+                    onError: handleScanError,
+                    scanDebounce: 1500 // Longer debounce for child scanning
+                });
+                
+                await scanner.start();
+                
+                updateStatus('Scanner Active', 'success');
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Scanner is active! Point camera at child bag QR codes.';
+                
+            } catch (error) {
+                console.error('Scanner initialization failed:', error);
+                updateStatus('Scanner Error', 'danger');
+                
+                if (error.message && error.message.includes('NotAllowed')) {
+                    resultContainer.className = 'alert alert-danger';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera access denied. Please allow camera permissions and refresh.';
+                } else {
+                    resultContainer.className = 'alert alert-warning';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Scanner unavailable. Please use manual entry below.';
                 }
             }
+        }
+        
+        // Update scanner status
+        function updateStatus(text, type) {
+            const statusBadge = document.getElementById('scanner-status');
+            statusBadge.className = `badge bg-${type}`;
             
-            const emptyMessage = childrenList.querySelector('.text-center');
+            let icon = '';
+            switch(type) {
+                case 'success':
+                    icon = '<i class="fas fa-check-circle me-1"></i>';
+                    break;
+                case 'danger':
+                    icon = '<i class="fas fa-exclamation-circle me-1"></i>';
+                    break;
+                case 'warning':
+                    icon = '<i class="fas fa-exclamation-triangle me-1"></i>';
+                    break;
+                case 'info':
+                    icon = '<i class="fas fa-spinner fa-spin me-1"></i>';
+                    break;
+            }
             
-            // Remove empty message if it exists
+            statusBadge.innerHTML = icon + text;
+        }
+        
+        // Handle successful child scan
+        async function handleChildScanSuccess(qrCode) {
+            // Check if already scanned
+            if (scannedQrCodes.has(qrCode)) {
+                showToast('Already scanned: ' + qrCode, 'warning');
+                setTimeout(() => scanner.resume(), 1000);
+                return;
+            }
+            
+            if (isProcessing) {
+                return;
+            }
+            
+            isProcessing = true;
+            console.log('Child bag scanned:', qrCode);
+            
+            // Haptic feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(100);
+            }
+            
+            // Submit to server
+            try {
+                const response = await fetch('/process_child_scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        qr_code: qrCode,
+                        parent_id: '{{ parent_bag.qr_id if parent_bag else "" }}'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    scannedQrCodes.add(qrCode);
+                    addChildToList(qrCode, data.child_name);
+                    showToast('✓ ' + qrCode, 'success');
+                    
+                    // Resume scanning after short delay
+                    setTimeout(() => {
+                        isProcessing = false;
+                        if (scanner) scanner.resume();
+                    }, 1000);
+                } else {
+                    showToast(data.message || 'Error scanning child bag', 'error');
+                    isProcessing = false;
+                    setTimeout(() => scanner.resume(), 2000);
+                }
+                
+            } catch (error) {
+                console.error('Error processing child scan:', error);
+                showToast('Network error. Please try again.', 'error');
+                isProcessing = false;
+                setTimeout(() => scanner.resume(), 2000);
+            }
+        }
+        
+        // Handle scan errors
+        function handleScanError(error) {
+            // Silently ignore normal scanning errors
+        }
+        
+        // Add child to list
+        function addChildToList(childQr, childName = null) {
+            // Remove empty message if exists
+            const emptyMessage = document.getElementById('empty-list-message');
             if (emptyMessage) {
                 emptyMessage.remove();
             }
             
-            // INSTANT VISUAL FEEDBACK: Show scan feedback overlay
-            showQuickFeedback(`✓ ${childQr}`);
-            
-            // Create new list item with instant animation
+            // Create new list item
             const listItem = document.createElement('div');
             listItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2 newly-added';
             
@@ -444,330 +433,129 @@ if (typeof QrScanner !== 'undefined') {
                 <span class="badge bg-success rounded-pill">Linked</span>
             `;
             
-            // Add to top of list instantly
+            // Add to top of list
             childrenList.insertBefore(listItem, childrenList.firstChild);
             
-            // Update progress counter based on actual list count
-            const actualCount = childrenList.querySelectorAll('.list-group-item:not(.text-center)').length;
+            // Update count and progress
+            currentCount++;
+            updateProgress();
             
-            // Update all progress indicators
-            const progressElement = document.getElementById('child-count');
-            if (progressElement) progressElement.textContent = actualCount;
-            
-            // Update progress bar
-            const progressBar = document.getElementById('progress-bar');
-            const percentage = Math.round((actualCount / REQUIRED_BAGS) * 100);
-            if (progressBar) {
-                progressBar.style.width = percentage + '%';
-                const percentageSpan = document.getElementById('progress-percentage');
-                if (percentageSpan) percentageSpan.textContent = percentage + '%';
-            }
-            
-            // Update complete button
-            const completeBtn = document.getElementById('complete-scanning-btn');
-            const completeBtnText = document.getElementById('complete-btn-text');
-            if (completeBtnText) {
-                completeBtnText.textContent = `Complete Scanning (${actualCount}/${REQUIRED_BAGS} bags)`;
-            }
-            
-            // Enable/disable complete button based on count
-            if (completeBtn) {
-                if (actualCount === REQUIRED_BAGS) {
-                    completeBtn.disabled = false;
-                    completeBtn.classList.remove('btn-success');
-                    completeBtn.classList.add('btn-primary');
-                    showToast(`✓ All ${REQUIRED_BAGS} bags scanned! Click Complete to finish.`, 'success');
-                } else {
-                    completeBtn.disabled = true;
-                    completeBtn.classList.remove('btn-primary');
-                    completeBtn.classList.add('btn-success');
-                    if (actualCount > REQUIRED_BAGS) {
-                        showToast(`Too many bags! Remove ${actualCount - REQUIRED_BAGS} bag(s).`, 'error');
-                    }
-                }
-            }
-            
-            // Remove highlight animation faster
+            // Remove highlight after animation
             setTimeout(() => {
                 listItem.classList.remove('newly-added');
             }, 600);
         }
         
-        // APPLE SPEED: Lightning-fast visual feedback with better messages
-        function showQuickFeedback(message) {
-            const feedback = document.createElement('div');
-            feedback.className = 'scan-feedback';
-            feedback.innerHTML = message;
-            feedback.style.fontSize = '16px';
-            feedback.style.fontWeight = 'bold';
-            document.body.appendChild(feedback);
+        // Update progress indicators
+        function updateProgress() {
+            const percentage = Math.round((currentCount / REQUIRED_BAGS) * 100);
             
-            // APPLE SPEED: Faster feedback removal
-            setTimeout(() => {
-                if (feedback.parentNode) {
-                    feedback.parentNode.removeChild(feedback);
-                }
-            }, 800); // Slightly longer for readability
-        }
-        
-        // APPLE SPEED: Performance monitoring
-        window.scanPerformance = {
-            scans: [],
-            addScan: function(time) {
-                this.scans.push(time);
-                if (this.scans.length > 10) this.scans.shift();
-                const avg = this.scans.reduce((a, b) => a + b, 0) / this.scans.length;
-                console.log(`Average scan time: ${avg.toFixed(1)}ms`);
-            }
-        };
-
-        // Create video elements for Google Lens scanner
-        function createVideoElements() {
-            const scannerContainer = document.getElementById('ultra-child-scanner-container');
-            scannerContainer.innerHTML = '';
+            progressText.textContent = currentCount;
+            progressBar.style.width = percentage + '%';
+            progressPercentage.textContent = percentage + '%';
+            completeBtnText.textContent = `Complete Scanning (${currentCount}/${REQUIRED_BAGS} bags)`;
             
-            videoElement = document.createElement('video');
-            videoElement.className = 'scanner-video';
-            videoElement.setAttribute('playsinline', true);
-            videoElement.setAttribute('autoplay', true);
-            videoElement.muted = true;
-            
-            const overlay = document.createElement('div');
-            overlay.className = 'scanner-overlay';
-            overlay.innerHTML = '<div class="scan-region"></div><div class="performance-stats" id="perf-stats-child"></div>';
-            
-            scannerContainer.appendChild(videoElement);
-            scannerContainer.appendChild(overlay);
-        }
-        
-        // Initialize Google Lens scanner with proper error handling
-        async function initializeScanner() {
-            try {
-                createVideoElements();
-                
-                if (!scanner) {
-                    console.log('Creating Google Lens Scanner for child scanning...');
-                    scanner = new GoogleLensScanner(videoElement, {
-                        fps: 30,
-                        multiEngine: true,
-                        enhanceImage: true,
-                        adaptiveScan: true
-                    });
-                    
-                    scanner.onScanSuccess = handleChildScanSuccess;
-                    console.log('Google Lens Scanner initialized successfully');
-                    
-                    // Make scanner available globally for debugging
-                    window.childScanner = scanner;
-                    
-                    // Hide loading message since scanner is ready
-                    resultContainer.style.display = 'none';
-                    
-                    // Ensure scanner is running
-                    if (scanner && scanner.start) {
-                        console.log('Starting child scanner...');
-                        await scanner.start();
-                        console.log('Child scanner started, isPaused:', scanner.isPaused);
-                    }
-                } else {
-                    console.log('Scanner already exists, ensuring it is active');
-                    if (scanner.isPaused) {
-                        console.log('Scanner is paused, resuming...');
-                        scanner.resumeScanning();
-                    }
-                }
-            } catch (error) {
-                console.error('Child scanner initialization failed:', error);
-                showToast('Scanner initialization failed. Please refresh the page.', 'error');
+            // Enable/disable complete button
+            if (currentCount === REQUIRED_BAGS) {
+                completeBtn.disabled = false;
+                completeBtn.classList.remove('btn-success');
+                completeBtn.classList.add('btn-primary');
+                showToast(`✓ All ${REQUIRED_BAGS} bags scanned! Click Complete to finish.`, 'success');
+            } else {
+                completeBtn.disabled = true;
+                completeBtn.classList.remove('btn-primary');
+                completeBtn.classList.add('btn-success');
             }
         }
         
-        // APPLE SPEED: Ultra-fast child QR code processing with duplicate prevention
-        async function handleChildScanSuccess(qrText) {
-            const startTime = performance.now();
-            console.log('ULTRA-FAST Child scan:', qrText);
-            console.log('Scanner state - isPaused:', scanner?.isPaused, 'isScanning:', scanner?.isScanning);
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const notification = document.getElementById('success-notification');
+            const messageSpan = document.getElementById('success-message');
             
-            // Scanner is already paused by the LiveQRScanner handleSuccess method
-            console.log('Child scan detected, processing:', qrText);
-            
-            // CLIENT-SIDE DUPLICATE PREVENTION
-            if (scannedQrCodes.has(qrText)) {
-                console.log('CLIENT-SIDE DUPLICATE DETECTED:', qrText);
-                showToast('Already scanned this bag!', 'error');
-                // Resume scanning for next bag
-                if (scanner && scanner.resumeScanning) {
-                    console.log('Resuming scanner after duplicate detection');
-                    setTimeout(() => {
-                        scanner.resumeScanning();
-                        console.log('Scanner resumed after duplicate');
-                    }, 200);
-                }
-                return; // Stop processing
+            if (window.notificationTimeout) {
+                clearTimeout(window.notificationTimeout);
             }
             
-            // Add to scanned set immediately
-            scannedQrCodes.add(qrText);
+            messageSpan.textContent = message;
             
-            // APPLE SPEED: Instant visual feedback (no server wait)
-            showQuickFeedback(`🔗 Linking ${qrText}...`);
+            const innerDiv = notification.querySelector('div');
+            let delay = type === 'success' ? 500 : 2000;
             
-            try {
-                // Note: Don't add to UI immediately - wait for server success to prevent duplicates
-                
-                // APPLE SPEED: Optimized fetch - no CSRF needed as route is exempted
-                const serverPromise = fetch('/process_child_scan', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: new URLSearchParams({ qr_code: qrText })
-                });
-                
-                // APPLE SPEED: Wait for server response while UI updates
-                const response = await serverPromise;
-                const data = await response.json();
-                
-                const endTime = performance.now();
-                console.log(`SPEED: Total processing time: ${endTime - startTime}ms`);
-                
-                if (data.success) {
-                    // SUCCESS: Add to UI list only after server confirms success
-                    addChildToList(data.child_qr || qrText, data.child_name);
-                    
-                    // Show quick success message that auto-disappears
-                    showToast(`✓ ${qrText} linked!`, 'success');
-                    window.scanPerformance.addScan(endTime - startTime);
-                    
-                    // Track for completion
-                    scannedChildren.push({
-                        qr: qrText,
-                        timestamp: new Date(),
-                        processingTime: endTime - startTime
-                    });
-                    
-                    // Check if we've reached the limit
-                    const currentCount = childrenList.querySelectorAll('.list-group-item:not(.text-center)').length;
-                    if (currentCount >= REQUIRED_BAGS) {
-                        console.log(`Reached ${REQUIRED_BAGS} bags limit, stopping scanner`);
-                        showToast(`✓ All ${REQUIRED_BAGS} bags scanned! Click Complete to finish.`, 'success');
-                        // Don't resume scanning when limit reached
-                    } else {
-                        // Resume scanning for next bag after short delay
-                        if (scanner && scanner.resumeScanning) {
-                            console.log('Scheduling scanner resume after successful scan');
-                            setTimeout(() => {
-                                console.log('Resuming scanner after successful scan');
-                                scanner.resumeScanning();
-                                console.log('Scanner resume called, state:', scanner?.isPaused ? 'paused' : 'active');
-                            }, 300);  // Short delay for UI feedback
-                        } else {
-                            console.error('Scanner or resumeScanning method not available');
-                        }
-                    }
-                    
-                } else {
-                    // ERROR: Remove from scanned set on server error and show message
-                    scannedQrCodes.delete(qrText);
-                    console.log('SCAN ERROR:', data.message);
-                    showToast(data.message || 'Failed to link bag', 'error');
-                    
-                    // Resume scanning for retry
-                    if (scanner && scanner.resumeScanning) {
-                        console.log('Scheduling scanner resume after error');
-                        setTimeout(() => {
-                            console.log('Resuming scanner after error');
-                            scanner.resumeScanning();
-                            console.log('Scanner resumed after error');
-                        }, 1000);
-                    } else {
-                        console.error('Scanner not available for resume after error');
-                    }
-                }
-                
-            } catch (error) {
-                // ERROR: Remove from scanned set on network error
-                scannedQrCodes.delete(qrText);
-                console.error('Ultra-fast scan error:', error);
-                showToast(`Network error: ${error.message}`, 'error');
-                
-                // Resume scanning for retry
-                if (scanner && scanner.resumeScanning) {
-                    console.log('Scheduling scanner resume after network error');
-                    setTimeout(() => {
-                        console.log('Resuming scanner after network error');
-                        scanner.resumeScanning();
-                        console.log('Scanner resumed after network error');
-                    }, 1000);
-                } else {
-                    console.error('Scanner not available for resume after network error');
-                }
+            if (type === 'error') {
+                innerDiv.style.background = 'linear-gradient(135deg, #dc3545, #c82333)';
+            } else if (type === 'warning') {
+                innerDiv.style.background = 'linear-gradient(135deg, #ffc107, #e0a800)';
+            } else {
+                innerDiv.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
             }
+            
+            notification.style.display = 'block';
+            notification.style.animation = 'slideDown 0.3s ease-out';
+            
+            window.notificationTimeout = setTimeout(() => {
+                notification.style.animation = 'slideUp 0.3s ease-out';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 300);
+            }, delay);
         }
         
-        // REMOVED: Duplicate function - using the optimized version above
-
-
+        // Handle manual entry
+        manualForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const qrCode = manualInput.value.trim();
+            
+            if (!qrCode) return;
+            
+            if (scannedQrCodes.has(qrCode)) {
+                showToast('Already scanned: ' + qrCode, 'warning');
+                return;
+            }
+            
+            // Process as if scanned
+            await handleChildScanSuccess(qrCode);
+            manualInput.value = '';
+        });
         
-        // Complete button click handler
-        const completeBtn = document.getElementById('complete-scanning-btn');
-        if (completeBtn) {
-            completeBtn.addEventListener('click', function() {
-                const childCount = parseInt(document.getElementById('child-count').textContent) || 0;
+        // Complete scanning button
+        completeBtn.addEventListener('click', function() {
+            if (currentCount === REQUIRED_BAGS) {
+                // Submit completion
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/complete_child_scanning';
                 
-                if (childCount === REQUIRED_BAGS) {
-                    console.log(`✓ Completing with exactly ${REQUIRED_BAGS} bags`);
-                    
-                    // Stop the scanner
-                    if (scanner && typeof scanner.stop === 'function') {
-                        try {
-                            scanner.stop();
-                        } catch (e) {
-                            console.log('Scanner stop warning:', e.message);
-                        }
-                    }
-                    
-                    // Show completion message
-                    showToast(`Completing with ${REQUIRED_BAGS} bags...`, 'success');
-                    
-                    // Redirect to completion page
-                    setTimeout(() => {
-                        window.location.href = '{{ url_for("scan_complete") }}';
-                    }, 1500);
-                } else if (childCount < REQUIRED_BAGS) {
-                    showToast(`You need to scan ${REQUIRED_BAGS - childCount} more bag(s)`, 'warning');
-                } else {
-                    showToast(`Too many bags! You have ${childCount} but need exactly ${REQUIRED_BAGS}`, 'error');
-                }
-            });
-        }
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                form.appendChild(csrfInput);
+                
+                const parentInput = document.createElement('input');
+                parentInput.type = 'hidden';
+                parentInput.name = 'parent_id';
+                parentInput.value = '{{ parent_bag.qr_id if parent_bag else "" }}';
+                form.appendChild(parentInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
         
-        // Check initial count and update UI
-        const initialCount = childrenList.querySelectorAll('.list-group-item:not(.text-center)').length;
-        if (initialCount > 0) {
-            // Update progress if there are already scanned bags
-            const progressBar = document.getElementById('progress-bar');
-            const percentage = Math.round((initialCount / REQUIRED_BAGS) * 100);
-            if (progressBar) {
-                progressBar.style.width = percentage + '%';
-                const percentageSpan = document.getElementById('progress-percentage');
-                if (percentageSpan) percentageSpan.textContent = percentage + '%';
+        // Initialize scanner on load
+        {% if parent_bag %}
+        setTimeout(() => {
+            initializeScanner();
+        }, 500);
+        {% endif %}
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (scanner) {
+                scanner.stop();
             }
-            
-            const completeBtn = document.getElementById('complete-scanning-btn');
-            const completeBtnText = document.getElementById('complete-btn-text');
-            if (completeBtnText) {
-                completeBtnText.textContent = `Complete Scanning (${initialCount}/${REQUIRED_BAGS} bags)`;
-            }
-            
-            if (completeBtn) {
-                completeBtn.disabled = initialCount !== REQUIRED_BAGS;
-            }
-        }
-
-        // Initialize scanner when document loads
-        initializeScanner();
+        });
     });
 </script>
 {% endblock %}
