@@ -70,43 +70,66 @@ class SimpleFastScanner {
     
     async startCamera() {
         try {
-            // Simple camera constraints - no fancy features
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+            // Check if we're on HTTPS (required for camera)
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                console.warn('Camera requires HTTPS. Trying anyway...');
+            }
+            
+            // Request camera with multiple fallback options
+            let stream = null;
+            const constraints = [
+                { video: { facingMode: 'environment' } },  // Back camera first
+                { video: { facingMode: 'user' } },          // Front camera fallback
+                { video: true }                             // Any camera
+            ];
+            
+            for (const constraint of constraints) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraint);
+                    if (stream) break;
+                } catch (e) {
+                    console.log('Trying next camera constraint...');
                 }
-            });
+            }
+            
+            if (!stream) {
+                throw new Error('No camera available');
+            }
             
             this.video.srcObject = stream;
-            this.video.play();
+            this.video.setAttribute('playsinline', true);
+            this.video.setAttribute('autoplay', true);
+            this.video.muted = true;
+            
+            // Wait for video to be ready
+            await this.video.play();
             
             // Start scanning as soon as video is ready
             this.video.addEventListener('loadedmetadata', () => {
                 this.canvasElement.width = this.video.videoWidth;
                 this.canvasElement.height = this.video.videoHeight;
+                this.updateStatus('📷 SCANNING...', '#00ff00');
                 this.startScanning();
             });
             
         } catch (err) {
             console.error('Camera error:', err);
-            this.updateStatus('❌ NO CAMERA ACCESS', '#ff0000');
+            this.updateStatus('❌ CAMERA ERROR', '#ff0000');
             
-            // Try again with basic constraints
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                this.video.srcObject = stream;
-                this.video.play();
-                
-                this.video.addEventListener('loadedmetadata', () => {
-                    this.canvasElement.width = this.video.videoWidth;
-                    this.canvasElement.height = this.video.videoHeight;
-                    this.startScanning();
-                });
-            } catch (err2) {
-                this.updateStatus('❌ CAMERA ERROR', '#ff0000');
-            }
+            // Show detailed error message
+            const errorMsg = document.createElement('div');
+            errorMsg.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; padding: 20px; background: rgba(255,0,0,0.8); border-radius: 10px; max-width: 80%;';
+            errorMsg.innerHTML = `
+                <h3>Camera Not Available</h3>
+                <p>Please check:</p>
+                <ul style="text-align: left;">
+                    <li>Camera permissions are allowed</li>
+                    <li>No other app is using camera</li>
+                    <li>You're using HTTPS connection</li>
+                </ul>
+                <p>Use manual entry below</p>
+            `;
+            this.container.querySelector('div').appendChild(errorMsg);
         }
     }
     
@@ -129,7 +152,7 @@ class SimpleFastScanner {
             // Try to scan with jsQR (fastest library)
             if (typeof jsQR !== 'undefined') {
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: 'dontInvert'
+                    inversionAttempts: 'attemptBoth'  // Try both normal and inverted
                 });
                 
                 if (code && code.data) {
@@ -137,25 +160,11 @@ class SimpleFastScanner {
                 }
             }
             
-            // Fallback to Html5QrCode if jsQR not available
-            else if (typeof Html5QrCode !== 'undefined') {
-                // Convert to blob for Html5QrCode
-                this.canvasElement.toBlob(async (blob) => {
-                    try {
-                        const file = new File([blob], 'scan.png', { type: 'image/png' });
-                        const result = await Html5Qrcode.scanFile(file, false);
-                        if (result) {
-                            this.handleSuccess(result);
-                        }
-                    } catch (e) {
-                        // Ignore scan errors
-                    }
-                });
-            }
+            // Skip Html5QrCode blob conversion - too slow
         }
         
-        // Scan frequently for fast detection
-        requestAnimationFrame(() => this.scan());
+        // Scan at 15fps for better performance
+        setTimeout(() => this.scan(), 66);
     }
     
     handleSuccess(qrCode) {

@@ -1128,10 +1128,9 @@ def process_promotion_request(request_id):
 
 @app.route('/scan/parent')
 @login_required
-@cached(ttl=10, prefix='scan_parent_page')
 def scan_parent():
-    """Scan parent bag QR code - Ultra scanner enabled (camera only)"""
-    # Use ultra scanner template for enhanced scanning - no manual forms
+    """Scan parent bag QR code - Fast scanner optimized"""
+    # Direct template render for fastest response
     return render_template('scan_parent_ultra.html')
 
 

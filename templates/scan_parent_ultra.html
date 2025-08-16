@@ -5,7 +5,6 @@
 {% block head %}
 <!-- Fast QR Scanning Library -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -140,8 +139,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Simple Fast Scanner -->
-<script src="{{ url_for('static', filename='js/simple-fast-scanner.js') }}"></script>
+<!-- Ultra Fast Scanner -->
+<script src="{{ url_for('static', filename='js/ultra-fast-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -160,9 +159,7 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                scanner = new SimpleFastScanner('simple-scanner-container', {
-                    onSuccess: handleScanSuccess
-                });
+                scanner = new UltraFastScanner('simple-scanner-container', handleScanSuccess);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';

@@ -79,26 +79,21 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Optimized database configuration for 4+ million bags and 1000+ concurrent users
+# Lightweight database configuration for better performance
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 20,                # Optimized pool size for stability
-    "max_overflow": 30,             # Extra connections for peaks (total: 50)
-    "pool_recycle": 1800,           # Recycle connections every 30 minutes
+    "pool_size": 5,                 # Reduced pool size for faster connections
+    "max_overflow": 10,              # Moderate overflow (total: 15)
+    "pool_recycle": 300,            # Recycle connections every 5 minutes
     "pool_pre_ping": True,          # Test connections before use
-    "pool_timeout": 10,             # Faster timeout for better response
-    "pool_use_lifo": True,          # LIFO for better connection reuse
-    "connect_args": {               # PostgreSQL optimizations
+    "pool_timeout": 5,              # Faster timeout
+    "echo_pool": False,             # Disable pool logging
+    "connect_args": {               # Lightweight PostgreSQL settings
         "keepalives": 1,
         "keepalives_idle": 30,
-        "keepalives_interval": 5,
-        "keepalives_count": 3,
-        "connect_timeout": 10,
-        "application_name": "TraceTrack_Optimized",
-        "options": (
-            "-c statement_timeout=30000 "            # 30-second statement timeout
-            "-c work_mem=256MB "                     # Optimize for large queries
-            "-c maintenance_work_mem=512MB"          # Better maintenance operations
-        )
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+        "connect_timeout": 5,
+        "application_name": "TraceTrack_Fast"
     }
 }
 
