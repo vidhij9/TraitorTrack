@@ -3,8 +3,8 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- jsQR Library - REQUIRED for scanning -->
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- Extreme QR Scanning Library -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -119,8 +119,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Basic Scanner - Guaranteed to Work -->
-<script src="{{ url_for('static', filename='js/basic-scanner.js') }}"></script>
+<!-- Instant Scanner for ultra-fast performance -->
+<script src="{{ url_for('static', filename='js/instant-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -138,8 +138,16 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Use BasicScanner - simplest possible implementation
-                window.scanner = new BasicScanner('simple-scanner-container', handleScanSuccess);
+                // Use InstantScanner for ultra-fast performance
+                scanner = new InstantScanner('simple-scanner-container', handleScanSuccess);
+                
+                // Fallback to QRScannerFallback if InstantScanner fails
+                setTimeout(() => {
+                    if (!scanner || document.getElementById('scan-status').textContent.includes('Error')) {
+                        console.log('Switching to fallback scanner');
+                        scanner = new QRScannerFallback('simple-scanner-container', handleScanSuccess);
+                    }
+                }, 3000);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
@@ -212,9 +220,8 @@
             // Don't show error messages for normal scanning errors
         }
         
-        // Submit parent scan via ULTRA-FAST API with fallback
+        // Submit parent scan via ULTRA-FAST API
         function submitParentScan(qrCode) {
-            // Try ultra-fast API first
             fetch('/api/ultra/scan/parent', {
                 method: 'POST',
                 headers: {
