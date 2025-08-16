@@ -57,8 +57,7 @@ def fast_scan_child():
         if not child_bag:
             child_bag = Bag(
                 qr_id=qr_id,
-                type=BagType.CHILD.value,
-                created_by=current_user.id
+                type=BagType.CHILD.value
             )
             db.session.add(child_bag)
             db.session.flush()
@@ -77,16 +76,14 @@ def fast_scan_child():
         # Create link
         new_link = Link(
             parent_bag_id=parent_bag.id,
-            child_bag_id=child_bag.id,
-            created_by=current_user.id
+            child_bag_id=child_bag.id
         )
         db.session.add(new_link)
         
         # Create scan record
         scan = Scan(
-            bag_id=child_bag.id,
-            user_id=current_user.id,
-            scan_type='child'
+            child_bag_id=child_bag.id,
+            user_id=current_user.id
         )
         db.session.add(scan)
         
@@ -130,8 +127,7 @@ def fast_scan_parent():
             # Create new parent
             parent_bag = Bag(
                 qr_id=qr_id,
-                type=BagType.PARENT.value,
-                created_by=current_user.id
+                type=BagType.PARENT.value
             )
             db.session.add(parent_bag)
             db.session.flush()
@@ -148,9 +144,8 @@ def fast_scan_parent():
         
         # Create scan record
         scan = Scan(
-            bag_id=parent_bag.id,
-            user_id=current_user.id,
-            scan_type='parent'
+            parent_bag_id=parent_bag.id,
+            user_id=current_user.id
         )
         db.session.add(scan)
         
