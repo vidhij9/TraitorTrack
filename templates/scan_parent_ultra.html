@@ -2,6 +2,50 @@
 
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
+{% block head %}
+<!-- Fast QR Scanning Library -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+/* Simple Scanner Styles */
+.scanner-main {
+    position: relative;
+    width: 100%;
+    min-height: 450px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Scanner responsiveness */
+@media (max-width: 768px) {
+    .scanner-main {
+        min-height: 350px;
+    }
+}
+
+.scanner-status {
+    display: flex;
+    align-items: center;
+}
+
+.scanner-info {
+    font-size: 0.85rem;
+}
+
+/* Success animation */
+@keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.scan-success {
+    animation: successPulse 0.5s ease-in-out;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-4">
@@ -12,8 +56,8 @@
                         <i class="fas fa-qrcode me-2"></i>Scan Parent Bag
                     </h2>
                     
-                    <div class="alert alert-success" style="font-size: 20px; padding: 20px;">
-                        <strong>📷 SIMPLE SCANNER - JUST POINT AT QR CODE</strong>
+                    <div class="alert alert-success" style="font-size: 18px; padding: 15px;">
+                        <strong>📷 Simple Scanner - Just point camera at QR code</strong>
                     </div>
                 </div>
             </div>
@@ -34,12 +78,12 @@
                 <div class="card-footer d-flex justify-content-between align-items-center">
                     <div class="scanner-status">
                         <span id="scanner-status" class="badge bg-info">
-                            <i class="fas fa-spinner fa-spin me-1"></i>Initializing...
+                            <i class="fas fa-spinner fa-spin me-1"></i>Starting...
                         </span>
                     </div>
                     <div class="scanner-info">
                         <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Point at QR code
+                            Point at QR code
                         </small>
                     </div>
                 </div>
@@ -95,61 +139,6 @@
 </div>
 {% endblock %}
 
-{% block head %>
-<!-- Fast QR Scanning Library -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
-<style>
-/* Simple Scanner Styles */
-.scanner-main {
-    position: relative;
-    width: 100%;
-    min-height: 450px;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-/* Scanner responsiveness */
-@media (max-width: 768px) {
-    .scanner-main {
-        min-height: 350px;
-    }
-}
-
-.scanner-status {
-    display: flex;
-    align-items: center;
-}
-
-.scanner-info {
-    font-size: 0.85rem;
-}
-
-/* Override scanner styles for better appearance */
-.world-class-scanner {
-    min-height: 400px;
-}
-
-@media (max-width: 768px) {
-    .world-class-scanner {
-        min-height: 350px;
-    }
-}
-
-/* Success animation */
-@keyframes successPulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-.scan-success {
-    animation: successPulse 0.5s ease-in-out;
-}
-</style>
-{% endblock %}
-
 {% block scripts %}
 <!-- Simple Fast Scanner -->
 <script src="{{ url_for('static', filename='js/simple-fast-scanner.js') }}"></script>
@@ -177,7 +166,7 @@
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '📷 Scanner ready - Just point at QR code';
+                resultContainer.innerHTML = '📷 Scanner ready - Point at QR code';
                 
             } catch (error) {
                 console.error('Scanner error:', error);

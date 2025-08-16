@@ -2,6 +2,87 @@
 
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
+{% block head %}
+<!-- Fast QR Scanning Library -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+/* Simple Scanner Styles */
+.scanner-main {
+    position: relative;
+    width: 100%;
+    min-height: 450px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Scanner responsiveness */
+@media (max-width: 768px) {
+    .scanner-main {
+        min-height: 350px;
+    }
+}
+
+.scanner-status {
+    display: flex;
+    align-items: center;
+}
+
+.scanner-info {
+    font-size: 0.85rem;
+}
+
+/* Child list styles */
+.list-group-item {
+    border: 1px solid #dee2e6;
+    margin-bottom: 2px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.list-group-item.newly-added {
+    animation: highlightNew 0.6s ease-out;
+}
+
+@keyframes highlightNew {
+    0% {
+        background-color: #d4edda;
+        transform: scale(1.03);
+        box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3);
+    }
+    100% {
+        background-color: white;
+        transform: scale(1);
+        box-shadow: none;
+    }
+}
+
+/* Notification animations */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-4">
@@ -35,7 +116,7 @@
                     <p class="card-text mt-3">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>📷 SIMPLE SCANNER:</strong> Just point at QR code. Scan exactly 30 child bags.
+                        <strong>📷 Simple Scanner:</strong> Just point at QR code. Scan exactly 30 child bags.
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -62,12 +143,12 @@
                 <div class="card-footer d-flex justify-content-between align-items-center">
                     <div class="scanner-status">
                         <span id="scanner-status" class="badge bg-info">
-                            <i class="fas fa-spinner fa-spin me-1"></i>Initializing...
+                            <i class="fas fa-spinner fa-spin me-1"></i>Starting...
                         </span>
                     </div>
                     <div class="scanner-info">
                         <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Point at QR code
+                            Point at QR code
                         </small>
                     </div>
                 </div>
@@ -157,98 +238,6 @@
 </div>
 {% endblock %}
 
-{% block head %>
-<!-- Fast QR Scanning Library -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
-<style>
-/* Simple Scanner Styles */
-.scanner-main {
-    position: relative;
-    width: 100%;
-    min-height: 450px;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-/* Scanner responsiveness */
-@media (max-width: 768px) {
-    .scanner-main {
-        min-height: 350px;
-    }
-}
-
-.scanner-status {
-    display: flex;
-    align-items: center;
-}
-
-.scanner-info {
-    font-size: 0.85rem;
-}
-
-/* Override scanner styles */
-.world-class-scanner {
-    min-height: 400px;
-}
-
-@media (max-width: 768px) {
-    .world-class-scanner {
-        min-height: 350px;
-    }
-}
-
-/* Child list styles */
-.list-group-item {
-    border: 1px solid #dee2e6;
-    margin-bottom: 2px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-}
-
-.list-group-item.newly-added {
-    animation: highlightNew 0.6s ease-out;
-}
-
-@keyframes highlightNew {
-    0% {
-        background-color: #d4edda;
-        transform: scale(1.03);
-        box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3);
-    }
-    100% {
-        background-color: white;
-        transform: scale(1);
-        box-shadow: none;
-    }
-}
-
-/* Notification animations */
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-20px);
-    }
-}
-</style>
-{% endblock %}
-
 {% block scripts %}
 <!-- Simple Fast Scanner -->
 <script src="{{ url_for('static', filename='js/simple-fast-scanner.js') }}"></script>
@@ -295,16 +284,10 @@
                 resultContainer.innerHTML = '📷 Scanner ready - Point at child bag QR codes';
                 
             } catch (error) {
-                console.error('Scanner initialization failed:', error);
-                updateStatus('Scanner Error', 'danger');
-                
-                if (error.message && error.message.includes('NotAllowed')) {
-                    resultContainer.className = 'alert alert-danger';
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera access denied. Please allow camera permissions and refresh.';
-                } else {
-                    resultContainer.className = 'alert alert-warning';
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Scanner unavailable. Please use manual entry below.';
-                }
+                console.error('Scanner error:', error);
+                updateStatus('Error', 'danger');
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '❌ Camera not available. Use manual entry below.';
             }
         }
         
@@ -333,210 +316,148 @@
         }
         
         // Handle successful child scan
-        async function handleChildScanSuccess(qrCode) {
+        function handleChildScanSuccess(qrCode) {
+            if (isProcessing) return;
+            
             // Check if already scanned
             if (scannedQrCodes.has(qrCode)) {
-                showToast('Already scanned: ' + qrCode, 'warning');
-                setTimeout(() => scanner.resume(), 1000);
+                showNotification('Already scanned: ' + qrCode, 'warning');
                 return;
             }
             
-            if (isProcessing) {
-                return;
-            }
-            
-            isProcessing = true;
             console.log('Child bag scanned:', qrCode);
+            isProcessing = true;
             
-            // Haptic feedback
-            if (navigator.vibrate) {
-                navigator.vibrate(100);
-            }
-            
-            // Submit to server
-            try {
-                const response = await fetch('/process_child_scan', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({
-                        qr_code: qrCode,
-                        parent_id: '{{ parent_bag.qr_id if parent_bag else "" }}'
-                    })
-                });
-                
-                const data = await response.json();
-                
+            // Submit via AJAX
+            fetch('/scan/child', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({ qr_code: qrCode })
+            })
+            .then(response => response.json())
+            .then(data => {
                 if (data.success) {
+                    // Add to set
                     scannedQrCodes.add(qrCode);
-                    addChildToList(qrCode, data.child_name);
-                    showToast('✓ ' + qrCode, 'success');
                     
-                    // Resume scanning after short delay
-                    setTimeout(() => {
-                        isProcessing = false;
-                        if (scanner) scanner.resume();
-                    }, 1000);
+                    // Update UI
+                    addChildToList(qrCode, data.child_name);
+                    updateProgress();
+                    showNotification('✅ Scanned: ' + qrCode, 'success');
                 } else {
-                    showToast(data.message || 'Error scanning child bag', 'error');
-                    isProcessing = false;
-                    setTimeout(() => scanner.resume(), 2000);
+                    showNotification('❌ ' + (data.message || 'Error scanning'), 'danger');
                 }
-                
-            } catch (error) {
-                console.error('Error processing child scan:', error);
-                showToast('Network error. Please try again.', 'error');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('❌ Network error', 'danger');
+            })
+            .finally(() => {
                 isProcessing = false;
-                setTimeout(() => scanner.resume(), 2000);
-            }
-        }
-        
-        // Handle scan errors
-        function handleScanError(error) {
-            // Silently ignore normal scanning errors
+            });
         }
         
         // Add child to list
-        function addChildToList(childQr, childName = null) {
+        function addChildToList(qrCode, childName) {
             // Remove empty message if exists
-            const emptyMessage = document.getElementById('empty-list-message');
-            if (emptyMessage) {
-                emptyMessage.remove();
+            const emptyMsg = document.getElementById('empty-list-message');
+            if (emptyMsg) {
+                emptyMsg.remove();
             }
             
             // Create new list item
-            const listItem = document.createElement('div');
-            listItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2 newly-added';
-            
-            listItem.innerHTML = `
+            const item = document.createElement('div');
+            item.className = 'list-group-item d-flex justify-content-between align-items-center py-2 newly-added';
+            item.innerHTML = `
                 <div>
                     <i class="fas fa-check-circle text-success me-2"></i>
-                    <span class="fw-bold">${childQr}</span>
+                    <span class="fw-bold">${qrCode}</span>
                     ${childName ? `<small class="text-muted ms-2">${childName}</small>` : ''}
                 </div>
                 <span class="badge bg-success rounded-pill">Linked</span>
             `;
             
             // Add to top of list
-            childrenList.insertBefore(listItem, childrenList.firstChild);
+            childrenList.insertBefore(item, childrenList.firstChild);
             
-            // Update count and progress
-            currentCount++;
-            updateProgress();
-            
-            // Remove highlight after animation
+            // Remove animation class after animation completes
             setTimeout(() => {
-                listItem.classList.remove('newly-added');
+                item.classList.remove('newly-added');
             }, 600);
         }
         
-        // Update progress indicators
+        // Update progress
         function updateProgress() {
+            currentCount++;
             const percentage = Math.round((currentCount / REQUIRED_BAGS) * 100);
             
             progressText.textContent = currentCount;
             progressBar.style.width = percentage + '%';
             progressPercentage.textContent = percentage + '%';
-            completeBtnText.textContent = `Complete Scanning (${currentCount}/${REQUIRED_BAGS} bags)`;
+            completeBtnText.innerHTML = `Complete Scanning (${currentCount}/30 bags)<small class="d-block" style="font-size: 11px; opacity: 0.8;">Must scan exactly 30 bags</small>`;
             
-            // Enable/disable complete button
-            if (currentCount === REQUIRED_BAGS) {
+            // Enable complete button if 30 bags scanned
+            if (currentCount >= REQUIRED_BAGS) {
                 completeBtn.disabled = false;
-                completeBtn.classList.remove('btn-success');
-                completeBtn.classList.add('btn-primary');
-                showToast(`✓ All ${REQUIRED_BAGS} bags scanned! Click Complete to finish.`, 'success');
-            } else {
-                completeBtn.disabled = true;
-                completeBtn.classList.remove('btn-primary');
-                completeBtn.classList.add('btn-success');
+                completeBtn.classList.add('pulse-animation');
             }
         }
         
-        // Show toast notification
-        function showToast(message, type = 'success') {
+        // Show notification
+        function showNotification(message, type = 'success') {
             const notification = document.getElementById('success-notification');
-            const messageSpan = document.getElementById('success-message');
+            const messageEl = document.getElementById('success-message');
             
-            if (window.notificationTimeout) {
-                clearTimeout(window.notificationTimeout);
-            }
+            messageEl.textContent = message;
+            notification.style.display = 'block';
+            notification.style.animation = 'slideDown 0.3s ease-out';
             
-            messageSpan.textContent = message;
-            
+            // Change color based on type
             const innerDiv = notification.querySelector('div');
-            let delay = type === 'success' ? 500 : 2000;
-            
-            if (type === 'error') {
+            if (type === 'warning') {
+                innerDiv.style.background = 'linear-gradient(135deg, #ffc107, #ff9800)';
+            } else if (type === 'danger') {
                 innerDiv.style.background = 'linear-gradient(135deg, #dc3545, #c82333)';
-            } else if (type === 'warning') {
-                innerDiv.style.background = 'linear-gradient(135deg, #ffc107, #e0a800)';
             } else {
                 innerDiv.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
             }
             
-            notification.style.display = 'block';
-            notification.style.animation = 'slideDown 0.3s ease-out';
-            
-            window.notificationTimeout = setTimeout(() => {
+            // Hide after 2 seconds
+            setTimeout(() => {
                 notification.style.animation = 'slideUp 0.3s ease-out';
                 setTimeout(() => {
                     notification.style.display = 'none';
                 }, 300);
-            }, delay);
+            }, 2000);
         }
         
         // Handle manual entry
-        manualForm.addEventListener('submit', async function(e) {
+        manualForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const qrCode = manualInput.value.trim();
-            
-            if (!qrCode) return;
-            
-            if (scannedQrCodes.has(qrCode)) {
-                showToast('Already scanned: ' + qrCode, 'warning');
-                return;
+            if (qrCode) {
+                handleChildScanSuccess(qrCode);
+                manualInput.value = '';
             }
-            
-            // Process as if scanned
-            await handleChildScanSuccess(qrCode);
-            manualInput.value = '';
         });
         
         // Complete scanning button
         completeBtn.addEventListener('click', function() {
-            if (currentCount === REQUIRED_BAGS) {
-                // Submit completion
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/complete_child_scanning';
-                
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = 'csrf_token';
-                csrfInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                form.appendChild(csrfInput);
-                
-                const parentInput = document.createElement('input');
-                parentInput.type = 'hidden';
-                parentInput.name = 'parent_id';
-                parentInput.value = '{{ parent_bag.qr_id if parent_bag else "" }}';
-                form.appendChild(parentInput);
-                
-                document.body.appendChild(form);
-                form.submit();
+            if (currentCount >= REQUIRED_BAGS) {
+                window.location.href = '/scan/complete';
             }
         });
         
-        // Initialize scanner on load
-        {% if parent_bag %}
+        // Start scanner
         setTimeout(() => {
             initializeScanner();
         }, 500);
-        {% endif %}
         
-        // Cleanup on page unload
+        // Cleanup
         window.addEventListener('beforeunload', () => {
             if (scanner) {
                 scanner.stop();
