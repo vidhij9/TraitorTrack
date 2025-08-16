@@ -219,8 +219,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Final Scanner -->
-<script src="{{ url_for('static', filename='js/final-scanner.js') }}"></script>
+<!-- Instant Scanner for ultra-fast performance -->
+<script src="{{ url_for('static', filename='js/instant-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -253,7 +253,16 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                scanner = new FinalScanner('simple-scanner-container', handleChildScanSuccess);
+                // Use InstantScanner for ultra-fast performance
+                scanner = new InstantScanner('simple-scanner-container', handleChildScanSuccess);
+                
+                // Fallback to QRScannerFallback if InstantScanner fails  
+                setTimeout(() => {
+                    if (!scanner || document.getElementById('scan-status').textContent.includes('Error')) {
+                        console.log('Switching to fallback scanner');
+                        scanner = new QRScannerFallback('simple-scanner-container', handleChildScanSuccess);
+                    }
+                }, 3000);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
@@ -304,8 +313,8 @@
             console.log('Child bag scanned:', qrCode);
             isProcessing = true;
             
-            // Submit via FAST API
-            fetch('/api/fast/scan/child', {
+            // Submit via ULTRA-FAST API
+            fetch('/api/ultra/scan/child', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
