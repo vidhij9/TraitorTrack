@@ -98,20 +98,25 @@
 {% endblock %}
 
 {% block head %}
+<!-- Font Awesome for Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <!-- Load Multiple QR Code Scanning Libraries for Maximum Compatibility -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest"></script>
 
 <style>
 /* World-Class Scanner Styles */
 .scanner-main {
     position: relative;
     width: 100%;
-    min-height: 400px;
-    background-color: #f8f9fa;
+    min-height: 450px;
+    background-color: #000;
     border-radius: 8px;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Scanner responsiveness */

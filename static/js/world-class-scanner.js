@@ -94,14 +94,6 @@ class WorldClassScanner {
             { 
                 url: 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
                 check: () => typeof Html5Qrcode !== 'undefined'
-            },
-            {
-                url: 'https://cdn.jsdelivr.net/npm/@zxing/library@latest',
-                check: () => typeof ZXing !== 'undefined'
-            },
-            {
-                url: 'https://cdn.jsdelivr.net/npm/qr-scanner@latest/qr-scanner.min.js',
-                check: () => typeof QrScanner !== 'undefined'
             }
         ];
         
@@ -201,17 +193,17 @@ class WorldClassScanner {
                     </div>
                 </div>
                 <div class="scanner-controls">
-                    <button id="wc-torch" class="control-btn" style="display: none;">
-                        <i class="fas fa-lightbulb"></i>
+                    <button id="wc-torch" class="control-btn" title="Toggle Flashlight">
+                        💡
                     </button>
-                    <button id="wc-zoom-in" class="control-btn" style="display: none;">
-                        <i class="fas fa-search-plus"></i>
+                    <button id="wc-zoom-in" class="control-btn" title="Zoom In">
+                        🔍
                     </button>
-                    <button id="wc-zoom-out" class="control-btn" style="display: none;">
-                        <i class="fas fa-search-minus"></i>
+                    <button id="wc-zoom-out" class="control-btn" title="Zoom Out">
+                        🔎
                     </button>
-                    <button id="wc-switch-camera" class="control-btn">
-                        <i class="fas fa-sync-alt"></i>
+                    <button id="wc-switch-camera" class="control-btn" title="Switch Camera">
+                        🔄
                     </button>
                 </div>
                 <div class="scanner-status">
@@ -351,12 +343,16 @@ class WorldClassScanner {
                 background: rgba(255, 255, 255, 0.9);
                 border: 2px solid #4CAF50;
                 color: #333;
-                font-size: 20px;
+                font-size: 24px;
                 cursor: pointer;
                 transition: all 0.3s;
-                display: flex;
+                display: flex !important;
                 align-items: center;
                 justify-content: center;
+                -webkit-appearance: none;
+                appearance: none;
+                padding: 0;
+                margin: 0;
             }
             
             .control-btn:hover {
@@ -552,9 +548,13 @@ class WorldClassScanner {
             const track = this.stream.getVideoTracks()[0];
             const trackCapabilities = track.getCapabilities ? track.getCapabilities() : {};
             
-            if ('torch' in trackCapabilities) {
+            if ('torch' in trackCapabilities || trackCapabilities.torch === true) {
                 this.capabilities.torch = true;
-                document.getElementById('wc-torch').style.display = 'flex';
+                const torchBtn = document.getElementById('wc-torch');
+                if (torchBtn) {
+                    torchBtn.style.display = 'flex';
+                    torchBtn.style.visibility = 'visible';
+                }
             }
             
             // Check zoom support
@@ -562,8 +562,16 @@ class WorldClassScanner {
                 this.capabilities.zoom = true;
                 this.capabilities.zoomMin = capabilities.zoom.min;
                 this.capabilities.zoomMax = capabilities.zoom.max;
-                document.getElementById('wc-zoom-in').style.display = 'flex';
-                document.getElementById('wc-zoom-out').style.display = 'flex';
+                const zoomInBtn = document.getElementById('wc-zoom-in');
+                const zoomOutBtn = document.getElementById('wc-zoom-out');
+                if (zoomInBtn) {
+                    zoomInBtn.style.display = 'flex';
+                    zoomInBtn.style.visibility = 'visible';
+                }
+                if (zoomOutBtn) {
+                    zoomOutBtn.style.display = 'flex';
+                    zoomOutBtn.style.visibility = 'visible';
+                }
             }
             
             // Store resolution capabilities
@@ -604,8 +612,8 @@ class WorldClassScanner {
             const settings = track.getSettings();
             const currentZoom = settings.zoom || 1;
             const newZoom = Math.max(
-                this.capabilities.zoomMin,
-                Math.min(this.capabilities.zoomMax, currentZoom * factor)
+                this.capabilities.zoomMin || 1,
+                Math.min(this.capabilities.zoomMax || 10, currentZoom * factor)
             );
             
             await track.applyConstraints({
@@ -616,6 +624,27 @@ class WorldClassScanner {
             
         } catch (e) {
             console.error('Failed to adjust zoom:', e);
+        }
+    }
+    
+    async setZoom(zoomLevel) {
+        if (!this.capabilities.zoom) return;
+        
+        try {
+            const track = this.stream.getVideoTracks()[0];
+            const newZoom = Math.max(
+                this.capabilities.zoomMin || 1,
+                Math.min(this.capabilities.zoomMax || 10, zoomLevel)
+            );
+            
+            await track.applyConstraints({
+                advanced: [{ zoom: newZoom }]
+            });
+            
+            console.log('Zoom set to:', newZoom);
+            
+        } catch (e) {
+            console.error('Failed to set zoom:', e);
         }
     }
     
@@ -673,10 +702,12 @@ class WorldClassScanner {
             // Apply strategy-specific settings
             if (strategy.torch && this.capabilities.torch) {
                 this.enableTorch(true);
+            } else if (!strategy.torch && this.capabilities.torch) {
+                this.enableTorch(false);
             }
             
-            if (strategy.zoom && this.capabilities.zoom) {
-                this.adjustZoom(strategy.zoom);
+            if (strategy.zoom && strategy.zoom !== 1.0 && this.capabilities.zoom) {
+                this.setZoom(strategy.zoom);
             }
             
             // Get image data
@@ -751,18 +782,7 @@ class WorldClassScanner {
             }));
         }
         
-        // Try ZXing
-        if (typeof ZXing !== 'undefined') {
-            promises.push(new Promise(async (resolve) => {
-                try {
-                    const codeReader = new ZXing.BrowserQRCodeReader();
-                    const result = await codeReader.decodeFromImageData(imageData);
-                    resolve({ data: result.text, library: 'ZXing' });
-                } catch (e) {
-                    resolve(null);
-                }
-            }));
-        }
+        // ZXing removed due to compatibility issues
         
         // Try Html5QrCode (if available as scanner instance)
         if (this.scanners.html5QrCode) {
