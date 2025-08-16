@@ -189,13 +189,13 @@ def after_request(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     
-    # Add Content Security Policy
+    # Add Content Security Policy - Fixed for Font Awesome and data URIs
     csp = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-        "font-src 'self' https://cdnjs.cloudflare.com; "
-        "img-src 'self' data: https:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
+        "img-src 'self' data: blob: https:; "
         "connect-src 'self';"
     )
     response.headers['Content-Security-Policy'] = csp
