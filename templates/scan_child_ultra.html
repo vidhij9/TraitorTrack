@@ -115,7 +115,7 @@
                     <p class="card-text mt-3">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>🔍 Extreme Scanner:</strong> Handles blur, dim lights, crushed QR codes. Scan exactly 30 child bags.
+                        <strong>🎯 Bulletproof Scanner:</strong> Works in any condition. Scan exactly 30 child bags.
                     </div>
                     {% else %}
                     <div class="alert alert-warning">
@@ -219,8 +219,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Extreme Scanner for Worst Cases -->
-<script src="{{ url_for('static', filename='js/extreme-scanner.js') }}"></script>
+<!-- Bulletproof Scanner -->
+<script src="{{ url_for('static', filename='js/bulletproof-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -253,17 +253,17 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                scanner = new ExtremeScanner('simple-scanner-container', handleChildScanSuccess);
+                scanner = new BulletproofScanner('simple-scanner-container', handleChildScanSuccess);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '🔍 Extreme Scanner ready - Works in worst conditions';
+                resultContainer.innerHTML = '🎯 Scanner ready - Point at QR code';
                 
             } catch (error) {
                 console.error('Scanner error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '❌ Camera initializing... Extreme scanner loading.';
+                resultContainer.innerHTML = '❌ Camera initializing... Please wait.';
             }
         }
         

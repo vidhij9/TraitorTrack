@@ -56,8 +56,8 @@
                     </h2>
                     
                     <div class="alert alert-success" style="font-size: 18px; padding: 15px;">
-                        <strong>🔍 Extreme Scanner - Handles blur, dim lights, crushed QR codes</strong>
-                        <br><small>Advanced multi-processing for worst-case scenarios</small>
+                        <strong>🎯 Bulletproof Scanner - Works in any condition</strong>
+                        <br><small>Point camera at QR code - handles blur, dim lights, damaged codes</small>
                     </div>
                 </div>
             </div>
@@ -119,8 +119,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Extreme Scanner for Worst Cases -->
-<script src="{{ url_for('static', filename='js/extreme-scanner.js') }}"></script>
+<!-- Bulletproof Scanner -->
+<script src="{{ url_for('static', filename='js/bulletproof-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -138,17 +138,17 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                scanner = new ExtremeScanner('simple-scanner-container', handleScanSuccess);
+                scanner = new BulletproofScanner('simple-scanner-container', handleScanSuccess);
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '🔍 Extreme Scanner ready - Works in worst conditions';
+                resultContainer.innerHTML = '🎯 Scanner ready - Point at QR code';
                 
             } catch (error) {
                 console.error('Scanner error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '❌ Camera initializing... Extreme scanner loading.';
+                resultContainer.innerHTML = '❌ Camera initializing... Please wait.';
             }
         }
         
