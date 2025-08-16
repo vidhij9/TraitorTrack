@@ -136,8 +136,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Instant Scanner for ultra-fast performance -->
-<script src="{{ url_for('static', filename='js/bulletproof-scanner.js') }}"></script>
+<!-- Lightning Scanner for instant performance -->
+<script src="{{ url_for('static', filename='js/lightning-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -169,8 +169,8 @@
                     throw new Error('Camera access denied. Please allow camera access and refresh.');
                 }
                 
-                // Use BulletproofScanner for maximum reliability
-                scanner = new BulletproofScanner('simple-scanner-container', handleScanSuccess);
+                // Use LightningScanner for instant speed + accuracy
+                scanner = new LightningScanner('simple-scanner-container', handleScanSuccess);
                 
                 // Monitor scanner status
                 setTimeout(() => {
@@ -183,8 +183,8 @@
                         // Try fallback scanner
                         console.log('Switching to fallback scanner');
                         if (scanner && scanner.stop) scanner.stop();
-                        // BulletproofScanner already includes all fallback strategies
-                        console.log('BulletproofScanner handles all detection strategies internally');
+                        // LightningScanner optimizes for speed + accuracy
+                        console.log('LightningScanner handles detection efficiently');
                     }
                 }, 2000);
                 
