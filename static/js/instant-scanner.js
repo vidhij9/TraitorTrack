@@ -97,15 +97,15 @@ class InstantScanner {
                     {
                         advanced: [
                             { focusMode: 'continuous' },
-                            { focusDistance: 0.3 },
+                            { focusDistance: 0.15 },  // Closer focus for torch scanning
                             { exposureMode: 'continuous' },
-                            { exposureCompensation: 0 },
+                            { exposureCompensation: -1 },  // Reduce exposure
                             { whiteBalanceMode: 'continuous' },
-                            { iso: 400 },
-                            { brightness: 128 },
-                            { contrast: 128 },
-                            { saturation: 128 },
-                            { sharpness: 128 }
+                            { iso: 100 },  // Lower ISO to reduce noise with torch
+                            { brightness: 100 },  // Reduced brightness
+                            { contrast: 140 },  // Higher contrast
+                            { saturation: 100 },
+                            { sharpness: 140 }  // Better edge detection
                         ]
                     },
                     // Fallback settings
@@ -199,18 +199,29 @@ class InstantScanner {
                     // Multi-strategy scanning for better detection
                     let detected = false;
                     
-                    // Strategy 1: Full frame scan with auto-brightness
-                    if (!detected && this.scanCount % 2 === 0) {
+                    // Strategy 1: Try direct scan first (works better with torch)
+                    if (!detected) {
                         const fullData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                        const enhanced = this.enhanceImageQuality(fullData);
                         
-                        const code = jsQR(enhanced.data, enhanced.width, enhanced.height, {
+                        // Direct scan without enhancement (best for torch)
+                        let code = jsQR(fullData.data, fullData.width, fullData.height, {
                             inversionAttempts: 'attemptBoth'  // Try both normal and inverted
                         });
                         
                         if (code && code.data) {
                             this.handleScan(code.data);
                             detected = true;
+                        } else if (this.scanCount % 2 === 0) {
+                            // Only enhance if direct scan fails
+                            const enhanced = this.enhanceForTorch(fullData);
+                            code = jsQR(enhanced.data, enhanced.width, enhanced.height, {
+                                inversionAttempts: 'dontInvert'  // Already processed
+                            });
+                            
+                            if (code && code.data) {
+                                this.handleScan(code.data);
+                                detected = true;
+                            }
                         }
                     }
                     
@@ -231,12 +242,18 @@ class InstantScanner {
                             0, 0, this.processCanvas.width, this.processCanvas.height
                         );
                         
-                        // Apply adaptive enhancement
-                        this.adaptiveEnhance(processData);
-                        
-                        const code = jsQR(processData.data, processData.width, processData.height, {
-                            inversionAttempts: 'dontInvert'  // Fast scan
+                        // Try without enhancement first
+                        let code = jsQR(processData.data, processData.width, processData.height, {
+                            inversionAttempts: 'attemptBoth'  // Try both
                         });
+                        
+                        if (!code || !code.data) {
+                            // Apply adaptive enhancement only if needed
+                            this.adaptiveEnhance(processData);
+                            code = jsQR(processData.data, processData.width, processData.height, {
+                                inversionAttempts: 'dontInvert'  // Already processed
+                            });
+                        }
                         
                         if (code && code.data) {
                             this.handleScan(code.data);
@@ -291,6 +308,53 @@ class InstantScanner {
         
         // Continue scanning
         requestAnimationFrame(() => this.scanLoop());
+    }
+    
+    // Enhanced processing specifically for torch/flash conditions
+    enhanceForTorch(imageData) {
+        const data = new Uint8ClampedArray(imageData.data);
+        const len = data.length;
+        
+        // Detect overexposure from torch
+        let overexposedPixels = 0;
+        let avgBrightness = 0;
+        
+        for (let i = 0; i < len; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            avgBrightness += gray;
+            if (gray > 220) overexposedPixels++;
+        }
+        
+        avgBrightness /= (len / 4);
+        const overexposureRatio = overexposedPixels / (len / 4);
+        
+        if (overexposureRatio > 0.2) {
+            // Heavy torch compensation
+            for (let i = 0; i < len; i += 4) {
+                // Reduce all channels significantly
+                const r = Math.min(255, data[i] * 0.6);
+                const g = Math.min(255, data[i+1] * 0.6);
+                const b = Math.min(255, data[i+2] * 0.6);
+                
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                
+                // Strong binarization for torch
+                const value = gray < 110 ? 0 : gray > 140 ? 255 : 128;
+                
+                data[i] = data[i+1] = data[i+2] = value;
+            }
+        } else {
+            // Standard binarization
+            const threshold = avgBrightness * 0.9;
+            
+            for (let i = 0; i < len; i += 4) {
+                const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                const value = gray > threshold ? 255 : 0;
+                data[i] = data[i+1] = data[i+2] = value;
+            }
+        }
+        
+        return { data, width: imageData.width, height: imageData.height };
     }
     
     // Image enhancement for better QR detection
@@ -417,9 +481,26 @@ class InstantScanner {
         this.torchEnabled = !this.torchEnabled;
         
         try {
-            await track.applyConstraints({
-                advanced: [{ torch: this.torchEnabled }]
-            });
+            // Adjust exposure when toggling torch
+            if (this.torchEnabled) {
+                // Reduce exposure for torch
+                await track.applyConstraints({
+                    advanced: [
+                        { torch: true },
+                        { exposureCompensation: -2 },
+                        { brightness: 80 }
+                    ]
+                });
+            } else {
+                // Normal exposure without torch
+                await track.applyConstraints({
+                    advanced: [
+                        { torch: false },
+                        { exposureCompensation: 0 },
+                        { brightness: 128 }
+                    ]
+                });
+            }
             
             const torchBtn = document.getElementById('torch-toggle');
             if (torchBtn) {

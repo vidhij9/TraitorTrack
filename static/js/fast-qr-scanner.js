@@ -244,15 +244,15 @@ class FastQRScanner {
                     {
                         advanced: [
                             { focusMode: 'continuous' },
-                            { focusDistance: 0.3 },  // Medium distance
+                            { focusDistance: 0.15 },  // Closer focus for torch
                             { exposureMode: 'continuous' },
-                            { exposureCompensation: 0 },
+                            { exposureCompensation: -1 },  // Prevent overexposure
                             { whiteBalanceMode: 'continuous' },
-                            { iso: 400 },  // Better low-light performance
-                            { brightness: 128 },
-                            { contrast: 130 },  // Slightly higher contrast
-                            { saturation: 120 },
-                            { sharpness: 130 }  // Better edge detection
+                            { iso: 100 },  // Lower ISO for torch
+                            { brightness: 100 },  // Reduced brightness
+                            { contrast: 140 },  // Higher contrast
+                            { saturation: 100 },
+                            { sharpness: 140 }  // Better edge detection
                         ]
                     },
                     // Standard settings
@@ -332,18 +332,29 @@ class FastQRScanner {
                     
                     let detected = false;
                     
-                    // Strategy 1: Full frame with auto-enhancement (every 2 frames)
-                    if (!detected && this.frameCount % 2 === 0) {
+                    // Strategy 1: Try raw image first (better for torch)
+                    if (!detected) {
                         const fullData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                        const enhanced = this.enhanceForDetection(fullData);
                         
-                        const code = jsQR(enhanced.data, enhanced.width, enhanced.height, {
+                        // Direct scan without processing
+                        let code = jsQR(fullData.data, fullData.width, fullData.height, {
                             inversionAttempts: 'attemptBoth'  // Try both normal and inverted
                         });
                         
                         if (code && code.data) {
                             this.handleSuccess(code.data);
                             detected = true;
+                        } else if (this.frameCount % 2 === 0) {
+                            // Only enhance if direct scan fails
+                            const enhanced = this.enhanceForTorch(fullData);
+                            code = jsQR(enhanced.data, enhanced.width, enhanced.height, {
+                                inversionAttempts: 'dontInvert'  // Already processed
+                            });
+                            
+                            if (code && code.data) {
+                                this.handleSuccess(code.data);
+                                detected = true;
+                            }
                         }
                     }
                     
@@ -357,12 +368,18 @@ class FastQRScanner {
                             offsetX, offsetY, regionSize, regionSize
                         );
                         
-                        // Apply adaptive thresholding for better contrast
-                        this.applyAdaptiveThreshold(regionData);
-                        
-                        const code = jsQR(regionData.data, regionData.width, regionData.height, {
-                            inversionAttempts: 'dontInvert'  // Fast scan
+                        // Try raw first
+                        let code = jsQR(regionData.data, regionData.width, regionData.height, {
+                            inversionAttempts: 'attemptBoth'  // Try both
                         });
+                        
+                        if (!code || !code.data) {
+                            // Apply adaptive thresholding only if needed
+                            this.applyAdaptiveThreshold(regionData);
+                            code = jsQR(regionData.data, regionData.width, regionData.height, {
+                                inversionAttempts: 'dontInvert'  // Already processed
+                            });
+                        }
                         
                         if (code && code.data) {
                             this.handleSuccess(code.data);
@@ -414,14 +431,31 @@ class FastQRScanner {
         const torchBtn = document.getElementById('torch-btn');
         this.torchEnabled = !this.torchEnabled;
         
-        // Try multiple methods for universal torch support
+        // Adjust exposure with torch
         try {
-            // Method 1: Standard constraints
-            await track.applyConstraints({
-                advanced: [{ torch: this.torchEnabled }]
-            });
+            if (this.torchEnabled) {
+                // Torch ON: Reduce exposure
+                await track.applyConstraints({
+                    advanced: [
+                        { torch: true },
+                        { exposureCompensation: -2 },
+                        { brightness: 80 },
+                        { contrast: 150 }
+                    ]
+                });
+            } else {
+                // Torch OFF: Normal exposure
+                await track.applyConstraints({
+                    advanced: [
+                        { torch: false },
+                        { exposureCompensation: 0 },
+                        { brightness: 128 },
+                        { contrast: 130 }
+                    ]
+                });
+            }
             if (torchBtn) torchBtn.classList.toggle('active', this.torchEnabled);
-            console.log('FastQR: Torch toggled via advanced constraints');
+            console.log('FastQR: Torch toggled with exposure adjustment');
         } catch (e1) {
             try {
                 // Method 2: Direct constraint
@@ -508,6 +542,57 @@ class FastQRScanner {
     resumeScanning() {
         this.isPaused = false;
         console.log('FastQR: Resumed');
+    }
+    
+    // Special processing for torch/flash conditions
+    enhanceForTorch(imageData) {
+        const data = new Uint8ClampedArray(imageData.data);
+        const len = data.length;
+        
+        // Check for overexposure
+        let brightCount = 0;
+        let totalBrightness = 0;
+        const pixels = len / 4;
+        
+        for (let i = 0; i < len; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            totalBrightness += gray;
+            if (gray > 200) brightCount++;
+        }
+        
+        const avgBright = totalBrightness / pixels;
+        const overexposed = (brightCount / pixels) > 0.25;
+        
+        if (overexposed) {
+            // Compensate for torch overexposure
+            for (let i = 0; i < len; i += 4) {
+                // Reduce brightness by 40%
+                const r = data[i] * 0.6;
+                const g = data[i+1] * 0.6;
+                const b = data[i+2] * 0.6;
+                
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                
+                // Three-level thresholding for torch
+                let value;
+                if (gray < 100) value = 0;
+                else if (gray > 150) value = 255;
+                else value = 128;
+                
+                data[i] = data[i+1] = data[i+2] = value;
+            }
+        } else {
+            // Simple threshold for normal lighting
+            const threshold = avgBright;
+            
+            for (let i = 0; i < len; i += 4) {
+                const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                const value = gray > threshold ? 255 : 0;
+                data[i] = data[i+1] = data[i+2] = value;
+            }
+        }
+        
+        return { data, width: imageData.width, height: imageData.height };
     }
     
     // Enhanced image processing for better QR detection
