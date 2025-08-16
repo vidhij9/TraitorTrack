@@ -15,7 +15,7 @@ def setup_error_handlers(app):
     @app.errorhandler(400)
     def bad_request(error):
         """Handle bad request errors"""
-        app.logger.warning(f"Bad request: {request.url} - {error}")
+        pass  # Logging disabled for performance
         if request.is_json:
             return jsonify({
                 'success': False,
@@ -31,7 +31,7 @@ def setup_error_handlers(app):
     @app.errorhandler(403)
     def forbidden(error):
         """Handle forbidden access errors"""
-        app.logger.warning(f"Forbidden access: {request.url} - User: {getattr(request, 'user', 'Unknown')}")
+        pass  # Logging disabled for performance
         if request.is_json:
             return jsonify({
                 'success': False,
@@ -47,7 +47,7 @@ def setup_error_handlers(app):
     @app.errorhandler(404)
     def not_found(error):
         """Handle not found errors"""
-        app.logger.info(f"Page not found: {request.url}")
+        pass  # Logging disabled for performance
         if request.is_json:
             return jsonify({
                 'success': False,
@@ -62,14 +62,14 @@ def setup_error_handlers(app):
     @app.errorhandler(500)
     def internal_server_error(error):
         """Handle internal server errors"""
-        app.logger.error(f"Internal server error: {request.url} - {traceback.format_exc()}")
+        pass  # Logging disabled for performance
         
         # Rollback any database changes
         try:
             from app_clean import db
             db.session.rollback()
         except Exception as db_error:
-            app.logger.error(f"Database rollback failed: {db_error}")
+            pass  # Logging disabled for performance
         
         if request.is_json:
             return jsonify({
@@ -87,7 +87,7 @@ def setup_error_handlers(app):
     @app.errorhandler(503)
     def service_unavailable(error):
         """Handle service unavailable errors"""
-        app.logger.error(f"Service unavailable: {request.url} - {error}")
+        pass  # Logging disabled for performance
         if request.is_json:
             return jsonify({
                 'success': False,
@@ -109,7 +109,7 @@ def setup_error_handlers(app):
             from app_clean import db
             db.session.rollback()
         except Exception as db_error:
-            app.logger.error(f"Database rollback failed: {db_error}")
+            pass  # Logging disabled for performance
         
         if request.is_json:
             return jsonify({

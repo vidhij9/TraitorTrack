@@ -8,8 +8,8 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# Initialize logging
-logging.basicConfig(level=logging.DEBUG)
+# Initialize logging - reduced for performance
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Define database model base class
@@ -79,21 +79,22 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Lightweight database configuration for better performance
+# Ultra-fast database configuration
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 5,                 # Reduced pool size for faster connections
-    "max_overflow": 10,              # Moderate overflow (total: 15)
-    "pool_recycle": 300,            # Recycle connections every 5 minutes
-    "pool_pre_ping": True,          # Test connections before use
-    "pool_timeout": 5,              # Faster timeout
-    "echo_pool": False,             # Disable pool logging
-    "connect_args": {               # Lightweight PostgreSQL settings
+    "pool_size": 10,                # Increased for better concurrency
+    "max_overflow": 20,              # More overflow connections (total: 30)
+    "pool_recycle": 3600,           # Recycle every hour
+    "pool_pre_ping": False,         # Skip pre-ping for speed
+    "pool_timeout": 3,              # Very fast timeout
+    "echo": False,                  # No SQL logging
+    "echo_pool": False,             # No pool logging
+    "connect_args": {               # Optimized PostgreSQL settings
         "keepalives": 1,
-        "keepalives_idle": 30,
-        "keepalives_interval": 10,
-        "keepalives_count": 5,
-        "connect_timeout": 5,
-        "application_name": "TraceTrack_Fast"
+        "keepalives_idle": 60,
+        "keepalives_interval": 20,
+        "keepalives_count": 3,
+        "connect_timeout": 3,
+        "application_name": "TraceTrack_Ultra"
     }
 }
 

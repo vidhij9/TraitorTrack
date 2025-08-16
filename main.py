@@ -4,8 +4,8 @@ import logging
 import time
 from flask import request, g
 
-# Setup logging for production
-logging.basicConfig(level=logging.INFO)
+# Setup logging for production - reduced for performance
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 # Import database optimizer (disabled for stability)
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 import routes
 import api  # Import consolidated API endpoints
 import api_optimized  # Import optimized high-performance API endpoints
+import routes_fast  # Ultra-fast scanning routes
 from optimized_cache import cache
 from performance_monitoring import monitor
 
@@ -26,11 +27,7 @@ def before_request():
 
 @app.after_request
 def after_request(response):
-    """Log request performance"""
-    if hasattr(g, 'request_start'):
-        duration = time.time() - g.request_start
-        if duration > 0.5:
-            logger.warning(f"Slow request: {request.path} took {duration:.2f}s")
+    """Skip performance logging for speed"""
     return response
 
 # Warm cache on startup

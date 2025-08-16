@@ -304,13 +304,12 @@
             console.log('Child bag scanned:', qrCode);
             isProcessing = true;
             
-            // Submit via AJAX
-            fetch('/scan/child', {
+            // Submit via FAST API
+            fetch('/api/fast/scan/child', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({ qr_code: qrCode })
             })

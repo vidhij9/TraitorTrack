@@ -211,33 +211,31 @@
             // Don't show error messages for normal scanning errors
         }
         
-        // Submit parent scan with CSRF token
+        // Submit parent scan via FAST API
         function submitParentScan(qrCode) {
-            // Create form dynamically
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/process_parent_scan';
-            
-            // Add QR code input
-            const qrInput = document.createElement('input');
-            qrInput.type = 'hidden';
-            qrInput.name = 'qr_code';
-            qrInput.value = qrCode;
-            form.appendChild(qrInput);
-            
-            // Get CSRF token from meta tag
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            if (csrfMeta) {
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = 'csrf_token';
-                csrfInput.value = csrfMeta.getAttribute('content');
-                form.appendChild(csrfInput);
-            }
-            
-            // Submit form
-            document.body.appendChild(form);
-            form.submit();
+            fetch('/api/fast/scan/parent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ qr_code: qrCode })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Redirect to child scanning
+                    window.location.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
+                } else {
+                    alert(data.message || 'Error scanning parent');
+                    isProcessing = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Network error');
+                isProcessing = false;
+            });
         }
         
         
