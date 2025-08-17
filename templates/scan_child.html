@@ -75,43 +75,35 @@
     </div>
     {% endif %}
 
-    <!-- Scanner Section -->
+    <!-- Scanner Section - Same style as parent scanner -->
     <div class="card mb-3">
-        <div class="card-header py-2">
-            <h6 class="mb-0">
+        <div class="card-header">
+            <h5 class="mb-0">
                 <i class="fas fa-qrcode me-2"></i>Child Bag Scanner
                 <span class="badge bg-primary ms-2" id="progress-text">{{ scanned_child_count }}</span>
                 <small class="text-muted ms-1">scanned</small>
-            </h6>
+            </h5>
         </div>
-        <div class="card-body p-2">
-            <!-- Scanner Container -->
-            <div id="child-scanner-container" class="scanner-container mb-2"></div>
+        <div class="card-body text-center">
+            <!-- InstantDetectionScanner Container - same as parent -->
+            <div id="child-scanner-container" style="position: relative; max-width: 600px; margin: 0 auto;"></div>
             
-            <!-- Hidden forms for processing child bags -->
-            <form id="child-submit-form" action="{{ url_for('process_child_scan') }}" method="POST" style="display: none;">
-                {{ csrf_token() }}
-                <input type="hidden" name="qr_code" id="child-qr-input">
-            </form>
-            
-            <!-- Manual entry form (fallback) -->
-            <div class="row mt-2">
-                <div class="col-12">
-                    <button id="show-manual-entry" class="btn btn-outline-secondary btn-sm w-100">
-                        <i class="fas fa-keyboard me-1"></i>Manual Entry
-                    </button>
+            <!-- Manual Entry Section - Same as parent scanner -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6>Manual Entry</h6>
+                    <form method="POST" action="{{ url_for('process_child_scan') }}" id="manual-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="input-group">
+                            <input type="text" name="qr_code" class="form-control" 
+                                   placeholder="Enter child bag QR code manually" id="manual-qr-input">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-arrow-right me-2"></i>Add Child
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-            
-            <form id="child-manual-form" action="{{ url_for('process_child_scan') }}" method="POST" class="d-none mt-2">
-                {{ csrf_token() }}
-                <div class="input-group">
-                    <input type="text" name="qr_code" class="form-control form-control-sm" placeholder="Enter child bag QR code" required>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="fas fa-check me-1"></i>Add
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 
@@ -155,6 +147,12 @@
     </div>
 </div>
 
+<!-- Hidden form for automatic submission - Same as parent scanner -->
+<form method="POST" action="{{ url_for('process_child_scan') }}" id="auto-submit-form" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="qr_code" id="qr-input">
+</form>
+
 <!-- Toast notifications -->
 <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
     <div id="scan-toast" class="toast align-items-center border-0" role="alert">
@@ -191,17 +189,17 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeChildScanner() {
     console.log('Initializing child scanner...');
     
-    // Global variables
+    // Global variables - Same as parent scanner
+    let scanner = null;
+    let isProcessing = false;
     let scannedCount = {{ scanned_child_count }};
     const hasParentBag = {{ 'true' if parent_bag else 'false' }};
     
-    // UI Elements
+    // UI Elements - Same structure as parent
     const progressText = document.getElementById('progress-text');
     const scannedList = document.getElementById('scanned-list');
-    const submitForm = document.getElementById('child-submit-form');
-    const qrInput = document.getElementById('child-qr-input');
-    const manualForm = document.getElementById('child-manual-form');
-    const showManualBtn = document.getElementById('show-manual-entry');
+    const submitForm = document.getElementById('auto-submit-form');
+    const qrInput = document.getElementById('qr-input');
     
     function showToast(message, type = 'success') {
         const toast = document.getElementById('scan-toast');
@@ -230,45 +228,45 @@ function initializeChildScanner() {
         bsToast.show();
     }
     
-    // InstantDetectionScanner callback - same approach as parent scanner
-    function onChildScanSuccess(qrCode) {
-        console.log('Child QR code detected:', qrCode);
+    // InstantDetectionScanner callback - Identical to parent scanner
+    function onScanSuccess(qrCode) {
+        // Prevent multiple submissions
+        if (isProcessing) {
+            console.log('Already processing, skipping QR code:', qrCode);
+            return;
+        }
         
         if (!hasParentBag) {
             showToast('Please scan a parent bag first!', 'warning');
             return;
         }
         
-        // Fill the hidden form and submit
+        console.log('Child QR code detected:', qrCode);
+        isProcessing = true;
+        
+        // Fill the hidden form
         qrInput.value = qrCode;
         
         // Show processing message
         showToast(`Processing child bag: ${qrCode}...`, 'info');
         
-        // Submit form after brief delay - same approach as parent scanner
+        // Submit form after brief delay - same as parent scanner
         setTimeout(() => {
             console.log('Submitting child form with data:', {
                 formAction: submitForm.action,
                 formMethod: submitForm.method,
-                qrValue: qrInput.value
+                qrValue: qrInput.value,
+                csrfToken: submitForm.querySelector('[name="csrf_token"]')?.value?.substring(0, 10) + '...'
             });
             submitForm.submit();
         }, 1000);
     }
     
-    // Create InstantDetectionScanner instance - same as parent scanner  
+    // Create scanner on page load - Identical to parent scanner
     console.log('Creating InstantDetectionScanner for child scanner...');
-    const scanner = new InstantDetectionScanner('child-scanner-container', onChildScanSuccess);
+    scanner = new InstantDetectionScanner('child-scanner-container', onScanSuccess);
     
-    // Manual entry toggle
-    showManualBtn.addEventListener('click', function() {
-        manualForm.classList.toggle('d-none');
-        if (!manualForm.classList.contains('d-none')) {
-            manualForm.querySelector('input[name="qr_code"]').focus();
-        }
-    });
-    
-    // Auto-start scanner immediately if parent bag exists - same as parent scanner
+    // Show appropriate message based on parent bag status
     if (hasParentBag) {
         showToast('Child bag scanner ready. Point camera at QR codes.', 'success');
     } else {

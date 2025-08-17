@@ -3386,7 +3386,7 @@ def api_delete_child_scan():
             'message': 'Error deleting scan'
         }), 500
 
-@app.route('/api/delete-bag', methods=['POST'])
+@app.route('/api/delete_bag', methods=['POST'])
 @csrf.exempt
 @login_required
 def api_delete_bag():
