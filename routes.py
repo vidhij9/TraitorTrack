@@ -1135,10 +1135,14 @@ def scan_parent():
 
 
 
-@app.route('/process_parent_scan', methods=['POST'])
+@app.route('/process_parent_scan', methods=['GET', 'POST'])
 @login_required
 def process_parent_scan():
     """Process parent bag scan from ultra scanner"""
+    # Handle GET request - redirect to scan_parent
+    if request.method == 'GET':
+        return redirect(url_for('scan_parent'))
+    
     try:
         qr_code = request.form.get('qr_code', '').strip()
         
@@ -1208,10 +1212,14 @@ def process_parent_scan():
         flash('Error processing parent scan. Please try again.', 'error')
         return redirect(url_for('scan_parent'))
 
-@app.route('/process_child_scan', methods=['POST'])
+@app.route('/process_child_scan', methods=['GET', 'POST'])
 @login_required
 def process_child_scan():
     """Process child bag scan from ultra scanner"""
+    # Handle GET request - redirect to scan_child
+    if request.method == 'GET':
+        return redirect(url_for('scan_child'))
+    
     try:
         qr_code = request.form.get('qr_code', '').strip()
         
@@ -1252,8 +1260,12 @@ def process_child_scan():
         
         # Check if we've reached the 30 bags limit
         current_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        app.logger.info(f'CHILD SCAN: Parent {parent_qr} has {current_child_count} child bags')
+        
         if current_child_count >= 30:
-            return jsonify({'success': False, 'message': f'Maximum limit of 30 child bags reached. Cannot add more.'})
+            app.logger.warning(f'CHILD SCAN: 30 bag limit reached for parent {parent_qr}')
+            flash('Parent bag is full! Maximum 30 child bags allowed per parent.', 'warning')
+            return redirect(url_for('scan_child'))
         
         # Check if bag already exists and validate its type
         existing_bag = Bag.query.filter_by(qr_id=qr_code).first()
@@ -1675,10 +1687,10 @@ def scan_child():
                     Bag.type == BagType.CHILD.value
                 ).all()
         
-        return render_template('scan_child_ultra.html', 
+        return render_template('scan_child_fixed.html', 
                              parent_bag=parent_bag, 
                              scanned_child_count=scanned_child_count,
-                             linked_child_bags=linked_child_bags)
+                             scanned_children=linked_child_bags)
 
 @app.route('/scan/complete')
 @login_required
