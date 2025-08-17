@@ -1,7 +1,8 @@
 /**
- * Instant QR Scanner - Google Lens Speed
- * =======================================
- * Ultra-optimized for instant detection with zero delay
+ * Agricultural QR Scanner - Optimized for Supply Chain Packets
+ * ============================================================
+ * Ultra-fast detection of high-density QR codes on agricultural packaging
+ * Features: Auto-torch, enhanced contrast, multi-region scanning
  */
 
 class InstantScanner {
@@ -16,11 +17,12 @@ class InstantScanner {
         this.ctx = null;
         this.stream = null;
         this.frameCount = 0;
-        this.torchEnabled = false;
+        this.torchEnabled = false; // Will be auto-enabled after torch setup
+        this.torchSupported = false;
         
-        // Ultra-fast settings
+        // Ultra-fast settings optimized for agricultural packets
         this.scanEveryNFrames = 1; // Scan EVERY frame for instant detection
-        this.duplicateTimeout = 300; // Shorter duplicate prevention
+        this.duplicateTimeout = 200; // Even shorter for rapid scanning
         
         this.init();
     }
@@ -100,15 +102,16 @@ class InstantScanner {
         try {
             this.updateStatus('⚡ Starting camera...', '#ffa500');
             
-            // Ultra-optimized constraints for instant scanning
+            // Ultra-optimized constraints for agricultural QR code packets
             const constraints = {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 1280, min: 640 },
-                    height: { ideal: 720, min: 480 },
+                    width: { ideal: 1920, min: 1280 }, // Higher resolution for dense QR codes
+                    height: { ideal: 1080, min: 720 },
                     frameRate: { ideal: 60, min: 30 }, // Maximum FPS for instant detection
                     focusMode: 'continuous',
-                    exposureMode: 'continuous'
+                    exposureMode: 'continuous',
+                    torch: true // Request torch to be on by default
                 }
             };
             
@@ -151,6 +154,19 @@ class InstantScanner {
         if (capabilities.torch) {
             this.torchBtn.style.display = 'inline-block';
             this.torchSupported = true;
+            
+            // Auto-enable torch by default for better QR code detection
+            try {
+                await track.applyConstraints({
+                    advanced: [{ torch: true }]
+                });
+                this.torchEnabled = true;
+                this.torchBtn.textContent = '💡 Flash ON';
+                this.torchBtn.style.background = '#ff4444';
+                console.log('🔦 Torch auto-enabled for optimal scanning');
+            } catch (e) {
+                console.log('Auto-torch enable failed, user can toggle manually');
+            }
         }
     }
     
@@ -161,15 +177,31 @@ class InstantScanner {
         if (!track) return;
         
         try {
+            // Enhanced constraints for agricultural QR packet scanning
             await track.applyConstraints({
                 advanced: [
                     { focusMode: 'continuous' },
                     { exposureMode: 'continuous' },
-                    { whiteBalanceMode: 'continuous' }
+                    { whiteBalanceMode: 'continuous' },
+                    { zoom: 1.0 }, // No zoom for full detail
+                    { brightness: 0.1 }, // Slight brightness boost for better contrast
+                    { contrast: 1.2 }, // Enhanced contrast for QR readability
+                    { saturation: 0.8 } // Reduced saturation for better B&W contrast
                 ]
             });
+            console.log('📹 Camera optimized for agricultural QR scanning');
         } catch (e) {
-            // Silent fail - camera might not support these
+            // Try basic optimization if advanced fails
+            try {
+                await track.applyConstraints({
+                    advanced: [
+                        { focusMode: 'continuous' },
+                        { exposureMode: 'continuous' }
+                    ]
+                });
+            } catch (e2) {
+                console.log('Camera optimization limited, using defaults');
+            }
         }
     }
     
@@ -227,13 +259,14 @@ class InstantScanner {
             this.canvas.height = videoHeight;
         }
         
-        // Draw video frame
+        // Draw video frame with enhanced processing for agricultural packets
+        this.ctx.clearRect(0, 0, videoWidth, videoHeight);
         this.ctx.drawImage(this.video, 0, 0);
         
-        // INSTANT STRATEGY 1: Direct full scan (fastest, works 90% of time)
+        // STRATEGY 1: High-res full scan optimized for dense QR codes
         const imageData = this.ctx.getImageData(0, 0, videoWidth, videoHeight);
         let result = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert' // Faster with no inversion
+            inversionAttempts: 'dontInvert'
         });
         
         if (result && result.data) {
@@ -241,33 +274,66 @@ class InstantScanner {
             return;
         }
         
-        // INSTANT STRATEGY 2: Try with inversion (for inverted QR codes)
+        // STRATEGY 2: Enhanced contrast for plastic packaging
+        this.enhanceImageForQR(imageData);
         result = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'invertFirst'
-        });
-        
-        if (result && result.data) {
-            this.handleInstantSuccess(result.data);
-            return;
-        }
-        
-        // INSTANT STRATEGY 3: Center crop only if first two fail (minimal overhead)
-        const size = Math.min(videoWidth, videoHeight) * 0.7;
-        const x = (videoWidth - size) / 2;
-        const y = (videoHeight - size) / 2;
-        
-        const centerData = this.ctx.getImageData(x, y, size, size);
-        result = jsQR(centerData.data, centerData.width, centerData.height, {
             inversionAttempts: 'attemptBoth'
         });
         
         if (result && result.data) {
             this.handleInstantSuccess(result.data);
+            return;
+        }
+        
+        // STRATEGY 3: Multi-region scanning for packet labels
+        const regions = this.getOptimalScanRegions(videoWidth, videoHeight);
+        for (const region of regions) {
+            const regionData = this.ctx.getImageData(region.x, region.y, region.width, region.height);
+            result = jsQR(regionData.data, regionData.width, regionData.height, {
+                inversionAttempts: 'attemptBoth'
+            });
+            
+            if (result && result.data) {
+                this.handleInstantSuccess(result.data);
+                return;
+            }
         }
     }
     
+    enhanceImageForQR(imageData) {
+        const data = imageData.data;
+        
+        // Apply contrast enhancement for better QR detection on plastic packaging
+        for (let i = 0; i < data.length; i += 4) {
+            // Convert to grayscale with enhanced contrast
+            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            
+            // Apply threshold for high contrast
+            const enhanced = gray > 128 ? 255 : 0;
+            
+            data[i] = enhanced;     // Red
+            data[i + 1] = enhanced; // Green
+            data[i + 2] = enhanced; // Blue
+            // Alpha channel remains unchanged
+        }
+    }
+    
+    getOptimalScanRegions(width, height) {
+        // Define regions optimized for agricultural packet QR placement
+        return [
+            // Bottom right (common QR location on packets)
+            { x: width * 0.5, y: height * 0.6, width: width * 0.5, height: height * 0.4 },
+            // Center area
+            { x: width * 0.3, y: height * 0.3, width: width * 0.4, height: width * 0.4 },
+            // Bottom left
+            { x: 0, y: height * 0.6, width: width * 0.5, height: height * 0.4 },
+            // Top right
+            { x: width * 0.5, y: 0, width: width * 0.5, height: height * 0.4 }
+        ];
+    }
+    
     handleInstantSuccess(qrData) {
-        // Prevent duplicates with shorter timeout for faster rescanning
+        // Prevent duplicates with ultra-short timeout for agricultural workflow
         const now = Date.now();
         if (qrData === this.lastScan && (now - this.lastScanTime) < this.duplicateTimeout) {
             return;
@@ -276,28 +342,53 @@ class InstantScanner {
         this.lastScan = qrData;
         this.lastScanTime = now;
         
-        console.log('⚡ Instant detection:', qrData);
+        console.log('🌾 Agricultural packet detected:', qrData);
         
         // INSTANT visual feedback
         this.flashSuccess();
         
-        // Quick haptic
+        // Enhanced haptic for outdoor use
         if (navigator.vibrate) {
-            navigator.vibrate(50); // Single short vibration
+            navigator.vibrate([100, 50, 100]); // Double vibration for agricultural environment
         }
         
-        // Instant beep
-        this.playInstantBeep();
+        // Instant beep with agricultural-friendly tone
+        this.playAgriculturalBeep();
         
         // Immediate callback
         if (this.onSuccess) {
             this.onSuccess(qrData);
         }
         
-        // Resume scanning almost immediately
+        // Resume scanning very quickly for continuous workflow
         setTimeout(() => {
-            this.updateStatus('⚡ Scanning...', '#00ff00');
-        }, 300);
+            this.updateStatus('⚡ Ready for next scan', '#00ff00');
+        }, 200);
+    }
+    
+    playAgriculturalBeep() {
+        try {
+            // Create a more noticeable tone for agricultural environments
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Higher frequency for better outdoor audibility
+            oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        } catch (e) {
+            // Fallback for environments without Web Audio API
+            console.log('Audio feedback not available');
+        }
     }
     
     flashSuccess() {
@@ -315,26 +406,6 @@ class InstantScanner {
                 this.scanFrame.style.boxShadow = 'none';
                 this.scanFrame.style.transform = 'translate(-50%, -50%) scale(1)';
             }, 200);
-        }
-    }
-    
-    playInstantBeep() {
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = 1500; // Higher pitch for instant feedback
-            oscillator.type = 'sine';
-            gainNode.gain.value = 0.05; // Quieter
-            
-            oscillator.start();
-            oscillator.stop(audioContext.currentTime + 0.05); // Very short beep
-        } catch (e) {
-            // Silent fail
         }
     }
     

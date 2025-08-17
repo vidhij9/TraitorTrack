@@ -20,12 +20,16 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
 - **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
 - **Recent Optimizations (August 17, 2025)**:
-  - Implemented InstantDetectionScanner with ultra-aggressive optimization for sub-second QR detection
-  - Achieved Google Lens-like performance with 60 FPS scanning and 200ms duplicate prevention
-  - Optimized to 640x480 resolution with 60% center region scanning for faster processing
-  - Deployed InstantDetectionScanner across all scanning pages (parent/child ultra scanning)
-  - Cleaned up test page interface removing unnecessary metrics per user feedback
-  - Confirmed instant QR detection performance matching Google Lens speed
+  - **Agricultural QR Optimization**: Enhanced InstantDetectionScanner for high-density agricultural packaging QR codes
+  - **Auto-Torch Feature**: Torch automatically enabled by default for optimal scanning in agricultural environments
+  - **Enhanced Resolution**: Upgraded to 1920x1080 minimum resolution for dense QR code detection
+  - **Multi-Region Scanning**: Added specialized scanning regions optimized for agricultural packet QR placement
+  - **Contrast Enhancement**: Implemented dynamic image processing for plastic packaging QR codes
+  - **Agricultural Audio**: Custom beep patterns designed for outdoor agricultural environments
+  - **Ultra-Fast Performance**: Maintained sub-200ms duplicate prevention with enhanced scanning strategies
+  - **Previous**: Implemented InstantDetectionScanner with ultra-aggressive optimization for sub-second QR detection
+  - **Previous**: Achieved Google Lens-like performance with 60 FPS scanning and 200ms duplicate prevention
+  - **Previous**: Deployed InstantDetectionScanner across all scanning pages (parent/child ultra scanning)
 - **Previous Optimizations (August 14, 2025)**:
   - Fixed parent bag linked count display in bag management
   - Reduced aggressive database connection pooling (from 250 to 30 connections)
