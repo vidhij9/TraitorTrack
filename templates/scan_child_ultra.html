@@ -3,11 +3,9 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- World-Class QR Scanner for maximum reliability in worst-case scenarios -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Bulletproof QR Scanner for maximum reliability -->
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
-<script src="{{ url_for('static', filename='js/world-class-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bulletproof-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -222,45 +220,29 @@
             {% endfor %}
         {% endif %}
         
-        // Initialize World-Class Scanner
+        // Initialize Bulletproof Scanner
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Wait for all libraries to load
-                let attempts = 0;
-                while (typeof WorldClassQRScanner === 'undefined' && attempts < 50) {
-                    console.log('Waiting for WorldClassQRScanner to load...');
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    attempts++;
+                // Check if required libraries are loaded
+                if (typeof jsQR === 'undefined') {
+                    throw new Error('jsQR library not loaded');
                 }
-                
-                if (typeof WorldClassQRScanner === 'undefined') {
-                    console.error('WorldClassQRScanner library not loaded');
-                    throw new Error('QR scanning library not loaded');
-                }
-                
-                // Request camera permissions first
-                try {
-                    await navigator.mediaDevices.getUserMedia({ video: true });
-                } catch (permError) {
-                    console.error('Camera permission denied:', permError);
-                    throw new Error('Camera access denied. Please allow camera access and refresh.');
+                if (typeof BulletproofScanner === 'undefined') {
+                    throw new Error('BulletproofScanner library not loaded');
                 }
                 
                 // Stop any existing scanner first
                 if (window.scanner && window.scanner.stop) {
-                    await window.scanner.stop();
+                    window.scanner.stop();
                 }
                 
-                // Use World-Class Scanner for maximum reliability in worst-case scenarios
-                scanner = new WorldClassQRScanner('simple-scanner-container');
-                window.scanner = scanner; // Store globally for cleanup
-                
-                // Set up success callback for child scanning
-                scanner.setSuccessCallback(function(qrCode) {
+                // Initialize Bulletproof Scanner for maximum reliability
+                scanner = new BulletproofScanner('simple-scanner-container', function(qrCode) {
                     handleChildScanSuccess(qrCode);
                 });
+                window.scanner = scanner;
                 
                 // Monitor scanner status
                 setTimeout(() => {
