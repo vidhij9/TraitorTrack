@@ -1131,7 +1131,7 @@ def process_promotion_request(request_id):
 def scan_parent():
     """Scan parent bag QR code - Fast scanner optimized"""
     # Direct template render for fastest response
-    return render_template('scan_parent_apple.html')
+    return render_template('scan_parent.html')
 
 
 
