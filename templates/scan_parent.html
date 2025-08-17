@@ -165,27 +165,56 @@ function initializeScanner() {
     function onScanSuccess(qrCode) {
         // Prevent multiple simultaneous submissions
         if (isProcessing) {
+            console.log('Already processing, ignoring scan:', qrCode);
             return;
         }
         
         isProcessing = true;
-        console.log('QR Code scanned:', qrCode);
+        console.log('QR Code scanned successfully:', qrCode);
         
         // Show success toast
-        showToast(`QR Code detected: ${qrCode}`, 'success');
+        showToast(`Processing parent bag: ${qrCode}`, 'info');
         
         // Stop the scanner
         if (scanner) {
             scanner.stop();
+            console.log('Scanner stopped');
         }
         
-        // Submit the form automatically
-        document.getElementById('qr-input').value = qrCode;
-        
-        // Submit form after a brief delay
-        setTimeout(() => {
-            document.getElementById('auto-submit-form').submit();
-        }, 500);
+        try {
+            // Submit the form automatically
+            const qrInput = document.getElementById('qr-input');
+            const submitForm = document.getElementById('auto-submit-form');
+            
+            if (!qrInput) {
+                console.error('QR input element not found');
+                showToast('Form error: QR input missing', 'danger');
+                return;
+            }
+            
+            if (!submitForm) {
+                console.error('Submit form element not found');
+                showToast('Form error: Submit form missing', 'danger');
+                return;
+            }
+            
+            qrInput.value = qrCode;
+            console.log('QR code set in form:', qrInput.value);
+            
+            // Show processing message
+            showToast(`Submitting parent bag: ${qrCode}...`, 'info');
+            
+            // Submit form after a brief delay
+            setTimeout(() => {
+                console.log('Submitting form...');
+                submitForm.submit();
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Error in form submission:', error);
+            showToast(`Error: ${error.message}`, 'danger');
+            isProcessing = false;
+        }
     }
     
     // Start scanner button
