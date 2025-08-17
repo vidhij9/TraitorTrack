@@ -68,8 +68,9 @@ class InstantDetectionScanner {
         this.video = document.createElement('video');
         this.video.style.cssText = `
             width: 100%;
-            height: auto;
+            height: 200px;
             display: block;
+            object-fit: cover;
         `;
         this.video.playsInline = true;
         this.video.muted = true;

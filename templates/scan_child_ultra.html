@@ -84,80 +84,45 @@
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
+    <div class="row mb-2">
         <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <h2 class="card-title mb-3">
-                        <i class="fas fa-qrcode me-2"></i>Scan Child Bags
-                    </h2>
-                    
-                    <!-- Progress Bar -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="fw-bold">Scanning Progress</span>
-                                <span class="badge bg-primary">
-                                    <span id="child-count">{{ scanned_child_count }}</span> / 30 bags
-                                </span>
-                            </div>
-                            <div class="progress" style="height: 25px;">
-                                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
-                                     role="progressbar" 
-                                     style="width: {{ (scanned_child_count / 30 * 100)|round }}%">
-                                    <span id="progress-percentage" class="fw-bold">{{ (scanned_child_count / 30 * 100)|round }}%</span>
-                                </div>
-                            </div>
-                        </div>
+            <h3 class="mb-2"><i class="fas fa-qrcode me-2"></i>Scan Child Bags
+                {% if parent_bag %}
+                    - <small class="text-primary">{{ parent_bag.qr_id }}</small>
+                {% endif %}
+            </h3>
+            
+            <!-- Compact Progress Bar -->
+            {% if parent_bag %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge bg-primary"><span id="child-count">{{ scanned_child_count }}</span> / 30 bags</span>
+                <div class="progress flex-grow-1 mx-2" style="height: 18px;">
+                    <div id="progress-bar" class="progress-bar bg-success" 
+                         style="width: {{ (scanned_child_count / 30 * 100)|round }}%">
+                        <span id="progress-percentage" class="small fw-bold">{{ (scanned_child_count / 30 * 100)|round }}%</span>
                     </div>
-                    
-                    {% if parent_bag %}
-                    <p class="card-text mt-3">Scanning child bags for parent: <strong class="text-primary">{{ parent_bag.qr_id }}</strong></p>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>✅ QR Scanner Ready:</strong> Scan exactly 30 child bags.
-                    </div>
-                    {% else %}
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        No parent bag selected. <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-sm btn-primary ms-2">Scan Parent First</a>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
+            {% else %}
+            <div class="alert alert-warning p-2 mb-2">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No parent bag selected. <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-sm btn-primary ms-2">Scan Parent First</a>
+            </div>
+            {% endif %}
         </div>
     </div>
     
     <div class="row">
-        <div class="col-lg-6 mb-4 mb-lg-0">
+        <div class="col-lg-6 mb-3 mb-lg-0">
             <div class="card">
-                <div class="card-header bg-success bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
-                </div>
-                <div class="card-body p-0">
+                <div class="card-body p-2">
                     <div id="simple-scanner-container" class="scanner-main" style="position:relative;">
                         <!-- Simple Fast Scanner loads here -->
                     </div>
-                    
-                    <!-- Agricultural scanning info -->
-                    <div class="text-center p-3" style="background: #f8f9fa;">
-                        <div class="mt-2">
-                            <small class="text-success">
-                                <i class="fas fa-check-circle"></i> Agricultural Mode: Torch auto-enabled for optimal packet scanning
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer d-flex justify-content-between align-items-center">
-                    <div class="scanner-status">
+                    <div class="text-center mt-2">
                         <span id="scanner-status" class="badge bg-info">
                             <i class="fas fa-spinner fa-spin me-1"></i>Starting...
                         </span>
-                    </div>
-                    <div class="scanner-info">
-                        <small class="text-muted">
-                            Point at QR code
-                        </small>
                     </div>
                 </div>
             </div>
@@ -165,13 +130,11 @@
         
         <div class="col-lg-6">
             <div class="card">
-                <div class="card-header bg-primary bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Results</h4>
-                </div>
-                <div class="card-body">
-                    <div id="result-container" class="alert alert-info mb-3">
+                <div class="card-body p-2">
+                    <h5 class="mb-2"><i class="fas fa-clipboard-check me-2"></i>Results</h5>
+                    <div id="result-container" class="alert alert-info mb-2 p-2">
                         <i class="fas fa-info-circle me-2"></i>
-                        Ready to scan child bags...
+                        Ready to scan...
                     </div>
                     
                     <!-- Scanned children list -->

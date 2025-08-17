@@ -47,53 +47,23 @@
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
+    <div class="row mb-2">
         <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <h2 class="card-title mb-3">
-                        <i class="fas fa-qrcode me-2"></i>Scan Parent Bag
-                    </h2>
-                    
-                    <div class="alert alert-success" style="font-size: 18px; padding: 15px;">
-                        <strong>✅ QR Scanner Ready</strong>
-                        <br><small>Point camera directly at QR code</small>
-                    </div>
-                </div>
-            </div>
+            <h3 class="mb-2"><i class="fas fa-qrcode me-2"></i>Scan Parent Bag</h3>
         </div>
     </div>
     
     <div class="row">
-        <div class="col-lg-6 mb-4 mb-lg-0">
+        <div class="col-lg-6 mb-3 mb-lg-0">
             <div class="card">
-                <div class="card-header bg-primary bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
-                </div>
-                <div class="card-body p-0">
+                <div class="card-body p-2">
                     <div id="simple-scanner-container" class="scanner-main" style="position:relative;">
                         <!-- Simple Fast Scanner loads here -->
                     </div>
-                    
-                    <!-- Agricultural scanning info -->
-                    <div class="text-center p-3" style="background: #f8f9fa;">
-                        <div class="mt-2">
-                            <small class="text-success">
-                                <i class="fas fa-check-circle"></i> Agricultural Mode: Torch auto-enabled for optimal packet scanning
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer d-flex justify-content-between align-items-center">
-                    <div class="scanner-status">
+                    <div class="text-center mt-2">
                         <span id="scanner-status" class="badge bg-info">
                             <i class="fas fa-spinner fa-spin me-1"></i>Starting...
                         </span>
-                    </div>
-                    <div class="scanner-info">
-                        <small class="text-muted">
-                            Point at QR code
-                        </small>
                     </div>
                 </div>
             </div>
@@ -101,13 +71,11 @@
         
         <div class="col-lg-6">
             <div class="card">
-                <div class="card-header bg-success bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Scan Result</h4>
-                </div>
-                <div class="card-body">
-                    <div id="result-container" class="alert alert-info mb-3">
+                <div class="card-body p-2">
+                    <h5 class="mb-2"><i class="fas fa-clipboard-check me-2"></i>Result</h5>
+                    <div id="result-container" class="alert alert-info mb-2 p-2">
                         <i class="fas fa-info-circle me-2"></i>
-                        Ready to scan parent bag...
+                        Ready to scan...
                     </div>
                     
                     <div id="scan-success" class="scan-result alert alert-success d-none">
