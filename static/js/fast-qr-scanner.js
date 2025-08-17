@@ -195,52 +195,16 @@ class FastQRScanner {
     
     async startCamera() {
         try {
-            // Check if permission was previously granted
-            const permissionKey = 'tracetrack_camera_permission';
-            const hasPermission = localStorage.getItem(permissionKey) === 'granted';
+            console.log('FastQR: Starting camera initialization...');
             
-            // Enhanced constraints for better focus and detection
-            const constraints = {
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },  // Higher resolution for accuracy
-                    height: { ideal: 720 },
-                    frameRate: { ideal: 30 },  // Balanced FPS
-                    // Advanced focus and exposure settings
-                    focusMode: { ideal: 'continuous' },
-                    focusDistance: { ideal: 0.3 },
-                    exposureMode: { ideal: 'continuous' },
-                    exposureCompensation: { ideal: 0 },
-                    whiteBalanceMode: { ideal: 'continuous' },
-                    brightness: { ideal: 128 },
-                    contrast: { ideal: 128 },
-                    saturation: { ideal: 128 },
-                    sharpness: { ideal: 128 }
-                },
-                audio: false
-            };
-            
-            try {
-                this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-                // Permission granted - store it
-                localStorage.setItem(permissionKey, 'granted');
-            } catch (firstError) {
-                // Try simpler constraints
-                try {
-                    this.cameraStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'environment' }, 
-                        audio: false 
-                    });
-                    // Permission granted - store it
-                    localStorage.setItem(permissionKey, 'granted');
-                } catch (secondError) {
-                    // Check if it's a permission error
-                    if (secondError.name === 'NotAllowedError' || secondError.name === 'PermissionDeniedError') {
-                        localStorage.setItem(permissionKey, 'denied');
-                        throw new Error('Permission denied. Please allow camera access and refresh the page.');
-                    }
-                    throw secondError;
-                }
+            // Use camera permission helper if available
+            if (window.cameraPermissionHelper) {
+                this.showStatus('Requesting camera access...', 'info');
+                this.cameraStream = await window.cameraPermissionHelper.requestCameraAccess();
+            } else {
+                // Fallback to direct camera access
+                console.log('FastQR: Using fallback camera access');
+                this.cameraStream = await this.fallbackCameraAccess();
             }
             
             this.video.srcObject = this.cameraStream;
@@ -311,16 +275,53 @@ class FastQRScanner {
         } catch (error) {
             console.error('FastQR: Camera failed:', error);
             
-            // Provide helpful error messages
-            if (error.message && error.message.includes('Permission denied')) {
-                this.showStatus('Camera permission required. Please allow camera access.', 'error');
-            } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-                this.showStatus('No camera found. Please check your camera.', 'error');
-            } else {
-                this.showStatus('Camera error. Please check permissions and try again.', 'error');
+            // Provide specific, actionable error messages
+            let userMessage = error.message || 'Camera error. Please try again.';
+            
+            // Clean up emojis and technical details for user display
+            if (error.message.includes('permission denied') || error.message.includes('Permission denied')) {
+                userMessage = 'Camera access blocked. Click the camera icon in your browser address bar and allow access.';
+            } else if (error.message.includes('No camera found')) {
+                userMessage = 'No camera detected. Please check your camera connection.';
+            } else if (error.message.includes('already in use')) {
+                userMessage = 'Camera is being used by another app. Please close other camera apps and try again.';
+            } else if (error.message.includes('not supported')) {
+                userMessage = 'Camera not supported by this browser. Please use Chrome, Firefox, or Safari.';
             }
             
+            this.showStatus(userMessage, 'error');
             throw error; // Re-throw to be caught by caller
+        }
+    }
+    
+    // Fallback camera access method
+    async fallbackCameraAccess() {
+        const constraintLevels = [
+            {
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 640, max: 1280 },
+                    height: { ideal: 480, max: 720 }
+                },
+                audio: false
+            },
+            {
+                video: { facingMode: 'environment' },
+                audio: false
+            },
+            {
+                video: true,
+                audio: false
+            }
+        ];
+
+        for (let i = 0; i < constraintLevels.length; i++) {
+            try {
+                return await navigator.mediaDevices.getUserMedia(constraintLevels[i]);
+            } catch (error) {
+                if (i === constraintLevels.length - 1) throw error;
+                continue;
+            }
         }
     }
     
