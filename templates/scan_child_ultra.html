@@ -3,9 +3,11 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Ultra-Fast QR Scanning with Html5Qrcode for Google Lens-like performance -->
+<!-- World-Class QR Scanner for maximum reliability in worst-case scenarios -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="{{ url_for('static', filename='js/ultra-fast-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/world-class-qr-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -192,9 +194,7 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+<!-- World-Class Scanner with comprehensive worst-case handling -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -246,8 +246,8 @@
                     window.scanner.stop();
                 }
                 
-                // Use Ultra-Fast Scanner for Google Lens-like performance
-                scanner = new UltraFastScanner('simple-scanner-container');
+                // Use World-Class Scanner for maximum reliability in worst-case scenarios
+                scanner = new WorldClassQRScanner('simple-scanner-container');
                 window.scanner = scanner; // Store globally for cleanup
                 // The scanner handles child scans internally with its own logic
                 
