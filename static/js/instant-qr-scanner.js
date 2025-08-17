@@ -58,6 +58,7 @@ class InstantQRScanner {
     async start() {
         try {
             this.updateStatus('Starting camera...', 'info');
+            console.log('Starting InstantQRScanner...');
             
             // Check camera support
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -66,22 +67,59 @@ class InstantQRScanner {
             
             // Check jsQR library
             if (typeof jsQR === 'undefined') {
-                throw new Error('jsQR library not loaded');
-            }
-            
-            // Request camera with fallback constraints
-            try {
-                this.stream = await navigator.mediaDevices.getUserMedia(this.cameraConstraints);
-            } catch (err) {
-                console.warn('Failed with ideal constraints, trying basic:', err);
-                // Fallback to basic constraints
-                this.stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' },
-                    audio: false
+                console.error('jsQR is not defined. Waiting for library to load...');
+                await new Promise(resolve => {
+                    const checkJsQR = setInterval(() => {
+                        if (typeof jsQR !== 'undefined') {
+                            clearInterval(checkJsQR);
+                            resolve();
+                        }
+                    }, 100);
                 });
             }
             
+            console.log('Requesting camera access...');
+            
+            // Request camera with multiple fallback strategies
+            let attempts = [
+                this.cameraConstraints,
+                {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                },
+                {
+                    video: { facingMode: 'environment' },
+                    audio: false
+                },
+                {
+                    video: true,
+                    audio: false
+                }
+            ];
+            
+            let streamObtained = false;
+            for (let constraints of attempts) {
+                try {
+                    console.log('Trying camera constraints:', constraints);
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    streamObtained = true;
+                    console.log('Camera stream obtained successfully');
+                    break;
+                } catch (err) {
+                    console.warn('Failed with constraints:', constraints, err);
+                }
+            }
+            
+            if (!streamObtained) {
+                throw new Error('Could not access camera with any constraints');
+            }
+            
             // Apply stream to video
+            console.log('Applying stream to video element...');
             this.video.srcObject = this.stream;
             this.video.setAttribute('playsinline', true);
             this.video.setAttribute('autoplay', true);
@@ -90,26 +128,66 @@ class InstantQRScanner {
             // Wait for video to be ready
             await new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
+                    console.error('Video load timeout after 10 seconds');
                     reject(new Error('Video load timeout'));
-                }, 5000);
+                }, 10000);
+                
+                let metadataLoaded = false;
                 
                 this.video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded');
+                    metadataLoaded = true;
                     clearTimeout(timeout);
+                    
+                    // Ensure video dimensions are set
+                    if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
+                        console.warn('Video dimensions are 0, waiting for actual dimensions...');
+                        setTimeout(() => {
+                            this.canvas.width = this.video.videoWidth || 640;
+                            this.canvas.height = this.video.videoHeight || 480;
+                            console.log(`Video dimensions set: ${this.canvas.width}x${this.canvas.height}`);
+                        }, 500);
+                    } else {
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                        console.log(`Video ready: ${this.canvas.width}x${this.canvas.height}`);
+                    }
+                    
                     this.video.play()
                         .then(() => {
-                            // Setup canvas dimensions
-                            this.canvas.width = this.video.videoWidth;
-                            this.canvas.height = this.video.videoHeight;
-                            console.log(`Video ready: ${this.canvas.width}x${this.canvas.height}`);
+                            console.log('Video playback started');
                             resolve();
                         })
-                        .catch(reject);
+                        .catch(err => {
+                            console.error('Video play error:', err);
+                            // Try to continue anyway
+                            resolve();
+                        });
+                };
+                
+                // Fallback: if video can play through without metadata event
+                this.video.oncanplaythrough = () => {
+                    if (!metadataLoaded) {
+                        console.log('Video can play through (fallback)');
+                        clearTimeout(timeout);
+                        this.canvas.width = this.video.videoWidth || 640;
+                        this.canvas.height = this.video.videoHeight || 480;
+                        this.video.play().catch(console.error);
+                        resolve();
+                    }
                 };
                 
                 this.video.onerror = (err) => {
                     clearTimeout(timeout);
+                    console.error('Video error:', err);
                     reject(err);
                 };
+                
+                // Try to trigger loading
+                if (this.video.readyState >= 2) {
+                    console.log('Video already has sufficient data');
+                    this.video.onloadedmetadata();
+                }
             });
             
             // Start scanning

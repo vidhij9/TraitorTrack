@@ -214,23 +214,80 @@ document.addEventListener('DOMContentLoaded', function() {
     let isProcessing = false;
     
     // Initialize the instant scanner
-    function initScanner() {
-        scanner = new InstantQRScanner({
-            video: document.getElementById('video'),
-            canvas: document.getElementById('canvas'),
-            onDetected: handleQRCode,
-            onError: handleError,
-            onStatusUpdate: updateStatus
-        });
-        
-        // Start scanning
-        scanner.start().then(success => {
+    async function initScanner() {
+        try {
+            scanner = new InstantQRScanner({
+                video: document.getElementById('video'),
+                canvas: document.getElementById('canvas'),
+                onDetected: handleQRCode,
+                onError: handleError,
+                onStatusUpdate: updateStatus
+            });
+            
+            // Start scanning
+            const success = await scanner.start();
             if (!success) {
-                console.error('Failed to start scanner');
+                console.error('Failed to start InstantQRScanner, falling back to basic scanner');
+                initBasicScanner();
             } else {
                 // Check for torch support
                 checkTorchSupport();
             }
+        } catch (error) {
+            console.error('Error initializing InstantQRScanner:', error);
+            initBasicScanner();
+        }
+    }
+    
+    // Fallback basic scanner
+    function initBasicScanner() {
+        console.log('Initializing basic scanner...');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        let scanning = false;
+        
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' },
+            audio: false 
+        })
+        .then(stream => {
+            video.srcObject = stream;
+            video.setAttribute('playsinline', true);
+            video.play();
+            
+            video.addEventListener('loadedmetadata', () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                scanning = true;
+                updateStatus('Scanning (Basic Mode)...', 'success');
+                scanBasic();
+            });
+            
+            function scanBasic() {
+                if (!scanning) return;
+                
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    if (typeof jsQR !== 'undefined') {
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                            inversionAttempts: "attemptBoth"
+                        });
+                        
+                        if (code && code.data) {
+                            handleQRCode(code.data);
+                        }
+                    }
+                }
+                
+                requestAnimationFrame(scanBasic);
+            }
+        })
+        .catch(err => {
+            console.error('Basic scanner error:', err);
+            handleError(err);
         });
     }
     
