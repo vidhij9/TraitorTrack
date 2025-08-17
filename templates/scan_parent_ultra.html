@@ -3,8 +3,9 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Extreme QR Scanning Library -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- Ultra-Fast QR Scanning with Html5Qrcode for Google Lens-like performance -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/ultra-fast-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -135,9 +136,8 @@
                     window.scanner.stop();
                 }
                 
-                // Use Instant Detection Scanner for Google Lens-like performance
-                scanner = new InstantDetectionScanner('simple-scanner-container');
-                scanner.onScan = handleScanSuccess;
+                // Use Ultra-Fast Scanner for Google Lens-like performance
+                scanner = new UltraFastScanner('simple-scanner-container');
                 window.scanner = scanner; // Store globally for cleanup
                 
                 // Monitor scanner status
@@ -195,14 +195,11 @@
             statusBadge.innerHTML = icon + text;
         }
         
-        // Handle successful scan
+        // Handle successful scan (not needed with new ultra-fast scanner)
+        // The ultra-fast scanner handles scan results internally
         function handleScanSuccess(qrCode) {
-            if (isProcessing) {
-                return; // Prevent duplicate processing
-            }
-            
-            console.log('Parent bag scanned:', qrCode);
-            isProcessing = true;
+            // Legacy function kept for compatibility
+            console.log('Scan handled by ultra-fast scanner');
             
             // Haptic feedback
             if (navigator.vibrate) {

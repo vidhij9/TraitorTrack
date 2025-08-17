@@ -211,13 +211,13 @@ class UltraFastScanner {
         const currentPath = window.location.pathname;
         
         if (currentPath.includes('scan_parent')) {
-            // Parent bag scan
-            fetch('/api/scan/parent', {
+            // Parent bag scan - use form data for compatibility
+            const formData = new FormData();
+            formData.append('qr_id', data);
+            
+            fetch('/scan/parent', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ qr_data: data })
+                body: formData
             })
             .then(response => response.json())
             .then(result => {
@@ -227,7 +227,7 @@ class UltraFastScanner {
                     
                     // Redirect to child scanning
                     setTimeout(() => {
-                        window.location.href = result.redirect_url;
+                        window.location.href = result.redirect || '/scan/child';
                     }, 1000);
                 } else {
                     this.showError(result.error || 'Failed to process QR code');
@@ -239,32 +239,33 @@ class UltraFastScanner {
             });
             
         } else if (currentPath.includes('scan_child')) {
-            // Child bag scan
-            fetch('/api/scan/child', {
+            // Child bag scan - use JSON for ultra-fast processing
+            fetch('/process_child_scan_fast', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ qr_data: data })
+                body: JSON.stringify({ qr_code: data })
             })
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    this.showSuccess(`Child bag ${result.child_count}/30 scanned!`);
+                    const count = result.child_count || result.count || 1;
+                    this.showSuccess(result.message || `Child bag ${count}/30 scanned!`);
                     
                     // Update UI
                     if (window.updateChildCount) {
-                        window.updateChildCount(result.child_count);
+                        window.updateChildCount(count);
                     }
                     
                     // Check if complete
-                    if (result.child_count >= 30) {
+                    if (count >= 30) {
                         setTimeout(() => {
-                            window.location.href = '/scan/complete';
+                            window.location.href = '/process_complete';
                         }, 1000);
                     }
                 } else {
-                    this.showError(result.error || 'Failed to process QR code');
+                    this.showError(result.message || 'Failed to process QR code');
                 }
             })
             .catch(error => {

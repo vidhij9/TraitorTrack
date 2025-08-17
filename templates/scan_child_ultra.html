@@ -3,8 +3,9 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Extreme QR Scanning Library -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- Ultra-Fast QR Scanning with Html5Qrcode for Google Lens-like performance -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/ultra-fast-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -245,10 +246,10 @@
                     window.scanner.stop();
                 }
                 
-                // Use Turbo Scanner for maximum speed and reliability
-                scanner = new InstantDetectionScanner('simple-scanner-container');
-                scanner.onScan = handleChildScanSuccess;
+                // Use Ultra-Fast Scanner for Google Lens-like performance
+                scanner = new UltraFastScanner('simple-scanner-container');
                 window.scanner = scanner; // Store globally for cleanup
+                // The scanner handles child scans internally with its own logic
                 
                 // Monitor scanner status
                 setTimeout(() => {
