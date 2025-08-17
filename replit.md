@@ -20,15 +20,15 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
 - **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
 - **Recent Optimizations (August 17, 2025)**:
-  - **Apple-Level QR Scanner Implementation**: Complete rewrite with Apple Camera-like QR scanning experience
-  - **Production-Ready Scanner**: Eliminated all external dependencies and complex class-based implementations
-  - **Native Performance**: Direct functional approach using only jsQR for maximum reliability
-  - **Agricultural Optimization**: Perfect for scanning QR codes on plastic agricultural bags with reflective surfaces
-  - **Auto-Torch Integration**: Automatic torch enabling for optimal scanning in agricultural environments
-  - **Instant Detection**: Sub-second QR code detection with haptic and visual feedback
-  - **Mobile-First Design**: Responsive Apple-style UI with backdrop blur and smooth animations
-  - **Bulletproof Implementation**: Zero loading issues with inline scanner code and proper error handling
-  - **Previous Issues Resolved**: Fixed all "library not loaded" errors by removing complex dependency chains
+  - **Production QR Scanner Implementation**: Complete rewrite with working QR scanning functionality
+  - **Direct Camera Access**: Immediate camera initialization with proper error handling
+  - **Green Scanner Frame**: Visual scanning frame with animated corners for better UX
+  - **Agricultural Optimization**: Multiple QR detection strategies for plastic agricultural bags
+  - **Performance**: 60 FPS scanning with requestAnimationFrame for smooth detection
+  - **Mobile-First Design**: Responsive design with proper video scaling
+  - **Reliable Implementation**: Using jsQR library with fallback detection strategies
+  - **Visual Feedback**: Green animated frame, haptic feedback, and status indicators
+  - **Issues Resolved**: Fixed camera display, scanner overlay visibility, and QR detection
   - **Previous**: Enhanced InstantDetectionScanner for high-density agricultural packaging QR codes
   - **Previous**: Implemented InstantDetectionScanner with ultra-aggressive optimization for sub-second QR detection
   - **Previous**: Achieved Google Lens-like performance with 60 FPS scanning and 200ms duplicate prevention
