@@ -198,7 +198,6 @@ def scan_status():
 
 
 @app.route('/scanner/test')
-@login_required
 def scanner_test():
-    """Scanner performance test page"""
+    """Scanner performance test page - no auth required for testing"""
     return render_template('scanner_test.html')
