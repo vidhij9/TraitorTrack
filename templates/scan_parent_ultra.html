@@ -3,8 +3,8 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Professional ZXing QR Scanner - World's Best QR Detection -->
-<script src="{{ url_for('static', filename='js/zxing-qr-scanner.js') }}"></script>
+<!-- Ultra-Fast Html5Qrcode Scanner - Professional QR Detection -->
+<script src="{{ url_for('static', filename='js/html5-qr-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -109,26 +109,26 @@
         const resultContainer = document.getElementById('result-container');
         const scannerStatus = document.getElementById('scanner-status');
         
-        // Initialize ZXing QR Scanner (World's Best QR Library)
+        // Initialize Ultra-Fast Html5Qrcode Scanner
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Check if ZXingQRScanner is available
-                if (typeof ZXingQRScanner === 'undefined') {
-                    console.error('ZXingQRScanner not loaded');
+                // Check if UltraFastQRScanner is available
+                if (typeof UltraFastQRScanner === 'undefined') {
+                    console.error('UltraFastQRScanner not loaded');
                     throw new Error('QR Scanner library not loaded. Please refresh the page.');
                 }
                 
-                console.log('Initializing ZXing QR Scanner...');
+                console.log('Initializing Ultra-Fast QR Scanner...');
                 
                 // Stop any existing scanner first
                 if (window.scanner && window.scanner.stop) {
                     window.scanner.stop();
                 }
                 
-                // Create new ZXingQRScanner instance
-                scanner = new ZXingQRScanner('simple-scanner-container');
+                // Create new UltraFastQRScanner instance
+                scanner = new UltraFastQRScanner('simple-scanner-container');
                 
                 // Set success callback for QR code detection
                 scanner.setSuccessCallback(async function(qrCode) {
@@ -143,7 +143,7 @@
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-check-circle"></i> ZXing Scanner ready - Point at QR code';
+                resultContainer.innerHTML = '<i class="fas fa-check-circle"></i> Ultra-Fast Scanner ready - Point at QR code';
                 
             } catch (error) {
                 console.error('Inline scanner error:', error);
