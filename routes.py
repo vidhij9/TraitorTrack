@@ -580,7 +580,8 @@ def seed_sample_data():
                     )
                     db.session.add(child_bag)
                     
-                    # Create link
+                    # Create link (need to flush child_bag to get ID)
+                    db.session.flush()
                     link = Link(
                         parent_bag_id=parent_bag.id,
                         child_bag_id=child_bag.id
@@ -2970,6 +2971,11 @@ def user_profile():
 def qr_scanner_testing():
     """QR Scanner Testing Suite page"""
     return render_template('qr_scanner_testing.html')
+
+@app.route('/simple_qr_test')
+def simple_qr_test():
+    """Simple QR Scanner Test page - no auth required"""
+    return render_template('simple_qr_test.html')
 
 @app.route('/profile/edit', methods=['POST'])
 @login_required

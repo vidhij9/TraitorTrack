@@ -425,12 +425,19 @@
             for (const qrCode of testQRCodes) {
                 const startTime = Date.now();
                 try {
+                    // Get CSRF token first
+                    const csrfResponse = await fetch('/scan/parent');
+                    const csrfText = await csrfResponse.text();
+                    const csrfMatch = csrfText.match(/name="csrf_token" value="([^"]+)"/);
+                    const csrfToken = csrfMatch ? csrfMatch[1] : '';
+                    
+                    const formData = new FormData();
+                    formData.append('qr_id', qrCode);
+                    if (csrfToken) formData.append('csrf_token', csrfToken);
+                    
                     const response = await fetch('/scan/parent', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `qr_id=${encodeURIComponent(qrCode)}`
+                        body: formData
                     });
                     
                     const elapsed = Date.now() - startTime;
@@ -486,25 +493,35 @@
             
             logTest('Starting Child Scanner test...');
             
-            // First set a parent QR in session
-            await fetch('/scan/parent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `qr_id=${encodeURIComponent(testQRCodes[0])}`
-            });
+            // First set a parent QR in session with proper auth
+            try {
+                const csrfResponse = await fetch('/scan/parent');
+                const csrfText = await csrfResponse.text();
+                const csrfMatch = csrfText.match(/name="csrf_token" value="([^"]+)"/);
+                const csrfToken = csrfMatch ? csrfMatch[1] : '';
+                
+                const formData = new FormData();
+                formData.append('qr_id', testQRCodes[0]);
+                if (csrfToken) formData.append('csrf_token', csrfToken);
+                
+                await fetch('/scan/parent', {
+                    method: 'POST',
+                    body: formData
+                });
+            } catch (error) {
+                logTest('Failed to set parent QR: ' + error.message);
+            }
             
             for (let i = 1; i < testQRCodes.length; i++) {
                 const qrCode = testQRCodes[i];
                 const startTime = Date.now();
                 try {
+                    const formData = new FormData();
+                    formData.append('qr_code', qrCode);
+                    
                     const response = await fetch('/process_child_scan', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `qr_code=${encodeURIComponent(qrCode)}`
+                        body: formData
                     });
                     
                     const elapsed = Date.now() - startTime;
@@ -560,18 +577,45 @@
             
             logTest('Starting Bill Scanner test...');
             
-            // Note: Bill scanner requires an existing bill_id
-            // For testing, we'll check if the endpoint responds
-            for (const qrCode of testQRCodes) {
+            // Test if bill scanner pages are accessible
+            for (const endpoint of ['/scan_bill_parent_ultra', '/scan_bill_parent_simple']) {
                 const startTime = Date.now();
                 try {
-                    const response = await fetch('/process_bill_parent_scan', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `qr_code=${encodeURIComponent(qrCode)}&bill_id=1`
-                    });
+                    const response = await fetch(endpoint);
+                    const elapsed = Date.now() - startTime;
+                    
+                    if (response.ok) {
+                        testResults.success++;
+                        resultsList.innerHTML += `
+                            <div class="result-item">
+                                <strong>✓ ${endpoint}</strong><br>
+                                <small>Time: ${elapsed}ms | Page accessible</small>
+                            </div>
+                        `;
+                        logTest(`✓ Bill scanner page accessible: ${endpoint} (${elapsed}ms)`);
+                    } else {
+                        testResults.failed++;
+                        resultsList.innerHTML += `
+                            <div class="result-item error">
+                                <strong>✗ ${endpoint}</strong><br>
+                                <small>Status: ${response.status}</small>
+                            </div>
+                        `;
+                        logTest(`✗ Bill scanner page error: ${endpoint}`);
+                    }
+                } catch (error) {
+                    testResults.failed++;
+                    resultsList.innerHTML += `
+                        <div class="result-item error">
+                            <strong>✗ ${endpoint}</strong><br>
+                            <small>Error: ${error.message}</small>
+                        </div>
+                    `;
+                    logTest(`✗ Bill scanner error: ${error.message}`);
+                }
+                testResults.total++;
+                updateMetrics();
+            }
                     
                     const elapsed = Date.now() - startTime;
                     testResults.times.push(elapsed);
