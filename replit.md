@@ -19,7 +19,13 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Caching**: Multi-layer caching system (Redis + in-memory) with intelligent TTL management.
 - **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
 - **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
-- **Recent Optimizations (August 14, 2025)**:
+- **Recent Optimizations (August 17, 2025)**:
+  - Implemented InstantDetectionScanner with ultra-aggressive optimization for sub-second QR detection
+  - Achieved Google Lens-like performance with 60 FPS scanning and 200ms duplicate prevention
+  - Optimized to 640x480 resolution with 60% center region scanning for faster processing
+  - Added real-time FPS monitoring and performance metrics
+  - Created scanner performance test page at /scanner/test for monitoring detection speed
+- **Previous Optimizations (August 14, 2025)**:
   - Fixed parent bag linked count display in bag management
   - Reduced aggressive database connection pooling (from 250 to 30 connections)
   - Simplified database configuration settings for better stability

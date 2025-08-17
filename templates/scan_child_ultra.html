@@ -237,7 +237,8 @@
 
 {% block scripts %}
 <!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/turbo-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -290,7 +291,8 @@
                 }
                 
                 // Use Turbo Scanner for maximum speed and reliability
-                scanner = new TurboScanner('simple-scanner-container', handleChildScanSuccess);
+                scanner = new InstantDetectionScanner('simple-scanner-container');
+                scanner.onScan = handleChildScanSuccess;
                 window.scanner = scanner; // Store globally for cleanup
                 
                 // Monitor scanner status

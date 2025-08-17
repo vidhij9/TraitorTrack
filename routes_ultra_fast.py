@@ -2,7 +2,7 @@
 Ultra-fast optimized routes for instant QR scanning
 Designed for 100+ concurrent users with sub-second response times
 """
-from flask import jsonify, session, request
+from flask import jsonify, session, request, render_template
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 from app_clean import app, db, csrf
@@ -195,3 +195,10 @@ def scan_status():
         }), 200
     except:
         return jsonify({'success': False, 'database': 'error'}), 500
+
+
+@app.route('/scanner/test')
+@login_required
+def scanner_test():
+    """Scanner performance test page"""
+    return render_template('scanner_test.html')
