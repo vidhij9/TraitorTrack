@@ -170,8 +170,158 @@ class SimpleReliableScanner {
     }
 }
 
-// Make available globally
-window.SimpleReliableScanner = SimpleReliableScanner;
+// Direct Scanner Creation Function
+async function createDirectScanner(containerId, onSuccess) {
+    const container = document.getElementById(containerId);
+    let scanning = false;
+    let lastScan = '';
+    let lastScanTime = 0;
+    let video = null;
+    let canvas = null;
+    let ctx = null;
+    let stream = null;
+    
+    // Setup UI
+    container.innerHTML = `
+        <div style="position:relative;width:100%;max-width:640px;margin:0 auto;">
+            <video id="direct-video" autoplay playsinline muted 
+                   style="width:100%;height:400px;object-fit:cover;border-radius:8px;background:#000;"></video>
+            
+            <canvas id="direct-canvas" style="display:none;"></canvas>
+            
+            <!-- Scan overlay -->
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;">
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:250px;height:250px;border:3px solid #00ff00;border-radius:8px;"></div>
+            </div>
+            
+            <!-- Status -->
+            <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;">
+                <div id="direct-status" style="color:#00ff00;font-weight:bold;background:rgba(0,0,0,0.8);padding:8px;border-radius:4px;">
+                    Initializing...
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Get elements
+    video = document.getElementById('direct-video');
+    canvas = document.getElementById('direct-canvas');
+    ctx = canvas.getContext('2d');
+    const status = document.getElementById('direct-status');
+    
+    function updateStatus(message, color = '#00ff00') {
+        if (status) {
+            status.textContent = message;
+            status.style.color = color;
+        }
+    }
+    
+    // Start camera
+    try {
+        updateStatus('Starting camera...', '#ffa500');
+        
+        const constraints = {
+            video: {
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+        
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        
+        video.onloadedmetadata = () => {
+            video.play();
+            startScanning();
+        };
+        
+    } catch (error) {
+        console.error('Camera error:', error);
+        updateStatus('Camera error - Check permissions', '#ff0000');
+    }
+    
+    function startScanning() {
+        if (scanning) return;
+        scanning = true;
+        updateStatus('Scanning for QR codes...', '#00ff00');
+        scanLoop();
+    }
+    
+    function scanLoop() {
+        if (!scanning || !video || video.readyState !== 4) {
+            if (scanning) {
+                requestAnimationFrame(scanLoop);
+            }
+            return;
+        }
+        
+        try {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            if (canvas.width > 0 && canvas.height > 0) {
+                ctx.drawImage(video, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                if (typeof jsQR !== 'undefined') {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "attemptBoth"
+                    });
+                    
+                    if (code && code.data) {
+                        handleSuccess(code.data);
+                        return;
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.error('Scan error:', error);
+        }
+        
+        requestAnimationFrame(scanLoop);
+    }
+    
+    function handleSuccess(qrData) {
+        const now = Date.now();
+        if (qrData === lastScan && (now - lastScanTime) < 1000) {
+            return;
+        }
+        
+        lastScan = qrData;
+        lastScanTime = now;
+        
+        console.log('QR Code detected:', qrData);
+        updateStatus('✅ QR Code Detected!', '#00ff00');
+        
+        if (navigator.vibrate) {
+            navigator.vibrate([100, 50, 100]);
+        }
+        
+        if (onSuccess) {
+            onSuccess(qrData);
+        }
+        
+        setTimeout(() => {
+            updateStatus('Scanning for QR codes...', '#00ff00');
+        }, 1500);
+    }
+    
+    // Return scanner object
+    return {
+        stop: function() {
+            scanning = false;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            if (video) {
+                video.srcObject = null;
+            }
+        }
+    };
+}
 </script>
 
 <style>
@@ -387,7 +537,7 @@ window.SimpleReliableScanner = SimpleReliableScanner;
             {% endfor %}
         {% endif %}
         
-        // Initialize Simple Reliable Scanner
+        // Initialize Scanner - Direct Implementation
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
@@ -403,20 +553,14 @@ window.SimpleReliableScanner = SimpleReliableScanner;
                 if (typeof jsQR === 'undefined') {
                     throw new Error('jsQR library not loaded');
                 }
-                if (typeof SimpleReliableScanner === 'undefined') {
-                    throw new Error('SimpleReliableScanner library not loaded');
-                }
                 
                 // Stop any existing scanner first
                 if (window.scanner && window.scanner.stop) {
                     window.scanner.stop();
                 }
                 
-                // Initialize Simple Reliable Scanner
-                scanner = new SimpleReliableScanner('simple-scanner-container', function(qrCode) {
-                    handleChildScanSuccess(qrCode);
-                });
-                window.scanner = scanner;
+                // Create direct scanner implementation
+                window.scanner = await createDirectScanner('simple-scanner-container', handleChildScanSuccess);
                 
                 // Monitor scanner status
                 setTimeout(() => {
