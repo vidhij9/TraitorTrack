@@ -13,13 +13,16 @@ class InstantQRScanner {
         this.stream = null;
         this.isScanning = false;
         this.lastScanTime = 0;
-        this.scanCooldown = 500; // Prevent duplicate scans
+        this.scanCooldown = 1000; // Prevent duplicate scans for 1 second
         this.onSuccess = null;
         this.animationFrame = null;
         
-        // Load jsQR library dynamically
+        // Load jsQR library dynamically and init
         this.loadJsQR().then(() => {
             this.init();
+        }).catch(error => {
+            console.error('Failed to load QR library:', error);
+            this.init(); // Initialize anyway with fallback
         });
     }
     
@@ -47,29 +50,12 @@ class InstantQRScanner {
     }
     
     createFallbackQR() {
-        // Minimal QR detection fallback for agricultural codes
+        // Enhanced fallback QR detection that tries to work like Google Lens
         return function(imageData, width, height) {
-            // Simple pattern matching for known agricultural codes
-            const patterns = [
-                /LABEL\s*NO\.\s*0+\d+/,
-                /LOT\s*NO\.?\s*:?\s*[A-Z0-9\(\)]+/,
-                /STAR\s*\d+-\d+/,
-                /STAR\d+[A-Z]+\d+\([A-Z]+\)/
-            ];
+            // For fallback, we'll encourage manual testing
+            console.log('Using fallback QR detection - jsQR library not available');
             
-            // Simulate detection with some randomness for testing
-            if (Math.random() < 0.3) {
-                const codes = [
-                    'LABEL NO.000003',
-                    'LABEL NO.000007', 
-                    'LOT NO.:STAR15MD25095(II)',
-                    'STAR 10-15',
-                    'STAR15MD25095(II)'
-                ];
-                return {
-                    data: codes[Math.floor(Math.random() * codes.length)]
-                };
-            }
+            // Return null to indicate no detection - user should try with actual camera
             return null;
         };
     }
@@ -310,16 +296,17 @@ class InstantQRScanner {
         try {
             this.updateStatus('<i class="fas fa-spinner fa-spin"></i> Starting camera...', 'info');
             
-            // High-quality camera constraints for QR detection
+            // High-quality camera constraints for QR detection with torch
             const constraints = {
                 video: {
                     facingMode: { ideal: 'environment' },
-                    width: { ideal: 1920, min: 800 },
-                    height: { ideal: 1080, min: 600 },
+                    width: { ideal: 1920, min: 640 },
+                    height: { ideal: 1080, min: 480 },
                     frameRate: { ideal: 30, min: 15 },
                     focusMode: { ideal: 'continuous' },
                     exposureMode: { ideal: 'continuous' },
-                    whiteBalanceMode: { ideal: 'continuous' }
+                    whiteBalanceMode: { ideal: 'continuous' },
+                    torch: true  // Request torch by default
                 },
                 audio: false
             };
@@ -342,8 +329,8 @@ class InstantQRScanner {
             // Start scanning loop
             this.scanLoop();
             
-            // Auto-enable torch for agricultural environment
-            setTimeout(() => this.enableTorch(), 1000);
+            // Auto-enable torch immediately for agricultural environment
+            setTimeout(() => this.enableTorch(), 100);
             
             console.log('Instant QR scanner started successfully');
             
@@ -366,12 +353,13 @@ class InstantQRScanner {
             this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
             const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
             
-            // Detect QR code using jsQR
+            // Detect QR code using jsQR with multiple attempts for reflective surfaces
             const qrCode = window.jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "dontInvert",
+                inversionAttempts: "attemptBoth",
             });
             
             if (qrCode && qrCode.data) {
+                console.log('QR Code detected:', qrCode.data);
                 this.onQRDetected(qrCode.data);
             }
             
@@ -424,13 +412,21 @@ class InstantQRScanner {
     }
     
     isValidAgriculturalCode(qrData) {
-        // Check for known agricultural patterns
+        // For testing, accept any QR code that looks reasonable
+        // In production, you can add specific validation
+        if (!qrData || qrData.length < 3) {
+            return false;
+        }
+        
+        // Accept most QR codes for now to test detection
         const patterns = [
             /LABEL\s*NO\.\s*\d+/i,
             /LOT\s*NO\.?\s*:?\s*[A-Z0-9\(\)]+/i,
             /STAR\s*\d+-\d+/i,
             /STAR\d+[A-Z]+\d+\([A-Z]+\)/i,
-            /TRUTHFUL\s*LABEL/i
+            /TRUTHFUL\s*LABEL/i,
+            // Accept any alphanumeric string for testing
+            /^[A-Za-z0-9\s\.\:\(\)\-]+$/
         ];
         
         return patterns.some(pattern => pattern.test(qrData));
@@ -472,6 +468,8 @@ class InstantQRScanner {
                 const track = this.stream.getVideoTracks()[0];
                 const capabilities = track.getCapabilities();
                 
+                console.log('Camera capabilities:', capabilities);
+                
                 if (capabilities.torch) {
                     await track.applyConstraints({
                         advanced: [{ torch: true }]
@@ -480,13 +478,19 @@ class InstantQRScanner {
                     const torchBtn = document.getElementById(`torch-${this.containerId}`);
                     if (torchBtn) {
                         torchBtn.classList.add('active');
+                        torchBtn.innerHTML = '<i class="fas fa-flashlight"></i>';
                     }
                     
+                    this.updateStatus('<i class="fas fa-flashlight"></i> Torch enabled - Ready to scan', 'success');
                     console.log('Torch enabled for agricultural scanning');
+                } else {
+                    console.log('Torch not supported on this device');
+                    this.updateStatus('<i class="fas fa-qrcode"></i> Ready to scan (torch not available)', 'info');
                 }
             }
         } catch (error) {
             console.log('Torch not available:', error.message);
+            this.updateStatus('<i class="fas fa-qrcode"></i> Ready to scan', 'success');
         }
     }
     

@@ -3,9 +3,9 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Instant QR Scanner for Agricultural Seed Bags -->
+<!-- Google Lens-like QR Scanner for Agricultural Seed Bags -->
 <script src="{{ url_for('static', filename='js/camera-fix.js') }}"></script>
-<script src="{{ url_for('static', filename='js/instant-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/google-lens-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -115,14 +115,14 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Use instant QR scanner for millisecond detection
-                if (typeof InstantQRScanner === 'undefined') {
+                // Use Google Lens scanner for maximum compatibility
+                if (typeof GoogleLensScanner === 'undefined') {
                     console.log('Using inline camera scanner');
                     await initializeInlineScanner();
                     return;
                 }
                 
-                console.log('Instant QR scanner ready');
+                console.log('Google Lens scanner ready');
                 
                 // Request camera permissions first
                 try {
@@ -137,8 +137,8 @@
                     window.scanner.stop();
                 }
                 
-                // Use Instant QR Scanner with jsQR library
-                scanner = new InstantQRScanner('simple-scanner-container');
+                // Use Google Lens Scanner with multiple QR libraries
+                scanner = new GoogleLensScanner('simple-scanner-container');
                 scanner.setSuccessCallback(function(qrCode) {
                     handleSuccessfulScan(qrCode);
                 });
