@@ -122,9 +122,15 @@ class SimpleQRScanner {
         }
         
         try {
-            // Set canvas size
-            this.canvas.width = this.video.videoWidth;
-            this.canvas.height = this.video.videoHeight;
+            // Set canvas size with null safety checks
+            if (this.video && this.video.videoWidth && this.video.videoHeight) {
+                this.canvas.width = this.video.videoWidth;
+                this.canvas.height = this.video.videoHeight;
+            } else {
+                console.warn('Video dimensions not available, using default size');
+                this.canvas.width = 640;
+                this.canvas.height = 480;
+            }
             
             if (this.canvas.width > 0 && this.canvas.height > 0) {
                 // Draw current video frame

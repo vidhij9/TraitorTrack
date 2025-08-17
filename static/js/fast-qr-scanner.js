@@ -350,8 +350,9 @@ class FastQRScanner {
             
             if (!this.isPaused && this.video.readyState === 4) {
                 // Scan EVERY frame for maximum speed - no skipping!
-                // Update canvas size if needed
-                if (this.canvas.width !== this.video.videoWidth) {
+                // Update canvas size if needed with null checks
+                if (this.video && this.video.videoWidth && this.video.videoHeight && 
+                    this.canvas.width !== this.video.videoWidth) {
                     this.canvas.width = Math.min(this.video.videoWidth, 1280);
                     this.canvas.height = Math.min(this.video.videoHeight, 720);
                 }

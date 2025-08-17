@@ -61,8 +61,15 @@ class QRScanner {
             await new Promise((resolve, reject) => {
                 this.video.onloadedmetadata = () => {
                     console.log('Video loaded successfully');
-                    this.canvas.width = this.video.videoWidth;
-                    this.canvas.height = this.video.videoHeight;
+                    // Add null safety checks for video dimensions
+                    if (this.video && this.video.videoWidth && this.video.videoHeight) {
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                    } else {
+                        console.warn('Video dimensions not available, using default');
+                        this.canvas.width = 640;
+                        this.canvas.height = 480;
+                    }
                     resolve();
                 };
                 this.video.onerror = reject;

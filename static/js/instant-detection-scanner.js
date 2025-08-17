@@ -268,9 +268,9 @@ class InstantDetectionScanner {
                 };
             });
             
-            // Use actual video dimensions for region calculation
-            const actualWidth = this.video.videoWidth || this.VIDEO_WIDTH;
-            const actualHeight = this.video.videoHeight || this.VIDEO_HEIGHT;
+            // Use actual video dimensions for region calculation with safety checks
+            const actualWidth = (this.video && this.video.videoWidth) ? this.video.videoWidth : this.VIDEO_WIDTH;
+            const actualHeight = (this.video && this.video.videoHeight) ? this.video.videoHeight : this.VIDEO_HEIGHT;
             
             // Update canvas size to match video
             this.canvas.width = actualWidth;
