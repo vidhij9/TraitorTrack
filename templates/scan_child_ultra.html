@@ -3,8 +3,9 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Native QR Scanner - Self-contained, no external dependencies -->
-<script src="{{ url_for('static', filename='js/native-qr-scanner.js') }}"></script>
+<!-- Ultra-Fast QR Scanning with Html5Qrcode for Google Lens-like performance -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/ultra-fast-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -191,7 +192,9 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Inline camera scanner - no external scripts -->
+<!-- Lightning Scanner for instant performance -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -219,93 +222,64 @@
             {% endfor %}
         {% endif %}
         
-        // Initialize Native QR Scanner
+        // Initialize Simple Fast Scanner
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Check if NativeQRScanner is available
-                if (typeof NativeQRScanner === 'undefined') {
-                    console.error('NativeQRScanner not loaded');
-                    throw new Error('QR Scanner library not loaded. Please refresh the page.');
+                // Check if jsQR is loaded
+                if (typeof jsQR === 'undefined') {
+                    console.error('jsQR library not loaded');
+                    throw new Error('QR scanning library not loaded');
                 }
                 
-                console.log('Initializing Native QR Scanner for child bags...');
+                // Request camera permissions first
+                try {
+                    await navigator.mediaDevices.getUserMedia({ video: true });
+                } catch (permError) {
+                    console.error('Camera permission denied:', permError);
+                    throw new Error('Camera access denied. Please allow camera access and refresh.');
+                }
                 
                 // Stop any existing scanner first
                 if (window.scanner && window.scanner.stop) {
                     window.scanner.stop();
                 }
                 
-                // Create new NativeQRScanner instance
-                scanner = new NativeQRScanner('simple-scanner-container');
-                
-                // Set success callback for QR code detection
-                scanner.setSuccessCallback(async function(qrCode) {
-                    if (!isProcessing) {
-                        await handleChildScan(qrCode);
-                    }
-                });
-                
-                // Start the scanner
-                await scanner.start();
+                // Use Ultra-Fast Scanner for Google Lens-like performance
+                scanner = new UltraFastScanner('simple-scanner-container');
                 window.scanner = scanner; // Store globally for cleanup
+                // The scanner handles child scans internally with its own logic
                 
-                updateStatus('Ready', 'success');
-                resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-check-circle"></i> Native Scanner ready - Point at child bag QR codes';
+                // Monitor scanner status
+                setTimeout(() => {
+                    const scanStatus = document.getElementById('scan-status');
+                    if (scanStatus && scanStatus.textContent.includes('Ready')) {
+                        updateStatus('Ready', 'success');
+                        resultContainer.className = 'alert alert-success';
+                        resultContainer.innerHTML = '✅ Scanner ready - Point at child bag QR codes';
+                    } else if (scanStatus && scanStatus.textContent.includes('Error')) {
+                        // Try fallback scanner
+                        console.log('Switching to fallback scanner');
+                        if (scanner && scanner.stop) scanner.stop();
+                        // InstantScanner provides instant detection
+                        console.log('InstantScanner handles detection instantly');
+                    }
+                }, 2000);
                 
             } catch (error) {
                 console.error('Scanner initialization error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (error.message || 'Check camera permissions and refresh');
-            }
-        }
-        
-        // Create inline camera interface
-        async function createInlineCamera(containerId, onScanCallback) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = `
-                <div style="position: relative; width: 100%; height: 400px; background: #000; border-radius: 12px; overflow: hidden;">
-                    <video id="child-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                         width: 250px; height: 250px; border: 2px solid rgba(255,255,255,0.3); border-radius: 12px;">
-                        <div style="position: absolute; top: -3px; left: -3px; width: 30px; height: 30px; 
-                             border: 3px solid #00ff88; border-right: none; border-bottom: none; border-radius: 4px;"></div>
-                        <div style="position: absolute; top: -3px; right: -3px; width: 30px; height: 30px; 
-                             border: 3px solid #00ff88; border-left: none; border-bottom: none; border-radius: 4px;"></div>
-                        <div style="position: absolute; bottom: -3px; left: -3px; width: 30px; height: 30px; 
-                             border: 3px solid #00ff88; border-right: none; border-top: none; border-radius: 4px;"></div>
-                        <div style="position: absolute; bottom: -3px; right: -3px; width: 30px; height: 30px; 
-                             border: 3px solid #00ff88; border-left: none; border-top: none; border-radius: 4px;"></div>
-                    </div>
-                    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-                         text-align: center; color: white;">
-                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">
-                            <i class="fas fa-qrcode"></i> Point camera at child bag QR code
-                        </div>
-                        <div style="font-size: 12px; opacity: 0.8; background: rgba(0,0,0,0.5); 
-                             padding: 4px 12px; border-radius: 20px;">
-                            Camera only - optimized for STAR seed bags
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            const video = document.getElementById('child-video');
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1920, min: 640 },
-                    height: { ideal: 1080, min: 480 }
+                resultContainer.innerHTML = `❌ ${error.message || 'Check camera permissions and refresh'}`;
+                
+                // Try to provide helpful error messages
+                if (error.message.includes('getUserMedia')) {
+                    resultContainer.innerHTML = '❌ Camera not available. Please check browser permissions.';
+                } else if (error.message.includes('https')) {
+                    resultContainer.innerHTML = '❌ Camera requires secure connection (HTTPS).';
                 }
-            });
-            
-            video.srcObject = stream;
-            window.childCameraStream = stream;
-            
-            console.log('Inline camera ready for child bag scanning');
+            }
         }
         
         // Update scanner status
@@ -333,7 +307,7 @@
         }
         
         // Handle successful child scan
-        async function handleChildScan(qrCode) {
+        function handleChildScanSuccess(qrCode) {
             if (isProcessing) return;
             
             // Check if already scanned
@@ -345,37 +319,36 @@
             console.log('Child bag scanned:', qrCode);
             isProcessing = true;
             
-            try {
-                // Create form data for submission
-                const formData = new FormData();
-                formData.append('qr_code', qrCode);
-                
-                // Submit to process_child_scan endpoint
-                const response = await fetch('/process_child_scan', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
+            // Submit via ULTRA-FAST API
+            fetch('/api/ultra/scan/child', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ qr_code: qrCode })
+            })
+            .then(response => response.json())
+            .then(data => {
                 if (data.success) {
                     // Add to set
                     scannedQrCodes.add(qrCode);
-                    currentCount++;
                     
                     // Update UI
                     addChildToList(qrCode, data.child_name);
                     updateProgress();
-                    showNotification('✅ Linked: ' + qrCode, 'success');
+                    showNotification('✅ Scanned: ' + qrCode, 'success');
                 } else {
                     showNotification('❌ ' + (data.message || 'Error scanning'), 'danger');
                 }
-            } catch (error) {
+            })
+            .catch(error => {
                 console.error('Error:', error);
                 showNotification('❌ Network error', 'danger');
-            } finally {
+            })
+            .finally(() => {
                 isProcessing = false;
-            }
+            });
         }
         
         // Add child to list
@@ -409,6 +382,7 @@
         
         // Update progress
         function updateProgress() {
+            currentCount++;
             const percentage = Math.round((currentCount / REQUIRED_BAGS) * 100);
             
             progressText.textContent = currentCount;

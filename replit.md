@@ -20,9 +20,6 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
 - **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
 - **Recent Optimizations (August 17, 2025)**:
-  - **Code Cleanup**: Removed 15+ unused scanner files and duplicate libraries, reducing codebase bloat by ~2MB
-  - **Scanner Consolidation**: Streamlined from 13+ scanner variants to 3 active scanners (ultra-fast, instant-detection, camera-permissions)
-  - **Test File Cleanup**: Removed unused test files and duplicate library directories
   - **Production Log Cleanup**: Fixed Flask-Limiter warnings by implementing proper memory storage configuration
   - **Error Handling**: Resolved User constructor issues and improved LoginManager configuration
   - **Logging Optimization**: Reduced production log noise by suppressing non-critical warnings

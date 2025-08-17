@@ -138,7 +138,10 @@
             <div class="card">
                 <div class="card-header bg-success bg-opacity-25 text-dark">
                     <h4 class="mb-0">
-                        <i class="fas fa-qrcode me-2"></i>QR Scanner
+                        <i class="fas fa-qrcode me-2"></i>Ultra QR Scanner
+                        {% if is_completed %}
+                            <small class="text-muted">(Bill Completed - Can Still Edit)</small>
+                        {% endif %}
                     </h4>
                 </div>
                 <div class="card-body">
@@ -241,8 +244,6 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Enhanced Camera Fix for Production Issues -->
-<script src="{{ url_for('static', filename='js/camera-fix.js') }}"></script>
 <!-- Lightning Scanner for instant performance -->
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
 <script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>

@@ -258,7 +258,7 @@ def handle_csrf_error(e):
 # Configure login after app initialization
 def configure_login_manager():
     """Configure Flask-Login after app is created"""
-    login_manager.login_view = 'login'  # type: ignore
+    login_manager.login_view = 'login'
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
 
