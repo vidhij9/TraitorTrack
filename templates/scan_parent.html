@@ -70,6 +70,7 @@
                         <div class="card-body">
                             <h6>Manual Entry</h6>
                             <form method="POST" action="{{ url_for('process_parent_scan') }}" id="manual-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <div class="input-group">
                                     <input type="text" name="qr_code" class="form-control" 
                                            placeholder="Enter QR code manually" id="manual-qr-input">
@@ -95,6 +96,7 @@
 
 <!-- Hidden form for automatic submission -->
 <form method="POST" action="{{ url_for('process_parent_scan') }}" id="auto-submit-form" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="qr_code" id="qr-input">
 </form>
 
