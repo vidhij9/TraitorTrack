@@ -293,7 +293,7 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <p class="text-muted mb-1">QR Code</p>
-                                    <p class="fw-bold fs-5">{{ bag_info.bag.qr_id }}</p>
+                                    <p class="fw-bold fs-5">{{ bag_info.qr_id }}</p>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <p class="text-muted mb-1">Type</p>
@@ -301,11 +301,11 @@
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <p class="text-muted mb-1">Created Date</p>
-                                    <p class="fw-bold">{{ bag_info.bag.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                    <p class="fw-bold">{{ bag_info.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <p class="text-muted mb-1">Total Scans</p>
-                                    <p class="fw-bold">{{ bag_info.scans|length }}</p>
+                                    <p class="text-muted mb-1">Name</p>
+                                    <p class="fw-bold">{{ bag_info.name or 'N/A' }}</p>
                                 </div>
                             </div>
                         </div>
@@ -313,38 +313,43 @@
                 </div>
                 
                 <div class="col-md-6 mb-4">
-                    {% if bag_info.type == 'child' and bag_info.parent_bag %}
+                    {% if bag_info.type == 'child' and bag_info.parents %}
                     <div class="card">
                         <div class="card-header bg-info bg-opacity-25 text-dark">
-                            <h5 class="mb-0"><i class="fas fa-box me-1"></i>Parent Bag</h5>
+                            <h5 class="mb-0"><i class="fas fa-box me-1"></i>Parent Bags ({{ bag_info.parents|length }})</h5>
                         </div>
                         <div class="card-body">
-                            <div class="row">
+                            {% for parent in bag_info.parents[:3] %}
+                            <div class="row mb-2">
                                 <div class="col-6">
                                     <p class="text-muted mb-1" style="font-size: 0.75rem;">Parent QR</p>
-                                    <p class="fw-bold" style="font-size: 0.9rem;">{{ bag_info.parent_bag.qr_id }}</p>
+                                    <p class="fw-bold" style="font-size: 0.9rem;">{{ parent.qr_id }}</p>
                                 </div>
                                 <div class="col-6">
                                     <p class="text-muted mb-1" style="font-size: 0.75rem;">Area</p>
-                                    <p class="fw-bold" style="font-size: 0.9rem;">{{ bag_info.parent_bag.dispatch_area or 'N/A' }}</p>
+                                    <p class="fw-bold" style="font-size: 0.9rem;">{{ parent.dispatch_area or 'N/A' }}</p>
                                 </div>
                             </div>
-                            <a href="{{ url_for('child_lookup') }}?qr_id={{ bag_info.parent_bag.qr_id }}" class="btn btn-outline-info btn-sm mt-2">
+                            <a href="{{ url_for('child_lookup') }}?qr_id={{ parent.qr_id }}" class="btn btn-outline-info btn-sm mt-1">
                                 <i class="fas fa-eye me-1"></i>View Parent
                             </a>
+                            {% endfor %}
+                            {% if bag_info.parents|length > 3 %}
+                            <p class="text-muted mt-2">... and {{ bag_info.parents|length - 3 }} more</p>
+                            {% endif %}
                         </div>
                     </div>
-                    {% elif bag_info.type == 'parent' and bag_info.child_bags %}
+                    {% elif bag_info.type == 'parent' and bag_info.children %}
                     <div class="card">
                         <div class="card-header bg-info bg-opacity-25 text-dark">
-                            <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Child Bags ({{ bag_info.child_bags|length }})</h5>
+                            <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Child Bags ({{ bag_info.children|length }})</h5>
                         </div>
                         <div class="card-body">
-                            {% for child in bag_info.child_bags[:3] %}
-                            <p><code>{{ child.qr_id }}</code> - {{ child.created_at.strftime('%Y-%m-%d') }}</p>
+                            {% for child in bag_info.children[:3] %}
+                            <p><code>{{ child.qr_id }}</code> - {{ child.name or 'No name' }} ({{ child.dispatch_area or 'N/A' }})</p>
                             {% endfor %}
-                            {% if bag_info.child_bags|length > 3 %}
-                            <p class="text-muted">... and {{ bag_info.child_bags|length - 3 }} more</p>
+                            {% if bag_info.children|length > 3 %}
+                            <p class="text-muted">... and {{ bag_info.children|length - 3 }} more</p>
                             {% endif %}
                         </div>
                     </div>
@@ -361,58 +366,39 @@
                 </div>
             </div>
             
-            <!-- Bills and Scans Summary -->
+            <!-- Additional Information -->
             <div class="row mt-4">
-                {% if bag_info.bills or (bag_info.type == 'child' and bag_info.parent_bills) %}
-                <div class="col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-warning bg-opacity-25 text-dark">
-                            <h5 class="mb-0"><i class="fas fa-file-invoice me-1"></i>
-                                {% if bag_info.type == 'child' and bag_info.parent_bills %}
-                                    Parent Bills ({{ bag_info.parent_bills|length }})
-                                {% else %}
-                                    Bills ({{ bag_info.bills|length }})
-                                {% endif %}
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            {% if bag_info.type == 'child' and bag_info.parent_bills %}
-                                {% for bill in bag_info.parent_bills[:3] %}
-                                <p style="font-size: 0.85rem;"><strong>{{ bill.bill_id }}</strong> - {{ bill.created_at.strftime('%Y-%m-%d') }}</p>
-                                {% endfor %}
-                                {% if bag_info.parent_bills|length > 3 %}
-                                <p class="text-muted">... and {{ bag_info.parent_bills|length - 3 }} more</p>
-                                {% endif %}
-                            {% elif bag_info.bills %}
-                                {% for bill in bag_info.bills[:3] %}
-                                <p style="font-size: 0.85rem;"><strong>{{ bill.bill_id }}</strong> - {{ bill.created_at.strftime('%Y-%m-%d') }}</p>
-                                {% endfor %}
-                                {% if bag_info.bills|length > 3 %}
-                                <p class="text-muted">... and {{ bag_info.bills|length - 3 }} more</p>
-                                {% endif %}
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-                
-                {% if bag_info.scans %}
-                <div class="col-md-6 mb-4">
+                <div class="col-12">
                     <div class="card">
                         <div class="card-header bg-secondary bg-opacity-25 text-dark">
-                            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Scans ({{ bag_info.scans|length }})</h5>
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Bag Information</h5>
                         </div>
                         <div class="card-body">
-                            {% for scan in bag_info.scans[:3] %}
-                            <p>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') }} - {{ scan.user.username if scan.user else 'Unknown' }}</p>
-                            {% endfor %}
-                            {% if bag_info.scans|length > 3 %}
-                            <p class="text-muted">... and {{ bag_info.scans|length - 3 }} more</p>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-muted mb-1">Dispatch Area</p>
+                                    <p class="fw-bold">{{ bag_info.dispatch_area or 'Not specified' }}</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <p class="text-muted mb-1">Last Updated</p>
+                                    <p class="fw-bold">{{ bag_info.updated_at.strftime('%Y-%m-%d %H:%M') if bag_info.updated_at else 'N/A' }}</p>
+                                </div>
+                            </div>
+                            
+                            {% if bag_info.type == 'parent' and bag_info.children %}
+                            <div class="mt-3">
+                                <p class="text-muted mb-1">Relationship Summary</p>
+                                <p>This parent bag is linked to {{ bag_info.children|length }} child bag(s).</p>
+                            </div>
+                            {% elif bag_info.type == 'child' and bag_info.parents %}
+                            <div class="mt-3">
+                                <p class="text-muted mb-1">Relationship Summary</p>
+                                <p>This child bag is linked to {{ bag_info.parents|length }} parent bag(s).</p>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>

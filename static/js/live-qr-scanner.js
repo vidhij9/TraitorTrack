@@ -841,12 +841,13 @@ class LiveQRScanner {
         const scan = () => {
             if (!this.isScanning) return;
             
-            if (!this.isPaused && this.video.readyState === 4) {
+            if (!this.isPaused && this.video && this.video.readyState === 4) {
                 // Skip frames for performance (scan every 2nd frame)
                 skipFrames++;
                 if (skipFrames % 2 === 0) {
-                    // Update canvas size only if changed
-                    if (this.canvas.width !== this.video.videoWidth) {
+                    // Update canvas size only if changed - add null checks
+                    if (this.video && this.video.videoWidth && this.video.videoHeight && 
+                        this.canvas.width !== this.video.videoWidth) {
                         this.canvas.width = this.video.videoWidth;
                         this.canvas.height = this.video.videoHeight;
                     }
