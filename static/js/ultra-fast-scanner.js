@@ -76,6 +76,12 @@ class UltraFastScanner {
     
     async startScanner() {
         try {
+            // Use enhanced camera fix manager if available
+            if (window.cameraFixManager) {
+                console.log('Using enhanced camera fix manager...');
+                await window.cameraFixManager.testCameraAccess();
+            }
+            
             // Use Html5Qrcode for better compatibility
             const html5QrCode = new Html5Qrcode("qr-reader");
             
@@ -130,13 +136,20 @@ class UltraFastScanner {
                 }
             };
             
-            // Start scanning
-            await html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                qrCodeSuccessCallback,
-                qrCodeErrorCallback
-            );
+            // Use camera fix manager setup if available
+            if (window.cameraFixManager && window.cameraFixManager.setupHtml5QrCode) {
+                console.log('Using camera fix manager for Html5QrCode setup...');
+                window.onQRScanSuccess = qrCodeSuccessCallback; // Set global callback
+                await window.cameraFixManager.setupHtml5QrCode(html5QrCode);
+            } else {
+                // Fallback to standard setup
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    qrCodeSuccessCallback,
+                    qrCodeErrorCallback
+                );
+            }
             
             // Remove loading indicator
             const loadingIndicator = document.getElementById('loading-indicator');

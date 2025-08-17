@@ -5,6 +5,7 @@
 {% block head %}
 <!-- Ultra-Fast QR Scanning with Html5Qrcode for Google Lens-like performance -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/camera-fix.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ultra-fast-scanner.js') }}"></script>
 
 <style>
