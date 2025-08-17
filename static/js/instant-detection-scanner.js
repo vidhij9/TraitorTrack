@@ -173,28 +173,28 @@ class InstantDetectionScanner {
             z-index: 10;
         `;
         
-        // Create torch button
-        const torchBtn = document.createElement('button');
+        // Create agricultural torch indicator (shows auto-enabled status)
+        const torchBtn = document.createElement('div');
         torchBtn.id = 'torch-btn';
-        torchBtn.className = 'btn btn-secondary';
         torchBtn.style.cssText = `
             position: absolute;
             bottom: 10px;
             left: 10px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid #fff;
-            color: #fff;
+            background: rgba(255, 235, 59, 0.8);
+            border: 2px solid #FFD700;
+            color: #000;
             width: 40px;
             height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
             z-index: 10;
+            cursor: pointer;
         `;
-        torchBtn.innerHTML = '<i class="fas fa-lightbulb"></i>';
+        torchBtn.innerHTML = '<i class="fas fa-lightbulb" style="color: #FF8F00;"></i>';
         torchBtn.onclick = () => this.toggleTorch();
+        torchBtn.title = 'Agricultural Torch (Auto-Enabled)';
         
         // Add CSS animations
         const style = document.createElement('style');
@@ -474,35 +474,75 @@ class InstantDetectionScanner {
     }
     
     async setupAgriculturalTorch() {
-        if (!this.track || !this.track.getCapabilities) return;
+        if (!this.track) return;
+        
+        // Multiple attempts to enable torch for agricultural scanning
+        let torchEnabled = false;
         
         try {
-            const capabilities = this.track.getCapabilities();
-            if (capabilities.torch) {
-                this.torchSupported = true;
-                
-                // Auto-enable torch for agricultural scanning
-                await this.track.applyConstraints({
-                    advanced: [{ torch: true }]
-                });
-                this.torchEnabled = true;
-                
-                const torchBtn = document.getElementById('torch-btn');
-                if (torchBtn) {
-                    torchBtn.style.display = 'flex';
-                    torchBtn.style.background = 'rgba(255, 235, 59, 0.3)';
-                    torchBtn.innerHTML = '<i class="fas fa-lightbulb" style="color: #FFD700;"></i>';
-                }
-                
-                console.log('🔦 Agricultural torch auto-enabled');
-            } else {
-                const torchBtn = document.getElementById('torch-btn');
-                if (torchBtn) {
-                    torchBtn.style.display = 'none';
+            // Method 1: Direct torch constraint
+            if (this.track.getCapabilities) {
+                const capabilities = this.track.getCapabilities();
+                if (capabilities.torch) {
+                    await this.track.applyConstraints({
+                        advanced: [{ torch: true }]
+                    });
+                    torchEnabled = true;
+                    console.log('🔦 Agricultural torch enabled via capabilities');
                 }
             }
-        } catch (error) {
-            console.log('Auto-torch setup failed:', error);
+        } catch (e) {
+            console.log('Method 1 failed:', e);
+        }
+        
+        if (!torchEnabled) {
+            try {
+                // Method 2: Force torch setting
+                await this.track.applyConstraints({
+                    torch: true
+                });
+                torchEnabled = true;
+                console.log('🔦 Agricultural torch enabled via direct constraint');
+            } catch (e) {
+                console.log('Method 2 failed:', e);
+            }
+        }
+        
+        if (!torchEnabled) {
+            try {
+                // Method 3: Settings object
+                const settings = this.track.getSettings();
+                if (settings && 'torch' in settings) {
+                    await this.track.applyConstraints({
+                        advanced: [{ torch: true }]
+                    });
+                    torchEnabled = true;
+                    console.log('🔦 Agricultural torch enabled via settings');
+                }
+            } catch (e) {
+                console.log('Method 3 failed:', e);
+            }
+        }
+        
+        // Update UI to show torch status
+        this.torchEnabled = torchEnabled;
+        const torchBtn = document.getElementById('torch-btn');
+        if (torchBtn) {
+            if (torchEnabled) {
+                torchBtn.style.background = 'rgba(255, 235, 59, 0.8)';
+                torchBtn.innerHTML = '<i class="fas fa-lightbulb" style="color: #FF8F00;"></i>';
+                torchBtn.title = 'Agricultural Torch: ENABLED';
+            } else {
+                torchBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+                torchBtn.innerHTML = '<i class="fas fa-lightbulb"></i>';
+                torchBtn.title = 'Torch not supported';
+            }
+        }
+        
+        if (torchEnabled) {
+            console.log('🌾 Agricultural scanning optimized with auto-torch');
+        } else {
+            console.log('⚠️ Torch not available on this device');
         }
     }
     
