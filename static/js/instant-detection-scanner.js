@@ -16,13 +16,13 @@ class InstantDetectionScanner {
         this.torchSupported = false;
         this.track = null;
         
-        // Agricultural packet optimized settings
-        this.SCAN_INTERVAL = 16; // 60 FPS scanning
-        this.DUPLICATE_TIMEOUT = 200; // 200ms duplicate prevention for rapid scanning
-        this.VIDEO_WIDTH = 1280; // Higher resolution for dense QR codes
-        this.VIDEO_HEIGHT = 720;
-        this.REGION_SIZE = 0.8; // Larger scan region for agricultural packets
-        this.MAX_PROCESS_TIME = 10; // Max 10ms per frame processing
+        // Agricultural packet optimized settings - balanced for performance
+        this.SCAN_INTERVAL = 33; // 30 FPS for smoother performance
+        this.DUPLICATE_TIMEOUT = 300; // 300ms duplicate prevention
+        this.VIDEO_WIDTH = 800; // Balanced resolution
+        this.VIDEO_HEIGHT = 600;
+        this.REGION_SIZE = 0.9; // 90% scan region for better coverage
+        this.MAX_PROCESS_TIME = 30; // Allow more time for processing
         
         // Performance monitoring
         this.frameCount = 0;
@@ -232,16 +232,16 @@ class InstantDetectionScanner {
             this.updateStatus('Initializing camera...', '#FFC107');
             console.log('Requesting camera access...');
             
-            // Request camera with agricultural packet optimized constraints
+            // Request camera with optimized constraints for better FPS
             const constraints = {
                 video: {
                     facingMode: { ideal: 'environment' },
                     width: { ideal: this.VIDEO_WIDTH },
                     height: { ideal: this.VIDEO_HEIGHT },
-                    frameRate: { ideal: 60, min: 30 }, // High frame rate
-                    focusMode: 'continuous',
-                    exposureMode: 'continuous',
-                    torch: true // Request torch to be on by default
+                    frameRate: { ideal: 30, min: 15 }, // Balanced frame rate
+                    advanced: [{
+                        torch: true
+                    }]
                 }
             };
             
@@ -272,11 +272,7 @@ class InstantDetectionScanner {
             const actualWidth = (this.video && this.video.videoWidth) ? this.video.videoWidth : this.VIDEO_WIDTH;
             const actualHeight = (this.video && this.video.videoHeight) ? this.video.videoHeight : this.VIDEO_HEIGHT;
             
-            // Update canvas size to match video
-            this.canvas.width = actualWidth;
-            this.canvas.height = actualHeight;
-            
-            // Calculate scan region (center 60% of frame)
+            // Calculate scan region (center 90% of frame)
             const regionOffset = (1 - this.REGION_SIZE) / 2;
             this.scanRegion = {
                 x: Math.floor(actualWidth * regionOffset),
@@ -284,6 +280,10 @@ class InstantDetectionScanner {
                 width: Math.floor(actualWidth * this.REGION_SIZE),
                 height: Math.floor(actualHeight * this.REGION_SIZE)
             };
+            
+            // Update canvas size to match scan region for better performance
+            this.canvas.width = this.scanRegion.width;
+            this.canvas.height = this.scanRegion.height;
             
             console.log('Scan region:', this.scanRegion);
             
@@ -306,8 +306,10 @@ class InstantDetectionScanner {
             
             const startTime = performance.now();
             
-            // Update FPS counter
-            this.updateFPS();
+            // Update FPS counter less frequently
+            if (this.frameCount % 10 === 0) {
+                this.updateFPS();
+            }
             
             // Check if enough time has passed since last scan
             const now = Date.now();
@@ -323,16 +325,18 @@ class InstantDetectionScanner {
                     return;
                 }
                 
-                // Draw the full video to canvas first
+                // Draw only the scan region to canvas for better performance
                 this.context.drawImage(
                     this.video,
+                    this.scanRegion.x, this.scanRegion.y,
+                    this.scanRegion.width, this.scanRegion.height,
                     0, 0,
-                    this.canvas.width, this.canvas.height
+                    this.scanRegion.width, this.scanRegion.height
                 );
                 
-                // Get image data from the scan region
+                // Get image data from the drawn region
                 const imageData = this.context.getImageData(
-                    this.scanRegion.x, this.scanRegion.y,
+                    0, 0,
                     this.scanRegion.width, this.scanRegion.height
                 );
                 
@@ -343,29 +347,10 @@ class InstantDetectionScanner {
                     return;
                 }
                 
-                // Agricultural QR Detection Strategy
-                let code = null;
-                
-                // Strategy 1: Direct detection optimized for dense QR codes
-                code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: 'dontInvert'
+                // Optimized single-pass QR detection for better FPS
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: 'attemptBoth'
                 });
-                
-                if (!code) {
-                    // Strategy 2: Enhanced contrast for plastic packaging
-                    this.enhanceImageForAgriculture(imageData);
-                    code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: 'attemptBoth'
-                    });
-                }
-                
-                if (!code) {
-                    // Strategy 3: Full frame scan for packet QR codes
-                    const fullImageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                    code = jsQR(fullImageData.data, fullImageData.width, fullImageData.height, {
-                        inversionAttempts: 'attemptBoth'
-                    });
-                }
                 
                 if (code && code.data) {
                     console.log('🌾 Agricultural packet QR detected:', code.data);
@@ -551,51 +536,19 @@ class InstantDetectionScanner {
         if (!this.track) return;
         
         try {
-            // Enhanced constraints for agricultural QR packet scanning
+            // Simplified camera optimization for better FPS
             await this.track.applyConstraints({
                 advanced: [
-                    { focusMode: 'continuous' },
-                    { exposureMode: 'continuous' },
-                    { whiteBalanceMode: 'continuous' },
-                    { zoom: 1.0 },
-                    { brightness: 0.1 },
-                    { contrast: 1.2 },
-                    { saturation: 0.8 }
+                    { focusMode: 'continuous' }
                 ]
             });
             console.log('📹 Camera optimized for agricultural scanning');
         } catch (e) {
-            // Try basic optimization if advanced fails
-            try {
-                await this.track.applyConstraints({
-                    advanced: [
-                        { focusMode: 'continuous' },
-                        { exposureMode: 'continuous' }
-                    ]
-                });
-            } catch (e2) {
-                console.log('Camera optimization limited, using defaults');
-            }
+            console.log('Camera optimization not supported, using defaults');
         }
     }
 
-    enhanceImageForAgriculture(imageData) {
-        const data = imageData.data;
-        
-        // Apply contrast enhancement for better QR detection on plastic packaging
-        for (let i = 0; i < data.length; i += 4) {
-            // Convert to grayscale with enhanced contrast
-            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-            
-            // Apply threshold for high contrast suitable for agricultural packets
-            const enhanced = gray > 128 ? 255 : 0;
-            
-            data[i] = enhanced;     // Red
-            data[i + 1] = enhanced; // Green
-            data[i + 2] = enhanced; // Blue
-            // Alpha channel remains unchanged
-        }
-    }
+
     
     playAgriculturalBeep() {
         try {
