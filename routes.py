@@ -2965,6 +2965,12 @@ def user_profile():
     """User profile page where users can view and edit their information"""
     return render_template('user_profile.html', user=current_user)
 
+@app.route('/qr_scanner_testing')
+@login_required
+def qr_scanner_testing():
+    """QR Scanner Testing Suite page"""
+    return render_template('qr_scanner_testing.html')
+
 @app.route('/profile/edit', methods=['POST'])
 @login_required
 def edit_profile():

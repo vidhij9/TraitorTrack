@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Scanner Testing - Agricultural Bags</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+        }
+        .test-header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .scanner-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .scanner-card:hover {
+            transform: translateY(-5px);
+        }
+        .test-qr-codes {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .qr-code-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 5px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .qr-code-item:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .qr-code-item.selected {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-ready {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+        .status-testing {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .scanner-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .test-results {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .result-item {
+            background: white;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .result-item.error {
+            border-left-color: #f44336;
+        }
+        .scanner-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+        .scanner-link:hover {
+            background: #5a67d8;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .test-control-panel {
+            background: #f0f4ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .performance-metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .performance-metric:last-child {
+            border-bottom: none;
+        }
+        .video-preview {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            background: #000;
+            border-radius: 8px;
+            margin: 10px auto;
+            display: none;
+        }
+        #testLog {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .batch-test-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .batch-test-btn:hover {
+            transform: scale(1.05);
+        }
+        .batch-test-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="test-header">
+            <h1 class="text-center mb-4">
+                <i class="fas fa-qrcode"></i> QR Scanner Testing Suite
+            </h1>
+            <p class="text-center text-muted">Test all scanning pages with agricultural seed bag QR codes</p>
+            
+            <!-- Test QR Codes -->
+            <div class="test-qr-codes">
+                <h5><i class="fas fa-seedling"></i> Agricultural Seed Bag QR Codes (from uploaded images)</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="qr-code-item" data-qr="STAR15MD25095(II)">
+                            <strong>Bag 1:</strong> STAR15MD25095(II)
+                            <br><small>Label No: 000003 | Mustard Seeds | 1kg</small>
+                        </div>
+                        <div class="qr-code-item" data-qr="STAR15MD25095(II)">
+                            <strong>Bag 2:</strong> STAR15MD25095(II) (Duplicate)
+                            <br><small>Same QR code, testing duplicate handling</small>
+                        </div>
+                        <div class="qr-code-item" data-qr="STAR15MD25095(II)">
+                            <strong>Bag 3:</strong> STAR15MD25095(II) (Another view)
+                            <br><small>Label No: 000007 | Testing multi-angle scan</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="qr-code-item" data-qr="LABEL NO.000003">
+                            <strong>Alternative Format:</strong> LABEL NO.000003
+                            <br><small>Testing label number as QR</small>
+                        </div>
+                        <div class="qr-code-item" data-qr="LOT NO.:STAR15MD25095(II)">
+                            <strong>Full Lot Format:</strong> LOT NO.:STAR15MD25095(II)
+                            <br><small>Testing full lot number format</small>
+                        </div>
+                        <div class="qr-code-item" data-qr="CUSTOM_TEST_QR_001">
+                            <strong>Test QR:</strong> CUSTOM_TEST_QR_001
+                            <br><small>Custom test QR for validation</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scanner Test Sections -->
+        <div class="row">
+            <!-- Parent Bag Scanner -->
+            <div class="col-lg-6">
+                <div class="scanner-card">
+                    <h4><i class="fas fa-box"></i> Parent Bag Scanner</h4>
+                    <div class="scanner-info">
+                        <strong>Purpose:</strong> Scan parent bags that will contain multiple child bags
+                    </div>
+                    <div class="scanner-status">
+                        <span class="status-badge status-ready" id="parentStatus">Ready</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="/scan/parent" class="scanner-link" target="_blank">
+                            <i class="fas fa-camera"></i> Open Parent Scanner
+                        </a>
+                        <button class="btn btn-sm btn-outline-primary" onclick="testParentScanner()">
+                            <i class="fas fa-vial"></i> Auto Test
+                        </button>
+                    </div>
+                    <div class="test-results" id="parentResults" style="display:none;">
+                        <h6>Test Results:</h6>
+                        <div id="parentResultsList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Child Bag Scanner -->
+            <div class="col-lg-6">
+                <div class="scanner-card">
+                    <h4><i class="fas fa-cube"></i> Child Bag Scanner</h4>
+                    <div class="scanner-info">
+                        <strong>Purpose:</strong> Scan child bags to link them to parent bags
+                    </div>
+                    <div class="scanner-status">
+                        <span class="status-badge status-ready" id="childStatus">Ready</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="/scan/child" class="scanner-link" target="_blank">
+                            <i class="fas fa-camera"></i> Open Child Scanner
+                        </a>
+                        <button class="btn btn-sm btn-outline-primary" onclick="testChildScanner()">
+                            <i class="fas fa-vial"></i> Auto Test
+                        </button>
+                    </div>
+                    <div class="test-results" id="childResults" style="display:none;">
+                        <h6>Test Results:</h6>
+                        <div id="childResultsList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bill Parent Scanner -->
+            <div class="col-lg-6">
+                <div class="scanner-card">
+                    <h4><i class="fas fa-file-invoice"></i> Bill Parent Scanner</h4>
+                    <div class="scanner-info">
+                        <strong>Purpose:</strong> Scan parent bags to link them to bills
+                    </div>
+                    <div class="scanner-status">
+                        <span class="status-badge status-ready" id="billStatus">Ready</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="/scan_bill_parent_ultra" class="scanner-link" target="_blank">
+                            <i class="fas fa-camera"></i> Open Bill Scanner (Ultra)
+                        </a>
+                        <a href="/scan_bill_parent_simple" class="scanner-link" target="_blank">
+                            <i class="fas fa-camera"></i> Open Bill Scanner (Simple)
+                        </a>
+                        <button class="btn btn-sm btn-outline-primary" onclick="testBillScanner()">
+                            <i class="fas fa-vial"></i> Auto Test
+                        </button>
+                    </div>
+                    <div class="test-results" id="billResults" style="display:none;">
+                        <h6>Test Results:</h6>
+                        <div id="billResultsList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scanner Test Page -->
+            <div class="col-lg-6">
+                <div class="scanner-card">
+                    <h4><i class="fas fa-microscope"></i> Scanner Test Page</h4>
+                    <div class="scanner-info">
+                        <strong>Purpose:</strong> Direct scanner testing and performance analysis
+                    </div>
+                    <div class="scanner-status">
+                        <span class="status-badge status-ready" id="testStatus">Ready</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="/scanner_test" class="scanner-link" target="_blank">
+                            <i class="fas fa-camera"></i> Open Test Scanner
+                        </a>
+                        <button class="btn btn-sm btn-outline-primary" onclick="testScannerPage()">
+                            <i class="fas fa-vial"></i> Auto Test
+                        </button>
+                    </div>
+                    <div class="test-results" id="testPageResults" style="display:none;">
+                        <h6>Test Results:</h6>
+                        <div id="testPageResultsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Control Panel -->
+        <div class="test-control-panel">
+            <h4><i class="fas fa-cog"></i> Test Control Panel</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Performance Metrics</h6>
+                    <div class="performance-metric">
+                        <span>Average Scan Time:</span>
+                        <strong id="avgScanTime">-</strong>
+                    </div>
+                    <div class="performance-metric">
+                        <span>Success Rate:</span>
+                        <strong id="successRate">-</strong>
+                    </div>
+                    <div class="performance-metric">
+                        <span>Tests Completed:</span>
+                        <strong id="testsCompleted">0</strong>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Batch Testing</h6>
+                    <button class="batch-test-btn" onclick="runBatchTest()">
+                        <i class="fas fa-play"></i> Run All Tests
+                    </button>
+                    <button class="btn btn-warning mt-2" onclick="clearTestResults()">
+                        <i class="fas fa-trash"></i> Clear Results
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Test Log -->
+            <div class="mt-4">
+                <h6><i class="fas fa-terminal"></i> Test Log</h6>
+                <div id="testLog"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Test data from agricultural seed bags
+        const testQRCodes = [
+            'STAR15MD25095(II)',
+            'LABEL NO.000003',
+            'LOT NO.:STAR15MD25095(II)',
+            'CUSTOM_TEST_QR_001'
+        ];
+
+        let testResults = {
+            total: 0,
+            success: 0,
+            failed: 0,
+            times: []
+        };
+
+        // Add click handler for QR code selection
+        document.querySelectorAll('.qr-code-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.qr-code-item').forEach(el => el.classList.remove('selected'));
+                this.classList.add('selected');
+                const qrCode = this.dataset.qr;
+                logTest(`Selected QR Code: ${qrCode}`);
+            });
+        });
+
+        function logTest(message) {
+            const log = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateMetrics() {
+            const avgTime = testResults.times.length > 0 
+                ? (testResults.times.reduce((a, b) => a + b, 0) / testResults.times.length).toFixed(2)
+                : '-';
+            const successRate = testResults.total > 0 
+                ? ((testResults.success / testResults.total) * 100).toFixed(1) + '%'
+                : '-';
+            
+            document.getElementById('avgScanTime').textContent = avgTime + ' ms';
+            document.getElementById('successRate').textContent = successRate;
+            document.getElementById('testsCompleted').textContent = testResults.total;
+        }
+
+        async function testParentScanner() {
+            const statusEl = document.getElementById('parentStatus');
+            const resultsEl = document.getElementById('parentResults');
+            const resultsList = document.getElementById('parentResultsList');
+            
+            statusEl.className = 'status-badge status-testing';
+            statusEl.textContent = 'Testing...';
+            resultsEl.style.display = 'block';
+            resultsList.innerHTML = '';
+            
+            logTest('Starting Parent Scanner test...');
+            
+            for (const qrCode of testQRCodes) {
+                const startTime = Date.now();
+                try {
+                    const response = await fetch('/scan/parent', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `qr_id=${encodeURIComponent(qrCode)}`
+                    });
+                    
+                    const elapsed = Date.now() - startTime;
+                    testResults.times.push(elapsed);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        testResults.success++;
+                        resultsList.innerHTML += `
+                            <div class="result-item">
+                                <strong>✓ ${qrCode}</strong><br>
+                                <small>Time: ${elapsed}ms | ${data.message || 'Success'}</small>
+                            </div>
+                        `;
+                        logTest(`✓ Parent scan success: ${qrCode} (${elapsed}ms)`);
+                    } else {
+                        testResults.failed++;
+                        resultsList.innerHTML += `
+                            <div class="result-item error">
+                                <strong>✗ ${qrCode}</strong><br>
+                                <small>Error: ${response.statusText}</small>
+                            </div>
+                        `;
+                        logTest(`✗ Parent scan failed: ${qrCode}`);
+                    }
+                } catch (error) {
+                    testResults.failed++;
+                    resultsList.innerHTML += `
+                        <div class="result-item error">
+                            <strong>✗ ${qrCode}</strong><br>
+                            <small>Error: ${error.message}</small>
+                        </div>
+                    `;
+                    logTest(`✗ Parent scan error: ${error.message}`);
+                }
+                testResults.total++;
+                updateMetrics();
+            }
+            
+            statusEl.className = testResults.failed === 0 ? 'status-badge status-success' : 'status-badge status-error';
+            statusEl.textContent = testResults.failed === 0 ? 'Passed' : 'Failed';
+        }
+
+        async function testChildScanner() {
+            const statusEl = document.getElementById('childStatus');
+            const resultsEl = document.getElementById('childResults');
+            const resultsList = document.getElementById('childResultsList');
+            
+            statusEl.className = 'status-badge status-testing';
+            statusEl.textContent = 'Testing...';
+            resultsEl.style.display = 'block';
+            resultsList.innerHTML = '';
+            
+            logTest('Starting Child Scanner test...');
+            
+            // First set a parent QR in session
+            await fetch('/scan/parent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `qr_id=${encodeURIComponent(testQRCodes[0])}`
+            });
+            
+            for (let i = 1; i < testQRCodes.length; i++) {
+                const qrCode = testQRCodes[i];
+                const startTime = Date.now();
+                try {
+                    const response = await fetch('/process_child_scan', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `qr_code=${encodeURIComponent(qrCode)}`
+                    });
+                    
+                    const elapsed = Date.now() - startTime;
+                    testResults.times.push(elapsed);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        testResults.success++;
+                        resultsList.innerHTML += `
+                            <div class="result-item">
+                                <strong>✓ ${qrCode}</strong><br>
+                                <small>Time: ${elapsed}ms | ${data.message || 'Success'}</small>
+                            </div>
+                        `;
+                        logTest(`✓ Child scan success: ${qrCode} (${elapsed}ms)`);
+                    } else {
+                        testResults.failed++;
+                        resultsList.innerHTML += `
+                            <div class="result-item error">
+                                <strong>✗ ${qrCode}</strong><br>
+                                <small>Error: ${response.statusText}</small>
+                            </div>
+                        `;
+                        logTest(`✗ Child scan failed: ${qrCode}`);
+                    }
+                } catch (error) {
+                    testResults.failed++;
+                    resultsList.innerHTML += `
+                        <div class="result-item error">
+                            <strong>✗ ${qrCode}</strong><br>
+                            <small>Error: ${error.message}</small>
+                        </div>
+                    `;
+                    logTest(`✗ Child scan error: ${error.message}`);
+                }
+                testResults.total++;
+                updateMetrics();
+            }
+            
+            statusEl.className = testResults.failed === 0 ? 'status-badge status-success' : 'status-badge status-error';
+            statusEl.textContent = testResults.failed === 0 ? 'Passed' : 'Failed';
+        }
+
+        async function testBillScanner() {
+            const statusEl = document.getElementById('billStatus');
+            const resultsEl = document.getElementById('billResults');
+            const resultsList = document.getElementById('billResultsList');
+            
+            statusEl.className = 'status-badge status-testing';
+            statusEl.textContent = 'Testing...';
+            resultsEl.style.display = 'block';
+            resultsList.innerHTML = '';
+            
+            logTest('Starting Bill Scanner test...');
+            
+            // Note: Bill scanner requires an existing bill_id
+            // For testing, we'll check if the endpoint responds
+            for (const qrCode of testQRCodes) {
+                const startTime = Date.now();
+                try {
+                    const response = await fetch('/process_bill_parent_scan', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `qr_code=${encodeURIComponent(qrCode)}&bill_id=1`
+                    });
+                    
+                    const elapsed = Date.now() - startTime;
+                    testResults.times.push(elapsed);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        testResults.success++;
+                        resultsList.innerHTML += `
+                            <div class="result-item">
+                                <strong>✓ ${qrCode}</strong><br>
+                                <small>Time: ${elapsed}ms | ${data.message || 'Success'}</small>
+                            </div>
+                        `;
+                        logTest(`✓ Bill scan success: ${qrCode} (${elapsed}ms)`);
+                    } else {
+                        testResults.failed++;
+                        resultsList.innerHTML += `
+                            <div class="result-item error">
+                                <strong>✗ ${qrCode}</strong><br>
+                                <small>Error: ${response.statusText}</small>
+                            </div>
+                        `;
+                        logTest(`✗ Bill scan failed: ${qrCode}`);
+                    }
+                } catch (error) {
+                    testResults.failed++;
+                    resultsList.innerHTML += `
+                        <div class="result-item error">
+                            <strong>✗ ${qrCode}</strong><br>
+                            <small>Error: ${error.message}</small>
+                        </div>
+                    `;
+                    logTest(`✗ Bill scan error: ${error.message}`);
+                }
+                testResults.total++;
+                updateMetrics();
+            }
+            
+            statusEl.className = testResults.failed === 0 ? 'status-badge status-success' : 'status-badge status-error';
+            statusEl.textContent = testResults.failed === 0 ? 'Passed' : 'Failed';
+        }
+
+        async function testScannerPage() {
+            const statusEl = document.getElementById('testStatus');
+            const resultsEl = document.getElementById('testPageResults');
+            const resultsList = document.getElementById('testPageResultsList');
+            
+            statusEl.className = 'status-badge status-testing';
+            statusEl.textContent = 'Testing...';
+            resultsEl.style.display = 'block';
+            resultsList.innerHTML = '';
+            
+            logTest('Starting Scanner Test Page validation...');
+            
+            // Test if the scanner test page loads
+            try {
+                const response = await fetch('/scanner_test');
+                if (response.ok) {
+                    testResults.success++;
+                    resultsList.innerHTML += `
+                        <div class="result-item">
+                            <strong>✓ Scanner test page loads successfully</strong><br>
+                            <small>Status: ${response.status}</small>
+                        </div>
+                    `;
+                    logTest(`✓ Scanner test page accessible`);
+                } else {
+                    testResults.failed++;
+                    resultsList.innerHTML += `
+                        <div class="result-item error">
+                            <strong>✗ Scanner test page error</strong><br>
+                            <small>Status: ${response.status}</small>
+                        </div>
+                    `;
+                    logTest(`✗ Scanner test page error: ${response.status}`);
+                }
+            } catch (error) {
+                testResults.failed++;
+                resultsList.innerHTML += `
+                    <div class="result-item error">
+                        <strong>✗ Failed to access scanner test page</strong><br>
+                        <small>Error: ${error.message}</small>
+                    </div>
+                `;
+                logTest(`✗ Scanner test page error: ${error.message}`);
+            }
+            
+            testResults.total++;
+            updateMetrics();
+            
+            statusEl.className = testResults.failed === 0 ? 'status-badge status-success' : 'status-badge status-error';
+            statusEl.textContent = testResults.failed === 0 ? 'Passed' : 'Failed';
+        }
+
+        async function runBatchTest() {
+            logTest('=== Starting Batch Test ===');
+            clearTestResults();
+            
+            await testParentScanner();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testChildScanner();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testBillScanner();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testScannerPage();
+            
+            logTest('=== Batch Test Complete ===');
+            logTest(`Total: ${testResults.total} | Success: ${testResults.success} | Failed: ${testResults.failed}`);
+        }
+
+        function clearTestResults() {
+            testResults = {
+                total: 0,
+                success: 0,
+                failed: 0,
+                times: []
+            };
+            updateMetrics();
+            document.getElementById('testLog').innerHTML = '';
+            document.querySelectorAll('.test-results').forEach(el => {
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('.status-badge').forEach(el => {
+                el.className = 'status-badge status-ready';
+                el.textContent = 'Ready';
+            });
+            logTest('Test results cleared');
+        }
+
+        // Initialize
+        logTest('QR Scanner Testing Suite initialized');
+        logTest(`Loaded ${testQRCodes.length} test QR codes from agricultural seed bags`);
+    </script>
+</body>
+</html>
