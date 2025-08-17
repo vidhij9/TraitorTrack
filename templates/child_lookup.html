@@ -3,8 +3,9 @@
 {% block title %}Bag Search - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Extreme QR Scanning Library -->
+<!-- QR Scanner Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="{{ url_for('static', filename='js/libs/html5-qrcode.min.js') }}"></script>
 
 <style>
 /* Ultra Compact UI Styles - Aggressive overrides */
@@ -422,7 +423,7 @@
 {% block scripts %}
 <!-- Lightning Scanner for instant performance -->
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fast-qr-scanner.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let lookupScanner = null;
@@ -462,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Use Instant Detection Scanner for Google Lens-like performance
-            lookupScanner = new InstantDetectionScanner('scanner-container');
+            lookupScanner = new LiveQRScanner('scanner-container');
             lookupScanner.onScan = handleLookupScanSuccess;
             window.lookupScanner = lookupScanner; // Store globally for cleanup
             
@@ -582,7 +583,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    console.log('Ultra-fast lookup scanner with InstantDetectionScanner ready!');
+    console.log('Ultra-fast lookup scanner with LiveQRScanner ready!');
 });
 </script>
 {% endblock %}

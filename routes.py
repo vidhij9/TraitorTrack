@@ -1754,30 +1754,70 @@ def child_lookup():
     
     if qr_id:
         try:
-            # Removed non-existent ultra_fast_search import - using standard search instead
             import time
             
             start_time = time.time()
             app.logger.info(f'Lookup request for QR ID: {qr_id}')
             
-            # Use optimized search engine
-            search_result = ultra_search.lightning_search_by_qr(qr_id)
+            # Direct database search - simple and fast
+            bag = Bag.query.filter_by(qr_id=qr_id).first()
             
             search_time_ms = (time.time() - start_time) * 1000
             
-            if search_result:
-                # Ultra-fast search already provides all needed data optimally
-                bag_info = search_result
+            if bag:
+                # Build bag info dictionary
+                bag_info = {
+                    'id': bag.id,
+                    'qr_id': bag.qr_id,
+                    'type': bag.type,
+                    'name': bag.name,
+                    'dispatch_area': bag.dispatch_area,
+                    'created_at': bag.created_at,
+                    'updated_at': bag.updated_at
+                }
+                
+                # Add relationship counts
+                if bag.type == 'parent':
+                    # Get linked child bags
+                    child_links = Link.query.filter_by(parent_bag_id=bag.id).all()
+                    bag_info['child_count'] = len(child_links)
+                    bag_info['children'] = []
+                    for link in child_links:
+                        child_bag = Bag.query.get(link.child_bag_id)
+                        if child_bag:
+                            bag_info['children'].append({
+                                'qr_id': child_bag.qr_id,
+                                'name': child_bag.name,
+                                'dispatch_area': child_bag.dispatch_area
+                            })
+                else:  # child bag
+                    # Get parent bags
+                    parent_links = Link.query.filter_by(child_bag_id=bag.id).all()
+                    bag_info['parent_count'] = len(parent_links)
+                    bag_info['parents'] = []
+                    for link in parent_links:
+                        parent_bag = Bag.query.get(link.parent_bag_id)
+                        if parent_bag:
+                            bag_info['parents'].append({
+                                'qr_id': parent_bag.qr_id,
+                                'name': parent_bag.name,
+                                'dispatch_area': parent_bag.dispatch_area
+                            })
+                
                 app.logger.info(f'Search SUCCESS: Found bag {qr_id} in {search_time_ms:.2f}ms')
             else:
                 app.logger.info(f'Search: No bag found for "{qr_id}" in {search_time_ms:.2f}ms')
                 
                 # Try fuzzy search as fallback for better user experience
                 try:
-                    fuzzy_results = ultra_search.fuzzy_search_optimized(qr_id, limit=5)
-                    if fuzzy_results:
-                        app.logger.info(f'Fuzzy search found {len(fuzzy_results)} similar results')
-                        similar_qr_codes = ", ".join([r["qr_id"] for r in fuzzy_results[:3]])
+                    # Simple fuzzy search using ILIKE
+                    similar_bags = Bag.query.filter(
+                        Bag.qr_id.ilike(f'%{qr_id[:3]}%')
+                    ).limit(5).all()
+                    
+                    if similar_bags:
+                        app.logger.info(f'Fuzzy search found {len(similar_bags)} similar results')
+                        similar_qr_codes = ", ".join([b.qr_id for b in similar_bags[:3]])
                         flash(f'Bag "{qr_id}" not found. Did you mean: {similar_qr_codes}?', 'warning')
                     else:
                         flash(f'Bag "{qr_id}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
