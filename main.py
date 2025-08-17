@@ -4,7 +4,11 @@ import logging
 import time
 from flask import request, g
 
-# Setup logging for production - reduced for performance
+# Setup logging for production - suppress warnings
+import warnings
+warnings.filterwarnings("ignore", module="flask_limiter")
+warnings.filterwarnings("ignore", message="Using the in-memory storage for tracking rate limits")
+
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 

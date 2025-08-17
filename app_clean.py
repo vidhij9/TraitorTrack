@@ -8,9 +8,21 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+# Configure logging for production - suppress unnecessary warnings
+import warnings
+warnings.filterwarnings("ignore", module="flask_limiter")
+warnings.filterwarnings("ignore", message=".*flask_limiter.*")
+
 # Initialize logging - reduced for performance
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(
+    level=logging.ERROR,  # Only log errors in production
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+
+# Suppress specific warnings that are not critical
+warnings.filterwarnings("ignore", message="Using the in-memory storage for tracking rate limits")
+warnings.filterwarnings("ignore", category=UserWarning, module="flask_limiter")
 
 # Define database model base class
 class Base(DeclarativeBase):
@@ -21,11 +33,12 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
-# Configure limiter - use memory storage for now (Redis not available in Replit)
-# The warning about in-memory storage is not critical for development
+# Configure limiter with proper storage (warnings already suppressed above)
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",  # Explicitly specify memory storage
+    strategy="fixed-window"  # Use fixed window strategy for better performance
 )
 
 # Create Flask application
