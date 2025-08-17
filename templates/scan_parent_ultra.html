@@ -3,394 +3,201 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Simple Reliable QR Scanner -->
-<script src="{{ url_for('static', filename='js/jsQR.js') }}" defer></script>
-<script>
-// Simple inline scanner to avoid loading issues
-class SimpleReliableScanner {
-    constructor(containerId, onSuccess) {
-        this.container = document.getElementById(containerId);
-        this.onSuccess = onSuccess;
-        this.scanning = false;
-        this.lastScan = '';
-        this.lastScanTime = 0;
-        this.video = null;
-        this.canvas = null;
-        this.ctx = null;
-        this.stream = null;
-        
-        this.init();
-    }
-    
-    init() {
-        // Clear container and create simple UI
-        this.container.innerHTML = `
-            <div style="position:relative;width:100%;max-width:640px;margin:0 auto;">
-                <video id="simple-video" autoplay playsinline muted 
-                       style="width:100%;height:400px;object-fit:cover;border-radius:8px;background:#000;"></video>
-                
-                <canvas id="simple-canvas" style="display:none;"></canvas>
-                
-                <!-- Simple scan overlay -->
-                <div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;">
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:250px;height:250px;border:3px solid #00ff00;border-radius:8px;"></div>
-                </div>
-                
-                <!-- Status -->
-                <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;">
-                    <div id="simple-status" style="color:#00ff00;font-weight:bold;background:rgba(0,0,0,0.8);padding:8px;border-radius:4px;">
-                        Initializing...
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        this.setupElements();
-        this.startCamera();
-    }
-    
-    setupElements() {
-        this.video = document.getElementById('simple-video');
-        this.canvas = document.getElementById('simple-canvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.status = document.getElementById('simple-status');
-    }
-    
-    async startCamera() {
-        try {
-            this.updateStatus('Starting camera...', '#ffa500');
-            
-            const constraints = {
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            };
-            
-            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-            this.video.srcObject = this.stream;
-            
-            this.video.onloadedmetadata = () => {
-                this.video.play();
-                this.startScanning();
-            };
-            
-        } catch (error) {
-            console.error('Camera error:', error);
-            this.updateStatus('Camera error - Check permissions', '#ff0000');
-        }
-    }
-    
-    startScanning() {
-        if (this.scanning) return;
-        this.scanning = true;
-        this.updateStatus('Scanning for QR codes...', '#00ff00');
-        this.scanLoop();
-    }
-    
-    scanLoop() {
-        if (!this.scanning || !this.video || this.video.readyState !== 4) {
-            if (this.scanning) {
-                requestAnimationFrame(() => this.scanLoop());
-            }
-            return;
-        }
-        
-        try {
-            this.canvas.width = this.video.videoWidth;
-            this.canvas.height = this.video.videoHeight;
-            
-            if (this.canvas.width > 0 && this.canvas.height > 0) {
-                this.ctx.drawImage(this.video, 0, 0);
-                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                
-                if (typeof jsQR !== 'undefined') {
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "attemptBoth"
-                    });
-                    
-                    if (code && code.data) {
-                        this.handleSuccess(code.data);
-                        return;
-                    }
-                }
-            }
-            
-        } catch (error) {
-            console.error('Scan error:', error);
-        }
-        
-        requestAnimationFrame(() => this.scanLoop());
-    }
-    
-    handleSuccess(qrData) {
-        const now = Date.now();
-        if (qrData === this.lastScan && (now - this.lastScanTime) < 1000) {
-            return;
-        }
-        
-        this.lastScan = qrData;
-        this.lastScanTime = now;
-        
-        console.log('QR Code detected:', qrData);
-        this.updateStatus('✅ QR Code Detected!', '#00ff00');
-        
-        if (navigator.vibrate) {
-            navigator.vibrate([100, 50, 100]);
-        }
-        
-        if (this.onSuccess) {
-            this.onSuccess(qrData);
-        }
-        
-        setTimeout(() => {
-            this.updateStatus('Scanning for QR codes...', '#00ff00');
-        }, 1500);
-    }
-    
-    updateStatus(message, color = '#00ff00') {
-        if (this.status) {
-            this.status.textContent = message;
-            this.status.style.color = color;
-        }
-    }
-    
-    stop() {
-        this.scanning = false;
-        
-        if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
-            this.stream = null;
-        }
-        
-        if (this.video) {
-            this.video.srcObject = null;
-        }
-    }
-}
+<!-- Professional QR Scanner using Nimiq QR Scanner (2-8x better detection) -->
+<script type="module">
+import QrScanner from '{{ url_for("static", filename="js/qr-scanner.min.js") }}';
 
-// Apple-Level Scanner Implementation
-window.createAppleScanner = async function(containerId, onSuccess) {
-    const container = document.getElementById(containerId);
-    let scanning = false;
+// Set worker path
+QrScanner.WORKER_PATH = '{{ url_for("static", filename="js/qr-scanner-worker.min.js") }}';
+
+window.initializePerfectScanner = async function() {
+    const video = document.getElementById('qr-video');
+    const camQrResult = document.getElementById('cam-qr-result');
+    const scannerStatus = document.getElementById('scanner-status');
+    
     let lastScan = '';
     let lastScanTime = 0;
-    let video = null;
-    let canvas = null;
-    let ctx = null;
-    let stream = null;
     
-    // Keep existing UI structure
-    container.innerHTML = `
-        <div class="scanner-container">
-            <video id="apple-video" autoplay playsinline muted class="scanner-video"></video>
-            <canvas id="apple-canvas" style="display:none;"></canvas>
-            <div class="scanner-overlay">
-                <div class="scanner-frame"></div>
-                <div class="scanner-corners">
-                    <div class="corner corner-tl"></div>
-                    <div class="corner corner-tr"></div>
-                    <div class="corner corner-bl"></div>
-                    <div class="corner corner-br"></div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Get elements
-    video = document.getElementById('apple-video');
-    canvas = document.getElementById('apple-canvas');
-    ctx = canvas.getContext('2d');
-    
-    function updateStatus(message, type = 'info') {
-        const scannerStatus = document.getElementById('scanner-status');
-        if (scannerStatus) {
-            scannerStatus.textContent = message;
-            scannerStatus.className = 'alert alert-' + type;
-        }
-    }
-    
-    // Start camera with optimizations
-    try {
-        updateStatus('🎥 Starting camera...', 'info');
-        
-        const constraints = {
-            video: {
-                facingMode: 'environment',
-                width: { ideal: 1920 },
-                height: { ideal: 1080 },
-                frameRate: { ideal: 30 }
-            }
-        };
-        
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-        
-        // Enable torch if available for agricultural environments
-        const track = stream.getVideoTracks()[0];
-        if (track.getCapabilities && track.getCapabilities().torch) {
-            try {
-                await track.applyConstraints({ advanced: [{ torch: true }] });
-                console.log('Torch enabled for better scanning');
-            } catch (e) {
-                console.log('Torch not available');
-            }
-        }
-        
-        video.onloadedmetadata = () => {
-            video.play();
-            startScanning();
-        };
-        
-    } catch (error) {
-        console.error('Camera error:', error);
-        updateStatus('❌ Camera error - Please check permissions', 'danger');
-    }
-    
-    function startScanning() {
-        if (scanning) return;
-        scanning = true;
-        updateStatus('📱 Position QR code within frame', 'success');
-        scanLoop();
-    }
-    
-    function scanLoop() {
-        if (!scanning || !video || video.readyState !== 4) {
-            if (scanning) {
-                requestAnimationFrame(scanLoop);
-            }
-            return;
-        }
-        
-        try {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            if (canvas.width > 0 && canvas.height > 0) {
-                ctx.drawImage(video, 0, 0);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                
-                if (typeof jsQR !== 'undefined') {
-                    // Scan with multiple strategies for better detection
-                    let code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "attemptBoth"
-                    });
-                    
-                    if (!code) {
-                        // Try with different inversionAttempts
-                        code = jsQR(imageData.data, imageData.width, imageData.height, {
-                            inversionAttempts: "dontInvert"
-                        });
-                    }
-                    
-                    if (!code) {
-                        // Try with inverted colors
-                        code = jsQR(imageData.data, imageData.width, imageData.height, {
-                            inversionAttempts: "onlyInvert"
-                        });
-                    }
-                    
-                    if (code && code.data) {
-                        handleSuccess(code.data);
-                        return;
-                    }
-                }
-            }
-            
-        } catch (error) {
-            console.error('Scan error:', error);
-        }
-        
-        requestAnimationFrame(scanLoop);
-    }
-    
-    function handleSuccess(qrData) {
+    function setResult(result) {
         const now = Date.now();
-        if (qrData === lastScan && (now - lastScanTime) < 1000) {
+        
+        // Prevent duplicate scans
+        if (result.data === lastScan && (now - lastScanTime) < 1500) {
             return;
         }
         
-        lastScan = qrData;
+        lastScan = result.data;
         lastScanTime = now;
         
-        console.log('QR Code detected:', qrData);
-        updateStatus('✅ QR Code Detected!', 'success');
+        console.log('QR Code detected:', result.data);
+        camQrResult.textContent = result.data;
         
-        // Apple-style haptic feedback
+        // Update status
+        scannerStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i>QR Code Detected!';
+        scannerStatus.className = 'badge bg-success';
+        
+        // Haptic feedback
         if (navigator.vibrate) {
             navigator.vibrate(200);
         }
         
-        // Visual feedback on scanner frame
-        const frame = container.querySelector('.scanner-frame');
-        if (frame) {
-            frame.style.borderColor = '#28a745';
-            setTimeout(() => {
-                frame.style.borderColor = '';
-            }, 500);
-        }
-        
-        if (onSuccess) {
-            onSuccess(qrData);
-        }
-        
+        // Visual feedback
+        video.style.borderColor = '#28a745';
         setTimeout(() => {
-            updateStatus('📱 Position QR code within frame', 'success');
+            video.style.borderColor = '';
+            scannerStatus.innerHTML = '<i class="fas fa-camera me-1"></i>Scanning...';
+            scannerStatus.className = 'badge bg-primary';
         }, 1500);
+        
+        // Handle scan success
+        if (window.handleScanSuccess) {
+            window.handleScanSuccess(result.data);
+        }
     }
     
-    // Return scanner object
-    return {
-        stop: function() {
-            scanning = false;
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            if (video) {
-                video.srcObject = null;
-            }
+    const qrScanner = new QrScanner(
+        video,
+        result => setResult(result),
+        {
+            preferredCamera: 'environment',
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+            maxScansPerSecond: 10,
+            returnDetailedScanResult: true,
         }
-    };
+    );
+    
+    // Start scanner
+    try {
+        await qrScanner.start();
+        scannerStatus.innerHTML = '<i class="fas fa-camera me-1"></i>Scanning...';
+        scannerStatus.className = 'badge bg-primary';
+        
+        // Check for torch support
+        const hasFlash = await qrScanner.hasFlash();
+        if (hasFlash) {
+            // Enable torch for agricultural environments
+            await qrScanner.toggleFlash();
+            console.log('Torch enabled for better scanning');
+        }
+    } catch (error) {
+        console.error('Camera error:', error);
+        scannerStatus.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Camera Error';
+        scannerStatus.className = 'badge bg-danger';
+    }
+    
+    // Make scanner available globally for cleanup
+    window.qrScanner = qrScanner;
 };
 </script>
 
 <style>
-/* Simple Scanner Styles */
-.scanner-main {
-    position: relative;
+/* Professional Scanner Styles */
+#qr-video {
     width: 100%;
-    min-height: 450px;
+    height: 400px;
+    object-fit: cover;
     border-radius: 8px;
-    overflow: hidden;
+    background: #000;
+    border: 2px solid transparent;
+    transition: border-color 0.3s ease;
 }
 
-/* Scanner responsiveness */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.scanner-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    height: 250px;
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.scanner-corners {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    height: 250px;
+}
+
+.corner {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #28a745;
+}
+
+.corner-tl {
+    top: -2px;
+    left: -2px;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 12px 0 0 0;
+}
+
+.corner-tr {
+    top: -2px;
+    right: -2px;
+    border-left: none;
+    border-bottom: none;
+    border-radius: 0 12px 0 0;
+}
+
+.corner-bl {
+    bottom: -2px;
+    left: -2px;
+    border-right: none;
+    border-top: none;
+    border-radius: 0 0 0 12px;
+}
+
+.corner-br {
+    bottom: -2px;
+    right: -2px;
+    border-left: none;
+    border-top: none;
+    border-radius: 0 0 12px 0;
+}
+
+/* Responsive design */
 @media (max-width: 768px) {
-    .scanner-main {
-        min-height: 350px;
+    #qr-video {
+        height: 350px;
+    }
+    
+    .scanner-frame,
+    .scanner-corners {
+        width: 200px;
+        height: 200px;
     }
 }
 
-.scanner-status {
-    display: flex;
-    align-items: center;
-}
-
-.scanner-info {
-    font-size: 0.85rem;
-}
-
-/* Success animation */
-@keyframes successPulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-.scan-success {
-    animation: successPulse 0.5s ease-in-out;
+.scan-result {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 10px;
+    word-break: break-all;
 }
 </style>
 {% endblock %}
@@ -407,12 +214,21 @@ window.createAppleScanner = async function(containerId, onSuccess) {
         <div class="col-lg-6 mb-3 mb-lg-0">
             <div class="card">
                 <div class="card-body p-2">
-                    <div id="simple-scanner-container" class="scanner-main" style="position:relative;">
-                        <!-- Simple Fast Scanner loads here -->
+                    <div class="scanner-container">
+                        <video id="qr-video" autoplay playsinline muted></video>
+                        <div class="scanner-overlay">
+                            <div class="scanner-frame"></div>
+                            <div class="scanner-corners">
+                                <div class="corner corner-tl"></div>
+                                <div class="corner corner-tr"></div>
+                                <div class="corner corner-bl"></div>
+                                <div class="corner corner-br"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="text-center mt-2">
                         <span id="scanner-status" class="badge bg-info">
-                            <i class="fas fa-spinner fa-spin me-1"></i>Starting...
+                            <i class="fas fa-spinner fa-spin me-1"></i>Starting camera...
                         </span>
                     </div>
                 </div>
@@ -428,7 +244,11 @@ window.createAppleScanner = async function(containerId, onSuccess) {
                         Ready to scan...
                     </div>
                     
-                    <div id="scan-success" class="scan-result alert alert-success d-none">
+                    <div class="scan-result">
+                        <strong>QR Code:</strong> <span id="cam-qr-result">None</span>
+                    </div>
+                    
+                    <div id="scan-success" class="scan-result alert alert-success d-none mt-3">
                         <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully</h5>
                         <p class="mb-3">QR Code: <span id="parent-qr-value" class="fw-bold"></span></p>
                         <div class="d-grid">
@@ -438,6 +258,11 @@ window.createAppleScanner = async function(containerId, onSuccess) {
                         </div>
                     </div>
                     
+                    <div class="mt-3">
+                        <button id="manual-entry-btn" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-keyboard me-2"></i>Manual Entry
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -446,190 +271,96 @@ window.createAppleScanner = async function(containerId, onSuccess) {
 {% endblock %}
 
 {% block scripts %}
-<!-- World-Class Scanner with comprehensive worst-case handling -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        let scanner = null;
-        let isProcessing = false;
+document.addEventListener('DOMContentLoaded', async function() {
+    let isProcessing = false;
+    
+    // Initialize the perfect scanner
+    if (window.initializePerfectScanner) {
+        await window.initializePerfectScanner();
+    }
+    
+    // Handle scan success
+    window.handleScanSuccess = function(qrCode) {
+        if (isProcessing) return;
+        isProcessing = true;
         
-        // Get UI elements
+        console.log('Processing QR Code:', qrCode);
+        
+        // Update UI
         const scanSuccess = document.getElementById('scan-success');
         const parentQrValue = document.getElementById('parent-qr-value');
         const scanChildLink = document.getElementById('scan-child-link');
         const resultContainer = document.getElementById('result-container');
-        const scannerStatus = document.getElementById('scanner-status');
         
-        // Initialize Scanner - Direct Implementation
-        async function initializeScanner() {
-            try {
-                updateStatus('Starting...', 'info');
+        parentQrValue.textContent = qrCode;
+        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        resultContainer.className = 'alert alert-warning mb-2 p-2';
+        
+        // Submit to backend
+        fetch('{{ url_for("scan_parent") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token() if csrf_token is defined else "" }}'
+            },
+            body: 'qr_id=' + encodeURIComponent(qrCode)
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Check response
+            if (html.includes('Parent bag created successfully') || html.includes('Parent bag found')) {
+                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Parent bag processed successfully!';
+                resultContainer.className = 'alert alert-success mb-2 p-2';
+                scanSuccess.classList.remove('d-none');
                 
-                // Wait for jsQR library to load if needed
-                let attempts = 0;
-                while (typeof jsQR === 'undefined' && attempts < 50) {
-                    console.log('Waiting for jsQR to load...');
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    attempts++;
-                }
+                // Update link to child scanner
+                scanChildLink.href = '{{ url_for("scan_child") }}';
                 
-                if (typeof jsQR === 'undefined') {
-                    throw new Error('jsQR library not loaded');
-                }
-                
-                // Stop any existing scanner first
-                if (window.scanner && window.scanner.stop) {
-                    window.scanner.stop();
-                }
-                
-                // Create Apple-level scanner implementation
-                window.scanner = await createAppleScanner('simple-scanner-container', handleScanSuccess);
-                
-                // Monitor scanner status
+                // Auto-redirect after 2 seconds
                 setTimeout(() => {
-                    const scanStatus = document.getElementById('scan-status');
-                    if (scanStatus && scanStatus.textContent.includes('Ready')) {
-                        updateStatus('Ready', 'success');
-                        resultContainer.className = 'alert alert-success';
-                        resultContainer.innerHTML = '✅ Scanner ready - Point at QR code';
-                    } else if (scanStatus && scanStatus.textContent.includes('Error')) {
-                        // Try fallback scanner
-                        console.log('Switching to fallback scanner');
-                        if (scanner && scanner.stop) scanner.stop();
-                        // InstantScanner provides instant detection
-                        console.log('InstantScanner handles detection instantly');
-                    }
+                    window.location.href = '{{ url_for("scan_child") }}';
                 }, 2000);
-                
-            } catch (error) {
-                console.error('Scanner initialization error:', error);
-                updateStatus('Error', 'danger');
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = `❌ ${error.message || 'Check camera permissions and refresh'}`;
-                
-                // Try to provide helpful error messages
-                if (error.message.includes('getUserMedia')) {
-                    resultContainer.innerHTML = '❌ Camera not available. Please check browser permissions.';
-                } else if (error.message.includes('https')) {
-                    resultContainer.innerHTML = '❌ Camera requires secure connection (HTTPS).';
-                }
-            }
-        }
-        
-        // Update scanner status badge
-        function updateStatus(text, type) {
-            const statusBadge = document.getElementById('scanner-status');
-            statusBadge.className = `badge bg-${type}`;
-            
-            let icon = '';
-            switch(type) {
-                case 'success':
-                    icon = '<i class="fas fa-check-circle me-1"></i>';
-                    break;
-                case 'danger':
-                    icon = '<i class="fas fa-exclamation-circle me-1"></i>';
-                    break;
-                case 'warning':
-                    icon = '<i class="fas fa-exclamation-triangle me-1"></i>';
-                    break;
-                case 'info':
-                    icon = '<i class="fas fa-spinner fa-spin me-1"></i>';
-                    break;
-            }
-            
-            statusBadge.innerHTML = icon + text;
-        }
-        
-        // Handle successful scan (not needed with new ultra-fast scanner)
-        // The ultra-fast scanner handles scan results internally
-        function handleScanSuccess(qrCode) {
-            // Legacy function kept for compatibility
-            console.log('Scan handled by ultra-fast scanner');
-            
-            // Haptic feedback
-            if (navigator.vibrate) {
-                navigator.vibrate(200);
-            }
-            
-            // Update UI
-            parentQrValue.textContent = qrCode;
-            scanChildLink.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
-            
-            // Show success
-            resultContainer.style.display = 'none';
-            scanSuccess.classList.remove('d-none');
-            scanSuccess.classList.add('scan-success');
-            
-            updateStatus('Scan Complete', 'success');
-            
-            // Save and redirect instantly
-            fetch('/api/ultra/scan/parent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ qr_code: qrCode })
-            }).then(() => {
-                // Instant redirect after save
-                window.location.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
-            }).catch(() => {
-                // Redirect anyway on error
-                window.location.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
-            });
-        }
-        
-        // Handle scan errors
-        function handleScanError(error) {
-            console.error('Scan error:', error);
-            // Don't show error messages for normal scanning errors
-        }
-        
-        // Submit parent scan via ULTRA-FAST API
-        function submitParentScan(qrCode) {
-            fetch('/api/ultra/scan/parent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ qr_code: qrCode })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Redirect to child scanning
-                    window.location.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
-                } else {
-                    alert(data.message || 'Error scanning parent');
-                    isProcessing = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Network error');
+            } else if (html.includes('error')) {
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Error processing QR code';
+                resultContainer.className = 'alert alert-danger mb-2 p-2';
                 isProcessing = false;
-            });
-        }
-        
-        
-        // Agricultural torch status display
-        function displayTorchStatus() {
-            // The agricultural scanner auto-enables torch - just show status
-            console.log('🌾 Agricultural mode: Torch will auto-enable when scanner starts');
-        }
-        
-        // Start scanner automatically
-        setTimeout(() => {
-            initializeScanner();
-            displayTorchStatus();
-        }, 500);
-        
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            if (scanner) {
-                scanner.stop();
+            } else {
+                // Success but no specific message
+                resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR code processed';
+                resultContainer.className = 'alert alert-success mb-2 p-2';
+                scanSuccess.classList.remove('d-none');
+                scanChildLink.href = '{{ url_for("scan_child") }}';
+                
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("scan_child") }}';
+                }, 2000);
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Network error. Please try again.';
+            resultContainer.className = 'alert alert-danger mb-2 p-2';
+            isProcessing = false;
         });
+    };
+    
+    // Manual entry
+    document.getElementById('manual-entry-btn').addEventListener('click', function() {
+        const qrCode = prompt('Enter QR code manually:');
+        if (qrCode && qrCode.trim()) {
+            document.getElementById('cam-qr-result').textContent = qrCode.trim();
+            window.handleScanSuccess(qrCode.trim());
+        }
     });
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (window.qrScanner) {
+            window.qrScanner.stop();
+            window.qrScanner.destroy();
+        }
+    });
+});
 </script>
 {% endblock %}
