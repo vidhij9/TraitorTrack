@@ -60,12 +60,11 @@ def production_setup():
         # Create admin user if doesn't exist
         admin = User.query.filter_by(username='admin').first()
         if not admin:
-            admin = User(
-                username='admin',
-                email='admin@tracetrack.com',
-                password_hash=generate_password_hash('admin'),
-                role='admin'
-            )
+            admin = User()
+            admin.username = 'admin'
+            admin.email = 'admin@tracetrack.com'
+            admin.set_password('admin')
+            admin.role = 'admin'
             db.session.add(admin)
             db.session.commit()
             result = "✓ Admin user created (admin/admin)"

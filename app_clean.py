@@ -20,7 +20,13 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
-limiter = Limiter(key_func=get_remote_address)
+
+# Configure limiter - use memory storage for now (Redis not available in Replit)
+# The warning about in-memory storage is not critical for development
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
 
 # Create Flask application
 app = Flask(__name__)
@@ -236,11 +242,15 @@ def handle_csrf_error(e):
     # For regular requests, return HTML error page
     return e
 
-# Configure login
-# Flask-Login configuration
-login_manager.login_view = 'login'
-login_manager.login_message = 'Please log in to access this page.'
-login_manager.login_message_category = 'info'
+# Configure login after app initialization
+def configure_login_manager():
+    """Configure Flask-Login after app is created"""
+    login_manager.login_view = 'login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'info'
+
+# Call configuration after app is ready
+configure_login_manager()
 
 # Import models for database tables
 with app.app_context():
