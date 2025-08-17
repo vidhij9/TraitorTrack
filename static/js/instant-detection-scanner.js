@@ -228,6 +228,7 @@ class InstantDetectionScanner {
     async startCamera() {
         try {
             this.updateStatus('Initializing camera...', '#FFC107');
+            console.log('Requesting camera access...');
             
             // Request camera with optimized constraints
             const constraints = {
@@ -235,22 +236,22 @@ class InstantDetectionScanner {
                     facingMode: { ideal: 'environment' },
                     width: { ideal: this.VIDEO_WIDTH },
                     height: { ideal: this.VIDEO_HEIGHT },
-                    frameRate: { ideal: 60, min: 30 }, // High frame rate
-                    focusMode: { ideal: 'continuous' },
-                    exposureMode: { ideal: 'continuous' },
-                    whiteBalanceMode: { ideal: 'continuous' }
+                    frameRate: { ideal: 60, min: 30 } // High frame rate
                 }
             };
             
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             this.video.srcObject = stream;
+            console.log('Camera stream obtained');
             
             // Store track for torch control
             this.track = stream.getVideoTracks()[0];
+            console.log('Video track:', this.track);
             
             // Check torch capability
             if (this.track && this.track.getCapabilities) {
                 const capabilities = this.track.getCapabilities();
+                console.log('Camera capabilities:', capabilities);
                 if (capabilities.torch) {
                     document.getElementById('torch-btn').style.display = 'flex';
                 } else {
@@ -261,19 +262,30 @@ class InstantDetectionScanner {
             // Wait for video to be ready
             await new Promise((resolve) => {
                 this.video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded, dimensions:', this.video.videoWidth, 'x', this.video.videoHeight);
                     this.video.play();
                     resolve();
                 };
             });
             
+            // Use actual video dimensions for region calculation
+            const actualWidth = this.video.videoWidth || this.VIDEO_WIDTH;
+            const actualHeight = this.video.videoHeight || this.VIDEO_HEIGHT;
+            
+            // Update canvas size to match video
+            this.canvas.width = actualWidth;
+            this.canvas.height = actualHeight;
+            
             // Calculate scan region (center 60% of frame)
             const regionOffset = (1 - this.REGION_SIZE) / 2;
             this.scanRegion = {
-                x: Math.floor(this.VIDEO_WIDTH * regionOffset),
-                y: Math.floor(this.VIDEO_HEIGHT * regionOffset),
-                width: Math.floor(this.VIDEO_WIDTH * this.REGION_SIZE),
-                height: Math.floor(this.VIDEO_HEIGHT * this.REGION_SIZE)
+                x: Math.floor(actualWidth * regionOffset),
+                y: Math.floor(actualHeight * regionOffset),
+                width: Math.floor(actualWidth * this.REGION_SIZE),
+                height: Math.floor(actualHeight * this.REGION_SIZE)
             };
+            
+            console.log('Scan region:', this.scanRegion);
             
             // Start scanning immediately
             this.scanActive = true;
@@ -282,7 +294,7 @@ class InstantDetectionScanner {
             
         } catch (error) {
             console.error('Camera error:', error);
-            this.updateStatus('Camera access denied', '#F44336');
+            this.updateStatus(`Camera error: ${error.message}`, '#F44336');
         }
     }
     
@@ -305,21 +317,31 @@ class InstantDetectionScanner {
             }
             
             try {
-                // Draw only the scan region to canvas for faster processing
+                // Check if video is ready
+                if (this.video.readyState < 2) {
+                    requestAnimationFrame(processFrame);
+                    return;
+                }
+                
+                // Draw the full video to canvas first
                 this.context.drawImage(
                     this.video,
-                    this.scanRegion.x, this.scanRegion.y,
-                    this.scanRegion.width, this.scanRegion.height,
                     0, 0,
-                    this.scanRegion.width, this.scanRegion.height
+                    this.canvas.width, this.canvas.height
                 );
                 
                 // Get image data from the scan region
                 const imageData = this.context.getImageData(
-                    0, 0,
-                    this.scanRegion.width,
-                    this.scanRegion.height
+                    this.scanRegion.x, this.scanRegion.y,
+                    this.scanRegion.width, this.scanRegion.height
                 );
+                
+                // Check if jsQR is available
+                if (typeof jsQR === 'undefined') {
+                    console.error('jsQR not available');
+                    requestAnimationFrame(processFrame);
+                    return;
+                }
                 
                 // Try to detect QR code with ultra-fast jsQR
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
@@ -327,6 +349,8 @@ class InstantDetectionScanner {
                 });
                 
                 if (code && code.data) {
+                    console.log('QR code detected:', code.data);
+                    
                     // Check for duplicate
                     if (code.data !== this.lastScanData || 
                         now - this.lastScanTime > this.DUPLICATE_TIMEOUT) {

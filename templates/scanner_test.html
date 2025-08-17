@@ -85,6 +85,16 @@
     let lastScanTime = null;
     
     function initScanner() {
+        // Check if jsQR is available
+        if (typeof jsQR === 'undefined') {
+            console.error('jsQR library not loaded');
+            document.getElementById('scanner-status').className = 'badge bg-danger';
+            document.getElementById('scanner-status').innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>jsQR Missing';
+            return;
+        }
+        
+        console.log('Initializing InstantDetectionScanner...');
+        
         // Initialize Instant Detection Scanner
         scanner = new InstantDetectionScanner('scanner-container');
         
@@ -92,6 +102,8 @@
         scanner.onScan = function(data) {
             scanCount++;
             const now = Date.now();
+            
+            console.log('QR Code Detected:', data);
             
             // Calculate scan time
             if (lastScanTime) {
@@ -112,12 +124,21 @@
             console.log(`QR Detected in ${Date.now() - now}ms:`, data);
         };
         
-        // Monitor FPS
+        // Monitor FPS and scanner status
         setInterval(() => {
             if (scanner && scanner.currentFps !== undefined) {
                 document.getElementById('fps-metric').textContent = scanner.currentFps;
             }
+            
+            // Check if scanner is actually scanning
+            if (scanner && scanner.scanActive) {
+                document.getElementById('scanner-status').className = 'badge bg-primary';
+                document.getElementById('scanner-status').innerHTML = '<i class="fas fa-video me-1"></i>Scanning';
+            }
         }, 500);
+        
+        // Add debug logging
+        console.log('Scanner initialized, waiting for camera...');
     }
     
     function restartScanner() {
