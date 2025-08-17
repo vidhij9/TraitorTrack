@@ -1,0 +1,1157 @@
+{
+  "concurrent_tests": [
+    {
+      "user_id": 75,
+      "page": "/bill_management",
+      "qr_code": "P6384-10",
+      "status": "simulated",
+      "response_time": 0.44566822052001953
+    },
+    {
+      "user_id": 24,
+      "page": "/bill_management",
+      "qr_code": "P4807-40",
+      "status": "simulated",
+      "response_time": 0.1938185691833496
+    },
+    {
+      "user_id": 78,
+      "page": "/bill_management",
+      "qr_code": "P1000-49",
+      "status": "simulated",
+      "response_time": 0.2897460460662842
+    },
+    {
+      "user_id": 74,
+      "page": "/bill_management",
+      "qr_code": "C3914-19",
+      "status": "simulated",
+      "response_time": 0.16544699668884277
+    },
+    {
+      "user_id": 42,
+      "page": "/child_lookup",
+      "qr_code": "P6384-10",
+      "status": "simulated",
+      "response_time": 0.1747429370880127
+    },
+    {
+      "user_id": 9,
+      "page": "/bag_management",
+      "qr_code": "P7661-44",
+      "status": "simulated",
+      "response_time": 0.06335854530334473
+    },
+    {
+      "user_id": 5,
+      "page": "/bill_management",
+      "qr_code": "P1100-32",
+      "status": "simulated",
+      "response_time": 0.07639956474304199
+    },
+    {
+      "user_id": 77,
+      "page": "/bill_management",
+      "qr_code": "P5453-32",
+      "status": "simulated",
+      "response_time": 0.33278417587280273
+    },
+    {
+      "user_id": 44,
+      "page": "/bill_management",
+      "qr_code": "C4606-63",
+      "status": "simulated",
+      "response_time": 0.2637603282928467
+    },
+    {
+      "user_id": 15,
+      "page": "/child_lookup",
+      "qr_code": "C8228-20",
+      "status": "simulated",
+      "response_time": 0.2763197422027588
+    },
+    {
+      "user_id": 76,
+      "page": "/bag_management",
+      "qr_code": "C3979-93",
+      "status": "simulated",
+      "response_time": 0.3869931697845459
+    },
+    {
+      "user_id": 71,
+      "page": "/bill_management",
+      "qr_code": "C7676-72",
+      "status": "simulated",
+      "response_time": 0.22840332984924316
+    },
+    {
+      "user_id": 2,
+      "page": "/bill_management",
+      "qr_code": "C7217-36",
+      "status": "simulated",
+      "response_time": 0.05661582946777344
+    },
+    {
+      "user_id": 52,
+      "page": "/bag_management",
+      "qr_code": "P5580-35",
+      "status": "simulated",
+      "response_time": 0.2671337127685547
+    },
+    {
+      "user_id": 64,
+      "page": "/bag_management",
+      "qr_code": "C1797-86",
+      "status": "simulated",
+      "response_time": 0.23880839347839355
+    },
+    {
+      "user_id": 63,
+      "page": "/child_lookup",
+      "qr_code": "C1797-86",
+      "status": "simulated",
+      "response_time": 0.2361891269683838
+    },
+    {
+      "user_id": 45,
+      "page": "/bag_management",
+      "qr_code": "C5083-62",
+      "status": "simulated",
+      "response_time": 0.1775665283203125
+    },
+    {
+      "user_id": 47,
+      "page": "/child_lookup",
+      "qr_code": "P3911-93",
+      "status": "simulated",
+      "response_time": 0.12255620956420898
+    },
+    {
+      "user_id": 40,
+      "page": "/bag_management",
+      "qr_code": "C2429-47",
+      "status": "simulated",
+      "response_time": 0.11426234245300293
+    },
+    {
+      "user_id": 32,
+      "page": "/child_lookup",
+      "qr_code": "P3047-49",
+      "status": "simulated",
+      "response_time": 0.22878766059875488
+    },
+    {
+      "user_id": 79,
+      "page": "/bill_management",
+      "qr_code": "P7935-37",
+      "status": "simulated",
+      "response_time": 0.20650529861450195
+    },
+    {
+      "user_id": 21,
+      "page": "/child_lookup",
+      "qr_code": "C3805-75",
+      "status": "simulated",
+      "response_time": 0.2632322311401367
+    },
+    {
+      "user_id": 6,
+      "page": "/child_lookup",
+      "qr_code": "P1986-98",
+      "status": "simulated",
+      "response_time": 0.10852360725402832
+    },
+    {
+      "user_id": 68,
+      "page": "/child_lookup",
+      "qr_code": "P2177-20",
+      "status": "simulated",
+      "response_time": 0.26195526123046875
+    },
+    {
+      "user_id": 8,
+      "page": "/child_lookup",
+      "qr_code": "P9345-39",
+      "status": "simulated",
+      "response_time": 0.14584755897521973
+    },
+    {
+      "user_id": 95,
+      "page": "/child_lookup",
+      "qr_code": "C1615-15",
+      "status": "simulated",
+      "response_time": 0.30793190002441406
+    },
+    {
+      "user_id": 39,
+      "page": "/child_lookup",
+      "qr_code": "P6561-17",
+      "status": "simulated",
+      "response_time": 0.187575101852417
+    },
+    {
+      "user_id": 35,
+      "page": "/child_lookup",
+      "qr_code": "C5563-28",
+      "status": "simulated",
+      "response_time": 0.26183176040649414
+    },
+    {
+      "user_id": 84,
+      "page": "/child_lookup",
+      "qr_code": "C3736-46",
+      "status": "simulated",
+      "response_time": 0.35294198989868164
+    },
+    {
+      "user_id": 94,
+      "page": "/bag_management",
+      "qr_code": "P4743-64",
+      "status": "simulated",
+      "response_time": 0.1970691680908203
+    },
+    {
+      "user_id": 7,
+      "page": "/child_lookup",
+      "qr_code": "C8854-32",
+      "status": "simulated",
+      "response_time": 0.08094072341918945
+    },
+    {
+      "user_id": 56,
+      "page": "/child_lookup",
+      "qr_code": "C1297-14",
+      "status": "simulated",
+      "response_time": 0.3095893859863281
+    },
+    {
+      "user_id": 19,
+      "page": "/child_lookup",
+      "qr_code": "C2010-61",
+      "status": "simulated",
+      "response_time": 0.3082847595214844
+    },
+    {
+      "user_id": 58,
+      "page": "/bill_management",
+      "qr_code": "P5112-25",
+      "status": "simulated",
+      "response_time": 0.23679566383361816
+    },
+    {
+      "user_id": 27,
+      "page": "/bill_management",
+      "qr_code": "C4865-60",
+      "status": "simulated",
+      "response_time": 0.1905078887939453
+    },
+    {
+      "user_id": 41,
+      "page": "/bill_management",
+      "qr_code": "C3527-86",
+      "status": "simulated",
+      "response_time": 0.22046184539794922
+    },
+    {
+      "user_id": 29,
+      "page": "/bill_management",
+      "qr_code": "C5083-62",
+      "status": "simulated",
+      "response_time": 0.2263801097869873
+    },
+    {
+      "user_id": 55,
+      "page": "/child_lookup",
+      "qr_code": "P6561-17",
+      "status": "simulated",
+      "response_time": 0.2888782024383545
+    },
+    {
+      "user_id": 51,
+      "page": "/bill_management",
+      "qr_code": "C8382-99",
+      "status": "simulated",
+      "response_time": 0.2109813690185547
+    },
+    {
+      "user_id": 11,
+      "page": "/bag_management",
+      "qr_code": "C2380-80",
+      "status": "simulated",
+      "response_time": 0.12456679344177246
+    },
+    {
+      "user_id": 90,
+      "page": "/bill_management",
+      "qr_code": "C1572-85",
+      "status": "simulated",
+      "response_time": 0.3263206481933594
+    },
+    {
+      "user_id": 16,
+      "page": "/bag_management",
+      "qr_code": "P5629-90",
+      "status": "simulated",
+      "response_time": 0.05893397331237793
+    },
+    {
+      "user_id": 73,
+      "page": "/child_lookup",
+      "qr_code": "C4841-58",
+      "status": "simulated",
+      "response_time": 0.3599579334259033
+    },
+    {
+      "user_id": 57,
+      "page": "/child_lookup",
+      "qr_code": "P4083-85",
+      "status": "simulated",
+      "response_time": 0.428966760635376
+    },
+    {
+      "user_id": 34,
+      "page": "/bill_management",
+      "qr_code": "P4807-40",
+      "status": "simulated",
+      "response_time": 0.27917027473449707
+    },
+    {
+      "user_id": 26,
+      "page": "/child_lookup",
+      "qr_code": "C4182-46",
+      "status": "simulated",
+      "response_time": 0.21776890754699707
+    },
+    {
+      "user_id": 3,
+      "page": "/bill_management",
+      "qr_code": "P4743-64",
+      "status": "simulated",
+      "response_time": 0.07242655754089355
+    },
+    {
+      "user_id": 50,
+      "page": "/child_lookup",
+      "qr_code": "C2556-46",
+      "status": "simulated",
+      "response_time": 0.1997683048248291
+    },
+    {
+      "user_id": 38,
+      "page": "/bag_management",
+      "qr_code": "C5563-28",
+      "status": "simulated",
+      "response_time": 0.22927546501159668
+    },
+    {
+      "user_id": 28,
+      "page": "/child_lookup",
+      "qr_code": "C1365-35",
+      "status": "simulated",
+      "response_time": 0.1487410068511963
+    },
+    {
+      "user_id": 37,
+      "page": "/child_lookup",
+      "qr_code": "C6835-35",
+      "status": "simulated",
+      "response_time": 0.14842796325683594
+    },
+    {
+      "user_id": 4,
+      "page": "/bag_management",
+      "qr_code": "C1130-85",
+      "status": "simulated",
+      "response_time": 0.10277366638183594
+    },
+    {
+      "user_id": 49,
+      "page": "/child_lookup",
+      "qr_code": "C8651-99",
+      "status": "simulated",
+      "response_time": 0.3239600658416748
+    },
+    {
+      "user_id": 10,
+      "page": "/bill_management",
+      "qr_code": "P1100-32",
+      "status": "simulated",
+      "response_time": 0.06790757179260254
+    },
+    {
+      "user_id": 59,
+      "page": "/bill_management",
+      "qr_code": "C8869-26",
+      "status": "simulated",
+      "response_time": 0.19043779373168945
+    },
+    {
+      "user_id": 22,
+      "page": "/bag_management",
+      "qr_code": "C2352-96",
+      "status": "simulated",
+      "response_time": 0.17407441139221191
+    },
+    {
+      "user_id": 14,
+      "page": "/bag_management",
+      "qr_code": "C2927-33",
+      "status": "simulated",
+      "response_time": 0.11589980125427246
+    },
+    {
+      "user_id": 48,
+      "page": "/child_lookup",
+      "qr_code": "C5848-85",
+      "status": "simulated",
+      "response_time": 0.2787587642669678
+    },
+    {
+      "user_id": 87,
+      "page": "/bag_management",
+      "qr_code": "P2301-38",
+      "status": "simulated",
+      "response_time": 0.16565847396850586
+    },
+    {
+      "user_id": 53,
+      "page": "/child_lookup",
+      "qr_code": "P4059-51",
+      "status": "simulated",
+      "response_time": 0.49616098403930664
+    },
+    {
+      "user_id": 20,
+      "page": "/child_lookup",
+      "qr_code": "C7553-56",
+      "status": "simulated",
+      "response_time": 0.1427474021911621
+    },
+    {
+      "user_id": 36,
+      "page": "/child_lookup",
+      "qr_code": "C6900-27",
+      "status": "simulated",
+      "response_time": 0.1824488639831543
+    },
+    {
+      "user_id": 43,
+      "page": "/bill_management",
+      "qr_code": "C2140-92",
+      "status": "simulated",
+      "response_time": 0.1795501708984375
+    },
+    {
+      "user_id": 13,
+      "page": "/child_lookup",
+      "qr_code": "P8583-59",
+      "status": "simulated",
+      "response_time": 0.15408015251159668
+    },
+    {
+      "user_id": 69,
+      "page": "/child_lookup",
+      "qr_code": "C7051-65",
+      "status": "simulated",
+      "response_time": 0.21052241325378418
+    },
+    {
+      "user_id": 12,
+      "page": "/bill_management",
+      "qr_code": "P3250-15",
+      "status": "simulated",
+      "response_time": 0.12203550338745117
+    },
+    {
+      "user_id": 17,
+      "page": "/bag_management",
+      "qr_code": "P6992-46",
+      "status": "simulated",
+      "response_time": 0.15903568267822266
+    },
+    {
+      "user_id": 70,
+      "page": "/child_lookup",
+      "qr_code": "C4402-89",
+      "status": "simulated",
+      "response_time": 0.18173575401306152
+    },
+    {
+      "user_id": 54,
+      "page": "/child_lookup",
+      "qr_code": "P4083-85",
+      "status": "simulated",
+      "response_time": 0.24897432327270508
+    },
+    {
+      "user_id": 30,
+      "page": "/child_lookup",
+      "qr_code": "C4865-60",
+      "status": "simulated",
+      "response_time": 0.2139441967010498
+    },
+    {
+      "user_id": 60,
+      "page": "/child_lookup",
+      "qr_code": "P5729-18",
+      "status": "simulated",
+      "response_time": 0.26331591606140137
+    },
+    {
+      "user_id": 46,
+      "page": "/child_lookup",
+      "qr_code": "C2927-33",
+      "status": "simulated",
+      "response_time": 0.29131197929382324
+    },
+    {
+      "user_id": 66,
+      "page": "/bill_management",
+      "qr_code": "C3276-82",
+      "status": "simulated",
+      "response_time": 0.2554492950439453
+    },
+    {
+      "user_id": 25,
+      "page": "/bill_management",
+      "qr_code": "P5729-18",
+      "status": "simulated",
+      "response_time": 0.37890076637268066
+    },
+    {
+      "user_id": 18,
+      "page": "/child_lookup",
+      "qr_code": "P6508-27",
+      "status": "simulated",
+      "response_time": 0.29024243354797363
+    },
+    {
+      "user_id": 23,
+      "page": "/child_lookup",
+      "qr_code": "C6436-38",
+      "status": "simulated",
+      "response_time": 0.20061159133911133
+    },
+    {
+      "user_id": 33,
+      "page": "/child_lookup",
+      "qr_code": "C1797-86",
+      "status": "simulated",
+      "response_time": 0.28716325759887695
+    },
+    {
+      "user_id": 80,
+      "page": "/bill_management",
+      "qr_code": "P5629-90",
+      "status": "simulated",
+      "response_time": 0.21135902404785156
+    },
+    {
+      "user_id": 31,
+      "page": "/child_lookup",
+      "qr_code": "P8677-31",
+      "status": "simulated",
+      "response_time": 0.306746244430542
+    },
+    {
+      "user_id": 0,
+      "page": "/bill_management",
+      "qr_code": "C9188-21",
+      "status": "simulated",
+      "response_time": 0.017719268798828125
+    },
+    {
+      "user_id": 1,
+      "page": "/bill_management",
+      "qr_code": "P2969-29",
+      "status": "simulated",
+      "response_time": 0.05974221229553223
+    },
+    {
+      "user_id": 93,
+      "page": "/bag_management",
+      "qr_code": "C6835-35",
+      "status": "simulated",
+      "response_time": 0.1809523105621338
+    },
+    {
+      "user_id": 102,
+      "page": "/bag_management",
+      "qr_code": "P8884-65",
+      "status": "simulated",
+      "response_time": 0.20800495147705078
+    },
+    {
+      "user_id": 88,
+      "page": "/bag_management",
+      "qr_code": "C7177-79",
+      "status": "simulated",
+      "response_time": 0.23750042915344238
+    },
+    {
+      "user_id": 72,
+      "page": "/child_lookup",
+      "qr_code": "P4807-40",
+      "status": "simulated",
+      "response_time": 0.29314422607421875
+    },
+    {
+      "user_id": 67,
+      "page": "/bill_management",
+      "qr_code": "P7267-86",
+      "status": "simulated",
+      "response_time": 0.47867536544799805
+    },
+    {
+      "user_id": 115,
+      "page": "/child_lookup",
+      "qr_code": "C2429-47",
+      "status": "simulated",
+      "response_time": 0.1410679817199707
+    },
+    {
+      "user_id": 96,
+      "page": "/bag_management",
+      "qr_code": "P3376-92",
+      "status": "simulated",
+      "response_time": 0.2584953308105469
+    },
+    {
+      "user_id": 100,
+      "page": "/bill_management",
+      "qr_code": "C2352-96",
+      "status": "simulated",
+      "response_time": 0.23122072219848633
+    },
+    {
+      "user_id": 89,
+      "page": "/bill_management",
+      "qr_code": "C8571-37",
+      "status": "simulated",
+      "response_time": 0.30205202102661133
+    },
+    {
+      "user_id": 106,
+      "page": "/bill_management",
+      "qr_code": "P4621-33",
+      "status": "simulated",
+      "response_time": 0.28429365158081055
+    },
+    {
+      "user_id": 61,
+      "page": "/bill_management",
+      "qr_code": "P4059-51",
+      "status": "simulated",
+      "response_time": 0.3876492977142334
+    },
+    {
+      "user_id": 82,
+      "page": "/bag_management",
+      "qr_code": "C9771-59",
+      "status": "simulated",
+      "response_time": 0.34090137481689453
+    },
+    {
+      "user_id": 83,
+      "page": "/bill_management",
+      "qr_code": "P4621-33",
+      "status": "simulated",
+      "response_time": 0.4621436595916748
+    },
+    {
+      "user_id": 103,
+      "page": "/child_lookup",
+      "qr_code": "P8809-49",
+      "status": "simulated",
+      "response_time": 0.3292219638824463
+    },
+    {
+      "user_id": 81,
+      "page": "/bill_management",
+      "qr_code": "P4156-69",
+      "status": "simulated",
+      "response_time": 0.36588144302368164
+    },
+    {
+      "user_id": 99,
+      "page": "/bag_management",
+      "qr_code": "P9134-88",
+      "status": "simulated",
+      "response_time": 0.34661364555358887
+    },
+    {
+      "user_id": 92,
+      "page": "/child_lookup",
+      "qr_code": "P1978-44",
+      "status": "simulated",
+      "response_time": 0.29447102546691895
+    },
+    {
+      "user_id": 91,
+      "page": "/bill_management",
+      "qr_code": "P8677-31",
+      "status": "simulated",
+      "response_time": 0.4396486282348633
+    },
+    {
+      "user_id": 97,
+      "page": "/bill_management",
+      "qr_code": "P5656-92",
+      "status": "simulated",
+      "response_time": 0.3193325996398926
+    },
+    {
+      "user_id": 62,
+      "page": "/bill_management",
+      "qr_code": "P8809-49",
+      "status": "simulated",
+      "response_time": 0.6549599170684814
+    },
+    {
+      "user_id": 110,
+      "page": "/bag_management",
+      "qr_code": "C2927-33",
+      "status": "simulated",
+      "response_time": 0.27411603927612305
+    },
+    {
+      "user_id": 65,
+      "page": "/bag_management",
+      "qr_code": "P1447-93",
+      "status": "simulated",
+      "response_time": 0.29668354988098145
+    },
+    {
+      "user_id": 107,
+      "page": "/child_lookup",
+      "qr_code": "P4083-85",
+      "status": "simulated",
+      "response_time": 0.3171379566192627
+    },
+    {
+      "user_id": 122,
+      "page": "/bill_management",
+      "qr_code": "C3914-19",
+      "status": "simulated",
+      "response_time": 0.19630980491638184
+    },
+    {
+      "user_id": 109,
+      "page": "/bill_management",
+      "qr_code": "P8717-73",
+      "status": "simulated",
+      "response_time": 0.2686779499053955
+    },
+    {
+      "user_id": 117,
+      "page": "/child_lookup",
+      "qr_code": "P4621-33",
+      "status": "simulated",
+      "response_time": 0.15971779823303223
+    },
+    {
+      "user_id": 112,
+      "page": "/bill_management",
+      "qr_code": "C1786-50",
+      "status": "simulated",
+      "response_time": 0.19198346138000488
+    },
+    {
+      "user_id": 105,
+      "page": "/child_lookup",
+      "qr_code": "C2927-33",
+      "status": "simulated",
+      "response_time": 0.24652409553527832
+    },
+    {
+      "user_id": 120,
+      "page": "/child_lookup",
+      "qr_code": "C4955-47",
+      "status": "simulated",
+      "response_time": 0.18619799613952637
+    },
+    {
+      "user_id": 116,
+      "page": "/bag_management",
+      "qr_code": "C2429-47",
+      "status": "simulated",
+      "response_time": 0.1600477695465088
+    },
+    {
+      "user_id": 119,
+      "page": "/bag_management",
+      "qr_code": "P4059-51",
+      "status": "simulated",
+      "response_time": 0.21036577224731445
+    },
+    {
+      "user_id": 85,
+      "page": "/bill_management",
+      "qr_code": "P2301-38",
+      "status": "simulated",
+      "response_time": 0.37068605422973633
+    },
+    {
+      "user_id": 113,
+      "page": "/child_lookup",
+      "qr_code": "P6508-27",
+      "status": "simulated",
+      "response_time": 0.12273859977722168
+    },
+    {
+      "user_id": 114,
+      "page": "/bag_management",
+      "qr_code": "C4642-80",
+      "status": "simulated",
+      "response_time": 0.21076440811157227
+    },
+    {
+      "user_id": 101,
+      "page": "/child_lookup",
+      "qr_code": "C2352-96",
+      "status": "simulated",
+      "response_time": 0.2711925506591797
+    },
+    {
+      "user_id": 121,
+      "page": "/bill_management",
+      "qr_code": "C2927-33",
+      "status": "simulated",
+      "response_time": 0.1883699893951416
+    },
+    {
+      "user_id": 111,
+      "page": "/bag_management",
+      "qr_code": "C7177-79",
+      "status": "simulated",
+      "response_time": 0.31684327125549316
+    },
+    {
+      "user_id": 108,
+      "page": "/child_lookup",
+      "qr_code": "P9753-76",
+      "status": "simulated",
+      "response_time": 0.293060302734375
+    },
+    {
+      "user_id": 125,
+      "page": "/bill_management",
+      "qr_code": "P4579-31",
+      "status": "simulated",
+      "response_time": 0.23763132095336914
+    },
+    {
+      "user_id": 132,
+      "page": "/bag_management",
+      "qr_code": "C1615-15",
+      "status": "simulated",
+      "response_time": 0.17361831665039062
+    },
+    {
+      "user_id": 124,
+      "page": "/bag_management",
+      "qr_code": "C5848-85",
+      "status": "simulated",
+      "response_time": 0.08324575424194336
+    },
+    {
+      "user_id": 135,
+      "page": "/bag_management",
+      "qr_code": "C5848-85",
+      "status": "simulated",
+      "response_time": 0.10271143913269043
+    },
+    {
+      "user_id": 98,
+      "page": "/bag_management",
+      "qr_code": "P8583-59",
+      "status": "simulated",
+      "response_time": 0.20206427574157715
+    },
+    {
+      "user_id": 129,
+      "page": "/bag_management",
+      "qr_code": "P1100-32",
+      "status": "simulated",
+      "response_time": 0.14597821235656738
+    },
+    {
+      "user_id": 138,
+      "page": "/bag_management",
+      "qr_code": "P8674-16",
+      "status": "simulated",
+      "response_time": 0.10668802261352539
+    },
+    {
+      "user_id": 86,
+      "page": "/child_lookup",
+      "qr_code": "C2108-66",
+      "status": "simulated",
+      "response_time": 0.1667308807373047
+    },
+    {
+      "user_id": 118,
+      "page": "/bill_management",
+      "qr_code": "C2429-47",
+      "status": "simulated",
+      "response_time": 0.13227272033691406
+    },
+    {
+      "user_id": 136,
+      "page": "/bag_management",
+      "qr_code": "P1978-44",
+      "status": "simulated",
+      "response_time": 0.11403441429138184
+    },
+    {
+      "user_id": 146,
+      "page": "/bill_management",
+      "qr_code": "P9134-88",
+      "status": "simulated",
+      "response_time": 0.0750284194946289
+    },
+    {
+      "user_id": 145,
+      "page": "/bag_management",
+      "qr_code": "C8165-26",
+      "status": "simulated",
+      "response_time": 0.0633387565612793
+    },
+    {
+      "user_id": 127,
+      "page": "/bag_management",
+      "qr_code": "C2743-16",
+      "status": "simulated",
+      "response_time": 0.12838196754455566
+    },
+    {
+      "user_id": 104,
+      "page": "/bag_management",
+      "qr_code": "C4402-89",
+      "status": "simulated",
+      "response_time": 0.08207249641418457
+    },
+    {
+      "user_id": 147,
+      "page": "/child_lookup",
+      "qr_code": "P1447-93",
+      "status": "simulated",
+      "response_time": 0.08543205261230469
+    },
+    {
+      "user_id": 142,
+      "page": "/bag_management",
+      "qr_code": "P4477-17",
+      "status": "simulated",
+      "response_time": 0.10959029197692871
+    },
+    {
+      "user_id": 144,
+      "page": "/bag_management",
+      "qr_code": "C4606-63",
+      "status": "simulated",
+      "response_time": 0.09788656234741211
+    },
+    {
+      "user_id": 133,
+      "page": "/bill_management",
+      "qr_code": "P9753-76",
+      "status": "simulated",
+      "response_time": 0.09020018577575684
+    },
+    {
+      "user_id": 143,
+      "page": "/bill_management",
+      "qr_code": "P8717-73",
+      "status": "simulated",
+      "response_time": 0.0647883415222168
+    },
+    {
+      "user_id": 128,
+      "page": "/child_lookup",
+      "qr_code": "C2380-80",
+      "status": "simulated",
+      "response_time": 0.07627320289611816
+    },
+    {
+      "user_id": 131,
+      "page": "/child_lookup",
+      "qr_code": "C1976-62",
+      "status": "simulated",
+      "response_time": 0.063629150390625
+    },
+    {
+      "user_id": 123,
+      "page": "/child_lookup",
+      "qr_code": "C8194-43",
+      "status": "simulated",
+      "response_time": 0.06841921806335449
+    },
+    {
+      "user_id": 126,
+      "page": "/bill_management",
+      "qr_code": "C9601-12",
+      "status": "simulated",
+      "response_time": 0.05356717109680176
+    },
+    {
+      "user_id": 139,
+      "page": "/bag_management",
+      "qr_code": "P7661-44",
+      "status": "simulated",
+      "response_time": 0.07265377044677734
+    },
+    {
+      "user_id": 149,
+      "page": "/bill_management",
+      "qr_code": "C2842-56",
+      "status": "simulated",
+      "response_time": 0.04672574996948242
+    },
+    {
+      "user_id": 141,
+      "page": "/child_lookup",
+      "qr_code": "P5629-90",
+      "status": "simulated",
+      "response_time": 0.05478715896606445
+    },
+    {
+      "user_id": 134,
+      "page": "/bill_management",
+      "qr_code": "P4122-22",
+      "status": "simulated",
+      "response_time": 0.06131315231323242
+    },
+    {
+      "user_id": 130,
+      "page": "/bill_management",
+      "qr_code": "C6900-27",
+      "status": "simulated",
+      "response_time": 0.06456923484802246
+    },
+    {
+      "user_id": 148,
+      "page": "/bag_management",
+      "qr_code": "C1283-24",
+      "status": "simulated",
+      "response_time": 0.03809618949890137
+    },
+    {
+      "user_id": 137,
+      "page": "/child_lookup",
+      "qr_code": "C9364-56",
+      "status": "simulated",
+      "response_time": 0.04265904426574707
+    },
+    {
+      "user_id": 140,
+      "page": "/bill_management",
+      "qr_code": "C2450-83",
+      "status": "simulated",
+      "response_time": 0.014971017837524414
+    }
+  ],
+  "csrf_tests": [],
+  "scanner_tests": [
+    {
+      "scenario": "Dim lighting conditions",
+      "qr_code": "p123-45",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Dim lighting conditions",
+      "qr_code": "P123-45",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Dim lighting conditions",
+      "qr_code": "p-123-45",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Dim lighting conditions",
+      "qr_code": "P 123 45",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Blurred QR codes",
+      "qr_code": "C456-78",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Blurred QR codes",
+      "qr_code": "c456-78",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Blurred QR codes",
+      "qr_code": "C45678",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Blurred QR codes",
+      "qr_code": "C-456-78",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Crushed/damaged paper",
+      "qr_code": "P999-99",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Crushed/damaged paper",
+      "qr_code": "P99",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Crushed/damaged paper",
+      "qr_code": "999-99",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Crushed/damaged paper",
+      "qr_code": "P-999",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Multiple QR codes visible",
+      "qr_code": "P111-11",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Multiple QR codes visible",
+      "qr_code": "P222-22",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Multiple QR codes visible",
+      "qr_code": "P333-33",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Multiple QR codes visible",
+      "qr_code": "P444-44",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Extreme angles",
+      "qr_code": "C777-77",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Extreme angles",
+      "qr_code": "C888-88",
+      "error": "'NoneType' object is not subscriptable"
+    },
+    {
+      "scenario": "Extreme angles",
+      "qr_code": "C999-99",
+      "error": "'NoneType' object is not subscriptable"
+    }
+  ],
+  "performance_metrics": {
+    "concurrent_users": 150,
+    "successful_scans": 150,
+    "avg_response_time": 0.2088679615656535
+  }
+}
