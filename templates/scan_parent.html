@@ -208,7 +208,12 @@ function initializeScanner() {
             
             // Submit form after a brief delay
             setTimeout(() => {
-                console.log('Submitting form...');
+                console.log('Submitting form with data:', {
+                    formAction: submitForm.action,
+                    formMethod: submitForm.method,
+                    qrValue: qrInput.value,
+                    csrfToken: submitForm.querySelector('[name="csrf_token"]')?.value?.substring(0, 10) + '...'
+                });
                 submitForm.submit();
             }, 1000);
             

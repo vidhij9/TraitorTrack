@@ -1142,14 +1142,24 @@ def process_parent_scan():
     try:
         qr_code = request.form.get('qr_code', '').strip()
         
+        # Comprehensive logging
+        app.logger.info(f'PARENT SCAN: Processing request from user {current_user.username}')
+        app.logger.info(f'PARENT SCAN: Raw QR code received: {repr(qr_code)}')
+        app.logger.info(f'PARENT SCAN: QR code length: {len(qr_code) if qr_code else 0}')
+        app.logger.info(f'PARENT SCAN: Form data keys: {list(request.form.keys())}')
+        app.logger.info(f'PARENT SCAN: CSRF token present: {"csrf_token" in request.form}')
+        
         if not qr_code:
+            app.logger.warning('PARENT SCAN: No QR code provided in form')
             flash('No QR code provided.', 'error')
             return redirect(url_for('scan_parent'))
         
         # Create or get parent bag
+        app.logger.info(f'PARENT SCAN: Searching for existing bag with QR code: {qr_code}')
         parent_bag = Bag.query.filter_by(qr_id=qr_code).first()
         
         if not parent_bag:
+            app.logger.info(f'PARENT SCAN: Creating new parent bag for QR code: {qr_code}')
             # FIX: Create new parent bag with validation
             # Validate QR code length before creating
             if len(qr_code) > 255:
@@ -1184,6 +1194,10 @@ def process_parent_scan():
             'timestamp': datetime.utcnow().isoformat()
         }
         session.permanent = True  # Ensure session persists
+        
+        app.logger.info(f'PARENT SCAN: Successfully processed parent bag {qr_code}')
+        app.logger.info(f'PARENT SCAN: Session data - current_parent_qr: {session.get("current_parent_qr")}')
+        app.logger.info(f'PARENT SCAN: Redirecting to scan_child page')
         
         flash(f'Parent bag {qr_code} processed successfully!', 'success')
         return redirect(url_for('scan_child'))

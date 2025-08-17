@@ -2,8 +2,15 @@
 // Optimized for high-density QR codes on plastic packaging with auto-torch enabled
 
 class InstantDetectionScanner {
-    constructor(containerId) {
+    constructor(containerId, onSuccessCallback = null) {
+        console.log('InstantDetectionScanner constructor called with:', {
+            containerId,
+            hasCallback: !!onSuccessCallback,
+            callbackType: typeof onSuccessCallback
+        });
+        
         this.containerId = containerId;
+        this.onSuccess = onSuccessCallback;
         this.container = null;
         this.video = null;
         this.canvas = null;
@@ -396,11 +403,25 @@ class InstantDetectionScanner {
     }
     
     handleQRCode(data) {
+        console.log('handleQRCode called with data:', {
+            data: data,
+            dataLength: data ? data.length : 0,
+            hasCallback: !!this.onSuccess,
+            callbackType: typeof this.onSuccess
+        });
+        
         this.updateStatus('QR code detected!', '#4CAF50');
         
-        // Trigger the onScan callback if provided
-        if (this.onScan) {
-            this.onScan(data);
+        // Trigger the success callback if provided
+        if (this.onSuccess && typeof this.onSuccess === 'function') {
+            console.log('Calling success callback with data:', data);
+            try {
+                this.onSuccess(data);
+            } catch (error) {
+                console.error('Error calling success callback:', error);
+            }
+        } else {
+            console.warn('No success callback provided or callback is not a function');
         }
         
         // Auto-reset status after short delay
