@@ -222,14 +222,21 @@
             {% endfor %}
         {% endif %}
         
-        // Initialize Simple Fast Scanner
+        // Initialize World-Class Scanner
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Check if jsQR is loaded
-                if (typeof jsQR === 'undefined') {
-                    console.error('jsQR library not loaded');
+                // Wait for all libraries to load
+                let attempts = 0;
+                while (typeof WorldClassQRScanner === 'undefined' && attempts < 50) {
+                    console.log('Waiting for WorldClassQRScanner to load...');
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (typeof WorldClassQRScanner === 'undefined') {
+                    console.error('WorldClassQRScanner library not loaded');
                     throw new Error('QR scanning library not loaded');
                 }
                 
@@ -243,13 +250,17 @@
                 
                 // Stop any existing scanner first
                 if (window.scanner && window.scanner.stop) {
-                    window.scanner.stop();
+                    await window.scanner.stop();
                 }
                 
                 // Use World-Class Scanner for maximum reliability in worst-case scenarios
                 scanner = new WorldClassQRScanner('simple-scanner-container');
                 window.scanner = scanner; // Store globally for cleanup
-                // The scanner handles child scans internally with its own logic
+                
+                // Set up success callback for child scanning
+                scanner.setSuccessCallback(function(qrCode) {
+                    handleChildScanSuccess(qrCode);
+                });
                 
                 // Monitor scanner status
                 setTimeout(() => {
