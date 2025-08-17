@@ -136,25 +136,19 @@
                     window.scanner.stop();
                 }
                 
-                // Use Ultra-Fast Scanner for Google Lens-like performance
-                scanner = new UltraFastScanner('simple-scanner-container');
+                // Use Instant Detection Scanner for reliable performance
+                if (typeof InstantDetectionScanner === 'undefined') {
+                    throw new Error('InstantDetectionScanner not loaded');
+                }
+                
+                scanner = new InstantDetectionScanner('simple-scanner-container', function(qrCode) {
+                    handleSuccessfulScan(qrCode);
+                });
                 window.scanner = scanner; // Store globally for cleanup
                 
-                // Monitor scanner status
-                setTimeout(() => {
-                    const scanStatus = document.getElementById('scan-status');
-                    if (scanStatus && scanStatus.textContent.includes('Ready')) {
-                        updateStatus('Ready', 'success');
-                        resultContainer.className = 'alert alert-success';
-                        resultContainer.innerHTML = '✅ Scanner ready - Point at QR code';
-                    } else if (scanStatus && scanStatus.textContent.includes('Error')) {
-                        // Try fallback scanner
-                        console.log('Switching to fallback scanner');
-                        if (scanner && scanner.stop) scanner.stop();
-                        // InstantScanner provides instant detection
-                        console.log('InstantScanner handles detection instantly');
-                    }
-                }, 2000);
+                updateStatus('Ready', 'success');
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = '✅ Scanner ready - Point at QR code';
                 
             } catch (error) {
                 console.error('Scanner initialization error:', error);
