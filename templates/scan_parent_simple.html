@@ -1,0 +1,283 @@
+{% extends "layout.html" %}
+
+{% block title %}Scan Parent Bag - TraceTrack{% endblock %}
+
+{% block head %}
+<!-- Load QR Scanner Library -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+
+<style>
+/* Scanner Styles */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#video {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+#canvas {
+    display: none;
+}
+
+.scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.scanner-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    border: 3px solid #28a745;
+    border-radius: 8px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes pulse {
+    0% { border-color: #28a745; }
+    50% { border-color: #5cb85c; }
+    100% { border-color: #28a745; }
+}
+
+.scanner-frame.scanning {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.btn-camera {
+    margin: 10px 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="fas fa-qrcode me-2"></i>Scan Parent Bag</h3>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6 mx-auto">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Camera Controls -->
+                    <div class="text-center mb-3">
+                        <button id="start-camera" class="btn btn-success btn-camera">
+                            <i class="fas fa-camera me-2"></i>Start Camera
+                        </button>
+                        <button id="stop-camera" class="btn btn-danger btn-camera d-none">
+                            <i class="fas fa-stop me-2"></i>Stop Camera
+                        </button>
+                    </div>
+                    
+                    <!-- Scanner View -->
+                    <div class="scanner-container">
+                        <video id="video" playsinline></video>
+                        <canvas id="canvas"></canvas>
+                        <div class="scanner-overlay">
+                            <div class="scanner-frame" id="scanner-frame"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="text-center mt-3">
+                        <div id="status" class="alert alert-info">
+                            Click "Start Camera" to begin scanning
+                        </div>
+                    </div>
+                    
+                    <!-- Result -->
+                    <div id="result" class="d-none">
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Detected</h5>
+                            <p>QR Code: <strong id="qr-value"></strong></p>
+                            <form method="POST" action="{{ url_for('process_parent_scan') }}" id="scan-form">
+                                <input type="hidden" name="qr_code" id="qr-input">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-arrow-right me-2"></i>Continue to Child Bags
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual Entry -->
+                    <div class="text-center mt-3">
+                        <button id="manual-btn" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-keyboard me-2"></i>Manual Entry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('start-camera');
+    const stopBtn = document.getElementById('stop-camera');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+    const qrValue = document.getElementById('qr-value');
+    const qrInput = document.getElementById('qr-input');
+    const scannerFrame = document.getElementById('scanner-frame');
+    const manualBtn = document.getElementById('manual-btn');
+    
+    let stream = null;
+    let scanning = false;
+    let lastScan = '';
+    
+    // Start camera
+    startBtn.addEventListener('click', async function() {
+        try {
+            status.className = 'alert alert-warning';
+            status.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting camera...';
+            
+            // Request camera permission
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+            
+            video.srcObject = stream;
+            video.play();
+            
+            video.addEventListener('loadedmetadata', function() {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                scanning = true;
+                
+                status.className = 'alert alert-success';
+                status.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active - Point at QR code';
+                
+                startBtn.classList.add('d-none');
+                stopBtn.classList.remove('d-none');
+                scannerFrame.classList.add('scanning');
+                
+                scan();
+            });
+            
+        } catch (err) {
+            console.error('Camera error:', err);
+            status.className = 'alert alert-danger';
+            
+            if (err.name === 'NotAllowedError') {
+                status.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Camera permission denied. Please allow camera access and refresh the page.';
+            } else if (err.name === 'NotFoundError') {
+                status.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>No camera found on this device.';
+            } else {
+                status.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Camera error: ' + err.message;
+            }
+        }
+    });
+    
+    // Stop camera
+    stopBtn.addEventListener('click', function() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        
+        video.srcObject = null;
+        scanning = false;
+        
+        status.className = 'alert alert-info';
+        status.innerHTML = 'Camera stopped';
+        
+        stopBtn.classList.add('d-none');
+        startBtn.classList.remove('d-none');
+        scannerFrame.classList.remove('scanning');
+    });
+    
+    // Scan for QR codes
+    function scan() {
+        if (!scanning) return;
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            if (typeof jsQR !== 'undefined') {
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth"
+                });
+                
+                if (code && code.data && code.data !== lastScan) {
+                    lastScan = code.data;
+                    console.log('QR Code detected:', code.data);
+                    
+                    // Vibrate if available
+                    if (navigator.vibrate) {
+                        navigator.vibrate(200);
+                    }
+                    
+                    // Show result
+                    qrValue.textContent = code.data;
+                    qrInput.value = code.data;
+                    result.classList.remove('d-none');
+                    
+                    status.className = 'alert alert-success';
+                    status.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code detected!';
+                    
+                    // Stop scanning
+                    scanning = false;
+                    scannerFrame.classList.remove('scanning');
+                    
+                    // Auto-submit after 1 second
+                    setTimeout(function() {
+                        document.getElementById('scan-form').submit();
+                    }, 1000);
+                }
+            }
+        }
+        
+        requestAnimationFrame(scan);
+    }
+    
+    // Manual entry
+    manualBtn.addEventListener('click', function() {
+        const code = prompt('Enter QR code manually:');
+        if (code && code.trim()) {
+            qrValue.textContent = code.trim();
+            qrInput.value = code.trim();
+            result.classList.remove('d-none');
+            
+            status.className = 'alert alert-success';
+            status.innerHTML = '<i class="fas fa-check-circle me-2"></i>QR Code entered manually';
+        }
+    });
+    
+    // Check for jsQR library
+    if (typeof jsQR === 'undefined') {
+        console.error('jsQR library not loaded');
+        status.className = 'alert alert-danger';
+        status.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Scanner library not loaded. Please refresh the page.';
+    }
+});
+</script>
+{% endblock %}
