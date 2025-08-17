@@ -409,8 +409,7 @@
 {% block scripts %}
 <!-- Lightning Scanner for instant performance -->
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera-permission-helper.js') }}"></script>
-<script src="{{ url_for('static', filename='js/fast-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let lookupScanner = null;
@@ -449,8 +448,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.lookupScanner.stop();
             }
             
-            // Use Instant Detection Scanner for Google Lens-like performance
-            lookupScanner = new LiveQRScanner('scanner-container');
+            // Use Instant Detection Scanner for Google Lens-like performance (same as scan parent page)
+            lookupScanner = new InstantDetectionScanner('scanner-container');
             lookupScanner.onScan = handleLookupScanSuccess;
             window.lookupScanner = lookupScanner; // Store globally for cleanup
             
