@@ -285,19 +285,36 @@ function initializeScanner() {
         console.log('Child QR code detected:', qrCode);
         isProcessing = true;
         
-        // Fill the hidden form
-        const submitForm = document.getElementById('auto-submit-form');
-        const qrInput = document.getElementById('qr-input');
-        qrInput.value = qrCode;
-        
         // Show processing message with count
         showToast(`Adding child bag ${scannedCount + 1}/30: ${qrCode}...`, 'info');
         
-        // Submit form after a brief delay
-        setTimeout(() => {
-            console.log('Submitting form...');
-            submitForm.submit();
-        }, 1000);
+        // Submit via AJAX for better performance
+        fetch('/process_child_scan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token=${encodeURIComponent(document.querySelector('[name="csrf_token"]').value)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Success - reload page to show updated list
+                showToast(data.message || 'Child bag added successfully!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                // Error - show message but stay on page
+                showToast(data.message || 'Error processing child bag', 'danger');
+                isProcessing = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Network error. Please try again.', 'danger');
+            isProcessing = false;
+        });
     }
     
     // Start scanner button

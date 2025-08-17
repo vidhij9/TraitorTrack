@@ -1,7 +1,7 @@
 """
 Optimized routes for TraceTrack application - consolidated and performance-optimized
 """
-from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response
+from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 
 # Import optimized authentication utilities
@@ -617,6 +617,11 @@ def seed_sample_data():
     return redirect(url_for('analytics'))
 
 # Core application routes
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon"""
+    return send_from_directory('static', 'favicon.ico', mimetype='image/x-icon')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -1264,8 +1269,7 @@ def process_child_scan():
         
         if current_child_count >= 30:
             app.logger.warning(f'CHILD SCAN: 30 bag limit reached for parent {parent_qr}')
-            flash('Parent bag is full! Maximum 30 child bags allowed per parent.', 'warning')
-            return redirect(url_for('scan_child'))
+            return jsonify({'success': False, 'message': 'Parent bag is full! Maximum 30 child bags allowed per parent.'})
         
         # Check if bag already exists and validate its type
         existing_bag = Bag.query.filter_by(qr_id=qr_code).first()

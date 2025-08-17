@@ -206,16 +206,36 @@ function initializeScanner() {
             // Show processing message
             showToast(`Submitting parent bag: ${qrCode}...`, 'info');
             
-            // Submit form after a brief delay
-            setTimeout(() => {
-                console.log('Submitting form with data:', {
-                    formAction: submitForm.action,
-                    formMethod: submitForm.method,
-                    qrValue: qrInput.value,
-                    csrfToken: submitForm.querySelector('[name="csrf_token"]')?.value?.substring(0, 10) + '...'
-                });
-                submitForm.submit();
-            }, 1000);
+            // Submit via AJAX for better performance
+            fetch('/process_parent_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token=${encodeURIComponent(submitForm.querySelector('[name="csrf_token"]').value)}`
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    return response.json();
+                }
+            })
+            .then(data => {
+                if (data && !data.success) {
+                    showToast(data.message || 'Error processing parent bag', 'danger');
+                    isProcessing = false;
+                    // Re-enable scanner after error
+                    if (scanner) scanner.start();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Network error. Please try again.', 'danger');
+                isProcessing = false;
+                // Re-enable scanner after error
+                if (scanner) scanner.start();
+            });
             
         } catch (error) {
             console.error('Error in form submission:', error);
