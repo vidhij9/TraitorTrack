@@ -20,15 +20,16 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
 - **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
 - **Recent Optimizations (August 17, 2025)**:
-  - **Production QR Scanner Implementation**: Complete rewrite with working QR scanning functionality
-  - **Direct Camera Access**: Immediate camera initialization with proper error handling
-  - **Green Scanner Frame**: Visual scanning frame with animated corners for better UX
-  - **Agricultural Optimization**: Multiple QR detection strategies for plastic agricultural bags
-  - **Performance**: 60 FPS scanning with requestAnimationFrame for smooth detection
-  - **Mobile-First Design**: Responsive design with proper video scaling
-  - **Reliable Implementation**: Using jsQR library with fallback detection strategies
-  - **Visual Feedback**: Green animated frame, haptic feedback, and status indicators
-  - **Issues Resolved**: Fixed camera display, scanner overlay visibility, and QR detection
+  - **Instant QR Scanner Implementation**: Created new InstantQRScanner class for ultra-fast detection
+  - **Performance Improvements**: 50ms scan interval for near-instant QR code detection
+  - **Enhanced Camera Settings**: Optimized constraints with 1920x1080 ideal resolution, 30fps, continuous focus/exposure
+  - **Multiple Detection Strategies**: Parallel processing with attemptBoth, dontInvert, and onlyInvert strategies
+  - **Smart Feedback System**: Audio beep, visual flash effect, and haptic vibration on detection
+  - **Torch Support**: Added flashlight toggle for better scanning in low light conditions
+  - **Fixed Parent Bag Scanner**: Corrected POST endpoint from /scan/parent to /process_parent_scan
+  - **Improved Error Handling**: Better timeout management and fallback camera constraints
+  - **UI Enhancements**: Added torch button that auto-appears when device supports flashlight
+  - **Previous Issues Resolved**: Fixed camera display, scanner overlay visibility, and QR detection
   - **Previous**: Enhanced InstantDetectionScanner for high-density agricultural packaging QR codes
   - **Previous**: Implemented InstantDetectionScanner with ultra-aggressive optimization for sub-second QR detection
   - **Previous**: Achieved Google Lens-like performance with 60 FPS scanning and 200ms duplicate prevention

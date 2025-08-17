@@ -3,8 +3,9 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Load QR Scanner Library -->
+<!-- Load QR Scanner Libraries -->
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-qr-scanner.js') }}"></script>
 
 <style>
 /* Scanner Styles */
@@ -162,6 +163,9 @@
                         <span id="scanner-status" class="badge bg-info">
                             <i class="fas fa-spinner fa-spin me-1"></i>Starting camera...
                         </span>
+                        <button id="torch-btn" class="btn btn-outline-secondary btn-sm ms-2 d-none">
+                            <i class="far fa-lightbulb"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -200,169 +204,145 @@
 
 {% block scripts %}
 <script>
-// Working QR Scanner Implementation
+// Instant QR Scanner Implementation - Ultra Fast
 document.addEventListener('DOMContentLoaded', function() {
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const scannerStatus = document.getElementById('scanner-status');
     const resultContainer = document.getElementById('result-container');
     const scanSuccess = document.getElementById('scan-success');
     const parentQrValue = document.getElementById('parent-qr-value');
-    
-    let scanning = false;
-    let lastScan = '';
-    let lastScanTime = 0;
+    let scanner = null;
     let isProcessing = false;
     
-    // Initialize camera
-    async function initCamera() {
+    // Initialize the instant scanner
+    function initScanner() {
+        scanner = new InstantQRScanner({
+            video: document.getElementById('video'),
+            canvas: document.getElementById('canvas'),
+            onDetected: handleQRCode,
+            onError: handleError,
+            onStatusUpdate: updateStatus
+        });
+        
+        // Start scanning
+        scanner.start().then(success => {
+            if (!success) {
+                console.error('Failed to start scanner');
+            } else {
+                // Check for torch support
+                checkTorchSupport();
+            }
+        });
+    }
+    
+    // Check if torch is supported
+    async function checkTorchSupport() {
         try {
-            console.log('Requesting camera access...');
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+            if (scanner && scanner.stream) {
+                const track = scanner.stream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                
+                if (capabilities.torch) {
+                    const torchBtn = document.getElementById('torch-btn');
+                    if (torchBtn) {
+                        torchBtn.classList.remove('d-none');
+                    }
                 }
-            });
-            
-            console.log('Camera access granted');
-            video.srcObject = stream;
-            
-            // Wait for video to be ready
-            video.addEventListener('loadedmetadata', () => {
-                console.log('Video metadata loaded');
-                video.play();
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                scanning = true;
-                scannerStatus.innerHTML = '<i class="fas fa-camera me-1"></i>Scanning...';
-                scannerStatus.className = 'badge bg-success';
-                console.log('Starting scan loop');
-                scan();
-            });
-            
-        } catch (err) {
-            console.error('Camera error:', err);
-            scannerStatus.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Camera Error';
-            scannerStatus.className = 'badge bg-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please allow camera access and refresh';
-            resultContainer.className = 'alert alert-danger mb-2 p-2';
+            }
+        } catch (error) {
+            console.log('Torch support check:', error);
         }
     }
     
-    // Scan for QR codes
-    function scan() {
-        if (!scanning) return;
+    // Handle status updates
+    function updateStatus(message, type) {
+        console.log(`Scanner status: ${type} - ${message}`);
         
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            // Draw video frame to canvas
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Get image data
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // Try to detect QR code with multiple strategies
-            let code = null;
-            
-            // Try standard detection
-            if (typeof jsQR !== 'undefined') {
-                code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "attemptBoth"
-                });
-                
-                // Try without inversion if failed
-                if (!code) {
-                    code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "dontInvert"
-                    });
-                }
-                
-                // Try with only inversion if still failed
-                if (!code) {
-                    code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "onlyInvert"
-                    });
-                }
-            }
-            
-            // Handle detected QR code
-            if (code && code.data) {
-                handleQRCode(code.data);
-            }
+        switch(type) {
+            case 'info':
+                scannerStatus.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i>${message}`;
+                scannerStatus.className = 'badge bg-info';
+                break;
+            case 'success':
+                scannerStatus.innerHTML = `<i class="fas fa-camera me-1"></i>${message}`;
+                scannerStatus.className = 'badge bg-success';
+                break;
+            case 'detected':
+                scannerStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i>QR Detected!';
+                scannerStatus.className = 'badge bg-success';
+                break;
+            case 'error':
+                scannerStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>${message}`;
+                scannerStatus.className = 'badge bg-danger';
+                break;
         }
-        
-        // Continue scanning
-        requestAnimationFrame(scan);
+    }
+    
+    // Handle errors
+    function handleError(error) {
+        console.error('Scanner error:', error);
+        resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>' + error.message;
+        resultContainer.className = 'alert alert-danger mb-2 p-2';
     }
     
     // Handle detected QR code
     function handleQRCode(qrData) {
-        const now = Date.now();
-        
-        // Prevent duplicate processing within 2 seconds
-        if (qrData === lastScan && (now - lastScanTime) < 2000) {
-            return;
-        }
-        
         if (isProcessing) return;
-        
-        lastScan = qrData;
-        lastScanTime = now;
         isProcessing = true;
         
-        console.log('QR Code detected:', qrData);
-        
-        // Visual feedback
-        scannerStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i>QR Detected!';
-        scannerStatus.className = 'badge bg-success';
-        
-        // Haptic feedback
-        if (navigator.vibrate) {
-            navigator.vibrate(200);
-        }
+        console.log('Processing QR Code:', qrData);
         
         // Update UI
         parentQrValue.textContent = qrData;
-        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing parent bag...';
         resultContainer.className = 'alert alert-warning mb-2 p-2';
         
-        // Submit to backend
-        fetch('{{ url_for("scan_parent") }}', {
+        // Create form data
+        const formData = new FormData();
+        formData.append('qr_code', qrData);
+        
+        // Submit to correct backend endpoint
+        fetch('{{ url_for("process_parent_scan") }}', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': '{{ csrf_token() if csrf_token is defined else "" }}'
-            },
-            body: 'qr_id=' + encodeURIComponent(qrData)
+            body: formData
         })
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
+        })
         .then(html => {
-            resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Parent bag processed successfully!';
+            console.log('Parent bag processed successfully');
+            resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>Parent bag registered successfully!';
             resultContainer.className = 'alert alert-success mb-2 p-2';
             scanSuccess.classList.remove('d-none');
             
-            // Auto-redirect after 2 seconds
+            // Stop scanner
+            if (scanner) {
+                scanner.stop();
+            }
+            
+            // Auto-redirect after 1.5 seconds
             setTimeout(() => {
                 window.location.href = '{{ url_for("scan_child") }}';
-            }, 2000);
+            }, 1500);
         })
         .catch(error => {
-            console.error('Error:', error);
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Network error. Please try again.';
+            console.error('Error processing scan:', error);
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Error processing scan. Please try again.';
             resultContainer.className = 'alert alert-danger mb-2 p-2';
             isProcessing = false;
             
-            // Reset scanner
+            // Reset scanner after error
             setTimeout(() => {
-                scannerStatus.innerHTML = '<i class="fas fa-camera me-1"></i>Scanning...';
-                scannerStatus.className = 'badge bg-success';
-            }, 2000);
+                resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Ready to scan...';
+                resultContainer.className = 'alert alert-info mb-2 p-2';
+                updateStatus('Scanning...', 'success');
+            }, 3000);
         });
     }
     
-    // Manual entry
+    // Manual entry button
     document.getElementById('manual-entry-btn').addEventListener('click', function() {
         const qrCode = prompt('Enter QR code manually:');
         if (qrCode && qrCode.trim()) {
@@ -370,19 +350,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Wait for jsQR to load
-    function waitForJsQR() {
-        if (typeof jsQR !== 'undefined') {
-            console.log('jsQR loaded, initializing camera...');
-            initCamera();
+    // Torch toggle button (if needed)
+    const torchBtn = document.getElementById('torch-btn');
+    if (torchBtn) {
+        torchBtn.addEventListener('click', async function() {
+            if (scanner) {
+                const torchState = await scanner.toggleTorch();
+                if (torchState) {
+                    torchBtn.innerHTML = '<i class="fas fa-lightbulb"></i>';
+                    torchBtn.classList.add('btn-warning');
+                    torchBtn.classList.remove('btn-outline-secondary');
+                } else {
+                    torchBtn.innerHTML = '<i class="far fa-lightbulb"></i>';
+                    torchBtn.classList.remove('btn-warning');
+                    torchBtn.classList.add('btn-outline-secondary');
+                }
+            }
+        });
+    }
+    
+    // Wait for libraries to load
+    function waitForLibraries() {
+        if (typeof jsQR !== 'undefined' && typeof InstantQRScanner !== 'undefined') {
+            console.log('Libraries loaded, initializing instant scanner...');
+            initScanner();
         } else {
-            console.log('Waiting for jsQR...');
-            setTimeout(waitForJsQR, 100);
+            console.log('Waiting for libraries...');
+            setTimeout(waitForLibraries, 100);
         }
     }
     
     // Start
-    waitForJsQR();
+    waitForLibraries();
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (scanner) {
+            scanner.stop();
+        }
+    });
 });
 </script>
 {% endblock %}
