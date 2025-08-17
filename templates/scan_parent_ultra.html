@@ -3,9 +3,8 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Google Lens-like QR Scanner for Agricultural Seed Bags -->
-<script src="{{ url_for('static', filename='js/camera-fix.js') }}"></script>
-<script src="{{ url_for('static', filename='js/google-lens-scanner.js') }}"></script>
+<!-- Fast QR Scanner for Agricultural Seed Bags -->
+<script src="{{ url_for('static', filename='js/qr-scanner-fast.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -97,7 +96,7 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Ultra-fast local scanner - no CDN dependencies -->
+<!-- Fast QR Scanner Script -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -110,117 +109,41 @@
         const resultContainer = document.getElementById('result-container');
         const scannerStatus = document.getElementById('scanner-status');
         
-        // Initialize Simple Fast Scanner
+        // Initialize Fast QR Scanner
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Use Google Lens scanner for maximum compatibility
-                if (typeof GoogleLensScanner === 'undefined') {
-                    console.log('Using inline camera scanner');
-                    await initializeInlineScanner();
-                    return;
+                // Check if FastQRScanner is available
+                if (typeof FastQRScanner === 'undefined') {
+                    console.error('FastQRScanner not loaded');
+                    throw new Error('QR Scanner library not loaded. Please refresh the page.');
                 }
                 
-                console.log('Google Lens scanner ready');
-                
-                // Request camera permissions first
-                try {
-                    await navigator.mediaDevices.getUserMedia({ video: true });
-                } catch (permError) {
-                    console.error('Camera permission denied:', permError);
-                    throw new Error('Camera access denied. Please allow camera access and refresh.');
-                }
+                console.log('Initializing Fast QR Scanner...');
                 
                 // Stop any existing scanner first
                 if (window.scanner && window.scanner.stop) {
                     window.scanner.stop();
                 }
                 
-                // Use Google Lens Scanner with multiple QR libraries
-                scanner = new GoogleLensScanner('simple-scanner-container');
-                scanner.setSuccessCallback(function(qrCode) {
-                    handleSuccessfulScan(qrCode);
+                // Create new FastQRScanner instance
+                scanner = new FastQRScanner('simple-scanner-container');
+                
+                // Set success callback for QR code detection
+                scanner.setSuccessCallback(async function(qrCode) {
+                    if (!isProcessing) {
+                        await handleSuccessfulScan(qrCode);
+                    }
                 });
+                
+                // Start the scanner
                 await scanner.start();
                 window.scanner = scanner; // Store globally for cleanup
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '✅ Scanner ready - Point at QR code';
-                
-            } catch (error) {
-                console.error('Scanner initialization error:', error);
-                updateStatus('Error', 'danger');
-                resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = `❌ ${error.message || 'Check camera permissions and refresh'}`;
-                
-                // Try to provide helpful error messages
-                if (error.message.includes('getUserMedia')) {
-                    resultContainer.innerHTML = '❌ Camera not available. Please check browser permissions.';
-                } else if (error.message.includes('https')) {
-                    resultContainer.innerHTML = '❌ Camera requires secure connection (HTTPS).';
-                }
-            }
-        }
-        
-        // Inline camera scanner fallback
-        async function initializeInlineScanner() {
-            try {
-                updateStatus('Starting camera...', 'info');
-                
-                // Create inline camera interface
-                const container = document.getElementById('simple-scanner-container');
-                container.innerHTML = `
-                    <div style="position: relative; width: 100%; height: 400px; background: #000; border-radius: 12px; overflow: hidden;">
-                        <video id="inline-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
-                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                             width: 250px; height: 250px; border: 2px solid rgba(255,255,255,0.3); border-radius: 12px;">
-                            <div style="position: absolute; top: -3px; left: -3px; width: 30px; height: 30px; 
-                                 border: 3px solid #00ff88; border-right: none; border-bottom: none; border-radius: 4px;"></div>
-                            <div style="position: absolute; top: -3px; right: -3px; width: 30px; height: 30px; 
-                                 border: 3px solid #00ff88; border-left: none; border-bottom: none; border-radius: 4px;"></div>
-                            <div style="position: absolute; bottom: -3px; left: -3px; width: 30px; height: 30px; 
-                                 border: 3px solid #00ff88; border-right: none; border-top: none; border-radius: 4px;"></div>
-                            <div style="position: absolute; bottom: -3px; right: -3px; width: 30px; height: 30px; 
-                                 border: 3px solid #00ff88; border-left: none; border-top: none; border-radius: 4px;"></div>
-                        </div>
-                        <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-                             text-align: center; color: white;">
-                            <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">
-                                <i class="fas fa-qrcode"></i> Point camera at QR code
-                            </div>
-                            <div style="font-size: 12px; opacity: 0.8; background: rgba(0,0,0,0.5); 
-                                 padding: 4px 12px; border-radius: 20px;">
-                                Optimized for STAR seed bags • Reflective packaging supported
-                            </div>
-                        </div>
-                        <button onclick="toggleInlineTorch()" style="position: absolute; bottom: 15px; right: 15px; 
-                                width: 44px; height: 44px; border: none; border-radius: 22px; 
-                                background: rgba(255,255,255,0.9); color: #333; cursor: pointer;">
-                            <i class="fas fa-flashlight"></i>
-                        </button>
-                    </div>
-                `;
-                
-                // Start camera
-                const video = document.getElementById('inline-video');
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 1920, min: 640 },
-                        height: { ideal: 1080, min: 480 }
-                    }
-                });
-                
-                video.srcObject = stream;
-                window.inlineStream = stream; // Store for cleanup
-                
-                updateStatus('Ready to scan', 'success');
-                resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '✅ Camera ready - Point at agricultural QR codes';
-                
-                // Camera ready - no manual entry needed
+                resultContainer.innerHTML = '<i class="fas fa-check-circle"></i> Scanner ready - Point at QR code';
                 
             } catch (error) {
                 console.error('Inline scanner error:', error);
@@ -274,43 +197,69 @@
             statusBadge.innerHTML = icon + text;
         }
         
-        // Handle successful scan (not needed with new ultra-fast scanner)
-        // The ultra-fast scanner handles scan results internally
-        function handleScanSuccess(qrCode) {
-            // Legacy function kept for compatibility
-            console.log('Scan handled by ultra-fast scanner');
+        // Handle successful QR code scan
+        async function handleSuccessfulScan(qrCode) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            console.log('QR Code scanned:', qrCode);
             
             // Haptic feedback
             if (navigator.vibrate) {
                 navigator.vibrate(200);
             }
             
-            // Update UI
+            // Update UI immediately
             parentQrValue.textContent = qrCode;
-            scanChildLink.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
+            scanChildLink.href = `/scan/child`;
             
             // Show success
             resultContainer.style.display = 'none';
             scanSuccess.classList.remove('d-none');
             scanSuccess.classList.add('scan-success');
             
-            updateStatus('Scan Complete', 'success');
+            updateStatus('Processing...', 'info');
             
-            // Save and redirect instantly
-            fetch('/api/ultra/scan/parent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ qr_code: qrCode })
-            }).then(() => {
-                // Instant redirect after save
-                window.location.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
-            }).catch(() => {
-                // Redirect anyway on error
-                window.location.href = `/scan/child?parent=${encodeURIComponent(qrCode)}`;
-            });
+            // Submit the parent scan to the server
+            try {
+                // Create form data for submission
+                const formData = new FormData();
+                formData.append('qr_code', qrCode);
+                
+                const response = await fetch('/process_parent_scan', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.redirected) {
+                    // Follow the redirect
+                    window.location.href = response.url;
+                } else if (response.ok) {
+                    // Successfully processed, redirect to child scanning
+                    updateStatus('Success!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/scan/child';
+                    }, 500);
+                } else {
+                    // Error occurred
+                    const text = await response.text();
+                    console.error('Server error:', text);
+                    updateStatus('Error', 'danger');
+                    resultContainer.className = 'alert alert-danger';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error processing scan. Please try again.';
+                    resultContainer.style.display = 'block';
+                    scanSuccess.classList.add('d-none');
+                    isProcessing = false;
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                updateStatus('Network Error', 'danger');
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle"></i> Network error. Please check connection.';
+                resultContainer.style.display = 'block';
+                scanSuccess.classList.add('d-none');
+                isProcessing = false;
+            }
         }
         
         // Handle scan errors

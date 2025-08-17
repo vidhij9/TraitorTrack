@@ -3,9 +3,8 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Google Lens-like QR Scanner for Agricultural Seed Bags -->
-<script src="{{ url_for('static', filename='js/camera-fix.js') }}"></script>
-<script src="{{ url_for('static', filename='js/google-lens-scanner.js') }}"></script>
+<!-- Fast QR Scanner for Agricultural Seed Bags -->
+<script src="{{ url_for('static', filename='js/qr-scanner-fast.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -220,55 +219,47 @@
             {% endfor %}
         {% endif %}
         
-        // Initialize Simple Fast Scanner
+        // Initialize Fast QR Scanner
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Use instant QR scanner for millisecond detection
-                console.log('Starting instant QR scanner');
-                
-                // Request camera permissions first
-                try {
-                    await navigator.mediaDevices.getUserMedia({ video: true });
-                } catch (permError) {
-                    console.error('Camera permission denied:', permError);
-                    throw new Error('Camera access denied. Please allow camera access and refresh.');
+                // Check if FastQRScanner is available
+                if (typeof FastQRScanner === 'undefined') {
+                    console.error('FastQRScanner not loaded');
+                    throw new Error('QR Scanner library not loaded. Please refresh the page.');
                 }
+                
+                console.log('Initializing Fast QR Scanner for child bags...');
                 
                 // Stop any existing scanner first
                 if (window.scanner && window.scanner.stop) {
                     window.scanner.stop();
                 }
                 
-                // Use Google Lens Scanner with multiple QR libraries
-                if (typeof GoogleLensScanner !== 'undefined') {
-                    scanner = new GoogleLensScanner('simple-scanner-container');
-                    scanner.setSuccessCallback(function(qrCode) {
-                        handleChildScan(qrCode);
-                    });
-                    await scanner.start();
-                } else {
-                    await createInlineCamera('simple-scanner-container', handleChildScan);
-                }
+                // Create new FastQRScanner instance
+                scanner = new FastQRScanner('simple-scanner-container');
+                
+                // Set success callback for QR code detection
+                scanner.setSuccessCallback(async function(qrCode) {
+                    if (!isProcessing) {
+                        await handleChildScan(qrCode);
+                    }
+                });
+                
+                // Start the scanner
+                await scanner.start();
                 window.scanner = scanner; // Store globally for cleanup
                 
                 updateStatus('Ready', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '✅ Scanner ready - Point at child bag QR codes';
+                resultContainer.innerHTML = '<i class="fas fa-check-circle"></i> Scanner ready - Point at child bag QR codes';
                 
             } catch (error) {
                 console.error('Scanner initialization error:', error);
                 updateStatus('Error', 'danger');
                 resultContainer.className = 'alert alert-danger';
-                resultContainer.innerHTML = `❌ ${error.message || 'Check camera permissions and refresh'}`;
-                
-                // Try to provide helpful error messages
-                if (error.message.includes('getUserMedia')) {
-                    resultContainer.innerHTML = '❌ Camera not available. Please check browser permissions.';
-                } else if (error.message.includes('https')) {
-                    resultContainer.innerHTML = '❌ Camera requires secure connection (HTTPS).';
-                }
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (error.message || 'Check camera permissions and refresh');
             }
         }
         
@@ -342,7 +333,7 @@
         }
         
         // Handle successful child scan
-        function handleChildScanSuccess(qrCode) {
+        async function handleChildScan(qrCode) {
             if (isProcessing) return;
             
             // Check if already scanned
@@ -354,36 +345,37 @@
             console.log('Child bag scanned:', qrCode);
             isProcessing = true;
             
-            // Submit via ULTRA-FAST API
-            fetch('/api/ultra/scan/child', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ qr_code: qrCode })
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                // Create form data for submission
+                const formData = new FormData();
+                formData.append('qr_code', qrCode);
+                
+                // Submit to process_child_scan endpoint
+                const response = await fetch('/process_child_scan', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
                 if (data.success) {
                     // Add to set
                     scannedQrCodes.add(qrCode);
+                    currentCount++;
                     
                     // Update UI
                     addChildToList(qrCode, data.child_name);
                     updateProgress();
-                    showNotification('✅ Scanned: ' + qrCode, 'success');
+                    showNotification('✅ Linked: ' + qrCode, 'success');
                 } else {
                     showNotification('❌ ' + (data.message || 'Error scanning'), 'danger');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
                 showNotification('❌ Network error', 'danger');
-            })
-            .finally(() => {
+            } finally {
                 isProcessing = false;
-            });
+            }
         }
         
         // Add child to list
@@ -417,7 +409,6 @@
         
         // Update progress
         function updateProgress() {
-            currentCount++;
             const percentage = Math.round((currentCount / REQUIRED_BAGS) * 100);
             
             progressText.textContent = currentCount;
