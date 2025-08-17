@@ -3,8 +3,9 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Camera-only QR Scanning - No external dependencies -->
+<!-- Instant QR Scanner for Agricultural Seed Bags -->
 <script src="{{ url_for('static', filename='js/camera-fix.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-qr-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -224,8 +225,8 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Use inline camera scanner - no external dependencies needed
-                console.log('Starting inline camera scanner');
+                // Use instant QR scanner for millisecond detection
+                console.log('Starting instant QR scanner');
                 
                 // Request camera permissions first
                 try {
@@ -240,8 +241,16 @@
                     window.scanner.stop();
                 }
                 
-                // Create inline camera interface
-                await createInlineCamera('simple-scanner-container', handleChildScan);
+                // Use Instant QR Scanner with jsQR library
+                if (typeof InstantQRScanner !== 'undefined') {
+                    scanner = new InstantQRScanner('simple-scanner-container');
+                    scanner.setSuccessCallback(function(qrCode) {
+                        handleChildScan(qrCode);
+                    });
+                    await scanner.start();
+                } else {
+                    await createInlineCamera('simple-scanner-container', handleChildScan);
+                }
                 window.scanner = scanner; // Store globally for cleanup
                 
                 updateStatus('Ready', 'success');

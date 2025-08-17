@@ -3,9 +3,9 @@
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Ultra-Fast Local QR Scanner - No external dependencies -->
+<!-- Instant QR Scanner for Agricultural Seed Bags -->
 <script src="{{ url_for('static', filename='js/camera-fix.js') }}"></script>
-<script src="{{ url_for('static', filename='js/ultra-fast-local-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-qr-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -115,14 +115,14 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Use inline scanner if external script not loaded
-                if (typeof UltraFastLocalScanner === 'undefined') {
+                // Use instant QR scanner for millisecond detection
+                if (typeof InstantQRScanner === 'undefined') {
                     console.log('Using inline camera scanner');
                     await initializeInlineScanner();
                     return;
                 }
                 
-                console.log('Ultra-fast local scanner ready');
+                console.log('Instant QR scanner ready');
                 
                 // Request camera permissions first
                 try {
@@ -137,8 +137,8 @@
                     window.scanner.stop();
                 }
                 
-                // Use Ultra-Fast Local Scanner
-                scanner = new UltraFastLocalScanner('simple-scanner-container');
+                // Use Instant QR Scanner with jsQR library
+                scanner = new InstantQRScanner('simple-scanner-container');
                 scanner.setSuccessCallback(function(qrCode) {
                     handleSuccessfulScan(qrCode);
                 });
