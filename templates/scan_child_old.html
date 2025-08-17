@@ -1,0 +1,738 @@
+{% extends "layout.html" %}
+
+{% block title %}Scan Child Bags{% endblock %}
+
+{% block head %}
+<style>
+/* Enhanced Scanner Container - matching bill_management.html style */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    height: 350px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .scanner-container {
+        height: 300px;
+    }
+}
+
+/* Toast styles */
+.toast {
+    min-width: 300px;
+}
+
+.toast.bg-success {
+    background-color: #198754 !important;
+    color: white;
+}
+
+.toast.bg-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.toast.bg-info {
+    background-color: #0dcaf0 !important;
+    color: black;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 py-2">
+    <!-- Parent Bag Info Header -->
+    {% if parent_bag %}
+    <div class="card mb-3 border-success">
+        <div class="card-body py-2">
+            <h6 class="card-title mb-1 text-success">
+                <i class="fas fa-cube me-2"></i>Parent Bag Selected
+            </h6>
+            <p class="mb-0">
+                <code class="text-primary">{{ parent_bag.qr_code }}</code>
+                <small class="text-muted ms-2">#{{ parent_bag.id }}</small>
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Scanner Section -->
+    <div class="card mb-3">
+        <div class="card-header py-2">
+            <h6 class="mb-0">
+                <i class="fas fa-qrcode me-2"></i>Child Bag Scanner
+                <span class="badge bg-primary ms-2" id="progress-text">{{ scanned_child_count }}</span>
+                <small class="text-muted ms-1">scanned</small>
+            </h6>
+        </div>
+        <div class="card-body p-2">
+            <!-- Scanner Container -->
+            <div id="child-scanner-container" class="scanner-container mb-2"></div>
+            
+            <!-- Scanner Controls -->
+            <div class="row">
+                <div class="col-6">
+                    <button id="start-camera" class="btn btn-success btn-sm w-100">
+                        <i class="fas fa-camera me-1"></i>Start
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button id="stop-camera" class="btn btn-secondary btn-sm w-100" disabled>
+                        <i class="fas fa-stop me-1"></i>Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+    <!-- Scanned Bags List -->
+    {% if scanned_children %}
+    <div class="card mb-3">
+        <div class="card-header py-2">
+            <h6 class="mb-0">
+                <i class="fas fa-list me-2"></i>Scanned Child Bags
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            <div id="scanned-list" class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-6">
+            <button onclick="changeParent()" class="btn btn-outline-primary btn-sm w-100">
+                <i class="fas fa-exchange-alt me-1"></i>Change Parent
+            </button>
+        </div>
+        <div class="col-6">
+            <button onclick="completeScan()" class="btn btn-success btn-sm w-100">
+                <i class="fas fa-check me-1"></i>Complete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notifications -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="scan-toast" class="toast align-items-center border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                Message
+            </div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Using the same scanner as bills management -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+<script>
+// Wait for libraries to fully load
+window.addEventListener('load', function() {
+    // Verify InstantDetectionScanner is loaded
+    if (typeof InstantDetectionScanner === 'undefined') {
+        console.error('InstantDetectionScanner not loaded');
+        showToast('Scanner library failed to load. Please refresh the page.', 'danger');
+        return;
+    }
+    
+    initializeScanner();
+});
+
+function initializeScanner() {
+    // Global scanner variable
+    let scanner = null;
+    let scannedCount = {{ scanned_child_count }};
+    let processingRequest = false;
+    const hasParentBag = {{ 'true' if parent_bag else 'false' }};
+    
+    // UI Elements
+    const startBtn = document.getElementById('start-camera');
+    const stopBtn = document.getElementById('stop-camera');
+    const progressText = document.getElementById('progress-text');
+    
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('scan-toast');
+        const toastMessage = document.getElementById('toast-message');
+        
+        // Update toast style based on type
+        toast.className = `toast align-items-center border-0`;
+        if (type === 'danger' || type === 'error') {
+            toast.classList.add('bg-danger', 'text-white');
+        } else if (type === 'warning') {
+            toast.classList.add('bg-warning');
+        } else if (type === 'info') {
+            toast.classList.add('bg-info');
+        } else {
+            toast.classList.add('bg-success', 'text-white');
+        }
+        
+        let icon = 'check-circle';
+        if (type === 'danger' || type === 'error') icon = 'exclamation-circle';
+        else if (type === 'warning') icon = 'exclamation-triangle';
+        else if (type === 'info') icon = 'info-circle';
+        
+        toastMessage.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+        
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+    }
+    
+    function onScanSuccess(qrCode) {
+        // Prevent multiple processing
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startCameraBtn = document.getElementById('start-camera');
+        const stopCameraBtn = document.getElementById('stop-camera');
+        const resultContainer = document.getElementById('result-container');
+        const progressText = document.getElementById('progress-text');
+
+        const scannerOverlay = document.getElementById('scanner-overlay');
+        
+        let stream = null;
+        let scanning = false;
+        let canvasContext = canvas.getContext('2d');
+        let lastDetectedCode = null;
+        let scannedCount = {{ scanned_child_count }};
+        let processingRequest = false;
+        
+        const hasParentBag = {{ 'true' if parent_bag else 'false' }};
+        
+        // Clear any previous scan results when page loads
+        resultContainer.style.display = 'none';
+        resultContainer.innerHTML = '';
+        
+        // Start camera when button is clicked  
+        startCameraBtn.addEventListener('click', startCamera);
+        
+        // Enhanced library check and camera initialization (same as parent)
+        function checkLibraryAndStartCamera() {
+            console.log('Checking jsQR library availability...');
+            
+            if (typeof jsQR !== 'undefined') {
+                console.log('jsQR library loaded successfully');
+                resultContainer.className = 'alert alert-info';
+                resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Camera ready. Click "Start Camera" or scanner will start automatically...';
+                resultContainer.style.display = 'block';
+                
+                // Auto-start camera if parent bag exists
+                if (hasParentBag) {
+                    setTimeout(() => {
+                        startCamera();
+                    }, 500);
+                }
+            } else {
+                console.error('jsQR library not loaded - camera only mode');
+                resultContainer.className = 'alert alert-warning';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>QR scanner library not loaded. Please refresh the page.';
+                resultContainer.style.display = 'block';
+            }
+        }
+        
+        // Single check only - no infinite loops
+        setTimeout(checkLibraryAndStartCamera, 1000);
+        
+        // Stop camera when button is clicked
+        stopCameraBtn.addEventListener('click', stopCamera);
+        
+        // EXACT SAME startCamera function as parent scanner
+        async function startCamera() {
+            console.log('Starting camera with persistent permissions for child scanning...');
+            
+            // Clear any previous error messages
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting camera...';
+            resultContainer.style.display = 'block';
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera not supported on this device.';
+                return;
+            }
+            
+            try {
+                // Initialize camera permission manager
+                const cameraManager = new window.CameraPermissionManager();
+                
+                // Start permission monitoring
+                cameraManager.startPermissionMonitoring();
+                
+                // Enhanced camera constraints for QR scanning (same as parent)
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1920, min: 640 },
+                        height: { ideal: 1080, min: 480 },
+                        frameRate: { ideal: 30, min: 15 },
+                        // Enhanced focus and exposure for QR codes
+                        focusMode: 'continuous',
+                        exposureMode: 'continuous',
+                        whiteBalanceMode: 'continuous',
+                        // Advanced constraints for better QR detection
+                        advanced: [
+                            { focusMode: 'macro' },
+                            { exposureCompensation: 0 },
+                            { iso: 200 }
+                        ]
+                    }
+                };
+                
+                console.log('Requesting camera with persistent permission handling...');
+                stream = await cameraManager.requestCameraAccess(constraints);
+                
+                // Apply additional track constraints for better focus (same as parent)
+                const videoTrack = stream.getVideoTracks()[0];
+                if (videoTrack) {
+                    const capabilities = videoTrack.getCapabilities();
+                    console.log('Camera capabilities:', capabilities);
+                    
+                    // Apply advanced settings if supported
+                    const settings = {};
+                    if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+                        settings.focusMode = 'continuous';
+                    }
+                    if (capabilities.exposureMode && capabilities.exposureMode.includes('continuous')) {
+                        settings.exposureMode = 'continuous';
+                    }
+                    if (capabilities.whiteBalanceMode && capabilities.whiteBalanceMode.includes('continuous')) {
+                        settings.whiteBalanceMode = 'continuous';
+                    }
+                    
+                    if (Object.keys(settings).length > 0) {
+                        await videoTrack.applyConstraints({ advanced: [settings] });
+                        console.log('Applied advanced camera settings:', settings);
+                    }
+                }
+                
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true);
+                video.setAttribute('autoplay', true);
+                video.muted = true;
+                
+                await new Promise((resolve, reject) => {
+                    video.onloadedmetadata = () => {
+                        console.log('Video metadata loaded:', {
+                            videoWidth: video.videoWidth,
+                            videoHeight: video.videoHeight,
+                            aspectRatio: (video.videoWidth / video.videoHeight).toFixed(2)
+                        });
+                        
+                        // Set canvas to actual video dimensions for 1:1 reality mapping
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        
+                        console.log('Canvas set to actual video dimensions:', {
+                            canvasWidth: canvas.width,
+                            canvasHeight: canvas.height,
+                            videoWidth: video.videoWidth,
+                            videoHeight: video.videoHeight
+                        });
+                        
+                        resolve();
+                    };
+                    
+                    video.onerror = reject;
+                    video.play().catch(reject);
+                });
+                
+                startCameraBtn.disabled = true;
+                stopCameraBtn.disabled = false;
+                scanning = true;
+                
+                // Show scanner overlay
+                if (scannerOverlay) {
+                    scannerOverlay.style.display = 'flex';
+                }
+                
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active - Position QR code in scanning area';
+                resultContainer.style.display = 'block';
+                
+                // Start optimized scanning loop (same as parent)
+                optimizedScanQRCode();
+                
+            } catch (error) {
+                console.error('Camera initialization failed:', error);
+                resultContainer.className = 'alert alert-danger';
+                
+                // Use camera manager for user-friendly error messages
+                const cameraManager = new window.CameraPermissionManager();
+                let errorMessage = cameraManager.getErrorMessage(error);
+                
+                // Add mobile-specific instructions if needed
+                if (error.message === 'PERMISSION_DENIED' || error.name === 'NotAllowedError') {
+                    const mobileInstructions = cameraManager.showMobileInstructions();
+                    errorMessage += `<br><small class="text-muted mt-2 d-block">${mobileInstructions}</small>`;
+                }
+                
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + errorMessage;
+            }
+        }
+        
+        // EXACT SAME stopCamera function as parent scanner
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                scanning = false;
+                
+                // Hide scanner overlay
+                if (scannerOverlay) {
+                    scannerOverlay.style.display = 'none';
+                }
+                
+                startCameraBtn.disabled = false;
+                stopCameraBtn.disabled = true;
+            }
+        }
+        
+        // EXACT SAME scanning function as parent scanner
+        let lastScanTime = 0;
+        function optimizedScanQRCode() {
+            if (!scanning) return;
+            
+            // Apple-like smooth scanning at 10fps for lag-free camera movement
+            const now = Date.now();
+            if (now - lastScanTime < 100) { // 100ms = 10fps
+                requestAnimationFrame(optimizedScanQRCode);
+                return;
+            }
+            lastScanTime = now;
+            
+            requestAnimationFrame(optimizedScanQRCode);
+            
+            if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
+                try {
+                    // Clear canvas and draw current video frame
+                    canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+                    canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Draw minimal scanning interface for performance
+                    drawMinimalScanningInterface();
+                    
+                    // Extract smaller center region for faster processing
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
+                    const startX = Math.max(0, centerX - scanSize/2);
+                    const startY = Math.max(0, centerY - scanSize/2);
+                    const width = Math.min(scanSize, canvas.width - startX);
+                    const height = Math.min(scanSize, canvas.height - startY);
+                    
+                    const imageData = canvasContext.getImageData(startX, startY, width, height);
+                    
+                    // Multi-attempt QR detection for maximum accuracy
+                    let code = null;
+                    
+                    // Try multiple detection approaches
+                    const detectionMethods = [
+                        { inversionAttempts: "attemptBoth" },
+                        { inversionAttempts: "onlyInvert" },
+                        { inversionAttempts: "dontInvert" }
+                    ];
+                    
+                    for (const method of detectionMethods) {
+                        code = jsQR(imageData.data, imageData.width, imageData.height, method);
+                        if (code && code.data && code.data.length >= 2) {
+                            console.log('QR detected with method:', method);
+                            break;
+                        }
+                    }
+                    
+                    if (code && code.data) {
+                        // Raw QR data debugging
+                        console.log('Raw QR data detected:', JSON.stringify(code.data));
+                        console.log('QR data length:', code.data.length);
+                        
+                        // Keep QR data exactly as detected - only basic trim
+                        let qrData = code.data.trim();
+                        console.log('Final QR data (no cleaning):', JSON.stringify(qrData));
+                        
+                        // Skip if data is too short
+                        if (qrData.length < 2) {
+                            console.log('Skipping short QR code:', qrData);
+                            return;
+                        }
+                        
+                        // Instant visual feedback (same as parent)
+                        drawInstantDetectionHighlight(code, startX, startY);
+                        
+                        // Immediate haptic feedback
+                        if (navigator.vibrate) {
+                            navigator.vibrate(25);
+                        }
+                        
+                        // Process unique codes for child bags
+                        if (lastDetectedCode !== qrData) {
+                            lastDetectedCode = qrData;
+                            console.log('Child QR detected:', qrData);
+                            
+                            // Stop scanning temporarily
+                            scanning = false;
+                            
+                            // Process child QR code
+                            processChildQrCodeInstant(qrData);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Scanning error:', error);
+                }
+            }
+        }
+        
+        // EXACT SAME UI drawing functions as parent scanner
+        function drawMinimalScanningInterface() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scanSize = Math.min(canvas.width, canvas.height) * 0.6; // Slightly larger for child scanning
+            const cornerLength = 30;
+            const cornerThickness = 3;
+            const cornerOffset = 0;
+            
+            // Create subtle shadow for better visibility
+            canvasContext.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            canvasContext.shadowBlur = 4;
+            canvasContext.shadowOffsetX = 1;
+            canvasContext.shadowOffsetY = 1;
+            
+            // Apple-style green corner brackets
+            canvasContext.strokeStyle = '#34C759'; // Apple system green
+            canvasContext.lineWidth = cornerThickness;
+            canvasContext.lineCap = 'round';
+            canvasContext.lineJoin = 'round';
+            
+            canvasContext.beginPath();
+            
+            // Top-left corner
+            canvasContext.moveTo(centerX - scanSize/2 + cornerOffset, centerY - scanSize/2 + cornerLength);
+            canvasContext.lineTo(centerX - scanSize/2 + cornerOffset, centerY - scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX - scanSize/2 + cornerLength, centerY - scanSize/2 + cornerOffset);
+            
+            // Top-right corner
+            canvasContext.moveTo(centerX + scanSize/2 - cornerLength, centerY - scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY - scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY - scanSize/2 + cornerLength);
+            
+            // Bottom-left corner
+            canvasContext.moveTo(centerX - scanSize/2 + cornerOffset, centerY + scanSize/2 - cornerLength);
+            canvasContext.lineTo(centerX - scanSize/2 + cornerOffset, centerY + scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX - scanSize/2 + cornerLength, centerY + scanSize/2 + cornerOffset);
+            
+            // Bottom-right corner
+            canvasContext.moveTo(centerX + scanSize/2 - cornerLength, centerY + scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY + scanSize/2 + cornerOffset);
+            canvasContext.lineTo(centerX + scanSize/2 + cornerOffset, centerY + scanSize/2 - cornerLength);
+            canvasContext.stroke();
+            
+            // Reset shadow
+            canvasContext.shadowColor = 'transparent';
+            canvasContext.shadowBlur = 0;
+            
+            // Simple animated scanning line
+            const time = Date.now();
+            const lineY = centerY - scanSize/2 + ((time % 2000) / 2000) * scanSize;
+            
+            canvasContext.strokeStyle = '#00FF00';
+            canvasContext.lineWidth = 2;
+            canvasContext.globalAlpha = 0.8;
+            canvasContext.beginPath();
+            canvasContext.moveTo(centerX - scanSize/2, lineY);
+            canvasContext.lineTo(centerX + scanSize/2, lineY);
+            canvasContext.stroke();
+            canvasContext.globalAlpha = 1.0;
+        }
+        
+        // EXACT SAME highlight function as parent scanner
+        function drawInstantDetectionHighlight(code, offsetX = 0, offsetY = 0) {
+            const corners = code.location;
+            canvasContext.strokeStyle = '#34C759'; // Apple green for detection
+            canvasContext.lineWidth = 4;
+            canvasContext.fillStyle = 'rgba(52, 199, 89, 0.3)';
+            
+            // Draw filled rectangle
+            canvasContext.beginPath();
+            canvasContext.moveTo(corners.topLeftCorner.x + offsetX, corners.topLeftCorner.y + offsetY);
+            canvasContext.lineTo(corners.topRightCorner.x + offsetX, corners.topRightCorner.y + offsetY);
+            canvasContext.lineTo(corners.bottomRightCorner.x + offsetX, corners.bottomRightCorner.y + offsetY);
+            canvasContext.lineTo(corners.bottomLeftCorner.x + offsetX, corners.bottomLeftCorner.y + offsetY);
+            canvasContext.closePath();
+            canvasContext.fill();
+            canvasContext.stroke();
+        }
+        
+        // Child-specific processing function (modified from parent)
+        function processChildQrCodeInstant(qrCode) {
+            // Prevent duplicate processing
+            if (processingRequest) {
+                console.log('Already processing a request, ignoring duplicate');
+                return;
+            }
+            
+            qrCode = qrCode.trim();
+            if (!qrCode) {
+                resultContainer.className = 'alert alert-warning';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Empty QR code detected.';
+                resultContainer.style.display = 'block';
+                return;
+            }
+            
+            // Set processing flag immediately
+            processingRequest = true;
+            
+
+            
+            resultContainer.className = 'alert alert-info';
+            resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing child bag...';
+            resultContainer.style.display = 'block';
+            
+            // Send child QR code to server
+            fetch('{{ url_for("scan_child") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    'qr_code': qrCode,
+                    'csrf_token': '{{ csrf_token() }}'
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Server response:', data);
+                
+                if (data.status === 'success') {
+                    resultContainer.className = 'alert alert-success';
+                    resultContainer.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + data.message;
+                    
+                    // Update count and refresh list
+                    scannedCount++;
+                    progressText.textContent = scannedCount;
+                    
+                    // Add to scanned list
+                    addToScannedList(qrCode, data.child_bag_id);
+                    
+                    // Flash success effect
+                    document.body.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        document.body.style.backgroundColor = '';
+                    }, 200);
+                    
+                    // Resume scanning for more children
+                    setTimeout(() => {
+                        processingRequest = false;
+                        lastDetectedCode = null;
+                        scanning = true;
+                        optimizedScanQRCode();
+                    }, 1500);
+                    
+                } else {
+                    // Show error message and resume scanning
+                    resultContainer.className = 'alert alert-warning';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>' + data.message;
+                    
+                    setTimeout(() => {
+                        processingRequest = false;
+                        lastDetectedCode = null;
+                        scanning = true;
+                        optimizedScanQRCode();
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Network error:', error);
+                resultContainer.className = 'alert alert-danger';
+                resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Connection error. Please check your network.';
+                
+                // Resume scanning
+                setTimeout(() => {
+                    processingRequest = false;
+                    lastDetectedCode = null;
+                    scanning = true;
+                    optimizedScanQRCode();
+                }, 2000);
+            });
+        }
+        
+        // Load already scanned child bags
+        function loadScannedBags() {
+            const scannedList = document.getElementById('scanned-list');
+            if (scannedList) {
+                scannedList.innerHTML = '';
+                
+                {% for child_bag in scanned_children %}
+                addToScannedList('{{ child_bag.qr_code }}', {{ child_bag.id }});
+                {% endfor %}
+            }
+        }
+        
+        function addToScannedList(qrCode, bagId) {
+            const scannedList = document.getElementById('scanned-list');
+            if (!scannedList) return;
+            
+            const listItem = document.createElement('div');
+            listItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
+            listItem.innerHTML = `
+                <div>
+                    <i class="fas fa-cube text-success me-2"></i>
+                    <small class="text-muted">Child:</small> <code class="text-primary">${qrCode}</code>
+                </div>
+                <small class="text-muted">#${bagId}</small>
+            `;
+            scannedList.appendChild(listItem);
+            
+            // Scroll to bottom
+            scannedList.scrollTop = scannedList.scrollHeight;
+            
+            // Update count
+            scannedCount = scannedList.children.length;
+            progressText.textContent = scannedCount;
+        }
+        
+
+        
+        // Global action button functions
+        window.changeParent = function() {
+            if (confirm('Switch to a different parent bag? This will end the current scanning session.')) {
+                window.location.href = '{{ url_for("scan_parent", s=request.args.get("s")) }}';
+            }
+        }
+        
+        window.completeScan = function() {
+            if (confirm('Complete scanning session and view summary?')) {
+                window.location.href = '{{ url_for("scan_complete") }}';
+            }
+        }
+        
+        // Initialize if parent bag exists
+        if (!hasParentBag) {
+            resultContainer.className = 'alert alert-warning';
+            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>No parent bag selected. <a href="{{ url_for("scan_parent", s=request.args.get("s")) }}" class="btn btn-sm btn-primary ms-2">Scan Parent</a>';
+            resultContainer.style.display = 'block';
+        } else {
+            loadScannedBags();
+        }
+        
+
+    });
+</script>
+{% endblock %}

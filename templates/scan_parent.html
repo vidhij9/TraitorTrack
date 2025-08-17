@@ -1,6 +1,46 @@
 {% extends "layout.html" %}
 {% block title %}Scan Parent Bag - TraceTrack{% endblock %}
 
+{% block head %}
+<style>
+/* Enhanced Scanner Container - matching bill_management.html style */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .scanner-container {
+        height: 300px;
+    }
+}
+
+/* Toast styles */
+.toast {
+    min-width: 300px;
+}
+
+.toast.bg-success {
+    background-color: #198754 !important;
+    color: white;
+}
+
+.toast.bg-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.toast.bg-warning {
+    background-color: #ffc107 !important;
+    color: black;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -13,19 +53,16 @@
                 </div>
                 <div class="card-body">
                     <!-- Camera Scanner -->
-                    <div id="scanner-container" class="text-center mb-4">
-                        <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 0 auto;"></div>
-                        <div id="result-container" class="alert alert-info mt-3" style="display: none;"></div>
-                        
-                        <!-- Manual camera start button (shown if auto-start fails) -->
-                        <div id="manual-camera-controls" class="mt-3" style="display: none;">
-                            <button id="start-camera-btn" class="btn btn-primary">
-                                <i class="fas fa-camera me-2"></i>Start Camera
-                            </button>
-                            <p class="text-muted mt-2 small">
-                                Click to manually start the camera if automatic initialization failed.
-                            </p>
-                        </div>
+                    <div id="parent-scanner-container" class="scanner-container mb-3"></div>
+                    
+                    <!-- Scanner Controls -->
+                    <div class="text-center mb-3">
+                        <button id="start-camera" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i>Start Scanner
+                        </button>
+                        <button id="stop-camera" class="btn btn-secondary" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop Scanner
+                        </button>
                     </div>
 
                     <!-- Manual Entry Section -->
@@ -72,9 +109,122 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
-<script src="{{ url_for('static', filename='html5-qrcode.min.js') }}"></script>
+{% block scripts %}
+<!-- Using the same scanner as bills management -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+
 <script>
+// Wait for libraries to fully load
+window.addEventListener('load', function() {
+    // Verify InstantDetectionScanner is loaded
+    if (typeof InstantDetectionScanner === 'undefined') {
+        console.error('InstantDetectionScanner not loaded');
+        showToast('Scanner library failed to load. Please refresh the page.', 'danger');
+        return;
+    }
+    
+    initializeScanner();
+});
+
+function initializeScanner() {
+    // Global scanner variable
+    let scanner = null;
+    let isProcessing = false;
+    
+    // UI Elements
+    const startBtn = document.getElementById('start-camera');
+    const stopBtn = document.getElementById('stop-camera');
+    
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('scan-toast');
+        const toastMessage = document.getElementById('toast-message');
+        
+        // Update toast style based on type
+        toast.className = `toast align-items-center text-white border-0`;
+        if (type === 'danger' || type === 'error') {
+            toast.classList.add('bg-danger');
+        } else if (type === 'warning') {
+            toast.classList.add('bg-warning');
+        } else {
+            toast.classList.add('bg-success');
+        }
+        
+        let icon = 'check-circle';
+        if (type === 'danger' || type === 'error') icon = 'exclamation-circle';
+        else if (type === 'warning') icon = 'exclamation-triangle';
+        
+        toastMessage.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+        
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+    }
+    
+    function onScanSuccess(qrCode) {
+        // Prevent multiple simultaneous submissions
+        if (isProcessing) {
+            return;
+        }
+        
+        isProcessing = true;
+        console.log('QR Code scanned:', qrCode);
+        
+        // Show success toast
+        showToast(`QR Code detected: ${qrCode}`, 'success');
+        
+        // Stop the scanner
+        if (scanner) {
+            scanner.stop();
+        }
+        
+        // Submit the form automatically
+        document.getElementById('qr-input').value = qrCode;
+        
+        // Submit form after a brief delay
+        setTimeout(() => {
+            document.getElementById('auto-submit-form').submit();
+        }, 500);
+    }
+    
+    // Start scanner button
+    startBtn.addEventListener('click', function() {
+        if (scanner) {
+            scanner.stop();
+        }
+        
+        // Create new scanner instance with the same container ID as bills
+        scanner = new InstantDetectionScanner('parent-scanner-container', onScanSuccess);
+        scanner.start();
+        
+        // Update button states
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        
+        showToast('Scanner started - point at QR code', 'success');
+    });
+    
+    // Stop scanner button
+    stopBtn.addEventListener('click', function() {
+        if (scanner) {
+            scanner.stop();
+        }
+        
+        // Update button states
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        
+        showToast('Scanner stopped', 'info');
+    });
+    
+    // Auto-start scanner on page load
+    setTimeout(() => {
+        startBtn.click();
+    }, 500);
+}
+</script>
+{% endblock %}
 document.addEventListener('DOMContentLoaded', function() {
     let scanner;
     const resultContainer = document.getElementById('result-container');
