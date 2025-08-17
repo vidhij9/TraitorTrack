@@ -7,8 +7,8 @@
 - **Cons**: Limited worst-case scenario handling
 - **Space/Time**: O(1) space, fast processing
 
-### New Scanner: Bulletproof Scanner
-- **Selected for**: Maximum reliability with minimal dependencies
+### New Scanner: Simple Reliable Scanner  
+- **Selected for**: Maximum reliability with minimal dependencies and guaranteed loading
 - **Key Features**:
   - ✅ Handles damaged/crushed/wrinkled codes
   - ✅ Torch/flashlight support  
@@ -44,11 +44,11 @@
 - Maintains existing UI/UX while improving detection reliability
 
 ### Files Updated:
-1. `templates/scan_parent_ultra.html` - Updated to use BulletproofScanner
-2. `templates/scan_child_ultra.html` - Updated to use BulletproofScanner
+1. `templates/scan_parent_ultra.html` - Updated to use SimpleReliableScanner
+2. `templates/scan_child_ultra.html` - Updated to use SimpleReliableScanner
 
 ### Scanner Files Available:
-- `bulletproof-scanner.js` - **Selected** (best reliability with minimal dependencies)
+- `simple-reliable-scanner.js` - **Selected** (best reliability with minimal dependencies and guaranteed loading)
 - `world-class-qr-scanner.js` - Feature-rich but complex dependencies
 - `google-lens-scanner.js` - Ultra-fast but less robust
 - `ultra-fast-scanner.js` - Previously used, limited error handling

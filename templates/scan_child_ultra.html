@@ -3,9 +3,9 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Bulletproof QR Scanner for maximum reliability -->
+<!-- Simple Reliable QR Scanner -->
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/bulletproof-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/simple-reliable-scanner.js') }}"></script>
 
 <style>
 /* Simple Scanner Styles */
@@ -220,7 +220,7 @@
             {% endfor %}
         {% endif %}
         
-        // Initialize Bulletproof Scanner
+        // Initialize Simple Reliable Scanner
         async function initializeScanner() {
             try {
                 updateStatus('Starting...', 'info');
@@ -229,8 +229,8 @@
                 if (typeof jsQR === 'undefined') {
                     throw new Error('jsQR library not loaded');
                 }
-                if (typeof BulletproofScanner === 'undefined') {
-                    throw new Error('BulletproofScanner library not loaded');
+                if (typeof SimpleReliableScanner === 'undefined') {
+                    throw new Error('SimpleReliableScanner library not loaded');
                 }
                 
                 // Stop any existing scanner first
@@ -238,8 +238,8 @@
                     window.scanner.stop();
                 }
                 
-                // Initialize Bulletproof Scanner for maximum reliability
-                scanner = new BulletproofScanner('simple-scanner-container', function(qrCode) {
+                // Initialize Simple Reliable Scanner
+                scanner = new SimpleReliableScanner('simple-scanner-container', function(qrCode) {
                     handleChildScanSuccess(qrCode);
                 });
                 window.scanner = scanner;
