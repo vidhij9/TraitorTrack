@@ -249,7 +249,9 @@
                             <label class="form-label">Enter QR Code from your seed bag</label>
                             <input type="text" class="form-control" id="manual-qr-input" 
                                    placeholder="e.g., LABEL NO.000003 or STAR15MD25095(II)"
-                                   list="common-qr-codes">
+                                   list="common-qr-codes"
+                                   onkeypress="if(event.key==='Enter') window.submitManualQR()"
+                                   autocomplete="off">
                             <datalist id="common-qr-codes">
                                 <option value="STAR15MD25095(II)">
                                 <option value="LABEL NO.000003">
@@ -259,9 +261,12 @@
                                 <option value="TRUTHFUL LABEL">
                             </datalist>
                         </div>
-                        <button class="btn btn-success" onclick="submitManualQR()">
+                        <button class="btn btn-success" onclick="window.submitManualQR()" id="submit-manual-btn">
                             <i class="fas fa-check me-2"></i>Submit Parent Bag
                         </button>
+                        <div class="mt-2">
+                            <small class="text-muted">Or press Enter in the input field above</small>
+                        </div>
                     </div>
                 </div>
             `;
@@ -269,7 +274,7 @@
         }
         
         // Manual QR submission
-        function submitManualQR() {
+        window.submitManualQR = function() {
             const input = document.getElementById('manual-qr-input');
             const qrCode = input.value.trim();
             
@@ -278,11 +283,12 @@
                 return;
             }
             
+            console.log('Manual QR submitted:', qrCode);
             handleSuccessfulScan(qrCode);
         }
         
         // Torch toggle for inline scanner
-        function toggleInlineTorch() {
+        window.toggleInlineTorch = function() {
             if (window.inlineStream) {
                 const track = window.inlineStream.getVideoTracks()[0];
                 const capabilities = track.getCapabilities();
