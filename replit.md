@@ -20,6 +20,9 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
 - **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
 - **Recent Optimizations (August 17, 2025)**:
+  - **Standardized Scanner Implementation**: Unified all QR scanning pages (parent bags, child bags, bills) to use the same InstantDetectionScanner for consistency
+  - **Fixed Template Syntax Errors**: Resolved duplicate JavaScript code and template syntax issues in scan_parent.html
+  - **Simplified Scanner UI**: Removed redundant code and streamlined scanner initialization across all pages
   - **Apple-Level QR Scanner**: Implemented professional-grade scanner matching Apple's native camera scanner
   - **Auto-Start Camera**: Camera initializes immediately on page load without user interaction
   - **Professional UI Design**: Dark theme with blur effects, animated scanning line, yellow accent colors
