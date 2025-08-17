@@ -3,9 +3,8 @@
 {% block title %}Bag Search - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Load QR scanning libraries (same as scan_parent_ultra) -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- Extreme QR Scanning Library -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <style>
 /* Ultra Compact UI Styles - Aggressive overrides */
@@ -173,22 +172,21 @@
                 </div>
                 <div class="card-body p-0">
                     <div id="scanner-container" class="scanner-main">
-                        <!-- QR Scanner will be initialized here -->
+                        <!-- Scanner loads here -->
                     </div>
-                </div>
-                <div class="card-footer d-flex justify-content-between align-items-center">
-                    <div class="scanner-controls">
-                        <button id="start-camera" class="btn btn-success" disabled>
-                            <i class="fas fa-play me-2"></i>Start Camera
-                        </button>
-                        <button id="stop-camera" class="btn btn-secondary" disabled>
-                            <i class="fas fa-stop me-2"></i>Stop Camera
-                        </button>
-                    </div>
-                    <div class="scanner-info">
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Live scanning
-                        </small>
+                    
+                    <!-- Scanner Status -->
+                    <div class="p-3" style="background: #f8f9fa;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="scanner-status">
+                                <span id="lookup-scanner-status" class="badge bg-info">
+                                    <i class="fas fa-spinner fa-spin me-1"></i>Starting...
+                                </span>
+                            </div>
+                            <div class="scanner-info">
+                                <small class="text-muted">Point at QR code to search</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -422,45 +420,111 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+<!-- Lightning Scanner for instant performance -->
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
-<script src="{{ url_for('static', filename='js/fast-qr-scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let scanner = null;
+    let lookupScanner = null;
+    let isProcessing = false;
     
     // Get UI elements
-    const startCameraBtn = document.getElementById('start-camera');
-    const stopCameraBtn = document.getElementById('stop-camera');
     const searchSuccess = document.getElementById('search-success');
     const detectedQrValue = document.getElementById('detected-qr-value');
     const searchDetectedBtn = document.getElementById('search-detected-btn');
     const resultContainer = document.getElementById('result-container');
     const manualQrCode = document.getElementById('manual-qr-code');
     const manualEntryForm = document.getElementById('manual-entry-form');
+    const scannerStatus = document.getElementById('lookup-scanner-status');
     
-    // Initialize scanner with proper error handling
-    async function initializeScanner() {
+    // Initialize Lookup Scanner
+    async function initializeLookupScanner() {
         try {
-            if (!scanner) {
-                console.log('Creating QR Scanner...');
-                scanner = new LiveQRScanner('scanner-container');
-                scanner.setSuccessCallback(handleScanSuccess);
-                console.log('QR Scanner initialized');
+            updateScannerStatus('Starting...', 'info');
+            
+            // Check if jsQR is loaded
+            if (typeof jsQR === 'undefined') {
+                console.error('jsQR library not loaded');
+                throw new Error('QR scanning library not loaded');
             }
+            
+            // Request camera permissions first
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch (permError) {
+                console.error('Camera permission denied:', permError);
+                throw new Error('Camera access denied. Please allow camera access and refresh.');
+            }
+            
+            // Stop any existing scanner first
+            if (window.lookupScanner && window.lookupScanner.stop) {
+                window.lookupScanner.stop();
+            }
+            
+            // Use Instant Detection Scanner for Google Lens-like performance
+            lookupScanner = new InstantDetectionScanner('scanner-container');
+            lookupScanner.onScan = handleLookupScanSuccess;
+            window.lookupScanner = lookupScanner; // Store globally for cleanup
+            
+            // Monitor scanner status
+            setTimeout(() => {
+                updateScannerStatus('Ready', 'success');
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = '✅ Scanner ready - Point at QR code to search';
+            }, 2000);
+            
         } catch (error) {
-            console.error('Scanner initialization failed:', error);
+            console.error('Scanner initialization error:', error);
+            updateScannerStatus('Error', 'danger');
             resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Scanner initialization failed. Please refresh the page.';
+            resultContainer.innerHTML = `❌ ${error.message || 'Check camera permissions and refresh'}`;
+            
+            // Try to provide helpful error messages
+            if (error.message.includes('getUserMedia')) {
+                resultContainer.innerHTML = '❌ Camera not available. Please check browser permissions.';
+            } else if (error.message.includes('https')) {
+                resultContainer.innerHTML = '❌ Camera requires secure connection (HTTPS).';
+            }
         }
     }
     
-    // Handle successful scan
-    function handleScanSuccess(qrCode) {
-        console.log('Bag scanned:', qrCode);
+    // Update scanner status badge
+    function updateScannerStatus(text, type) {
+        const statusBadge = document.getElementById('lookup-scanner-status');
+        statusBadge.className = `badge bg-${type}`;
         
-        // Scanner is already paused by the LiveQRScanner handleSuccess method
+        let icon = '';
+        switch(type) {
+            case 'success':
+                icon = '<i class="fas fa-check-circle me-1"></i>';
+                break;
+            case 'danger':
+                icon = '<i class="fas fa-exclamation-circle me-1"></i>';
+                break;
+            case 'warning':
+                icon = '<i class="fas fa-exclamation-triangle me-1"></i>';
+                break;
+            case 'info':
+                icon = '<i class="fas fa-spinner fa-spin me-1"></i>';
+                break;
+        }
+        
+        statusBadge.innerHTML = icon + text;
+    }
+    
+    // Handle successful scan
+    function handleLookupScanSuccess(qrCode) {
+        if (isProcessing) {
+            return; // Prevent duplicate processing
+        }
+        
+        console.log('Lookup QR scanned:', qrCode);
+        isProcessing = true;
+        
+        // Haptic feedback
+        if (navigator.vibrate) {
+            navigator.vibrate(200);
+        }
         
         // Update UI
         detectedQrValue.textContent = qrCode;
@@ -469,159 +533,27 @@ document.addEventListener('DOMContentLoaded', function() {
         // Hide result container and show success
         resultContainer.style.display = 'none';
         searchSuccess.classList.remove('d-none');
+        searchSuccess.classList.add('scan-success');
         
-        // Vibrate if supported
-        if (navigator.vibrate) {
-            navigator.vibrate(100);
-        }
+        updateScannerStatus('Scan Complete', 'success');
         
-        // Auto-submit the form after a short delay
+        // Auto-submit the form after a short delay to show success message
         setTimeout(() => {
             console.log('Submitting search for:', qrCode);
             manualEntryForm.submit();
         }, 1000);
     }
     
-    // Check camera permissions and show helpful messages
-    async function checkCameraSupport() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera not supported in this browser. Please use Chrome, Firefox, or Safari.';
-            return false;
-        }
-        return true;
-    }
-    
-    // Start camera event
-    startCameraBtn.addEventListener('click', async function() {
-        try {
-            if (!scanner) {
-                await initializeScanner();
-            }
-            
-            console.log('Starting scanner...');
-            await scanner.start();
-            
-            // Update button states
-            startCameraBtn.disabled = true;
-            stopCameraBtn.disabled = false;
-            startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Camera Active';
-            
-            // Update result container
-            resultContainer.className = 'alert alert-success';
-            resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active! Position QR codes in the scanning area.';
-            resultContainer.style.display = 'block';
-            
-        } catch (error) {
-            console.error('Failed to start scanner:', error);
-            
-            resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Camera access failed. Please allow camera permissions and try again.';
-            resultContainer.style.display = 'block';
-        }
-    });
-    
-    // Stop camera event
-    stopCameraBtn.addEventListener('click', async function() {
-        if (scanner) {
-            await scanner.stop();
-            
-            // Update button states
-            startCameraBtn.disabled = false;
-            stopCameraBtn.disabled = true;
-            startCameraBtn.innerHTML = '<i class="fas fa-play me-2"></i>Start Camera';
-            
-            // Update result container
-            resultContainer.className = 'alert alert-info';
-            resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Camera stopped. Click "Start Camera" to begin scanning.';
-            resultContainer.style.display = 'block';
-        }
-    });
-    
-    // Launch live scanner with proper initialization
-    async function launchLiveScanner() {
-        console.log('Launching Live QR Scanner...');
-        
-        // Check camera support first
-        const cameraSupported = await checkCameraSupport();
-        if (!cameraSupported) {
-            return;
-        }
-        
-        // Show loading state
-        resultContainer.className = 'alert alert-info';
-        resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading camera...';
-        resultContainer.style.display = 'block';
-        
-        // Hide manual controls initially
-        startCameraBtn.style.display = 'none';
-        stopCameraBtn.style.display = 'none';
-        
-        try {
-            await initializeScanner();
-            
-            if (scanner) {
-                console.log('Attempting to auto-start scanner...');
-                await scanner.start();
-                
-                // Update UI on success
-                startCameraBtn.style.display = 'inline-block';
-                stopCameraBtn.style.display = 'inline-block';
-                startCameraBtn.disabled = true;
-                stopCameraBtn.disabled = false;
-                startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Camera Active';
-                
-                resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '<i class="fas fa-camera me-2"></i>Camera active! Position QR codes in the scanning area.';
-                resultContainer.style.display = 'block';
-            }
-        } catch (error) {
-            console.error('Auto-start failed:', error);
-            
-            // Show manual controls on failure
-            startCameraBtn.style.display = 'inline-block';
-            stopCameraBtn.style.display = 'inline-block';
-            startCameraBtn.disabled = false;
-            stopCameraBtn.disabled = true;
-            
-            resultContainer.className = 'alert alert-warning';
-            resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Auto-start failed. Click "Start Camera" to enable scanning.';
-            resultContainer.style.display = 'block';
-        }
-    }
-    
-    // Check if there's a result displayed (bag_info exists)
-    const hasResults = {% if bag_info %}true{% else %}false{% endif %};
-    
-    // Start auto-initialization after page load
-    setTimeout(() => {
-        launchLiveScanner().then(() => {
-            // If results are displayed, make sure scanner is ready for next scan
-            if (hasResults && scanner) {
-                console.log('Results displayed, scanner ready for next scan');
-                // Give a small delay before resuming to ensure user sees the result
-                setTimeout(() => {
-                    if (scanner && scanner.resumeScanning) {
-                        scanner.resumeScanning();
-                    }
-                }, 500);
-            }
-        });
-    }, 500);
-    
     // Handle manual entry form submission
     if (manualEntryForm) {
         manualEntryForm.addEventListener('submit', function(event) {
-            // Pause scanner when manually submitting
-            if (scanner && scanner.pauseScanning) {
-                scanner.pauseScanning();
-            }
             const qrCode = manualQrCode.value.trim();
             
             if (!qrCode) {
                 event.preventDefault();
                 resultContainer.className = 'alert alert-warning';
                 resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter or scan a QR code first.';
+                resultContainer.style.display = 'block';
             }
         });
     }
@@ -632,17 +564,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const qrCode = detectedQrValue.textContent;
             if (qrCode) {
                 console.log('Searching detected QR code:', qrCode);
-                // Pause scanner before submitting
-                if (scanner && scanner.pauseScanning) {
-                    scanner.pauseScanning();
-                }
                 manualQrCode.value = qrCode;
                 manualEntryForm.submit();
             }
         });
     }
     
-    console.log('Ultra-fast scanner with LiveQRScanner ready!');
+    // Start scanner automatically
+    setTimeout(() => {
+        initializeLookupScanner();
+    }, 500);
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (lookupScanner) {
+            lookupScanner.stop();
+        }
+    });
+    
+    console.log('Ultra-fast lookup scanner with InstantDetectionScanner ready!');
 });
 </script>
 {% endblock %}
