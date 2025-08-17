@@ -160,7 +160,10 @@
                         </div>
                     </div>
                     <div class="text-center mt-2">
-                        <span id="scanner-status" class="badge bg-info">
+                        <button id="start-scanner-btn" class="btn btn-success">
+                            <i class="fas fa-camera me-2"></i>Start Scanner
+                        </button>
+                        <span id="scanner-status" class="badge bg-info d-none">
                             <i class="fas fa-spinner fa-spin me-1"></i>Starting camera...
                         </span>
                         <button id="torch-btn" class="btn btn-outline-secondary btn-sm ms-2 d-none">
@@ -426,6 +429,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Start scanner button click handler
+    const startBtn = document.getElementById('start-scanner-btn');
+    if (startBtn) {
+        startBtn.addEventListener('click', function() {
+            startBtn.classList.add('d-none');
+            scannerStatus.classList.remove('d-none');
+            
+            // Wait for libraries to load and then start
+            waitForLibraries();
+        });
+    }
+    
     // Wait for libraries to load
     function waitForLibraries() {
         if (typeof jsQR !== 'undefined' && typeof InstantQRScanner !== 'undefined') {
@@ -437,8 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Start
-    waitForLibraries();
+    // Don't auto-start, wait for button click
     
     // Cleanup on page unload
     window.addEventListener('beforeunload', function() {
