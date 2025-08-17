@@ -358,16 +358,25 @@ def dashboard_fast():
         
         result = db.session.execute(dashboard_query).fetchone()
         
+        # Ensure all properties exist before accessing them
+        parent_count = getattr(result, 'parent_count', 0) or 0
+        child_count = getattr(result, 'child_count', 0) or 0
+        total_bags = getattr(result, 'total_bags', 0) or 0
+        total_scans = getattr(result, 'total_scans', 0) or 0
+        scans_today = getattr(result, 'scans_today', 0) or 0
+        scans_week = getattr(result, 'scans_week', 0) or 0
+        recent_scans = getattr(result, 'recent_scans', []) or []
+        
         dashboard_data = {
             'statistics': {
-                'parent_bags': result.parent_count or 0,
-                'child_bags': result.child_count or 0,
-                'total_bags': result.total_bags or 0,
-                'total_scans': result.total_scans or 0,
-                'scans_today': result.scans_today or 0,
-                'scans_week': result.scans_week or 0
+                'parent_bags': parent_count,
+                'child_bags': child_count, 
+                'total_bags': total_bags,
+                'total_scans': total_scans,
+                'scans_today': scans_today,
+                'scans_week': scans_week
             },
-            'recent_activity': result.recent_scans or [],
+            'recent_activity': recent_scans,
             'user_context': {
                 'username': current_user.username,
                 'role': current_user.role,

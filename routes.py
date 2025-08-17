@@ -1209,14 +1209,21 @@ def process_parent_scan():
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan', methods=['POST'])
-@csrf.exempt
 @login_required
 def process_child_scan():
     """Process child bag scan from ultra scanner"""
     try:
         qr_code = request.form.get('qr_code', '').strip()
         
+        # Comprehensive logging for child scan processing
+        app.logger.info(f'CHILD SCAN: Processing request from user {current_user.username}')
+        app.logger.info(f'CHILD SCAN: Raw QR code received: {repr(qr_code)}')
+        app.logger.info(f'CHILD SCAN: QR code length: {len(qr_code) if qr_code else 0}')
+        app.logger.info(f'CHILD SCAN: Form data keys: {list(request.form.keys())}')
+        app.logger.info(f'CHILD SCAN: Session current_parent_qr: {session.get("current_parent_qr")}')
+        
         if not qr_code:
+            app.logger.warning('CHILD SCAN: No QR code provided in form')
             return jsonify({'success': False, 'message': 'No QR code provided'})
         
         # Validate QR code format

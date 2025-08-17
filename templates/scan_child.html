@@ -88,19 +88,30 @@
             <!-- Scanner Container -->
             <div id="child-scanner-container" class="scanner-container mb-2"></div>
             
-            <!-- Scanner Controls -->
-            <div class="row">
-                <div class="col-6">
-                    <button id="start-camera" class="btn btn-success btn-sm w-100">
-                        <i class="fas fa-camera me-1"></i>Start
-                    </button>
-                </div>
-                <div class="col-6">
-                    <button id="stop-camera" class="btn btn-secondary btn-sm w-100" disabled>
-                        <i class="fas fa-stop me-1"></i>Stop
+            <!-- Hidden forms for processing child bags -->
+            <form id="child-submit-form" action="{{ url_for('process_child_scan') }}" method="POST" style="display: none;">
+                {{ csrf_token() }}
+                <input type="hidden" name="qr_code" id="child-qr-input">
+            </form>
+            
+            <!-- Manual entry form (fallback) -->
+            <div class="row mt-2">
+                <div class="col-12">
+                    <button id="show-manual-entry" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="fas fa-keyboard me-1"></i>Manual Entry
                     </button>
                 </div>
             </div>
+            
+            <form id="child-manual-form" action="{{ url_for('process_child_scan') }}" method="POST" class="d-none mt-2">
+                {{ csrf_token() }}
+                <div class="input-group">
+                    <input type="text" name="qr_code" class="form-control form-control-sm" placeholder="Enter child bag QR code" required>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-check me-1"></i>Add
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -158,35 +169,39 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Using the same scanner as bills management -->
+<!-- InstantDetectionScanner - same as parent scanner -->
 <script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
 <script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 
 <script>
-// Wait for libraries to fully load
-window.addEventListener('load', function() {
-    // Verify InstantDetectionScanner is loaded
+// Initialize scanner when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Child scanner page loaded');
+    
+    // Check if InstantDetectionScanner is available
     if (typeof InstantDetectionScanner === 'undefined') {
         console.error('InstantDetectionScanner not loaded');
-        showToast('Scanner library failed to load. Please refresh the page.', 'danger');
+        showToast('Scanner not available. Please refresh the page.', 'danger');
         return;
     }
     
-    initializeScanner();
+    initializeChildScanner();
 });
 
-function initializeScanner() {
-    // Global scanner variable
-    let scanner = null;
+function initializeChildScanner() {
+    console.log('Initializing child scanner...');
+    
+    // Global variables
     let scannedCount = {{ scanned_child_count }};
-    let processingRequest = false;
     const hasParentBag = {{ 'true' if parent_bag else 'false' }};
     
     // UI Elements
-    const startBtn = document.getElementById('start-camera');
-    const stopBtn = document.getElementById('stop-camera');
     const progressText = document.getElementById('progress-text');
     const scannedList = document.getElementById('scanned-list');
+    const submitForm = document.getElementById('child-submit-form');
+    const qrInput = document.getElementById('child-qr-input');
+    const manualForm = document.getElementById('child-manual-form');
+    const showManualBtn = document.getElementById('show-manual-entry');
     
     function showToast(message, type = 'success') {
         const toast = document.getElementById('scan-toast');
@@ -215,121 +230,49 @@ function initializeScanner() {
         bsToast.show();
     }
     
-    function onScanSuccess(qrCode) {
-        // Prevent multiple processing
-        if (processingRequest) {
-            return;
-        }
+    // InstantDetectionScanner callback - same approach as parent scanner
+    function onChildScanSuccess(qrCode) {
+        console.log('Child QR code detected:', qrCode);
         
         if (!hasParentBag) {
             showToast('Please scan a parent bag first!', 'warning');
             return;
         }
         
-        processingRequest = true;
-        console.log('Child QR Code scanned:', qrCode);
+        // Fill the hidden form and submit
+        qrInput.value = qrCode;
         
-        // Show processing toast
-        showToast(`Processing child bag: ${qrCode}`, 'info');
+        // Show processing message
+        showToast(`Processing child bag: ${qrCode}...`, 'info');
         
-        // Process the child scan
-        fetch('/process_child_scan', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: `qr_code=${encodeURIComponent(qrCode)}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            processingRequest = false;
-            
-            if (data.success) {
-                showToast(data.message, 'success');
-                
-                // Update UI
-                scannedCount++;
-                progressText.textContent = scannedCount;
-                
-                // Add to list
-                const placeholder = document.getElementById('empty-list-placeholder');
-                if (placeholder) {
-                    placeholder.remove();
-                }
-                
-                const newItem = document.createElement('div');
-                newItem.className = 'list-group-item';
-                newItem.innerHTML = `
-                    <i class="fas fa-check-circle text-success me-2"></i>
-                    ${qrCode}
-                `;
-                scannedList.insertBefore(newItem, scannedList.firstChild);
-                
-                // Continue scanning automatically
-                setTimeout(() => {
-                    if (scanner) {
-                        scanner.start();
-                    }
-                }, 1000);
-            } else {
-                showToast(data.message, 'error');
-                // Resume scanning after error
-                setTimeout(() => {
-                    if (scanner) {
-                        scanner.start();
-                    }
-                }, 2000);
-            }
-        })
-        .catch(error => {
-            processingRequest = false;
-            console.error('Error:', error);
-            showToast('Network error. Please try again.', 'error');
-            // Resume scanning after error
-            setTimeout(() => {
-                if (scanner) {
-                    scanner.start();
-                }
-            }, 2000);
-        });
+        // Submit form after brief delay - same approach as parent scanner
+        setTimeout(() => {
+            console.log('Submitting child form with data:', {
+                formAction: submitForm.action,
+                formMethod: submitForm.method,
+                qrValue: qrInput.value
+            });
+            submitForm.submit();
+        }, 1000);
     }
     
-    // Start scanner button
-    startBtn.addEventListener('click', function() {
-        if (scanner) {
-            scanner.stop();
+    // Create InstantDetectionScanner instance - same as parent scanner  
+    console.log('Creating InstantDetectionScanner for child scanner...');
+    const scanner = new InstantDetectionScanner('child-scanner-container', onChildScanSuccess);
+    
+    // Manual entry toggle
+    showManualBtn.addEventListener('click', function() {
+        manualForm.classList.toggle('d-none');
+        if (!manualForm.classList.contains('d-none')) {
+            manualForm.querySelector('input[name="qr_code"]').focus();
         }
-        
-        // Create new scanner instance with the same container ID as bills
-        scanner = new InstantDetectionScanner('child-scanner-container', onScanSuccess);
-        scanner.start();
-        
-        // Update button states
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        
-        showToast('Scanner started - point at child bag QR code', 'success');
     });
     
-    // Stop scanner button
-    stopBtn.addEventListener('click', function() {
-        if (scanner) {
-            scanner.stop();
-        }
-        
-        // Update button states
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
-        
-        showToast('Scanner stopped', 'info');
-    });
-    
-    // Auto-start scanner on page load if parent bag exists
+    // Auto-start scanner immediately if parent bag exists - same as parent scanner
     if (hasParentBag) {
-        setTimeout(() => {
-            startBtn.click();
-        }, 500);
+        showToast('Child bag scanner ready. Point camera at QR codes.', 'success');
+    } else {
+        showToast('Please scan a parent bag first!', 'warning');
     }
 }
 
