@@ -2699,6 +2699,39 @@ def scan_bill_parent(bill_id):
     return render_template('scan_bill_parent_ultra.html', bill=bill, linked_bags=linked_bags, is_completed=is_completed)
 
 
+@app.route('/save_bill/<int:bill_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+def save_bill(bill_id):
+    """Save bill changes - admin and biller access"""
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
+            hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
+        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
+    
+    try:
+        # Get the bill
+        bill = Bill.query.get_or_404(bill_id)
+        
+        # Count current linked bags
+        linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        
+        # Save the current state (commit any pending changes)
+        db.session.commit()
+        
+        app.logger.info(f'Bill {bill.bill_id} saved with {linked_count} bags')
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Bill saved successfully with {linked_count} bags!',
+            'linked_count': linked_count,
+            'expected_count': bill.parent_bag_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Save bill error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error saving bill.'})
+
 @app.route('/complete_bill', methods=['POST'])
 @csrf.exempt
 @login_required

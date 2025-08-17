@@ -8,7 +8,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-qrcode me-2"></i>Scan Parent Bags for Bill #{{ bill.id }}
+                        <i class="fas fa-qrcode me-2"></i>QR Scanner - Bill #{{ bill.id }}
                     </h5>
                 </div>
                 <div class="card-body">
@@ -59,10 +59,16 @@
                     </div>
 
                     <!-- Actions -->
-                    <div class="mt-4 text-center">
+                    <div class="mt-4 d-flex justify-content-center gap-2">
                         <a href="/bills" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Bills
                         </a>
+                        <button id="complete-bill-btn" class="btn btn-success" onclick="completeBill()">
+                            <i class="fas fa-check-circle me-2"></i>Complete Bill
+                        </button>
+                        <button id="save-bill-btn" class="btn btn-primary" onclick="saveBill()">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
                     </div>
                 </div>
             </div>
@@ -317,6 +323,68 @@ document.addEventListener('DOMContentLoaded', function() {
             resultContainer.style.display = 'block';
         }
     });
+    
+    // Save bill function
+    window.saveBill = function() {
+        const bagCount = parseInt(document.getElementById('bag-count').textContent);
+        
+        // Show confirmation
+        if (confirm(`Save bill with ${bagCount} linked bags?`)) {
+            fetch('/save_bill/{{ bill.id }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ action: 'save' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Bill saved successfully!', 'success');
+                } else {
+                    showToast(data.message || 'Error saving bill', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Network error while saving', 'error');
+            });
+        }
+    };
+    
+    // Complete bill function
+    window.completeBill = function() {
+        const bagCount = parseInt(document.getElementById('bag-count').textContent);
+        
+        // Show confirmation
+        if (confirm(`Complete this bill with ${bagCount} linked bags? This action cannot be undone.`)) {
+            fetch('/complete_bill', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `bill_id={{ bill.id }}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Bill completed successfully!', 'success');
+                    // Redirect to bills page after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/bills';
+                    }, 2000);
+                } else {
+                    showToast(data.message || 'Error completing bill', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Network error while completing bill', 'error');
+            });
+        }
+    };
     
     // Wait for library to load and start scanner
     function waitForLibraryAndStart() {
