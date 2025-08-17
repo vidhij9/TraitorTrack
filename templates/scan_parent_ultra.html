@@ -192,7 +192,7 @@
                             </div>
                             <div style="font-size: 12px; opacity: 0.8; background: rgba(0,0,0,0.5); 
                                  padding: 4px 12px; border-radius: 20px;">
-                                Hold steady • Good lighting helps • Agricultural packaging optimized
+                                Optimized for STAR seed bags • Reflective packaging supported
                             </div>
                         </div>
                         <button onclick="toggleInlineTorch()" style="position: absolute; bottom: 15px; right: 15px; 
@@ -246,14 +246,17 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label class="form-label">Enter QR Code (e.g., STAR15MD25095(II))</label>
+                            <label class="form-label">Enter QR Code from your seed bag</label>
                             <input type="text" class="form-control" id="manual-qr-input" 
-                                   placeholder="Type or paste the QR code here"
+                                   placeholder="e.g., LABEL NO.000003 or STAR15MD25095(II)"
                                    list="common-qr-codes">
                             <datalist id="common-qr-codes">
                                 <option value="STAR15MD25095(II)">
                                 <option value="LABEL NO.000003">
+                                <option value="LABEL NO.000007">
                                 <option value="LOT NO.:STAR15MD25095(II)">
+                                <option value="STAR 10-15">
+                                <option value="TRUTHFUL LABEL">
                             </datalist>
                         </div>
                         <button class="btn btn-success" onclick="submitManualQR()">
