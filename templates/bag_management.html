@@ -585,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clean up scanner when modal is closed
     document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', function() {
         if (bagScanner) {
-            bagScanner.stop().catch(console.error);
+            bagScanner.stop();
             bagScanner = null;
         }
         scannedQRCode = null;
@@ -598,8 +598,8 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             if (!bagScanner) {
                 console.log('Creating bag scanner...');
-                bagScanner = new LiveQRScanner('bag-scanner-container');
-                bagScanner.setSuccessCallback(function(qrCode) {
+                bagScanner = new InstantDetectionScanner('bag-scanner-container');
+                bagScanner.onScan = function(qrCode) {
                     scannedQRCode = qrCode;
                     document.getElementById('scan-result-display').className = 'alert alert-success';
                     document.getElementById('scan-result-display').innerHTML = 

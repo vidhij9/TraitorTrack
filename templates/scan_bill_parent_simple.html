@@ -220,11 +220,9 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Load QR scanning libraries from local files -->
-<script src="{{ url_for('static', filename='js/libs/html5-qrcode.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/libs/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera-permissions.js') }}"></script>
-<script src="{{ url_for('static', filename='js/fast-qr-scanner.js') }}"></script>
+<!-- Lightning Scanner for instant performance -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 
 <script>
 let scanner = null;
@@ -238,11 +236,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initializeScanner() {
     try {
-        // Initialize the LiveQRScanner (same as scan management)
-        scanner = new LiveQRScanner('reader');
+        // Initialize the InstantDetectionScanner (same as all other scanners)
+        scanner = new InstantDetectionScanner('reader');
         
         // Set up scan callback
-        scanner.onSuccess = (qrCode) => {
+        scanner.onScan = (qrCode) => {
             const now = Date.now();
             
             // Check cooldown

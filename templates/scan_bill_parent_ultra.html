@@ -244,18 +244,16 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Load QR Scanner Libraries and LiveQRScanner -->
-<script src="{{ url_for('static', filename='js/libs/html5-qrcode.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/libs/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera-permission-helper.js') }}"></script>
-<script src="{{ url_for('static', filename='js/fast-qr-scanner.js') }}"></script>
+<!-- Lightning Scanner for instant performance -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 
 <script>
 // Wait for libraries to fully load
 window.addEventListener('load', function() {
-    // Verify LiveQRScanner is loaded
-    if (typeof LiveQRScanner === 'undefined') {
-        console.error('LiveQRScanner not loaded');
+    // Verify InstantDetectionScanner is loaded
+    if (typeof InstantDetectionScanner === 'undefined') {
+        console.error('InstantDetectionScanner not loaded');
         showToast('Scanner library failed to load. Please refresh the page.', 'danger');
         return;
     }
@@ -313,7 +311,7 @@ function initializeScanner() {
         const now = Date.now();
         console.log('Bill parent scan detected:', qrCode);
         
-        // Scanner is already paused by LiveQRScanner handleSuccess
+        // Scanner automatically handles duplicate prevention
         
         // Check for duplicate scan
         if (scannedBags.has(qrCode)) {
@@ -480,18 +478,17 @@ function initializeScanner() {
         }
     }
     
-    // Initialize Scanner with LiveQRScanner
+    // Initialize Scanner with InstantDetectionScanner
     async function initScanner() {
         try {
             if (!scanner) {
-                console.log('Creating LiveQRScanner for bill parent scanning...');
-                scanner = new LiveQRScanner('bill-scanner-container');
-                scanner.setSuccessCallback(onScanSuccess);
-                console.log('Bill LiveQRScanner initialized');
+                console.log('Creating InstantDetectionScanner for bill parent scanning...');
+                scanner = new InstantDetectionScanner('bill-scanner-container');
+                scanner.onScan = onScanSuccess;
+                console.log('Bill InstantDetectionScanner initialized');
             }
             
-            // Start scanner
-            await scanner.start();
+            // InstantDetectionScanner starts automatically
             
             // Update UI
             startBtn.disabled = true;
@@ -518,7 +515,7 @@ function initializeScanner() {
     async function stopScanner() {
         if (scanner) {
             try {
-                await scanner.stop();
+                scanner.stop();
                 
                 // Update UI
                 startBtn.disabled = false;
