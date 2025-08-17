@@ -193,9 +193,7 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+<!-- Google Lens-like scanner performance - scripts already loaded in head -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -228,9 +226,9 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Check if jsQR is loaded
-                if (typeof jsQR === 'undefined') {
-                    console.error('jsQR library not loaded');
+                // Check if Html5Qrcode is loaded
+                if (typeof Html5Qrcode === 'undefined') {
+                    console.error('Html5Qrcode library not loaded');
                     throw new Error('QR scanning library not loaded');
                 }
                 
@@ -247,26 +245,21 @@
                     window.scanner.stop();
                 }
                 
-                // Use Ultra-Fast Scanner for Google Lens-like performance
-                scanner = new UltraFastScanner('simple-scanner-container');
-                window.scanner = scanner; // Store globally for cleanup
-                // The scanner handles child scans internally with its own logic
+                // Use Google Lens-like Scanner for instant detection
+                if (typeof GoogleLensScanner === 'undefined') {
+                    throw new Error('GoogleLensScanner not loaded');
+                }
                 
-                // Monitor scanner status
-                setTimeout(() => {
-                    const scanStatus = document.getElementById('scan-status');
-                    if (scanStatus && scanStatus.textContent.includes('Ready')) {
-                        updateStatus('Ready', 'success');
-                        resultContainer.className = 'alert alert-success';
-                        resultContainer.innerHTML = '✅ Scanner ready - Point at child bag QR codes';
-                    } else if (scanStatus && scanStatus.textContent.includes('Error')) {
-                        // Try fallback scanner
-                        console.log('Switching to fallback scanner');
-                        if (scanner && scanner.stop) scanner.stop();
-                        // InstantScanner provides instant detection
-                        console.log('InstantScanner handles detection instantly');
-                    }
-                }, 2000);
+                scanner = new GoogleLensScanner('simple-scanner-container');
+                scanner.setSuccessCallback(function(qrCode) {
+                    handleChildScan(qrCode);
+                });
+                await scanner.start();
+                window.scanner = scanner; // Store globally for cleanup
+                
+                updateStatus('Ready', 'success');
+                resultContainer.className = 'alert alert-success';
+                resultContainer.innerHTML = '✅ Scanner ready - Point at child bag QR codes';
                 
             } catch (error) {
                 console.error('Scanner initialization error:', error);

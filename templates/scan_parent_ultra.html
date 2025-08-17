@@ -98,9 +98,7 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+<!-- Google Lens-like scanner performance - scripts already loaded in head -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
