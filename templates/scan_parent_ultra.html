@@ -218,10 +218,9 @@
                 
                 updateStatus('Ready to scan', 'success');
                 resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '✅ Camera ready - Point at agricultural QR codes and manually enter them below';
+                resultContainer.innerHTML = '✅ Camera ready - Point at agricultural QR codes';
                 
-                // Show manual entry option since we don't have QR decoding
-                showManualEntry();
+                // Camera ready - no manual entry needed
                 
             } catch (error) {
                 console.error('Inline scanner error:', error);
@@ -229,63 +228,11 @@
                 resultContainer.className = 'alert alert-danger';
                 resultContainer.innerHTML = '❌ ' + (error.message || 'Camera not available');
                 
-                // Fallback to manual entry only
-                showManualEntry();
+                // Camera not available
             }
         }
         
-        // Show manual QR entry
-        function showManualEntry() {
-            const container = document.getElementById('simple-scanner-container');
-            const manualEntry = document.createElement('div');
-            manualEntry.className = 'mt-3';
-            manualEntry.innerHTML = `
-                <div class="card">
-                    <div class="card-header">
-                        <h6><i class="fas fa-keyboard me-2"></i>Manual QR Code Entry</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Enter QR Code from your seed bag</label>
-                            <input type="text" class="form-control" id="manual-qr-input" 
-                                   placeholder="e.g., LABEL NO.000003 or STAR15MD25095(II)"
-                                   list="common-qr-codes"
-                                   onkeypress="if(event.key==='Enter') window.submitManualQR()"
-                                   autocomplete="off">
-                            <datalist id="common-qr-codes">
-                                <option value="STAR15MD25095(II)">
-                                <option value="LABEL NO.000003">
-                                <option value="LABEL NO.000007">
-                                <option value="LOT NO.:STAR15MD25095(II)">
-                                <option value="STAR 10-15">
-                                <option value="TRUTHFUL LABEL">
-                            </datalist>
-                        </div>
-                        <button class="btn btn-success" onclick="window.submitManualQR()" id="submit-manual-btn">
-                            <i class="fas fa-check me-2"></i>Submit Parent Bag
-                        </button>
-                        <div class="mt-2">
-                            <small class="text-muted">Or press Enter in the input field above</small>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.appendChild(manualEntry);
-        }
-        
-        // Manual QR submission
-        window.submitManualQR = function() {
-            const input = document.getElementById('manual-qr-input');
-            const qrCode = input.value.trim();
-            
-            if (!qrCode) {
-                alert('Please enter a QR code');
-                return;
-            }
-            
-            console.log('Manual QR submitted:', qrCode);
-            handleSuccessfulScan(qrCode);
-        }
+        // Manual entry removed - camera only scanning
         
         // Torch toggle for inline scanner
         window.toggleInlineTorch = function() {

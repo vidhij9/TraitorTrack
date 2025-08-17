@@ -3,10 +3,7 @@
 {% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- Google Lens-like QR Scanning for Agricultural Seed Bags -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" 
-        onload="window.Html5QrcodeLoaded = true;" 
-        onerror="console.error('Failed to load Html5Qrcode from CDN')"></script>
+<!-- Camera-only QR Scanning - No external dependencies -->
 <script src="{{ url_for('static', filename='js/camera-fix.js') }}"></script>
 
 <style>
@@ -194,8 +191,7 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Google Lens-like scanner performance -->
-<script src="{{ url_for('static', filename='js/google-lens-scanner.js') }}"></script>
+<!-- Inline camera scanner - no external scripts -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let scanner = null;
@@ -228,21 +224,8 @@
             try {
                 updateStatus('Starting...', 'info');
                 
-                // Wait for Html5Qrcode to load if not ready
-                let attempts = 0;
-                while (typeof Html5Qrcode === 'undefined' && attempts < 10) {
-                    console.log('Waiting for Html5Qrcode library to load...');
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    attempts++;
-                }
-                
-                // Check if Html5Qrcode is loaded
-                if (typeof Html5Qrcode === 'undefined') {
-                    console.error('Html5Qrcode library not loaded after waiting');
-                    throw new Error('QR scanning library not loaded. Please refresh the page.');
-                }
-                
-                console.log('Html5Qrcode library loaded successfully');
+                // Use inline camera scanner - no external dependencies needed
+                console.log('Starting inline camera scanner');
                 
                 // Request camera permissions first
                 try {
@@ -257,16 +240,8 @@
                     window.scanner.stop();
                 }
                 
-                // Use Google Lens-like Scanner for instant detection
-                if (typeof GoogleLensScanner === 'undefined') {
-                    throw new Error('GoogleLensScanner not loaded');
-                }
-                
-                scanner = new GoogleLensScanner('simple-scanner-container');
-                scanner.setSuccessCallback(function(qrCode) {
-                    handleChildScan(qrCode);
-                });
-                await scanner.start();
+                // Create inline camera interface
+                await createInlineCamera('simple-scanner-container', handleChildScan);
                 window.scanner = scanner; // Store globally for cleanup
                 
                 updateStatus('Ready', 'success');
@@ -286,6 +261,51 @@
                     resultContainer.innerHTML = '❌ Camera requires secure connection (HTTPS).';
                 }
             }
+        }
+        
+        // Create inline camera interface
+        async function createInlineCamera(containerId, onScanCallback) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div style="position: relative; width: 100%; height: 400px; background: #000; border-radius: 12px; overflow: hidden;">
+                    <video id="child-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                         width: 250px; height: 250px; border: 2px solid rgba(255,255,255,0.3); border-radius: 12px;">
+                        <div style="position: absolute; top: -3px; left: -3px; width: 30px; height: 30px; 
+                             border: 3px solid #00ff88; border-right: none; border-bottom: none; border-radius: 4px;"></div>
+                        <div style="position: absolute; top: -3px; right: -3px; width: 30px; height: 30px; 
+                             border: 3px solid #00ff88; border-left: none; border-bottom: none; border-radius: 4px;"></div>
+                        <div style="position: absolute; bottom: -3px; left: -3px; width: 30px; height: 30px; 
+                             border: 3px solid #00ff88; border-right: none; border-top: none; border-radius: 4px;"></div>
+                        <div style="position: absolute; bottom: -3px; right: -3px; width: 30px; height: 30px; 
+                             border: 3px solid #00ff88; border-left: none; border-top: none; border-radius: 4px;"></div>
+                    </div>
+                    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+                         text-align: center; color: white;">
+                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">
+                            <i class="fas fa-qrcode"></i> Point camera at child bag QR code
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.8; background: rgba(0,0,0,0.5); 
+                             padding: 4px 12px; border-radius: 20px;">
+                            Camera only - optimized for STAR seed bags
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const video = document.getElementById('child-video');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920, min: 640 },
+                    height: { ideal: 1080, min: 480 }
+                }
+            });
+            
+            video.srcObject = stream;
+            window.childCameraStream = stream;
+            
+            console.log('Inline camera ready for child bag scanning');
         }
         
         // Update scanner status
