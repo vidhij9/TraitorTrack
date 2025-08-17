@@ -195,6 +195,10 @@ class FastQRScanner {
     
     async startCamera() {
         try {
+            // Check if permission was previously granted
+            const permissionKey = 'tracetrack_camera_permission';
+            const hasPermission = localStorage.getItem(permissionKey) === 'granted';
+            
             // Enhanced constraints for better focus and detection
             const constraints = {
                 video: {
@@ -216,14 +220,29 @@ class FastQRScanner {
                 audio: false
             };
             
-            this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints)
-                .catch(() => {
-                    // Fallback to simpler constraints
-                    return navigator.mediaDevices.getUserMedia({ 
+            try {
+                this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                // Permission granted - store it
+                localStorage.setItem(permissionKey, 'granted');
+            } catch (firstError) {
+                // Try simpler constraints
+                try {
+                    this.cameraStream = await navigator.mediaDevices.getUserMedia({ 
                         video: { facingMode: 'environment' }, 
                         audio: false 
                     });
-                });
+                    // Permission granted - store it
+                    localStorage.setItem(permissionKey, 'granted');
+                } catch (secondError) {
+                    // Check if it's a permission error
+                    if (secondError.name === 'NotAllowedError' || secondError.name === 'PermissionDeniedError') {
+                        localStorage.setItem(permissionKey, 'denied');
+                        throw new Error('Permission denied. Please allow camera access and refresh the page.');
+                    }
+                    throw secondError;
+                }
+            }
+            
             this.video.srcObject = this.cameraStream;
             
             await new Promise((resolve) => {
@@ -291,7 +310,17 @@ class FastQRScanner {
             
         } catch (error) {
             console.error('FastQR: Camera failed:', error);
-            this.showStatus('Camera error. Please check permissions.', 'error');
+            
+            // Provide helpful error messages
+            if (error.message && error.message.includes('Permission denied')) {
+                this.showStatus('Camera permission required. Please allow camera access.', 'error');
+            } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                this.showStatus('No camera found. Please check your camera.', 'error');
+            } else {
+                this.showStatus('Camera error. Please check permissions and try again.', 'error');
+            }
+            
+            throw error; // Re-throw to be caught by caller
         }
     }
     

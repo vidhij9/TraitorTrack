@@ -157,11 +157,6 @@
                             <i class="fas fa-stop me-1"></i>Stop Scanner
                         </button>
                     </div>
-                    
-                    <!-- Status Messages -->
-                    <div id="result-container" class="alert alert-info mt-3" style="display: none;">
-                        <i class="fas fa-info-circle me-2"></i>Initializing scanner...
-                    </div>
                 </div>
             </div>
         </div>
@@ -261,8 +256,7 @@ window.addEventListener('load', function() {
     // Verify LiveQRScanner is loaded
     if (typeof LiveQRScanner === 'undefined') {
         console.error('LiveQRScanner not loaded');
-        document.getElementById('result-container').innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Scanner library failed to load. Please refresh the page.</div>';
-        document.getElementById('result-container').style.display = 'block';
+        showToast('Scanner library failed to load. Please refresh the page.', 'danger');
         return;
     }
     
@@ -275,7 +269,6 @@ function initializeScanner() {
     // UI Elements
     const startBtn = document.getElementById('start-camera');
     const stopBtn = document.getElementById('stop-camera');
-    const resultContainer = document.getElementById('result-container');
     const bagCount = document.getElementById('bag-count');
     const maxCount = document.getElementById('max-count');
     const progressBar = document.getElementById('progress-bar');
@@ -306,11 +299,13 @@ function initializeScanner() {
         bsToast.show();
     }
     
-    // Show status message
+    // Show status message - simplified without UI element
     function showStatus(message, type = 'info') {
-        resultContainer.className = `alert alert-${type} mt-3`;
-        resultContainer.innerHTML = message;
-        resultContainer.style.display = 'block';
+        console.log(`Status: ${message}`);
+        // Only show critical errors as toast
+        if (type === 'danger') {
+            showToast(message.replace(/<[^>]*>/g, ''), 'danger');
+        }
     }
     
     // Process QR code scan with pause/resume
@@ -488,16 +483,11 @@ function initializeScanner() {
     // Initialize Scanner with LiveQRScanner
     async function initScanner() {
         try {
-            showStatus('<i class="fas fa-spinner fa-spin me-2"></i>Initializing scanner...', 'info');
-            
             if (!scanner) {
                 console.log('Creating LiveQRScanner for bill parent scanning...');
                 scanner = new LiveQRScanner('bill-scanner-container');
                 scanner.setSuccessCallback(onScanSuccess);
                 console.log('Bill LiveQRScanner initialized');
-                
-                // Make scanner globally accessible for debugging
-                window.billScanner = scanner;
             }
             
             // Start scanner
@@ -506,11 +496,19 @@ function initializeScanner() {
             // Update UI
             startBtn.disabled = true;
             stopBtn.disabled = false;
-            showStatus('<i class="fas fa-camera me-2"></i>Scanner active - Position QR code in view', 'success');
             
         } catch (error) {
             console.error('Scanner initialization failed:', error);
-            showStatus(`<i class="fas fa-exclamation-circle me-2"></i>Camera error: ${error.message}`, 'danger');
+            
+            // Handle specific error types
+            if (error.message && error.message.includes('Permission denied')) {
+                showToast('Camera permission required. Please allow camera access.', 'warning', 5000);
+            } else if (error.message && error.message.includes('No camera')) {
+                showToast('No camera found. Please check your camera.', 'danger');
+            } else {
+                showToast('Camera error. Please check permissions.', 'danger');
+            }
+            
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
@@ -525,7 +523,6 @@ function initializeScanner() {
                 // Update UI
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                showStatus('<i class="fas fa-stop me-2"></i>Scanner stopped', 'secondary');
             } catch (error) {
                 console.error('Error stopping scanner:', error);
             }
