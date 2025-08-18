@@ -152,35 +152,37 @@
         </div>
     </div>
 
-    <!-- Scanning Activity Chart - Compact Version -->
+    <!-- Scanning Activity Data - Clean Display -->
     <div class="row mb-3">
         <div class="col-12">
             <div class="card">
                 <div class="card-header py-2">
-                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> 30-Day Scanning Activity</h5>
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Scanning Activity</h5>
                 </div>
-                <div class="card-body py-2" style="height: 200px;">
-                    <div style="height: 120px; position: relative;">
-                        <canvas id="scanChart"></canvas>
-                    </div>
-                    <!-- Scan breakdown -->
-                    <div class="mt-2">
-                        <div class="row text-center">
-                            <div class="col-3">
-                                <small class="text-muted d-block">Today</small>
-                                <strong class="text-primary">{{ metrics.today_scans }}</strong>
+                <div class="card-body py-3">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <div class="p-3 bg-primary text-white rounded">
+                                <h4 class="mb-1">{{ metrics.today_scans }}</h4>
+                                <small>Today</small>
                             </div>
-                            <div class="col-3">
-                                <small class="text-muted d-block">This Week</small>
-                                <strong class="text-success">{{ metrics.week_scans }}</strong>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3 bg-success text-white rounded">
+                                <h4 class="mb-1">{{ metrics.week_scans }}</h4>
+                                <small>This Week</small>
                             </div>
-                            <div class="col-3">
-                                <small class="text-muted d-block">This Quarter</small>
-                                <strong class="text-warning">{{ metrics.quarter_scans }}</strong>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3 bg-warning text-white rounded">
+                                <h4 class="mb-1">{{ metrics.quarter_scans }}</h4>
+                                <small>This Quarter</small>
                             </div>
-                            <div class="col-3">
-                                <small class="text-muted d-block">This Year</small>
-                                <strong class="text-info">{{ metrics.year_scans }}</strong>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3 bg-info text-white rounded">
+                                <h4 class="mb-1">{{ metrics.year_scans }}</h4>
+                                <small>This Year</small>
                             </div>
                         </div>
                     </div>
@@ -309,103 +311,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// 30-Day Activity Chart - Compact and Contained
-const scanData = {{ metrics.daily_scan_data | tojson }};
-const ctx = document.getElementById('scanChart').getContext('2d');
-
-// Ensure we have data
-const chartLabels = scanData.labels || [];
-const chartValues = scanData.values || [];
-
-// Create the compact chart
-new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: chartLabels,
-        datasets: [{
-            label: 'Scans',
-            data: chartValues,
-            backgroundColor: 'rgba(40, 167, 69, 0.7)',
-            borderColor: 'rgba(40, 167, 69, 1)',
-            borderWidth: 1,
-            barThickness: 8
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: {
-            padding: {
-                top: 5,
-                bottom: 5,
-                left: 5,
-                right: 5
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    stepSize: 1,
-                    font: {
-                        size: 10
-                    },
-                    color: '#666',
-                    maxTicksLimit: 5
-                },
-                grid: {
-                    display: true,
-                    color: 'rgba(0, 0, 0, 0.05)',
-                    lineWidth: 1
-                },
-                title: {
-                    display: false
-                }
-            },
-            x: {
-                ticks: {
-                    font: {
-                        size: 9
-                    },
-                    color: '#666',
-                    maxRotation: 45,
-                    minRotation: 45,
-                    autoSkip: true,
-                    maxTicksLimit: 10
-                },
-                grid: {
-                    display: false
-                },
-                title: {
-                    display: false
-                }
-            }
-        },
-        plugins: {
-            legend: {
-                display: false
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                titleFont: {
-                    size: 11
-                },
-                bodyFont: {
-                    size: 10
-                },
-                callbacks: {
-                    title: function(context) {
-                        return context[0].label;
-                    },
-                    label: function(context) {
-                        return 'Scans: ' + context.parsed.y;
-                    }
-                }
-            }
-        }
-    }
-});
-
 // Scan Type Distribution Chart - Tiny Version
 const scanTypeCtx = document.getElementById('scanTypeChart').getContext('2d');
 new Chart(scanTypeCtx, {
