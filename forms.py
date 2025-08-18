@@ -93,3 +93,8 @@ class ChildLookupForm(FlaskForm):
     qr_id = StringField('Child Bag QR Code', validators=[DataRequired()])
     submit = SubmitField('Lookup')
 
+class ManualScanForm(FlaskForm):
+    """Form for manual QR code entry during scanning."""
+    qr_code = StringField('QR Code', validators=[DataRequired()])
+    submit = SubmitField('Add Child')
+

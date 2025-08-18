@@ -34,7 +34,7 @@ from datetime import datetime, timedelta
 
 from app_clean import app, db, limiter, csrf
 from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus, AuditLog
-from forms import LoginForm, RegistrationForm, ChildLookupForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
+from forms import LoginForm, RegistrationForm, ChildLookupForm, ManualScanForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
 import csv
@@ -1780,7 +1780,7 @@ def scan_child():
                              parent_qr=parent_qr,
                              scanned_child_count=scanned_child_count,
                              linked_child_bags=linked_child_bags,
-                             form=ChildScanForm())
+                             form=ManualScanForm())
 
 @app.route('/scan/complete')
 @login_required
