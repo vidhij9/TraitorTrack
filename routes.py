@@ -2119,9 +2119,15 @@ def bag_management():
             elif bag_type == 'child':
                 filters.append(Bag.type == BagType.CHILD.value)
         
-        # Search filter
+        # Search filter - exact match first, then partial match
         if search_query:
-            filters.append(Bag.qr_id.ilike(f'%{search_query}%'))
+            # Try exact match first
+            exact_match = Bag.query.filter_by(qr_id=search_query).first()
+            if exact_match:
+                filters.append(Bag.qr_id == search_query)
+            else:
+                # Fall back to partial match
+                filters.append(Bag.qr_id.ilike(f'%{search_query}%'))
         
         # Date range filter
         if date_from and not date_error:
@@ -2155,7 +2161,7 @@ def bag_management():
                 db.session.query(Link.child_bag_id)
             ).subquery()
             query = query.filter(Bag.id.in_(linked_bag_ids))
-        elif linked_status == 'not_linked':
+        elif linked_status == 'unlinked':
             # Get bags that don't have any links
             linked_bag_ids = db.session.query(Link.parent_bag_id).union(
                 db.session.query(Link.child_bag_id)
@@ -2163,11 +2169,11 @@ def bag_management():
             query = query.filter(~Bag.id.in_(linked_bag_ids))
         
         # Apply bill status filter
-        if bill_status == 'with_bill':
+        if bill_status == 'billed':
             # Get bags that have bills
             bags_with_bills = db.session.query(BillBag.bag_id).distinct().subquery()
             query = query.filter(Bag.id.in_(bags_with_bills))
-        elif bill_status == 'without_bill':
+        elif bill_status == 'unbilled':
             # Get bags that don't have bills
             bags_with_bills = db.session.query(BillBag.bag_id).distinct().subquery()
             query = query.filter(~Bag.id.in_(bags_with_bills))
