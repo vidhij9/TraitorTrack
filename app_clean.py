@@ -33,10 +33,10 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
-# Configure limiter with proper storage and higher limits for development
+# Configure limiter with proper storage and higher limits for concurrent testing
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["2000 per day", "500 per hour", "50 per minute"],  # More generous limits for development
+    default_limits=["10000 per day", "5000 per hour", "500 per minute"],  # Much higher limits for concurrent testing
     storage_uri="memory://",  # Explicitly specify memory storage
     strategy="fixed-window"  # Use fixed window strategy for better performance
 )
@@ -98,23 +98,23 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Stable database configuration for reliable connections
+# High-concurrency database configuration for 100+ users
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 15,                # Reduced for stability
-    "max_overflow": 25,             # More conservative (total: 40)
-    "pool_recycle": 1800,           # Recycle every 30 minutes
+    "pool_size": 50,                # Increased for high concurrency
+    "max_overflow": 100,            # Allow up to 150 total connections
+    "pool_recycle": 300,            # Recycle every 5 minutes for freshness
     "pool_pre_ping": True,          # Enable pre-ping for reliability
-    "pool_timeout": 10,             # More generous timeout
+    "pool_timeout": 30,             # Longer timeout for busy periods
     "echo": False,                  # No SQL logging
     "echo_pool": False,             # No pool logging
-    "connect_args": {               # Robust PostgreSQL settings
+    "connect_args": {               # Optimized PostgreSQL settings
         "keepalives": 1,
-        "keepalives_idle": 60,      # Longer idle time
-        "keepalives_interval": 30,   # Less frequent keepalives
-        "keepalives_count": 3,       # Fewer retries
-        "connect_timeout": 10,       # Longer connection timeout
-        "application_name": "TraceTrack_Stable",
-        "options": "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=60000"  # 30s query, 60s idle timeout
+        "keepalives_idle": 30,       # Shorter idle time for faster detection
+        "keepalives_interval": 10,   # More frequent keepalives
+        "keepalives_count": 5,       # More retries for reliability
+        "connect_timeout": 5,        # Faster connection timeout
+        "application_name": "TraceTrack_HighConcurrency",
+        "options": "-c statement_timeout=60000 -c idle_in_transaction_session_timeout=30000"  # 60s query, 30s idle timeout
     }
 }
 

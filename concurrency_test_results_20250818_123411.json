@@ -1,0 +1,2842 @@
+{
+  "summary": {
+    "duration": 100.92117238044739,
+    "total_requests": 400,
+    "successful": 200,
+    "failed": 200,
+    "requests_per_second": 3.9634894300682597,
+    "error_500_count": 0
+  },
+  "action_stats": {
+    "home_page": {
+      "count": 100,
+      "success": 100,
+      "total_time": 405.0168921947479,
+      "max_time": 5.423808813095093,
+      "min_time": 3.212878942489624
+    },
+    "login": {
+      "count": 100,
+      "success": 100,
+      "total_time": 4781.099322319031,
+      "max_time": 94.25384378433228,
+      "min_time": 1.1847288608551025
+    },
+    "scanner_page": {
+      "count": 100,
+      "success": 0,
+      "total_time": 4713.376630306244,
+      "max_time": 93.75830554962158,
+      "min_time": 0.6608157157897949
+    },
+    "health_check": {
+      "count": 100,
+      "success": 0,
+      "total_time": 84.72924327850342,
+      "max_time": 50.091463804244995,
+      "min_time": 0.0532536506652832
+    }
+  },
+  "detailed_results": [
+    {
+      "user_id": 33,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4968647956848145,
+      "success": true
+    },
+    {
+      "user_id": 33,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 14.514638900756836,
+      "success": true
+    },
+    {
+      "user_id": 33,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 81.43034482002258,
+      "success": false
+    },
+    {
+      "user_id": 33,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3681161403656006,
+      "success": false
+    },
+    {
+      "user_id": 74,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.7223005294799805,
+      "success": true
+    },
+    {
+      "user_id": 74,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 31.09214687347412,
+      "success": true
+    },
+    {
+      "user_id": 74,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 64.26768803596497,
+      "success": false
+    },
+    {
+      "user_id": 74,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.36244678497314453,
+      "success": false
+    },
+    {
+      "user_id": 50,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4239373207092285,
+      "success": true
+    },
+    {
+      "user_id": 50,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 2.063307046890259,
+      "success": true
+    },
+    {
+      "user_id": 50,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 93.75830554962158,
+      "success": false
+    },
+    {
+      "user_id": 50,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.18631243705749512,
+      "success": false
+    },
+    {
+      "user_id": 53,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.430630922317505,
+      "success": true
+    },
+    {
+      "user_id": 53,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 4.915295839309692,
+      "success": true
+    },
+    {
+      "user_id": 53,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 90.89499592781067,
+      "success": false
+    },
+    {
+      "user_id": 53,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.2555859088897705,
+      "success": false
+    },
+    {
+      "user_id": 39,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4725441932678223,
+      "success": true
+    },
+    {
+      "user_id": 39,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 5.899557113647461,
+      "success": true
+    },
+    {
+      "user_id": 39,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 89.95948100090027,
+      "success": false
+    },
+    {
+      "user_id": 39,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4101877212524414,
+      "success": false
+    },
+    {
+      "user_id": 34,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4949324131011963,
+      "success": true
+    },
+    {
+      "user_id": 34,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 1.1847288608551025,
+      "success": true
+    },
+    {
+      "user_id": 34,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 44.94145226478577,
+      "success": false
+    },
+    {
+      "user_id": 34,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 50.091463804244995,
+      "success": false
+    },
+    {
+      "user_id": 36,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4918341636657715,
+      "success": true
+    },
+    {
+      "user_id": 36,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 16.40603518486023,
+      "success": true
+    },
+    {
+      "user_id": 36,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 79.53314304351807,
+      "success": false
+    },
+    {
+      "user_id": 36,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4152040481567383,
+      "success": false
+    },
+    {
+      "user_id": 47,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4610540866851807,
+      "success": true
+    },
+    {
+      "user_id": 47,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 3.005286693572998,
+      "success": true
+    },
+    {
+      "user_id": 47,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 92.81406497955322,
+      "success": false
+    },
+    {
+      "user_id": 47,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.2942507266998291,
+      "success": false
+    },
+    {
+      "user_id": 72,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.2489283084869385,
+      "success": true
+    },
+    {
+      "user_id": 72,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 46.952871322631836,
+      "success": true
+    },
+    {
+      "user_id": 72,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 48.016878843307495,
+      "success": false
+    },
+    {
+      "user_id": 72,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.36809372901916504,
+      "success": false
+    },
+    {
+      "user_id": 46,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4889352321624756,
+      "success": true
+    },
+    {
+      "user_id": 46,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 7.7622480392456055,
+      "success": true
+    },
+    {
+      "user_id": 46,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 88.04648280143738,
+      "success": false
+    },
+    {
+      "user_id": 46,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.24303412437438965,
+      "success": false
+    },
+    {
+      "user_id": 81,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.055475950241089,
+      "success": true
+    },
+    {
+      "user_id": 81,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 63.270427227020264,
+      "success": true
+    },
+    {
+      "user_id": 81,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 31.837931394577026,
+      "success": false
+    },
+    {
+      "user_id": 81,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.37810397148132324,
+      "success": false
+    },
+    {
+      "user_id": 93,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.357095718383789,
+      "success": true
+    },
+    {
+      "user_id": 93,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 37.148998737335205,
+      "success": true
+    },
+    {
+      "user_id": 93,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 58.50705599784851,
+      "success": false
+    },
+    {
+      "user_id": 93,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3988373279571533,
+      "success": false
+    },
+    {
+      "user_id": 97,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.3035526275634766,
+      "success": true
+    },
+    {
+      "user_id": 97,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 25.53398561477661,
+      "success": true
+    },
+    {
+      "user_id": 97,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 70.01742696762085,
+      "success": false
+    },
+    {
+      "user_id": 97,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.40798211097717285,
+      "success": false
+    },
+    {
+      "user_id": 82,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.096715211868286,
+      "success": true
+    },
+    {
+      "user_id": 82,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 58.45500111579895,
+      "success": true
+    },
+    {
+      "user_id": 82,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 36.63669157028198,
+      "success": false
+    },
+    {
+      "user_id": 82,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3452413082122803,
+      "success": false
+    },
+    {
+      "user_id": 89,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.069114923477173,
+      "success": true
+    },
+    {
+      "user_id": 89,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 38.40166878700256,
+      "success": true
+    },
+    {
+      "user_id": 89,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 56.58597445487976,
+      "success": false
+    },
+    {
+      "user_id": 89,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.43822717666625977,
+      "success": false
+    },
+    {
+      "user_id": 32,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.606348991394043,
+      "success": true
+    },
+    {
+      "user_id": 32,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 46.022390842437744,
+      "success": true
+    },
+    {
+      "user_id": 32,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 49.844781160354614,
+      "success": false
+    },
+    {
+      "user_id": 32,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.507037878036499,
+      "success": false
+    },
+    {
+      "user_id": 92,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.2459843158721924,
+      "success": true
+    },
+    {
+      "user_id": 92,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 38.24782919883728,
+      "success": true
+    },
+    {
+      "user_id": 92,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 57.43379592895508,
+      "success": false
+    },
+    {
+      "user_id": 92,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.5168688297271729,
+      "success": false
+    },
+    {
+      "user_id": 16,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.616927146911621,
+      "success": true
+    },
+    {
+      "user_id": 16,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 8.826077222824097,
+      "success": true
+    },
+    {
+      "user_id": 16,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 87.20360374450684,
+      "success": false
+    },
+    {
+      "user_id": 16,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3488175868988037,
+      "success": false
+    },
+    {
+      "user_id": 44,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.47973895072937,
+      "success": true
+    },
+    {
+      "user_id": 44,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 3.958751678466797,
+      "success": true
+    },
+    {
+      "user_id": 44,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 91.86061954498291,
+      "success": false
+    },
+    {
+      "user_id": 44,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.27951860427856445,
+      "success": false
+    },
+    {
+      "user_id": 38,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.51208233833313,
+      "success": true
+    },
+    {
+      "user_id": 38,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 6.845893383026123,
+      "success": true
+    },
+    {
+      "user_id": 38,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 89.00721549987793,
+      "success": false
+    },
+    {
+      "user_id": 38,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4761779308319092,
+      "success": false
+    },
+    {
+      "user_id": 87,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4603114128112793,
+      "success": true
+    },
+    {
+      "user_id": 87,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 30.294814586639404,
+      "success": true
+    },
+    {
+      "user_id": 87,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 65.31723141670227,
+      "success": false
+    },
+    {
+      "user_id": 87,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.44456958770751953,
+      "success": false
+    },
+    {
+      "user_id": 22,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.563900947570801,
+      "success": true
+    },
+    {
+      "user_id": 22,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 48.9983115196228,
+      "success": true
+    },
+    {
+      "user_id": 22,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 47.02067828178406,
+      "success": false
+    },
+    {
+      "user_id": 22,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.5200810432434082,
+      "success": false
+    },
+    {
+      "user_id": 88,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4919705390930176,
+      "success": true
+    },
+    {
+      "user_id": 88,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 28.366823196411133,
+      "success": true
+    },
+    {
+      "user_id": 88,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 67.13963317871094,
+      "success": false
+    },
+    {
+      "user_id": 88,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.32384443283081055,
+      "success": false
+    },
+    {
+      "user_id": 70,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.8137094974517822,
+      "success": true
+    },
+    {
+      "user_id": 70,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 52.19624972343445,
+      "success": true
+    },
+    {
+      "user_id": 70,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 43.34222435951233,
+      "success": false
+    },
+    {
+      "user_id": 70,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.36452651023864746,
+      "success": false
+    },
+    {
+      "user_id": 76,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.131151437759399,
+      "success": true
+    },
+    {
+      "user_id": 76,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 42.250601053237915,
+      "success": true
+    },
+    {
+      "user_id": 76,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 52.86453700065613,
+      "success": false
+    },
+    {
+      "user_id": 76,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.33327627182006836,
+      "success": false
+    },
+    {
+      "user_id": 17,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.004261493682861,
+      "success": true
+    },
+    {
+      "user_id": 17,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 20.825796365737915,
+      "success": true
+    },
+    {
+      "user_id": 17,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 74.92878746986389,
+      "success": false
+    },
+    {
+      "user_id": 17,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.42810773849487305,
+      "success": false
+    },
+    {
+      "user_id": 83,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.750204563140869,
+      "success": true
+    },
+    {
+      "user_id": 83,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 62.59558820724487,
+      "success": true
+    },
+    {
+      "user_id": 83,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 32.77800989151001,
+      "success": false
+    },
+    {
+      "user_id": 83,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.43328285217285156,
+      "success": false
+    },
+    {
+      "user_id": 26,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.5408504009246826,
+      "success": true
+    },
+    {
+      "user_id": 26,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 22.160279750823975,
+      "success": true
+    },
+    {
+      "user_id": 26,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 73.80453205108643,
+      "success": false
+    },
+    {
+      "user_id": 26,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.5323424339294434,
+      "success": false
+    },
+    {
+      "user_id": 29,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.5195934772491455,
+      "success": true
+    },
+    {
+      "user_id": 29,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 15.471373796463013,
+      "success": true
+    },
+    {
+      "user_id": 29,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 80.45386695861816,
+      "success": false
+    },
+    {
+      "user_id": 29,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.5047557353973389,
+      "success": false
+    },
+    {
+      "user_id": 98,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.927144765853882,
+      "success": true
+    },
+    {
+      "user_id": 98,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 35.53747534751892,
+      "success": true
+    },
+    {
+      "user_id": 98,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 59.47034525871277,
+      "success": false
+    },
+    {
+      "user_id": 98,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4512205123901367,
+      "success": false
+    },
+    {
+      "user_id": 40,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4996418952941895,
+      "success": true
+    },
+    {
+      "user_id": 40,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 17.294121980667114,
+      "success": true
+    },
+    {
+      "user_id": 40,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 78.91435480117798,
+      "success": false
+    },
+    {
+      "user_id": 40,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.28628039360046387,
+      "success": false
+    },
+    {
+      "user_id": 75,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.2612085342407227,
+      "success": true
+    },
+    {
+      "user_id": 75,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 22.976794481277466,
+      "success": true
+    },
+    {
+      "user_id": 75,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 72.8328800201416,
+      "success": false
+    },
+    {
+      "user_id": 75,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4590280055999756,
+      "success": false
+    },
+    {
+      "user_id": 90,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.220226764678955,
+      "success": true
+    },
+    {
+      "user_id": 90,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 23.849860668182373,
+      "success": true
+    },
+    {
+      "user_id": 90,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 71.90116000175476,
+      "success": false
+    },
+    {
+      "user_id": 90,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.34947657585144043,
+      "success": false
+    },
+    {
+      "user_id": 25,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.825736045837402,
+      "success": true
+    },
+    {
+      "user_id": 25,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 81.27012300491333,
+      "success": true
+    },
+    {
+      "user_id": 25,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 13.76424765586853,
+      "success": false
+    },
+    {
+      "user_id": 25,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.27634572982788086,
+      "success": false
+    },
+    {
+      "user_id": 65,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.732133626937866,
+      "success": true
+    },
+    {
+      "user_id": 65,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 70.39353132247925,
+      "success": true
+    },
+    {
+      "user_id": 65,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 24.423548221588135,
+      "success": false
+    },
+    {
+      "user_id": 65,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.25789785385131836,
+      "success": false
+    },
+    {
+      "user_id": 12,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.263180255889893,
+      "success": true
+    },
+    {
+      "user_id": 12,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 81.90054750442505,
+      "success": true
+    },
+    {
+      "user_id": 12,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 12.587899446487427,
+      "success": false
+    },
+    {
+      "user_id": 12,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4986569881439209,
+      "success": false
+    },
+    {
+      "user_id": 68,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.651113748550415,
+      "success": true
+    },
+    {
+      "user_id": 68,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 67.55636787414551,
+      "success": true
+    },
+    {
+      "user_id": 68,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 27.289838552474976,
+      "success": false
+    },
+    {
+      "user_id": 68,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.22469019889831543,
+      "success": false
+    },
+    {
+      "user_id": 60,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.184125661849976,
+      "success": true
+    },
+    {
+      "user_id": 60,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 71.9348680973053,
+      "success": true
+    },
+    {
+      "user_id": 60,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 23.541282892227173,
+      "success": false
+    },
+    {
+      "user_id": 60,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.18441081047058105,
+      "success": false
+    },
+    {
+      "user_id": 3,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.75445294380188,
+      "success": true
+    },
+    {
+      "user_id": 3,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 86.31596970558167,
+      "success": true
+    },
+    {
+      "user_id": 3,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 8.958256721496582,
+      "success": false
+    },
+    {
+      "user_id": 3,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3253774642944336,
+      "success": false
+    },
+    {
+      "user_id": 62,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.361356496810913,
+      "success": true
+    },
+    {
+      "user_id": 62,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 52.686194896698,
+      "success": true
+    },
+    {
+      "user_id": 62,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 42.58661699295044,
+      "success": false
+    },
+    {
+      "user_id": 62,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.18477916717529297,
+      "success": false
+    },
+    {
+      "user_id": 21,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.998471260070801,
+      "success": true
+    },
+    {
+      "user_id": 21,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 65.68707036972046,
+      "success": true
+    },
+    {
+      "user_id": 21,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 29.274311304092407,
+      "success": false
+    },
+    {
+      "user_id": 21,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.20783138275146484,
+      "success": false
+    },
+    {
+      "user_id": 79,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.3794684410095215,
+      "success": true
+    },
+    {
+      "user_id": 79,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 63.91651010513306,
+      "success": true
+    },
+    {
+      "user_id": 79,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 30.864126205444336,
+      "success": false
+    },
+    {
+      "user_id": 79,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.46323537826538086,
+      "success": false
+    },
+    {
+      "user_id": 0,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.42115330696106,
+      "success": true
+    },
+    {
+      "user_id": 0,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 94.25384378433228,
+      "success": true
+    },
+    {
+      "user_id": 0,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 0.6608157157897949,
+      "success": false
+    },
+    {
+      "user_id": 0,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.0532536506652832,
+      "success": false
+    },
+    {
+      "user_id": 11,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.8685286045074463,
+      "success": true
+    },
+    {
+      "user_id": 11,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 11.481993198394775,
+      "success": true
+    },
+    {
+      "user_id": 11,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 84.49713492393494,
+      "success": false
+    },
+    {
+      "user_id": 11,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.42905592918395996,
+      "success": false
+    },
+    {
+      "user_id": 9,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.134387254714966,
+      "success": true
+    },
+    {
+      "user_id": 9,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 87.7710919380188,
+      "success": true
+    },
+    {
+      "user_id": 9,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 7.175711154937744,
+      "success": false
+    },
+    {
+      "user_id": 9,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.20047616958618164,
+      "success": false
+    },
+    {
+      "user_id": 57,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.312576055526733,
+      "success": true
+    },
+    {
+      "user_id": 57,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 73.93765687942505,
+      "success": true
+    },
+    {
+      "user_id": 57,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 21.292768001556396,
+      "success": false
+    },
+    {
+      "user_id": 57,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3289644718170166,
+      "success": false
+    },
+    {
+      "user_id": 85,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.319462537765503,
+      "success": true
+    },
+    {
+      "user_id": 85,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 51.59491944313049,
+      "success": true
+    },
+    {
+      "user_id": 85,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 44.10104703903198,
+      "success": false
+    },
+    {
+      "user_id": 85,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.42016100883483887,
+      "success": false
+    },
+    {
+      "user_id": 94,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.9498777389526367,
+      "success": true
+    },
+    {
+      "user_id": 94,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 32.572781801223755,
+      "success": true
+    },
+    {
+      "user_id": 94,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 62.47066926956177,
+      "success": false
+    },
+    {
+      "user_id": 94,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4585762023925781,
+      "success": false
+    },
+    {
+      "user_id": 64,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.7771408557891846,
+      "success": true
+    },
+    {
+      "user_id": 64,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 40.85274624824524,
+      "success": true
+    },
+    {
+      "user_id": 64,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 54.77915406227112,
+      "success": false
+    },
+    {
+      "user_id": 64,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.42879533767700195,
+      "success": false
+    },
+    {
+      "user_id": 56,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.7141475677490234,
+      "success": true
+    },
+    {
+      "user_id": 56,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 32.23789668083191,
+      "success": true
+    },
+    {
+      "user_id": 56,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 63.672741651535034,
+      "success": false
+    },
+    {
+      "user_id": 56,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.27958083152770996,
+      "success": false
+    },
+    {
+      "user_id": 71,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.209611415863037,
+      "success": true
+    },
+    {
+      "user_id": 71,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 39.395718812942505,
+      "success": true
+    },
+    {
+      "user_id": 71,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 55.66726469993591,
+      "success": false
+    },
+    {
+      "user_id": 71,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.2582817077636719,
+      "success": false
+    },
+    {
+      "user_id": 35,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.563043594360352,
+      "success": true
+    },
+    {
+      "user_id": 35,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 87.18133306503296,
+      "success": true
+    },
+    {
+      "user_id": 35,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 8.08418607711792,
+      "success": false
+    },
+    {
+      "user_id": 35,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.23652410507202148,
+      "success": false
+    },
+    {
+      "user_id": 4,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.423808813095093,
+      "success": true
+    },
+    {
+      "user_id": 4,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 92.31783390045166,
+      "success": true
+    },
+    {
+      "user_id": 4,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 2.3811569213867188,
+      "success": false
+    },
+    {
+      "user_id": 4,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.22236943244934082,
+      "success": false
+    },
+    {
+      "user_id": 77,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.5560789108276367,
+      "success": true
+    },
+    {
+      "user_id": 77,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 41.86630630493164,
+      "success": true
+    },
+    {
+      "user_id": 77,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 53.82960104942322,
+      "success": false
+    },
+    {
+      "user_id": 77,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.38100385665893555,
+      "success": false
+    },
+    {
+      "user_id": 59,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.533447742462158,
+      "success": true
+    },
+    {
+      "user_id": 59,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 72.7456727027893,
+      "success": true
+    },
+    {
+      "user_id": 59,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 22.19310212135315,
+      "success": false
+    },
+    {
+      "user_id": 59,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.37956690788269043,
+      "success": false
+    },
+    {
+      "user_id": 51,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.7388808727264404,
+      "success": true
+    },
+    {
+      "user_id": 51,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 56.24423599243164,
+      "success": true
+    },
+    {
+      "user_id": 51,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 39.536699056625366,
+      "success": false
+    },
+    {
+      "user_id": 51,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3225548267364502,
+      "success": false
+    },
+    {
+      "user_id": 78,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.9582622051239014,
+      "success": true
+    },
+    {
+      "user_id": 78,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 59.58166313171387,
+      "success": true
+    },
+    {
+      "user_id": 78,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 35.63189125061035,
+      "success": false
+    },
+    {
+      "user_id": 78,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.30121493339538574,
+      "success": false
+    },
+    {
+      "user_id": 67,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.481238603591919,
+      "success": true
+    },
+    {
+      "user_id": 67,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 68.70355415344238,
+      "success": true
+    },
+    {
+      "user_id": 67,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 26.118217945098877,
+      "success": false
+    },
+    {
+      "user_id": 67,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.23910284042358398,
+      "success": false
+    },
+    {
+      "user_id": 13,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.9316203594207764,
+      "success": true
+    },
+    {
+      "user_id": 13,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 57.29657220840454,
+      "success": true
+    },
+    {
+      "user_id": 13,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 38.89444637298584,
+      "success": false
+    },
+    {
+      "user_id": 13,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.1234123706817627,
+      "success": false
+    },
+    {
+      "user_id": 95,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.510404109954834,
+      "success": true
+    },
+    {
+      "user_id": 95,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 43.64057159423828,
+      "success": true
+    },
+    {
+      "user_id": 95,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 51.823370933532715,
+      "success": false
+    },
+    {
+      "user_id": 95,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4889981746673584,
+      "success": false
+    },
+    {
+      "user_id": 14,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.830409288406372,
+      "success": true
+    },
+    {
+      "user_id": 14,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 10.533897876739502,
+      "success": true
+    },
+    {
+      "user_id": 14,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 85.2291488647461,
+      "success": false
+    },
+    {
+      "user_id": 14,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.47609496116638184,
+      "success": false
+    },
+    {
+      "user_id": 28,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.645933628082275,
+      "success": true
+    },
+    {
+      "user_id": 28,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 89.05533981323242,
+      "success": true
+    },
+    {
+      "user_id": 28,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 6.049312591552734,
+      "success": false
+    },
+    {
+      "user_id": 28,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.32091760635375977,
+      "success": false
+    },
+    {
+      "user_id": 43,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.001732349395752,
+      "success": true
+    },
+    {
+      "user_id": 43,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 78.1010332107544,
+      "success": true
+    },
+    {
+      "user_id": 43,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 16.532429695129395,
+      "success": false
+    },
+    {
+      "user_id": 43,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.33407139778137207,
+      "success": false
+    },
+    {
+      "user_id": 19,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.982086181640625,
+      "success": true
+    },
+    {
+      "user_id": 19,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 18.922093152999878,
+      "success": true
+    },
+    {
+      "user_id": 19,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 76.81652688980103,
+      "success": false
+    },
+    {
+      "user_id": 19,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.424701452255249,
+      "success": false
+    },
+    {
+      "user_id": 52,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.606093883514404,
+      "success": true
+    },
+    {
+      "user_id": 52,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 74.6249167919159,
+      "success": true
+    },
+    {
+      "user_id": 52,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 20.375460863113403,
+      "success": false
+    },
+    {
+      "user_id": 52,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.2875380516052246,
+      "success": false
+    },
+    {
+      "user_id": 5,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.876093626022339,
+      "success": true
+    },
+    {
+      "user_id": 5,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 85.27862238883972,
+      "success": true
+    },
+    {
+      "user_id": 5,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 10.728701114654541,
+      "success": false
+    },
+    {
+      "user_id": 5,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.42708635330200195,
+      "success": false
+    },
+    {
+      "user_id": 30,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.742226839065552,
+      "success": true
+    },
+    {
+      "user_id": 30,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 80.3591079711914,
+      "success": true
+    },
+    {
+      "user_id": 30,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 14.821397066116333,
+      "success": false
+    },
+    {
+      "user_id": 30,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.16833710670471191,
+      "success": false
+    },
+    {
+      "user_id": 7,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.34174108505249,
+      "success": true
+    },
+    {
+      "user_id": 7,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 89.51157975196838,
+      "success": true
+    },
+    {
+      "user_id": 7,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 5.417927980422974,
+      "success": false
+    },
+    {
+      "user_id": 7,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.06189441680908203,
+      "success": false
+    },
+    {
+      "user_id": 37,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.7037551403045654,
+      "success": true
+    },
+    {
+      "user_id": 37,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 54.49884605407715,
+      "success": true
+    },
+    {
+      "user_id": 37,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 41.61395740509033,
+      "success": false
+    },
+    {
+      "user_id": 37,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.25409507751464844,
+      "success": false
+    },
+    {
+      "user_id": 99,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.3999783992767334,
+      "success": true
+    },
+    {
+      "user_id": 99,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 27.333568572998047,
+      "success": true
+    },
+    {
+      "user_id": 99,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 68.06118273735046,
+      "success": false
+    },
+    {
+      "user_id": 99,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.6052672863006592,
+      "success": false
+    },
+    {
+      "user_id": 69,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.481816291809082,
+      "success": true
+    },
+    {
+      "user_id": 69,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 54.38740134239197,
+      "success": true
+    },
+    {
+      "user_id": 69,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 40.42783713340759,
+      "success": false
+    },
+    {
+      "user_id": 69,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4680297374725342,
+      "success": false
+    },
+    {
+      "user_id": 61,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4323744773864746,
+      "success": true
+    },
+    {
+      "user_id": 61,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 46.949119329452515,
+      "success": true
+    },
+    {
+      "user_id": 61,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 48.91753625869751,
+      "success": false
+    },
+    {
+      "user_id": 61,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.5047757625579834,
+      "success": false
+    },
+    {
+      "user_id": 58,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4604620933532715,
+      "success": true
+    },
+    {
+      "user_id": 58,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 29.637465238571167,
+      "success": true
+    },
+    {
+      "user_id": 58,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 66.66222810745239,
+      "success": false
+    },
+    {
+      "user_id": 58,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.1498246192932129,
+      "success": false
+    },
+    {
+      "user_id": 27,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.5384299755096436,
+      "success": true
+    },
+    {
+      "user_id": 27,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 49.9423553943634,
+      "success": true
+    },
+    {
+      "user_id": 27,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 46.13351559638977,
+      "success": false
+    },
+    {
+      "user_id": 27,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.424654483795166,
+      "success": false
+    },
+    {
+      "user_id": 86,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.4630486965179443,
+      "success": true
+    },
+    {
+      "user_id": 86,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 35.2063729763031,
+      "success": true
+    },
+    {
+      "user_id": 86,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 60.401466846466064,
+      "success": false
+    },
+    {
+      "user_id": 86,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.43486523628234863,
+      "success": false
+    },
+    {
+      "user_id": 63,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.8956663608551025,
+      "success": true
+    },
+    {
+      "user_id": 63,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 50.27732872962952,
+      "success": true
+    },
+    {
+      "user_id": 63,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 45.129149198532104,
+      "success": false
+    },
+    {
+      "user_id": 63,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3989222049713135,
+      "success": false
+    },
+    {
+      "user_id": 41,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.202278137207031,
+      "success": true
+    },
+    {
+      "user_id": 41,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 79.86390161514282,
+      "success": true
+    },
+    {
+      "user_id": 41,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 15.420989990234375,
+      "success": false
+    },
+    {
+      "user_id": 41,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4126591682434082,
+      "success": false
+    },
+    {
+      "user_id": 91,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.212878942489624,
+      "success": true
+    },
+    {
+      "user_id": 91,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 13.366487741470337,
+      "success": true
+    },
+    {
+      "user_id": 91,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 82.39288282394409,
+      "success": false
+    },
+    {
+      "user_id": 91,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.47759056091308594,
+      "success": false
+    },
+    {
+      "user_id": 1,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.736056089401245,
+      "success": true
+    },
+    {
+      "user_id": 1,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 86.40657687187195,
+      "success": true
+    },
+    {
+      "user_id": 1,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 10.056479215621948,
+      "success": false
+    },
+    {
+      "user_id": 1,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.18291759490966797,
+      "success": false
+    },
+    {
+      "user_id": 66,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.806017160415649,
+      "success": true
+    },
+    {
+      "user_id": 66,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 69.33423733711243,
+      "success": true
+    },
+    {
+      "user_id": 66,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 25.248193979263306,
+      "success": false
+    },
+    {
+      "user_id": 66,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.3727433681488037,
+      "success": false
+    },
+    {
+      "user_id": 18,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.9938182830810547,
+      "success": true
+    },
+    {
+      "user_id": 18,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 19.875667810440063,
+      "success": true
+    },
+    {
+      "user_id": 18,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 75.83051085472107,
+      "success": false
+    },
+    {
+      "user_id": 18,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4738895893096924,
+      "success": false
+    },
+    {
+      "user_id": 80,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.0602874755859375,
+      "success": true
+    },
+    {
+      "user_id": 80,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 33.54914045333862,
+      "success": true
+    },
+    {
+      "user_id": 80,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 61.547107458114624,
+      "success": false
+    },
+    {
+      "user_id": 80,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4584696292877197,
+      "success": false
+    },
+    {
+      "user_id": 84,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.141003608703613,
+      "success": true
+    },
+    {
+      "user_id": 84,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 57.437066078186035,
+      "success": true
+    },
+    {
+      "user_id": 84,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 37.55289840698242,
+      "success": false
+    },
+    {
+      "user_id": 84,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.45179295539855957,
+      "success": false
+    },
+    {
+      "user_id": 96,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.567668914794922,
+      "success": true
+    },
+    {
+      "user_id": 96,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 24.336293935775757,
+      "success": true
+    },
+    {
+      "user_id": 96,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 71.10135412216187,
+      "success": false
+    },
+    {
+      "user_id": 96,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4023442268371582,
+      "success": false
+    },
+    {
+      "user_id": 55,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.467986822128296,
+      "success": true
+    },
+    {
+      "user_id": 55,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 60.2591450214386,
+      "success": true
+    },
+    {
+      "user_id": 55,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 34.8764922618866,
+      "success": false
+    },
+    {
+      "user_id": 55,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.26715803146362305,
+      "success": false
+    },
+    {
+      "user_id": 24,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.241224527359009,
+      "success": true
+    },
+    {
+      "user_id": 24,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 26.23944926261902,
+      "success": true
+    },
+    {
+      "user_id": 24,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 69.0821361541748,
+      "success": false
+    },
+    {
+      "user_id": 24,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4867231845855713,
+      "success": false
+    },
+    {
+      "user_id": 31,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.11686635017395,
+      "success": true
+    },
+    {
+      "user_id": 31,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 90.45887279510498,
+      "success": true
+    },
+    {
+      "user_id": 31,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 4.04751181602478,
+      "success": false
+    },
+    {
+      "user_id": 31,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.36626434326171875,
+      "success": false
+    },
+    {
+      "user_id": 10,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.876060962677002,
+      "success": true
+    },
+    {
+      "user_id": 10,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 12.427721977233887,
+      "success": true
+    },
+    {
+      "user_id": 10,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 83.71805596351624,
+      "success": false
+    },
+    {
+      "user_id": 10,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.25429391860961914,
+      "success": false
+    },
+    {
+      "user_id": 42,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.384033679962158,
+      "success": true
+    },
+    {
+      "user_id": 42,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 44.19517683982849,
+      "success": true
+    },
+    {
+      "user_id": 42,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 51.203627824783325,
+      "success": false
+    },
+    {
+      "user_id": 42,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.2225494384765625,
+      "success": false
+    },
+    {
+      "user_id": 73,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.767042636871338,
+      "success": true
+    },
+    {
+      "user_id": 73,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 67.43944334983826,
+      "success": true
+    },
+    {
+      "user_id": 73,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 28.078718662261963,
+      "success": false
+    },
+    {
+      "user_id": 73,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.45730066299438477,
+      "success": false
+    },
+    {
+      "user_id": 20,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.5858027935028076,
+      "success": true
+    },
+    {
+      "user_id": 20,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 18.33485174179077,
+      "success": true
+    },
+    {
+      "user_id": 20,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 77.61266088485718,
+      "success": false
+    },
+    {
+      "user_id": 20,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.5991547107696533,
+      "success": false
+    },
+    {
+      "user_id": 45,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.9939188957214355,
+      "success": true
+    },
+    {
+      "user_id": 45,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 78.14977979660034,
+      "success": true
+    },
+    {
+      "user_id": 45,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 17.58188557624817,
+      "success": false
+    },
+    {
+      "user_id": 45,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.22600436210632324,
+      "success": false
+    },
+    {
+      "user_id": 2,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.288452863693237,
+      "success": true
+    },
+    {
+      "user_id": 2,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 93.40826678276062,
+      "success": true
+    },
+    {
+      "user_id": 2,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 1.3841829299926758,
+      "success": false
+    },
+    {
+      "user_id": 2,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.2791593074798584,
+      "success": false
+    },
+    {
+      "user_id": 49,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.500373840332031,
+      "success": true
+    },
+    {
+      "user_id": 49,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 75.70400333404541,
+      "success": true
+    },
+    {
+      "user_id": 49,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 19.2424156665802,
+      "success": false
+    },
+    {
+      "user_id": 49,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.4947352409362793,
+      "success": false
+    },
+    {
+      "user_id": 6,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.425889253616333,
+      "success": true
+    },
+    {
+      "user_id": 6,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 92.33866095542908,
+      "success": true
+    },
+    {
+      "user_id": 6,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 3.495875120162964,
+      "success": false
+    },
+    {
+      "user_id": 6,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.07791423797607422,
+      "success": false
+    },
+    {
+      "user_id": 48,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.676008701324463,
+      "success": true
+    },
+    {
+      "user_id": 48,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 76.49386143684387,
+      "success": true
+    },
+    {
+      "user_id": 48,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 18.618114471435547,
+      "success": false
+    },
+    {
+      "user_id": 48,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.16939449310302734,
+      "success": false
+    },
+    {
+      "user_id": 23,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.13373327255249,
+      "success": true
+    },
+    {
+      "user_id": 23,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 64.58562469482422,
+      "success": true
+    },
+    {
+      "user_id": 23,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 30.172767877578735,
+      "success": false
+    },
+    {
+      "user_id": 23,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.25670433044433594,
+      "success": false
+    },
+    {
+      "user_id": 15,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 3.821951389312744,
+      "success": true
+    },
+    {
+      "user_id": 15,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 9.568571329116821,
+      "success": true
+    },
+    {
+      "user_id": 15,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 86.65034079551697,
+      "success": false
+    },
+    {
+      "user_id": 15,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.19365501403808594,
+      "success": false
+    },
+    {
+      "user_id": 54,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 4.49129056930542,
+      "success": true
+    },
+    {
+      "user_id": 54,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 61.18978834152222,
+      "success": true
+    },
+    {
+      "user_id": 54,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 33.75367736816406,
+      "success": false
+    },
+    {
+      "user_id": 54,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.49297308921813965,
+      "success": false
+    },
+    {
+      "user_id": 8,
+      "action": "home_page",
+      "status_code": 200,
+      "response_time": 5.311515808105469,
+      "success": true
+    },
+    {
+      "user_id": 8,
+      "action": "login",
+      "status_code": 200,
+      "response_time": 82.85487914085388,
+      "success": true
+    },
+    {
+      "user_id": 8,
+      "action": "scanner_page",
+      "status_code": 404,
+      "response_time": 11.923691272735596,
+      "success": false
+    },
+    {
+      "user_id": 8,
+      "action": "health_check",
+      "status_code": 404,
+      "response_time": 0.21435809135437012,
+      "success": false
+    }
+  ]
+}
