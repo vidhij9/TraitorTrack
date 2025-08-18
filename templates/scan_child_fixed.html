@@ -347,9 +347,34 @@ function initializeScanner() {
         showToast('Scanner stopped', 'info');
     });
     
-    // Auto-start scanner
+    // Auto-start scanner with torch ON by default
     setTimeout(() => {
-        startBtn.click();
+        console.log('Auto-starting scanner with torch enabled...');
+        if (scanner) {
+            scanner.stop();
+        }
+        
+        // Create new scanner instance with torch enabled
+        scanner = new InstantDetectionScanner('child-scanner-container', onScanSuccess);
+        scanner.start();
+        
+        // Enable torch immediately after starting
+        setTimeout(() => {
+            if (scanner && scanner.torchButton) {
+                // Find and click the torch button to turn it ON
+                const torchBtn = document.querySelector('.torch-button');
+                if (torchBtn && !torchBtn.classList.contains('torch-on')) {
+                    torchBtn.click();
+                    console.log('Torch enabled automatically');
+                }
+            }
+        }, 1000);
+        
+        // Update button states
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        
+        showToast(`Scanner started automatically - ${30 - scannedCount} slots remaining`, 'success');
     }, 500);
 }
 
