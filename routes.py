@@ -1289,9 +1289,16 @@ def process_child_scan():
                 existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
                 if existing_link:
                     if existing_link.parent_bag_id == parent_bag.id:
+                        # Already linked - return success with current count
+                        current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                        app.logger.info(f'CHILD SCAN: Bag {qr_code} already linked to parent {parent_qr}, returning success with count {current_count}')
                         return jsonify({
-                            'success': False, 
-                            'message': f'Child bag {qr_code} is already linked to this parent bag.'
+                            'success': True, 
+                            'child_qr': qr_code,
+                            'child_name': existing_bag.name if hasattr(existing_bag, 'name') else None,
+                            'parent_qr': parent_qr,
+                            'message': f'Child bag {qr_code} was already linked! ({current_count}/30)',
+                            'child_count': current_count
                         })
                     else:
                         existing_parent = Bag.query.get(existing_link.parent_bag_id)
@@ -1338,13 +1345,20 @@ def process_child_scan():
         # Get updated count
         updated_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
         
-        return jsonify({
+        app.logger.info(f'CHILD SCAN SUCCESS: Linked {qr_code} to {parent_qr}')
+        app.logger.info(f'CHILD SCAN SUCCESS: Current count {updated_count}/30')
+        app.logger.info(f'CHILD SCAN SUCCESS: Returning JSON response')
+        
+        response_data = {
             'success': True,
             'message': f'Child bag {qr_code} linked successfully! ({updated_count}/30)',
             'child_qr': qr_code,
             'parent_qr': parent_qr,
             'child_count': updated_count
-        })
+        }
+        app.logger.info(f'CHILD SCAN SUCCESS: Response data: {response_data}')
+        
+        return jsonify(response_data)
         
     except ValueError as e:
         # Handle validation errors from query_optimizer
@@ -1353,9 +1367,24 @@ def process_child_scan():
         return jsonify({'success': False, 'message': str(e)})
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f'Process child scan error: {str(e)}')
+        app.logger.error(f'CHILD SCAN ERROR: Exception occurred: {str(e)}')
+        app.logger.error(f'CHILD SCAN ERROR: Exception type: {type(e).__name__}')
+        app.logger.error(f'CHILD SCAN ERROR: Full traceback:', exc_info=True)
+        
         # Check for common database errors
         if 'duplicate key' in str(e).lower():
+            # For duplicate keys, check if it's already linked and return success
+            existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id if 'child_bag' in locals() else None).first()
+            if existing_link:
+                current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                app.logger.info(f'CHILD SCAN: Duplicate key but link exists, returning success with count {current_count}')
+                return jsonify({
+                    'success': True,
+                    'child_qr': qr_code,
+                    'parent_qr': parent_qr,
+                    'message': f'Child bag {qr_code} already linked! ({current_count}/30)',
+                    'child_count': current_count
+                })
             return jsonify({'success': False, 'message': 'Duplicate entry detected. This bag may already be processed.'})
         elif 'foreign key' in str(e).lower():
             return jsonify({'success': False, 'message': 'Database relationship error. Please contact support.'})

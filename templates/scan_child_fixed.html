@@ -297,25 +297,51 @@ function initializeScanner() {
             return;
         }
         
-        console.log('Child QR code detected:', qrCode);
+        console.log('=== CHILD SCAN DETECTED ===');
+        console.log('QR Code:', qrCode);
+        console.log('Current count:', scannedCount);
+        console.log('Parent QR:', '{{ parent_qr }}');
+        
         isProcessing = true;
         
         // Show processing message with count
         showToast(`Adding child bag ${scannedCount + 1}/30: ${qrCode}...`, 'info');
+        
+        // Build form data with comprehensive logging
+        const csrfToken = document.querySelector('[name="csrf_token"]').value;
+        const formBody = `qr_code=${encodeURIComponent(qrCode)}&csrf_token=${encodeURIComponent(csrfToken)}`;
+        
+        console.log('Sending request to /process_child_scan');
+        console.log('Form body:', formBody);
         
         // Submit via AJAX for better performance
         fetch('/process_child_scan', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
             },
-            body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token=${encodeURIComponent(document.querySelector('[name="csrf_token"]').value)}`
+            body: formBody
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                console.error('HTTP error:', response.status, response.statusText);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
+            
             if (data.success) {
-                // Success - update UI without reloading
-                scannedCount = data.child_count;
+                console.log('Success! Child QR:', data.child_qr);
+                console.log('Child count:', data.child_count);
+                
+                // Update count from server response
+                scannedCount = data.child_count || scannedCount + 1;
                 
                 // Add to scanned list without reloading
                 const scannedList = document.getElementById('scanned-list') || document.querySelector('.list-group');
@@ -324,16 +350,27 @@ function initializeScanner() {
                     const emptyMsg = document.getElementById('empty-message');
                     if (emptyMsg) emptyMsg.remove();
                     
-                    const newItem = document.createElement('li');
-                    newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    newItem.innerHTML = `
-                        <span>
-                            <span class="badge bg-success me-2">${scannedCount}</span>
-                            <code>${data.child_qr}</code>
-                        </span>
-                        <span class="text-muted small">Just now</span>
-                    `;
-                    scannedList.insertBefore(newItem, scannedList.firstChild);
+                    // Check if item already exists (for duplicate handling)
+                    const existingItems = scannedList.querySelectorAll('code');
+                    let alreadyExists = false;
+                    existingItems.forEach(item => {
+                        if (item.textContent === data.child_qr) {
+                            alreadyExists = true;
+                        }
+                    });
+                    
+                    if (!alreadyExists) {
+                        const newItem = document.createElement('li');
+                        newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        newItem.innerHTML = `
+                            <span>
+                                <span class="badge bg-success me-2">${scannedCount}</span>
+                                <code>${data.child_qr}</code>
+                            </span>
+                            <span class="text-muted small">Just now</span>
+                        `;
+                        scannedList.insertBefore(newItem, scannedList.firstChild);
+                    }
                 }
                 
                 // Update counter in header
