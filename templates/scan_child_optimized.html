@@ -1,6 +1,25 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<style>
+@keyframes scanning {
+    0% { transform: translateY(-50px); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateY(50px); opacity: 0; }
+}
+
+#child-scanner-container video {
+    object-fit: cover !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: #000;
+}
+
+.toast.show {
+    opacity: 1 !important;
+    transform: none !important;
+}
+</style>
 <div class="container mt-4">
     <!-- Parent Bag Info Card -->
     <div class="card mb-3">
@@ -22,8 +41,14 @@
         </div>
         <div class="card-body">
             <!-- Scanner Container -->
-            <div id="child-scanner-container" style="position: relative; width: 100%; height: 400px; background: #000; border-radius: 8px; overflow: hidden;">
-                <!-- Scanner will be initialized here -->
+            <div id="child-scanner-container" style="position: relative; width: 100%; height: 400px; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                <video id="scanner-video" style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);" autoplay muted playsinline></video>
+                <canvas id="scanner-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;"></canvas>
+                <div id="scanner-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; 
+                     background: radial-gradient(circle at center, transparent 20%, rgba(0,0,0,0.6) 70%);
+                     border: 2px solid #28a745; border-radius: 8px;"></div>
+                <div id="scanning-line" style="position: absolute; top: 50%; left: 10%; right: 10%; height: 2px; background: #ffc107; 
+                     animation: scanning 2s linear infinite; z-index: 4; pointer-events: none; display: none;"></div>
             </div>
             
             <!-- Control Buttons -->
@@ -138,7 +163,16 @@ async function sendRequest(qrCode) {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        return await response.json();
+        const result = await response.json();
+        
+        // Update UI with real-time count
+        if (result.success) {
+            scannedCount++;
+            updateCounters();
+            addChildToList(qrCode);
+        }
+        
+        return result;
     } catch (error) {
         console.error('Request failed:', error);
         // Retry once after 500ms
@@ -149,7 +183,15 @@ async function sendRequest(qrCode) {
                 method: 'POST',
                 body: formData
             });
-            return await response.json();
+            const result = await response.json();
+            
+            if (result.success) {
+                scannedCount++;
+                updateCounters();
+                addChildToList(qrCode);
+            }
+            
+            return result;
         } catch (retryError) {
             console.error('Retry failed:', retryError);
             return { success: false, message: 'Network error. Please try manual entry.' };
@@ -157,50 +199,113 @@ async function sendRequest(qrCode) {
     }
 }
 
-// Toast notification
+// Update counters in real-time
+function updateCounters() {
+    // Update badge in parent info
+    document.querySelector('.badge.bg-light').textContent = `${scannedCount}/30`;
+    
+    // Update scanner header badge
+    document.querySelector('.badge.bg-warning').textContent = `${30 - scannedCount} remaining`;
+    
+    // Update scanned bags list header
+    document.querySelector('.card-header.bg-info h6').innerHTML = `
+        <i class="fas fa-list me-2"></i>Scanned Child Bags (${scannedCount}/30)
+    `;
+    
+    // Update progress bar
+    const progressBar = document.querySelector('.progress-bar');
+    const percentage = (scannedCount / 30) * 100;
+    progressBar.style.width = `${percentage}%`;
+    progressBar.setAttribute('aria-valuenow', scannedCount);
+    progressBar.textContent = `${scannedCount}/30 bags`;
+}
+
+// Add child to list in real-time
+function addChildToList(qrCode) {
+    const list = document.getElementById('scanned-list');
+    const emptyMessage = document.getElementById('empty-message');
+    
+    // Remove empty message if it exists
+    if (emptyMessage) {
+        emptyMessage.remove();
+    }
+    
+    // Create new list item
+    const newItem = document.createElement('li');
+    newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+    newItem.innerHTML = `
+        <span>
+            <span class="badge bg-success me-2">${scannedCount}</span>
+            <code>${qrCode}</code>
+        </span>
+        <span class="text-muted small">Just now</span>
+    `;
+    
+    // Add to top of list
+    list.insertBefore(newItem, list.firstChild);
+}
+
+// Enhanced Toast notification with better error handling
 function showToast(message, type = 'success') {
     const toast = document.getElementById('scan-toast');
     const toastMessage = document.getElementById('toast-message');
     
     // Set styling based on type
-    toast.className = 'toast';
-    if (type === 'danger') {
+    toast.className = 'toast show';
+    toast.style.display = 'block';
+    
+    if (type === 'danger' || type === 'error') {
         toast.classList.add('bg-danger', 'text-white');
     } else if (type === 'warning') {
-        toast.classList.add('bg-warning');
+        toast.classList.add('bg-warning', 'text-dark');
+    } else if (type === 'info') {
+        toast.classList.add('bg-info', 'text-white');
     } else {
         toast.classList.add('bg-success', 'text-white');
     }
     
     toastMessage.textContent = message;
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.style.display = 'none';
+            toast.className = 'toast';
+        }, 150);
+    }, 3000);
 }
 
 // Handle QR code detection
 async function onScanSuccess(qrCode) {
     if (isProcessing || scannedCount >= maxBags) {
+        if (scannedCount >= maxBags) {
+            showToast('Maximum 30 child bags reached!', 'warning');
+        }
         return;
     }
     
     isProcessing = true;
-    showToast(`Processing: ${qrCode}`, 'info');
     
     const data = await sendRequest(qrCode);
     
-    if (data.success) {
-        scannedCount = data.child_count || scannedCount + 1;
-        
-        // Update UI
-        updateUI(data.child_qr, scannedCount);
-        showToast(`✓ Added ${data.child_qr} (${scannedCount}/30)`, 'success');
+    if (data.success) {        
+        showToast(`✓ Child bag ${qrCode} added successfully! (${scannedCount}/30)`, 'success');
         
         // Check if complete
         if (scannedCount >= 30) {
-            completeScanning();
+            showToast('✓ All 30 child bags linked! Scanning complete.', 'success');
+            document.getElementById('stop-camera').click();
         }
     } else {
-        showToast(data.message || 'Error occurred', 'danger');
+        // Show specific error messages
+        if (data.message.includes('duplicate') || data.message.includes('already')) {
+            showToast(`Duplicate: ${qrCode} already scanned!`, 'warning');
+        } else if (data.message.includes('maximum') || data.message.includes('30')) {
+            showToast('Maximum 30 child bags reached!', 'warning');
+        } else {
+            showToast(data.message || 'Error processing child bag', 'error');
+        }
     }
     
     isProcessing = false;
