@@ -141,7 +141,7 @@ def user_management():
         for area in ['lucknow', 'indore', 'jaipur', 'hisar', 'sri_ganganagar', 
                      'sangaria', 'bathinda', 'raipur', 'ranchi', 'akola']:
             count = sum(1 for data in user_data 
-                       if data['user'].role == 'dispatcher' and data['user'].dispatch_area == area)
+                       if data['role'] == 'dispatcher' and data['dispatch_area'] == area)
             dispatch_areas.append({
                 'name': area,
                 'display': area.replace('_', ' ').title(),
