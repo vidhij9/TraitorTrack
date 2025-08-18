@@ -1220,8 +1220,8 @@ def process_parent_scan():
 @app.route('/process_child_scan', methods=['GET', 'POST'])
 @login_required
 def process_child_scan():
-    """Process child bag scan from ultra scanner - OPTIMIZED FOR SPEED"""
-    # Handle GET request - redirect to scan_child
+    """Ultra-optimized child bag processing with space and time efficiency"""
+    # Redirect GET requests to scan_child page
     if request.method == 'GET':
         return redirect(url_for('scan_child'))
     
@@ -1738,20 +1738,20 @@ def scan_child():
                 return jsonify({'success': False, 'message': f'Error processing scan: {str(e)}'})
     
     else:
-        # Get parent bag from session for display
+        # Optimized GET request handling for child scanning page
         parent_bag = None
         scanned_child_count = 0
         
-        # Get parent QR from session
+        # Get parent QR from session with fallback
         parent_qr = session.get('current_parent_qr')
         if not parent_qr:
-            # Try from last_scan as backup
-            last_scan = session.get('last_scan')
-            if last_scan and last_scan.get('type') == 'parent':
+            last_scan = session.get('last_scan', {})
+            if last_scan.get('type') == 'parent':
                 parent_qr = last_scan.get('qr_id')
         
         linked_child_bags = []
         if parent_qr:
+            # Single optimized query to get parent and children
             parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
             if parent_bag:
                 # Get count of linked child bags and the actual linked bags
@@ -1774,10 +1774,13 @@ def scan_child():
                 'dispatch_area': parent_bag.dispatch_area if hasattr(parent_bag, 'dispatch_area') else None
             }
         
-        return render_template('scan_child_fixed.html', 
-                             parent_bag=parent_bag_dict, 
+        # Use optimized template for better performance
+        return render_template('scan_child_optimized.html', 
+                             parent_bag=parent_bag_dict,
+                             parent_qr=parent_qr,
                              scanned_child_count=scanned_child_count,
-                             scanned_children=linked_child_bags)
+                             linked_child_bags=linked_child_bags,
+                             form=ChildScanForm())
 
 @app.route('/scan/complete')
 @login_required
