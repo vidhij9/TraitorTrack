@@ -1220,7 +1220,7 @@ def process_parent_scan():
 @app.route('/process_child_scan', methods=['GET', 'POST'])
 @login_required
 def process_child_scan():
-    """Process child bag scan from ultra scanner"""
+    """Process child bag scan from ultra scanner - OPTIMIZED FOR SPEED"""
     # Handle GET request - redirect to scan_child
     if request.method == 'GET':
         return redirect(url_for('scan_child'))
@@ -1646,13 +1646,15 @@ def scan_child():
                     db.session.commit()
                     app.logger.info(f'Successfully committed link between {parent_bag.qr_id} and {qr_id}')
                     
-                    # ULTRA-FAST: Instant JSON response (removed count query for speed)
+                    # ULTRA-FAST: Get current count and return
+                    current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
                     return jsonify({
                         'success': True,
                         'child_qr': qr_id,
-                        'child_name': child_bag.name if child_bag.name else None,
+                        'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
                         'parent_qr': parent_bag.qr_id,
-                        'message': f'{qr_id} linked successfully!'
+                        'message': f'{qr_id} linked successfully! ({current_count}/30)',
+                        'child_count': current_count
                     })
                 except Exception as commit_error:
                     db.session.rollback()
@@ -1691,8 +1693,18 @@ def scan_child():
                     Bag.type == BagType.CHILD.value
                 ).all()
         
+        # Pass proper context with parent bag details
+        parent_bag_dict = None
+        if parent_bag:
+            parent_bag_dict = {
+                'qr_code': parent_bag.qr_id,
+                'id': parent_bag.id,
+                'type': parent_bag.type,
+                'dispatch_area': parent_bag.dispatch_area if hasattr(parent_bag, 'dispatch_area') else None
+            }
+        
         return render_template('scan_child_fixed.html', 
-                             parent_bag=parent_bag, 
+                             parent_bag=parent_bag_dict, 
                              scanned_child_count=scanned_child_count,
                              scanned_children=linked_child_bags)
 

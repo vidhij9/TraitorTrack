@@ -80,6 +80,17 @@
                         <span class="badge bg-primary ms-2">{{ scanned_child_count }}/30</span>
                         {% endif %}
                     </h5>
+                    {% if parent_bag and scanned_child_count < 30 %}
+                    <div class="progress mt-2" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ (scanned_child_count / 30 * 100) }}%"
+                             aria-valuenow="{{ scanned_child_count }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="30">
+                            {{ scanned_child_count }}/30
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     {% if not parent_bag %}
@@ -299,11 +310,88 @@ function initializeScanner() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Success - reload page to show updated list
-                showToast(data.message || 'Child bag added successfully!', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                // Success - update UI without reloading
+                scannedCount = data.child_count;
+                
+                // Add to scanned list without reloading
+                const scannedList = document.getElementById('scanned-list') || document.querySelector('.list-group');
+                if (scannedList) {
+                    // Remove empty message if exists
+                    const emptyMsg = document.getElementById('empty-message');
+                    if (emptyMsg) emptyMsg.remove();
+                    
+                    const newItem = document.createElement('li');
+                    newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    newItem.innerHTML = `
+                        <span>
+                            <span class="badge bg-success me-2">${scannedCount}</span>
+                            <code>${data.child_qr}</code>
+                        </span>
+                        <span class="text-muted small">Just now</span>
+                    `;
+                    scannedList.insertBefore(newItem, scannedList.firstChild);
+                }
+                
+                // Update counter in header
+                const counterBadge = document.querySelector('.card-header .badge');
+                if (counterBadge) {
+                    counterBadge.textContent = `${scannedCount}/30`;
+                }
+                
+                // Update parent bag info badge
+                const parentBadge = document.querySelector('.card-body .badge.bg-info');
+                if (parentBadge) {
+                    parentBadge.textContent = `${scannedCount}/30 child bags`;
+                }
+                
+                const remainingBadge = document.querySelector('.badge.bg-warning');
+                if (remainingBadge) {
+                    remainingBadge.textContent = `${30 - scannedCount} slots remaining`;
+                }
+                
+                // Show success toast with details
+                showToast(`✓ Child bag ${data.child_qr} added successfully! (${scannedCount}/30)`, 'success');
+                
+                // Check if we've reached 30 bags
+                if (scannedCount >= 30) {
+                    showToast('✅ Parent bag is now COMPLETE with exactly 30 child bags!', 'success');
+                    // Stop scanner and automatically redirect after completion
+                    if (scanner) scanner.stop();
+                    
+                    // Show completion UI
+                    const scannerContainer = document.getElementById('child-scanner-container');
+                    if (scannerContainer) {
+                        scannerContainer.innerHTML = `
+                            <div class="text-center p-5">
+                                <i class="fas fa-check-circle text-success" style="font-size: 64px;"></i>
+                                <h3 class="mt-3">Parent Bag Complete!</h3>
+                                <p class="text-muted">Exactly 30 child bags have been linked.</p>
+                                <div class="mt-4">
+                                    <a href="/scan/parent" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-cube me-2"></i>Scan New Parent Bag
+                                    </a>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Auto-redirect after 3 seconds
+                    setTimeout(() => {
+                        window.location.href = '/scan/parent';
+                    }, 3000);
+                } else {
+                    // Continue scanning for next bag - must reach exactly 30
+                    isProcessing = false;
+                    const remaining = 30 - scannedCount;
+                    showToast(`✓ Bag added. ${remaining} more bag${remaining > 1 ? 's' : ''} required to complete.`, 'info');
+                    
+                    // Visual feedback for progress
+                    const progressBar = document.querySelector('.progress-bar');
+                    if (progressBar) {
+                        progressBar.style.width = `${(scannedCount / 30) * 100}%`;
+                        progressBar.textContent = `${scannedCount}/30`;
+                    }
+                }
             } else {
                 // Error - show message but stay on page
                 showToast(data.message || 'Error processing child bag', 'danger');
