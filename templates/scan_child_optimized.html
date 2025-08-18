@@ -44,7 +44,6 @@
     border: 2px solid #28a745;
     border-radius: 8px;
     background-color: #d4edda;
-    display: none;
 }
 </style>
 {% endblock %}
@@ -102,8 +101,8 @@
                         </div>
                     </div>
 
-                    <!-- Completion Section (Hidden initially) -->
-                    <div id="completion-section" class="completion-section mt-4 p-3">
+                    <!-- Completion Section (Hidden initially via inline style) -->
+                    <div id="completion-section" class="completion-section mt-4 p-3" style="display: none;">
                         <div class="text-center">
                             <h5 class="text-success">
                                 <i class="fas fa-check-circle me-2"></i>All 30 Child Bags Linked!
