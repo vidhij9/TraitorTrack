@@ -163,12 +163,26 @@
                     <div style="height: 120px; position: relative;">
                         <canvas id="scanChart"></canvas>
                     </div>
-                    <!-- Data summary below chart -->
-                    <div class="mt-2 text-center">
-                        <small class="text-muted">
-                            Total: <strong>{{ metrics.total_scans }}</strong> scans | 
-                            Daily avg: <strong>{{ "%.1f"|format(metrics.total_scans / 30) }}</strong>
-                        </small>
+                    <!-- Scan breakdown -->
+                    <div class="mt-2">
+                        <div class="row text-center">
+                            <div class="col-3">
+                                <small class="text-muted d-block">Today</small>
+                                <strong class="text-primary">{{ metrics.today_scans }}</strong>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-muted d-block">This Week</small>
+                                <strong class="text-success">{{ metrics.week_scans }}</strong>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-muted d-block">This Quarter</small>
+                                <strong class="text-warning">{{ metrics.quarter_scans }}</strong>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-muted d-block">This Year</small>
+                                <strong class="text-info">{{ metrics.year_scans }}</strong>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

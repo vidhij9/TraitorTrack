@@ -192,12 +192,32 @@ def admin_user_profile(user_id):
         now = datetime.utcnow()
         thirty_days_ago = now - timedelta(days=30)
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = now - timedelta(days=now.weekday())  # Monday of current week
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
+        year_start = datetime(now.year, 1, 1)
         
         # Basic scan metrics
         total_scans = Scan.query.filter_by(user_id=user_id).count()
         scans_today = Scan.query.filter(
             Scan.user_id == user_id,
             Scan.timestamp >= today_start
+        ).count()
+        
+        # Period-based scan counts
+        scans_week = Scan.query.filter(
+            Scan.user_id == user_id,
+            Scan.timestamp >= week_start
+        ).count()
+        
+        scans_quarter = Scan.query.filter(
+            Scan.user_id == user_id,
+            Scan.timestamp >= quarter_start
+        ).count()
+        
+        scans_year = Scan.query.filter(
+            Scan.user_id == user_id,
+            Scan.timestamp >= year_start
         ).count()
         
         # Unique bags scanned
@@ -337,6 +357,10 @@ def admin_user_profile(user_id):
         metrics = {
             'total_scans': total_scans,
             'scans_today': scans_today,
+            'today_scans': scans_today,
+            'week_scans': scans_week,
+            'quarter_scans': scans_quarter,
+            'year_scans': scans_year,
             'unique_bags_scanned': unique_bags_scanned,
             'days_active': days_active,
             'avg_scans_per_day': avg_scans_per_day,
