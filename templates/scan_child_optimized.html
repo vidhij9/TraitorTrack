@@ -326,8 +326,8 @@ async function onScanSuccess(qrCode) {
     if (data.success) {        
         showToast(`✓ Child bag ${qrCode} added successfully! (${scannedCount}/30)`, 'success');
         
-        // Check if complete
-        if (scannedCount >= 30) {
+        // Check if complete - EXACTLY 30 bags
+        if (scannedCount === 30) {
             showToast('✓ All 30 child bags linked! Scanning complete.', 'success');
             document.getElementById('stop-camera').click();
             showCompletionSection();
@@ -428,7 +428,7 @@ function completeScanning() {
 // Initialize scanner with proper InstantDetectionScanner
 document.getElementById('start-camera').addEventListener('click', function() {
     // Prevent starting if already complete
-    if (scannedCount >= 30) {
+    if (scannedCount === 30) {
         showToast('Parent bag already complete with 30/30 child bags', 'info');
         return;
     }
@@ -475,7 +475,7 @@ document.getElementById('manual-form').addEventListener('submit', async function
         showToast(`✓ Added ${data.child_qr} (${scannedCount}/30)`, 'success');
         input.value = '';
         
-        if (scannedCount >= 30) {
+        if (scannedCount === 30) {
             showCompletionSection();
         }
     } else {
@@ -487,18 +487,28 @@ document.getElementById('manual-form').addEventListener('submit', async function
 
 // Auto-start scanner on page load
 window.addEventListener('load', function() {
-    // Check if bag is already complete (30/30)
-    console.log('Current scanned count:', scannedCount);
+    // CRITICAL FIX: Check if bag is already complete (exactly 30/30)
+    console.log('Current scanned count:', scannedCount, 'Type:', typeof scannedCount);
     
-    if (scannedCount >= 30) {
-        // Show completion section for already complete bags
+    // ONLY show completion if actually at 30 bags - not 0!
+    if (scannedCount === 30) {
+        console.log('COMPLETION: Showing completion section - bag has exactly 30 child bags');
         showCompletionSection();
         showToast('✅ This parent bag is already complete with 30/30 child bags', 'success');
-    } else {
-        // Auto-start scanner for incomplete bags
+    } else if (scannedCount > 0 && scannedCount < 30) {
+        // Auto-start scanner for incomplete bags that have some children
+        console.log(`SCANNING: Starting scanner - bag has ${scannedCount}/30 child bags`);
         setTimeout(() => {
             document.getElementById('start-camera').click();
         }, 500);
+    } else if (scannedCount === 0) {
+        // Auto-start scanner for empty bags
+        console.log('SCANNING: Starting scanner - bag has 0/30 child bags');
+        setTimeout(() => {
+            document.getElementById('start-camera').click();
+        }, 500);
+    } else {
+        console.log('ERROR: Invalid scannedCount value:', scannedCount);
     }
     
     // Add completion button event listener
