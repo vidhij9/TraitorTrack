@@ -1393,12 +1393,22 @@ def scan_parent_bag():
                     parent_bag = existing_bag
                     # Get current linked child count for existing parent
                     child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                    
+                    # Store in session for child scanning  
+                    session['last_scan'] = {
+                        'type': 'parent',
+                        'qr_id': qr_id,
+                        'bag_name': parent_bag.name,
+                        'timestamp': datetime.utcnow().isoformat()
+                    }
+                    session['current_parent_qr'] = qr_id
+                    
                     return jsonify({
                         'success': True,
                         'parent_qr': qr_id,
                         'existing': True,
                         'child_count': child_count,
-                        'message': f'Parent bag {qr_id} found with {child_count} linked child bags. Continue to add more children.',
+                        'message': f'Existing parent bag {qr_id} found with {child_count} linked child bags. Continue to add more children.',
                         'redirect': url_for('scan_child', s=request.args.get('s'))
                     })
                 elif existing_bag.type == BagType.CHILD.value:
