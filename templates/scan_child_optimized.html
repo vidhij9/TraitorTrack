@@ -165,9 +165,9 @@ async function sendRequest(qrCode) {
         
         const result = await response.json();
         
-        // Update UI with real-time count
-        if (result.success) {
-            scannedCount++;
+        // Update UI with real-time count only for new successful links
+        if (result.success && !result.message.includes('already')) {
+            scannedCount = result.child_count || (scannedCount + 1);
             updateCounters();
             addChildToList(qrCode);
         }
@@ -185,8 +185,8 @@ async function sendRequest(qrCode) {
             });
             const result = await response.json();
             
-            if (result.success) {
-                scannedCount++;
+            if (result.success && !result.message.includes('already')) {
+                scannedCount = result.child_count || (scannedCount + 1);
                 updateCounters();
                 addChildToList(qrCode);
             }
@@ -220,10 +220,17 @@ function updateCounters() {
     progressBar.textContent = `${scannedCount}/30 bags`;
 }
 
-// Add child to list in real-time
+// Add child to list in real-time (with duplicate prevention)
 function addChildToList(qrCode) {
     const list = document.getElementById('scanned-list');
     const emptyMessage = document.getElementById('empty-message');
+    
+    // Check if QR code already exists in the list
+    const existingItems = Array.from(list.querySelectorAll('code')).map(el => el.textContent);
+    if (existingItems.includes(qrCode)) {
+        console.log(`Duplicate prevented: ${qrCode} already in list`);
+        return; // Don't add duplicates
+    }
     
     // Remove empty message if it exists
     if (emptyMessage) {
@@ -298,11 +305,13 @@ async function onScanSuccess(qrCode) {
             document.getElementById('stop-camera').click();
         }
     } else {
-        // Show specific error messages
-        if (data.message.includes('duplicate') || data.message.includes('already')) {
-            showToast(`Duplicate: ${qrCode} already scanned!`, 'warning');
-        } else if (data.message.includes('maximum') || data.message.includes('30')) {
-            showToast('Maximum 30 child bags reached!', 'warning');
+        // Show specific error messages with better detection
+        if (data.message.includes('DUPLICATE') || data.message.includes('already linked')) {
+            showToast(`❌ DUPLICATE: ${qrCode} already scanned!`, 'warning');
+        } else if (data.message.includes('duplicate') || data.message.includes('already')) {
+            showToast(`⚠️ Duplicate: ${qrCode} already exists!`, 'warning');
+        } else if (data.message.includes('maximum') || data.message.includes('30') || data.message.includes('full')) {
+            showToast('⚠️ Maximum 30 child bags reached!', 'warning');
         } else {
             showToast(data.message || 'Error processing child bag', 'error');
         }

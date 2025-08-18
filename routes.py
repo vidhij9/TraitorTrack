@@ -1289,16 +1289,11 @@ def process_child_scan():
                 existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
                 if existing_link:
                     if existing_link.parent_bag_id == parent_bag.id:
-                        # Already linked - return success with current count
-                        current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-                        app.logger.info(f'CHILD SCAN: Bag {qr_code} already linked to parent {parent_qr}, returning success with count {current_count}')
+                        # CRITICAL: Prevent duplicates - DO NOT allow re-linking the same child
+                        app.logger.warning(f'CHILD SCAN: Duplicate attempt - Bag {qr_code} already linked to parent {parent_qr}')
                         return jsonify({
-                            'success': True, 
-                            'child_qr': qr_code,
-                            'child_name': existing_bag.name if hasattr(existing_bag, 'name') else None,
-                            'parent_qr': parent_qr,
-                            'message': f'Child bag {qr_code} was already linked! ({current_count}/30)',
-                            'child_count': current_count
+                            'success': False,
+                            'message': f'DUPLICATE: Child bag {qr_code} is already linked to this parent! Each child bag can only be scanned once.'
                         })
                     else:
                         existing_parent = Bag.query.get(existing_link.parent_bag_id)
