@@ -175,7 +175,7 @@
                                                         </a>
                                                     {% endif %}
                                                     
-                                                    {% if session.get('user_role') == 'admin' %}
+                                                    {% if current_user.is_admin() %}
                                                         <!-- Only admin can delete bills -->
                                                         <button type="button" class="btn btn-outline-danger" 
                                                                 data-bs-toggle="modal" 
