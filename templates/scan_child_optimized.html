@@ -320,6 +320,13 @@ async function onScanSuccess(qrCode) {
     
     isProcessing = true;
     
+    // Pause scanner immediately after detection
+    if (scanner && scanner.pause) {
+        scanner.pause();
+    }
+    
+    showToast('Processing child bag...', 'info');
+    
     const data = await sendRequest(qrCode);
     
     if (data.success) {        
@@ -330,6 +337,14 @@ async function onScanSuccess(qrCode) {
             showToast('✓ All 30 child bags linked! Scanning complete.', 'success');
             document.getElementById('stop-camera').click();
             showCompletionSection();
+        } else {
+            // Resume scanning after 2 seconds for successful scan
+            setTimeout(() => {
+                isProcessing = false;
+                if (scanner && scanner.resume) {
+                    scanner.resume();
+                }
+            }, 2000);
         }
     } else {
         // Show specific error messages with better detection
@@ -342,9 +357,15 @@ async function onScanSuccess(qrCode) {
         } else {
             showToast(data.message || 'Error processing child bag', 'error');
         }
+        
+        // Resume scanning after 3 seconds for error
+        setTimeout(() => {
+            isProcessing = false;
+            if (scanner && scanner.resume) {
+                scanner.resume();
+            }
+        }, 3000);
     }
-    
-    isProcessing = false;
 }
 
 // Update UI after successful scan

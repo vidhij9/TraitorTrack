@@ -9,6 +9,9 @@ A cutting-edge supply chain traceability platform revolutionizing agricultural b
 - **CSRF Handling**: Temporarily exempted login from CSRF for high-concurrency testing
 - **Connection Manager**: Added connection_manager.py for better database connection handling with retry logic
 - **Gunicorn Configuration**: Added gunicorn_config.py for optimized worker configuration
+- **Scanner Pause Mechanism**: Added automatic pause after QR detection to prevent multiple rapid requests
+- **Session Persistence**: Improved parent bag session handling with fallback mechanisms
+- **Rate Limiting**: Increased rate limits to 500 requests/minute for concurrent testing
 
 ## Project Architecture
 

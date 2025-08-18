@@ -1881,11 +1881,26 @@ def scan_child():
                 # OPTIMIZED: Get parent bag from session (cached)
                 parent_qr = session.get('current_parent_qr')
                 if not parent_qr:
+                    # Try fallback from last_scan
+                    last_scan = session.get('last_scan')
+                    if last_scan and last_scan.get('type') == 'parent':
+                        parent_qr = last_scan.get('qr_id')
+                        
+                if not parent_qr:
+                    app.logger.error(f'No parent in session. Session keys: {list(session.keys())}')
                     return jsonify({'success': False, 'message': 'No parent bag selected. Please scan a parent bag first.'})
                 
-                # OPTIMIZED: Get parent bag efficiently
-                parent_bag = query_optimizer.get_bag_by_qr(parent_qr, BagType.PARENT.value)
+                # OPTIMIZED: Get parent bag efficiently - try direct query first
+                parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
                 if not parent_bag:
+                    # Try without type restriction as fallback
+                    parent_bag = Bag.query.filter_by(qr_id=parent_qr).first()
+                    if parent_bag and parent_bag.type != BagType.PARENT.value:
+                        app.logger.error(f'Bag {parent_qr} exists but is type {parent_bag.type}, not parent')
+                        return jsonify({'success': False, 'message': f'QR {parent_qr} is not a parent bag. Please scan a parent bag first.'})
+                    
+                if not parent_bag:
+                    app.logger.error(f'Parent bag {parent_qr} not found in DB')
                     return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
                 
                 # Check if trying to scan the same QR code as parent
@@ -2006,10 +2021,28 @@ def scan_child():
             if last_scan.get('type') == 'parent':
                 parent_qr = last_scan.get('qr_id')
         
+        app.logger.info(f'CHILD SCAN PAGE: Parent QR from session: {parent_qr}')
+        app.logger.info(f'CHILD SCAN PAGE: Session keys: {list(session.keys())}')
+        
         linked_child_bags = []
         if parent_qr:
             # Single optimized query to get parent and children
             parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+            
+            if not parent_bag:
+                # Try without type restriction
+                parent_bag_any = Bag.query.filter_by(qr_id=parent_qr).first()
+                if parent_bag_any:
+                    app.logger.warning(f'CHILD SCAN PAGE: Bag {parent_qr} exists but is type {parent_bag_any.type}, not parent')
+                    # If it exists but not as parent, update its type
+                    if parent_bag_any.type != BagType.PARENT.value:
+                        parent_bag_any.type = BagType.PARENT.value
+                        db.session.commit()
+                        parent_bag = parent_bag_any
+                        app.logger.info(f'CHILD SCAN PAGE: Updated bag {parent_qr} to parent type')
+                else:
+                    app.logger.error(f'CHILD SCAN PAGE: Parent bag {parent_qr} not found in database at all')
+            
             if parent_bag:
                 # Get count of linked child bags and the actual linked bags
                 scanned_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
