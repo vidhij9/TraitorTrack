@@ -19,7 +19,15 @@ Performance requirement: Search must return results in milliseconds for 400,000+
 - **Caching**: Multi-layer caching system (Redis + in-memory) with intelligent TTL management.
 - **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
 - **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
-- **Recent Optimizations (August 17, 2025)**:
+- **Recent Optimizations (August 18, 2025)**:
+  - **Child Bag Real-Time Updates**: Fixed page reloading - child bags now add instantly without page refresh using AJAX
+  - **Enhanced Child Bag Display**: Fixed empty child bag list issue, proper QR codes now display in scanned list
+  - **Manual Entry AJAX**: Fixed JSON response issue - manual child bag entry now uses popup notifications instead of JSON pages
+  - **Auto-Start Camera with Torch**: Child scanner automatically starts with torch enabled for better agricultural scanning
+  - **30-Bag Enforcement**: System enforces exactly 30 child bags per parent with visual progress bar and auto-completion
+  - **Parent Bag Context**: Child scanning page now properly displays parent bag information and current progress
+  - **Performance Optimization**: Optimized child bag linking for faster response times with bulk database operations
+- **Previous Optimizations (August 17, 2025)**:
   - **Standardized Scanner Implementation**: Unified all QR scanning pages (parent bags, child bags, bills) to use the same InstantDetectionScanner for consistency
   - **Fixed Template Syntax Errors**: Resolved duplicate JavaScript code and template syntax issues in scan_parent.html
   - **Simplified Scanner UI**: Removed redundant code and streamlined scanner initialization across all pages

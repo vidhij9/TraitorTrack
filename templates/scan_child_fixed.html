@@ -136,7 +136,7 @@
                     <div class="card mt-3">
                         <div class="card-body">
                             <h6>Manual Entry</h6>
-                            <form method="POST" action="{{ url_for('process_child_scan') }}" id="manual-form">
+                            <form id="manual-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <div class="input-group">
                                     <input type="text" name="qr_code" class="form-control" 
@@ -168,7 +168,6 @@
             </div>
 
             <!-- Scanned Child Bags List -->
-            {% if parent_bag and scanned_children %}
             <div class="card mt-3">
                 <div class="card-header">
                     <h6 class="mb-0">
@@ -176,20 +175,25 @@
                     </h6>
                 </div>
                 <div class="card-body" style="max-height: 300px; overflow-y: auto;">
-                    <div class="list-group list-group-flush">
+                    <ul class="list-group list-group-flush" id="scanned-list">
+                        {% if scanned_children %}
                         {% for child in scanned_children %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <i class="fas fa-check-circle text-success me-2"></i>
-                                {{ child.qr_code }}
-                            </div>
-                            <small class="text-muted">#{{ loop.index }}</small>
-                        </div>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <span class="badge bg-success me-2">{{ loop.index }}</span>
+                                <code>{{ child.qr_id }}</code>
+                            </span>
+                            <span class="text-muted small">Scanned</span>
+                        </li>
                         {% endfor %}
-                    </div>
+                        {% else %}
+                        <li class="list-group-item text-center text-muted" id="empty-message">
+                            No child bags scanned yet. Start scanning to add bags.
+                        </li>
+                        {% endif %}
+                    </ul>
                 </div>
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -434,6 +438,31 @@ function initializeScanner() {
         
         showToast('Scanner stopped', 'info');
     });
+    
+    // Manual form submission handler
+    const manualForm = document.getElementById('manual-form');
+    if (manualForm) {
+        manualForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent regular form submission
+            
+            const qrInput = document.getElementById('manual-qr-input');
+            const qrCode = qrInput.value.trim();
+            
+            if (!qrCode) {
+                showToast('Please enter a QR code', 'warning');
+                return;
+            }
+            
+            if (isProcessing) {
+                showToast('Please wait, processing previous scan...', 'info');
+                return;
+            }
+            
+            // Process manually entered QR code using same logic as scanner
+            onScanSuccess(qrCode);
+            qrInput.value = ''; // Clear the input
+        });
+    }
     
     // Auto-start scanner with torch ON by default
     setTimeout(() => {
