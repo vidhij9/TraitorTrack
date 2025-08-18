@@ -169,39 +169,39 @@
                     </thead>
                     <tbody>
                         {% for data in user_data %}
-                        <tr data-user-id="{{ data.user.id }}">
+                        <tr data-user-id="{{ data.id }}">
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
-                                        {{ data.user.username[0].upper() }}
+                                        {{ data.username[0].upper() }}
                                     </div>
                                     <div>
-                                        <div class="fw-bold">{{ data.user.username }}</div>
-                                        {% if data.user.id == current_user.id %}
+                                        <div class="fw-bold">{{ data.username }}</div>
+                                        {% if data.id == current_user.id %}
                                             <small class="text-muted">(You)</small>
                                         {% endif %}
                                     </div>
                                 </div>
                             </td>
-                            <td>{{ data.user.email }}</td>
+                            <td>{{ data.email }}</td>
                             <td>
                                 <span class="badge 
-                                    {% if data.user.role == 'admin' %}bg-warning
-                                    {% elif data.user.role == 'biller' %}bg-info
+                                    {% if data.role == 'admin' %}bg-warning
+                                    {% elif data.role == 'biller' %}bg-info
                                     {% else %}bg-secondary{% endif %}">
-                                    {{ data.user.role.title() }}
-                                    {% if data.user.role == 'dispatcher' and data.user.dispatch_area %}
-                                        <small>({{ data.user.dispatch_area }})</small>
+                                    {{ data.role.title() }}
+                                    {% if data.role == 'dispatcher' and data.dispatch_area %}
+                                        <small>({{ data.dispatch_area }})</small>
                                     {% endif %}
                                 </span>
-                                {% if data.user.role == 'biller' and data.role_stats and data.role_stats.active_bills %}
+                                {% if data.role == 'biller' and data.role_stats and data.role_stats.active_bills %}
                                     <br><small class="text-muted">{{ data.role_stats.active_bills }} active bills</small>
-                                {% elif data.user.role == 'dispatcher' and data.role_stats and data.role_stats.area_bags %}
+                                {% elif data.role == 'dispatcher' and data.role_stats and data.role_stats.area_bags %}
                                     <br><small class="text-muted">{{ data.role_stats.area_bags }} area bags</small>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if data.user.verified %}
+                                {% if data.verified %}
                                     <span class="badge bg-success">
                                         <i class="fas fa-check me-1"></i>Verified
                                     </span>
@@ -211,7 +211,7 @@
                                     </span>
                                 {% endif %}
                             </td>
-                            <td>{{ data.user.created_at.strftime('%Y-%m-%d') if data.user.created_at else 'N/A' }}</td>
+                            <td>{{ data.created_at.strftime('%Y-%m-%d') if data.created_at else 'N/A' }}</td>
                             <td>
                                 {% if data.last_scan %}
                                     {{ data.last_scan.strftime('%Y-%m-%d %H:%M') }}
@@ -222,21 +222,21 @@
                             <td>{{ data.scan_count }}</td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-primary" onclick="editUser({{ data.user.id }})" title="Edit User">
+                                    <button class="btn btn-outline-primary" onclick="editUser({{ data.id }})" title="Edit User">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     {% if data.can_change_role %}
-                                        <button class="btn btn-outline-success" onclick="openRoleChangeModal({{ data.user.id }}, '{{ data.user.username }}', '{{ data.user.role }}', '{{ data.user.dispatch_area or '' }}')" title="Change Role">
+                                        <button class="btn btn-outline-success" onclick="openRoleChangeModal({{ data.id }}, '{{ data.username }}', '{{ data.role }}', '{{ data.dispatch_area or '' }}')" title="Change Role">
                                             <i class="fas fa-exchange-alt"></i>
                                         </button>
                                     {% endif %}
-                                    {% if not data.user.is_admin() and data.user.id != current_user.id %}
-                                        <button class="btn btn-outline-warning" onclick="promoteUser({{ data.user.id }})" title="Quick Promote to Admin">
+                                    {% if not data.is_admin and data.id != current_user.id %}
+                                        <button class="btn btn-outline-warning" onclick="promoteUser({{ data.id }})" title="Quick Promote to Admin">
                                             <i class="fas fa-user-shield"></i>
                                         </button>
                                     {% endif %}
-                                    {% if data.user.id != current_user.id %}
-                                        <button class="btn btn-outline-danger" onclick="deleteUser({{ data.user.id }})" title="Delete User">
+                                    {% if data.id != current_user.id %}
+                                        <button class="btn btn-outline-danger" onclick="deleteUser({{ data.id }})" title="Delete User">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     {% endif %}

@@ -116,23 +116,23 @@ def user_management():
                     'dispatchers': row.dispatcher_count
                 }
             
-            # Create user object from row data
-            user = {
+            # Create user data with all required attributes for template
+            user_data.append({
                 'id': row.id,
                 'username': row.username,
                 'email': row.email,
                 'role': row.role,
                 'dispatch_area': row.dispatch_area,
                 'verified': row.verified,
-                'created_at': row.created_at
-            }
-            
-            user_data.append({
-                'user': type('User', (), user)(),  # Convert dict to object-like structure
+                'created_at': row.created_at,
                 'scan_count': row.scan_count,
                 'last_scan': row.last_scan,
                 'role_stats': {},  # Simplified for performance
-                'can_change_role': row.id != current_user.id
+                'can_change_role': row.id != current_user.id,
+                # Add role checking methods as data
+                'is_admin': row.role == 'admin',
+                'is_biller': row.role == 'biller', 
+                'is_dispatcher': row.role == 'dispatcher'
             })
         
         # Quick dispatch area counts
