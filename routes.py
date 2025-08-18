@@ -2013,9 +2013,9 @@ def scan_history():
 @app.route('/bag/<int:bag_id>/delete', methods=['POST'])
 @login_required
 def delete_bag(bag_id):
-    """Delete a bag with validation - admin only"""
-    if not current_user.is_admin():
-        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    """Delete a bag with validation - admin and biller only"""
+    if not (current_user.is_admin() or current_user.is_biller()):
+        return jsonify({'success': False, 'message': 'Admin or biller access required'}), 403
     
     try:
         # Use transaction with locking
@@ -3535,6 +3535,13 @@ def api_delete_child_scan():
 @login_required
 def api_delete_bag():
     """Delete a bag and handle parent/child relationships - optimized for performance"""
+    # Check if user has permission to delete bags
+    if not (current_user.is_admin() or current_user.is_biller()):
+        return jsonify({
+            'success': False,
+            'message': 'Admin or biller access required'
+        }), 403
+    
     try:
         qr_code = request.form.get('qr_code')
         if not qr_code:
