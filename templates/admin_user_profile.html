@@ -232,16 +232,16 @@
                                         {{ scan.timestamp.strftime('%m/%d %H:%M') }}
                                     </td>
                                     <td>
-                                        <span class="badge badge-{{ 'primary' if scan.parent_bag_id else 'dark' }}" style="font-size: 0.75rem; font-weight: bold;">
+                                        <span class="badge bg-{{ 'primary' if scan.parent_bag_id else 'secondary' }} text-white" style="font-size: 0.8rem; font-weight: bold;">
                                             {{ 'Parent' if scan.parent_bag_id else 'Child' }}
                                         </span>
                                     </td>
                                     <td class="font-monospace small">{{ scan.qr_code[:10] if scan.qr_code else 'N/A' }}</td>
                                     <td class="small">
-                                        Area {{ loop.index % 5 + 1 }}
+                                        {{ scan.dispatch_area.replace('_', ' ').title() if scan.dispatch_area else 'Unknown' }}
                                     </td>
                                     <td>
-                                        <span class="badge badge-success" style="font-size: 0.7rem;">
+                                        <span class="badge bg-success text-white" style="font-size: 0.75rem;">
                                             Valid
                                         </span>
                                     </td>
@@ -286,20 +286,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// 30-Day Activity Chart
+// 30-Day Activity Chart - Improved Bar Chart
 const scanData = {{ metrics.daily_scan_data | tojson }};
 const ctx = document.getElementById('scanChart').getContext('2d');
 new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
         labels: scanData.labels,
         datasets: [{
             label: 'Daily Scans',
             data: scanData.values,
+            backgroundColor: 'rgba(0, 123, 255, 0.7)',
             borderColor: '#007bff',
-            backgroundColor: 'rgba(0, 123, 255, 0.1)',
-            tension: 0.4,
-            fill: true
+            borderWidth: 1,
+            barThickness: 'flex',
+            maxBarThickness: 15
         }]
     },
     options: {
@@ -309,7 +310,55 @@ new Chart(ctx, {
             y: {
                 beginAtZero: true,
                 ticks: {
-                    stepSize: 1
+                    stepSize: 1,
+                    font: {
+                        size: 10
+                    }
+                },
+                grid: {
+                    display: true,
+                    color: 'rgba(0, 0, 0, 0.05)'
+                },
+                title: {
+                    display: true,
+                    text: 'Number of Scans',
+                    font: {
+                        size: 11
+                    }
+                }
+            },
+            x: {
+                ticks: {
+                    font: {
+                        size: 9
+                    },
+                    maxRotation: 45,
+                    minRotation: 45
+                },
+                grid: {
+                    display: false
+                },
+                title: {
+                    display: true,
+                    text: 'Date',
+                    font: {
+                        size: 11
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    title: function(context) {
+                        return 'Date: ' + context[0].label;
+                    },
+                    label: function(context) {
+                        return 'Scans: ' + context.parsed.y;
+                    }
                 }
             }
         }

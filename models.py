@@ -50,7 +50,11 @@ class User(UserMixin, db.Model):
     
     def set_password(self, password):
         """Set user password hash"""
+        # Use default method for consistent hashing
         self.password_hash = generate_password_hash(password)
+        # Log for debugging
+        import logging
+        logging.info(f"Password hash set for user {self.username}: {self.password_hash[:20]}...")
         
     def check_password(self, password):
         """Check password against stored hash"""

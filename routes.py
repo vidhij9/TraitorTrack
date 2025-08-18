@@ -3464,7 +3464,9 @@ def edit_profile():
             
             # Set new password using the User model's method for consistency
             user.set_password(new_password)
+            db.session.add(user)  # Explicitly mark user for update
             changes_made = True
+            app.logger.info(f'Password changed for user {user.username} (ID: {user.id})')
             flash('Password changed successfully.', 'success')
         
         # Save changes if any were made
