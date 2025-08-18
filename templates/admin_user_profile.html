@@ -265,19 +265,21 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card">
-                <div class="card-header py-2">
-                    <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Scan Distribution</h6>
-                </div>
-                <div class="card-body text-center py-2">
-                    <canvas id="scanTypeChart" height="120"></canvas>
-                    <div class="mt-2">
-                        <div class="d-flex justify-content-around small">
-                            <div>
-                                <span class="text-primary">●</span> Parent: <strong>{{ metrics.parent_scans }}</strong>
+            <div class="card" style="max-height: 120px;">
+                <div class="card-body text-center p-2">
+                    <h6 class="mb-1" style="font-size: 0.75rem;"><i class="fas fa-chart-pie"></i> Scan Distribution</h6>
+                    <div style="position: relative; height: 60px;">
+                        <canvas id="scanTypeChart" height="60" width="60" style="max-height: 60px; max-width: 60px; margin: 0 auto;"></canvas>
+                    </div>
+                    <div class="mt-1">
+                        <div style="font-size: 0.65rem; line-height: 1.2;">
+                            <div class="d-flex justify-content-between">
+                                <span><span class="text-primary">●</span> P:</span>
+                                <strong>{{ metrics.parent_scans }}</strong>
                             </div>
-                            <div>
-                                <span class="text-secondary">●</span> Child: <strong>{{ metrics.child_scans }}</strong>
+                            <div class="d-flex justify-content-between">
+                                <span><span class="text-secondary">●</span> C:</span>
+                                <strong>{{ metrics.child_scans }}</strong>
                             </div>
                         </div>
                     </div>
@@ -358,23 +360,37 @@ new Chart(ctx, {
     }
 });
 
-// Scan Type Distribution Chart
+// Scan Type Distribution Chart - Tiny Version
 const scanTypeCtx = document.getElementById('scanTypeChart').getContext('2d');
 new Chart(scanTypeCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Parent Scans', 'Child Scans'],
+        labels: ['Parent', 'Child'],
         datasets: [{
             data: [{{ metrics.parent_scans }}, {{ metrics.child_scans }}],
-            backgroundColor: ['#007bff', '#6c757d']
+            backgroundColor: ['#007bff', '#6c757d'],
+            borderWidth: 1,
+            borderColor: '#fff'
         }]
     },
     options: {
-        responsive: true,
+        responsive: false,
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                position: 'bottom'
+                display: false
+            },
+            tooltip: {
+                enabled: true,
+                bodyFont: {
+                    size: 10
+                }
+            }
+        },
+        cutout: '40%',
+        elements: {
+            arc: {
+                borderWidth: 1
             }
         }
     }
