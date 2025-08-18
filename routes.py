@@ -774,7 +774,7 @@ def create_user():
         user.role = role
         user.dispatch_area = dispatch_area if role == UserRole.DISPATCHER.value else None
         user.verified = True
-        user.password_hash = generate_password_hash(password)
+        user.set_password(password)
         
         db.session.add(user)
         db.session.commit()
@@ -1141,7 +1141,7 @@ def fix_admin_password():
     from werkzeug.security import generate_password_hash
     user = User.query.filter_by(username='admin').first()
     if user:
-        user.password_hash = generate_password_hash('admin')
+        user.set_password('admin')
         db.session.commit()
         return "Admin password fixed. Username: admin, Password: admin"
     return "Admin user not found"
@@ -1203,7 +1203,7 @@ def register():
             user.email = email
             user.role = UserRole.DISPATCHER.value
             user.verified = True
-            user.password_hash = generate_password_hash(password)
+            user.set_password(password)
             
             db.session.add(user)
             db.session.commit()
@@ -3447,9 +3447,8 @@ def edit_profile():
                 flash('New passwords do not match.', 'error')
                 return redirect(url_for('user_profile'))
             
-            # Set new password using direct hash generation
-            from werkzeug.security import generate_password_hash
-            user.password_hash = generate_password_hash(new_password)
+            # Set new password using the User model's method for consistency
+            user.set_password(new_password)
             changes_made = True
             flash('Password changed successfully.', 'success')
         

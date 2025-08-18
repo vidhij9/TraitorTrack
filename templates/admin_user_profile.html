@@ -340,7 +340,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // 30-Day Activity Chart
-const scanData = {{ metrics.daily_scan_data | tojsonfilter }};
+const scanData = {{ metrics.daily_scan_data | tojson }};
 const ctx = document.getElementById('scanChart').getContext('2d');
 new Chart(ctx, {
     type: 'line',
