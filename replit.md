@@ -15,6 +15,7 @@ A cutting-edge supply chain traceability platform revolutionizing agricultural b
 - **User Management Table Enhancement**: Added real-time data updates with auto-refresh every 30 seconds, compact table layout, live activity indicators
 - **Admin User Profile Optimization**: Removed "Recent Errors" section, compressed all metrics for minimal scrolling, added comprehensive scan details with location/device/duration tracking
 - **Real-time Features**: Added live data indicators, automatic page refresh, time-ago displays with color coding
+- **User Deletion Fix**: Fixed database constraint violation by making user_id nullable in scan and promotionrequest tables to preserve audit history
 
 ## Project Architecture
 
