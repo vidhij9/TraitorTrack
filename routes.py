@@ -294,19 +294,24 @@ def admin_user_profile(user_id):
             Scan.timestamp >= thirty_days_ago
         ).group_by(func.date(Scan.timestamp)).all()
         
-        # Create daily data for chart
+        # Create daily data for chart with improved formatting
         daily_scan_data = {
             'labels': [],
             'values': []
         }
         
         current_date = thirty_days_ago.date()
-        scan_dict = {scan.scan_date: scan.scan_count for scan in daily_scans}
+        scan_dict = {scan.scan_date: scan.scan_count for scan in daily_scans if scan.scan_date}
         
+        # Generate labels and values for all 30 days
         for i in range(30):
             date_key = current_date + timedelta(days=i)
-            daily_scan_data['labels'].append(date_key.strftime('%m-%d'))
+            # Use more readable date format
+            daily_scan_data['labels'].append(date_key.strftime('%b %d'))
             daily_scan_data['values'].append(scan_dict.get(date_key, 0))
+        
+        # Log the data for debugging
+        app.logger.info(f"Daily scan data for user {user_id}: {len(daily_scan_data['labels'])} days, total scans: {sum(daily_scan_data['values'])}")
         
         # Time estimation (rough calculation based on scans)
         estimated_hours = round(total_scans * 0.5 / 60, 1)  # Assuming 30 seconds per scan
