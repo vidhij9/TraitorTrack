@@ -67,64 +67,84 @@ def log_audit(action, entity_type, entity_id=None, details=None):
 @app.route('/user_management')
 @login_required
 def user_management():
-    """User management dashboard for admins with enhanced role statistics"""
+    """Ultra-optimized user management dashboard for admins"""
     try:
-        # Debug logging for admin check
-        import logging
-        logging.info(f"User management route - User ID: {current_user.id}, Role: {current_user.role}, Is Admin: {current_user.is_admin()}")
-        
         if not current_user.is_admin():
             flash('Admin access required.', 'error')
             return redirect(url_for('index'))
         
-        users = User.query.order_by(User.created_at.desc()).all()
+        # Single optimized query for all user data with joins
+        user_data_query = text("""
+            WITH user_scans AS (
+                SELECT user_id, 
+                       COUNT(*) as scan_count,
+                       MAX(timestamp) as last_scan
+                FROM scan 
+                WHERE user_id IS NOT NULL
+                GROUP BY user_id
+            ),
+            role_stats AS (
+                SELECT 
+                    COUNT(CASE WHEN role = 'admin' THEN 1 END) as admin_count,
+                    COUNT(CASE WHEN role = 'biller' THEN 1 END) as biller_count,
+                    COUNT(CASE WHEN role = 'dispatcher' THEN 1 END) as dispatcher_count
+                FROM "user"
+            )
+            SELECT 
+                u.id, u.username, u.email, u.role, u.dispatch_area, 
+                u.verified, u.created_at,
+                COALESCE(us.scan_count, 0) as scan_count,
+                us.last_scan,
+                rs.admin_count, rs.biller_count, rs.dispatcher_count
+            FROM "user" u
+            LEFT JOIN user_scans us ON u.id = us.user_id
+            CROSS JOIN role_stats rs
+            ORDER BY u.created_at DESC
+        """)
         
-        # Enhanced user data with role-specific information
+        result = db.session.execute(user_data_query).fetchall()
+        
         user_data = []
-        for user in users:
-            # Get user's recent activity
-            recent_scan = Scan.query.filter_by(user_id=user.id).order_by(Scan.timestamp.desc()).first()
-            scan_count = Scan.query.filter_by(user_id=user.id).count()
+        role_counts = None
+        
+        for row in result:
+            # Set role counts once (same for all rows due to CROSS JOIN)
+            if role_counts is None:
+                role_counts = {
+                    'admins': row.admin_count,
+                    'billers': row.biller_count, 
+                    'dispatchers': row.dispatcher_count
+                }
             
-            # Get role-specific stats
-            role_stats = {}
-            if user.role == UserRole.BILLER.value:
-                # Count bills this biller is associated with
-                role_stats['active_bills'] = Bill.query.filter(Bill.status.in_(['new', 'processing'])).count()
-            elif user.role == UserRole.DISPATCHER.value:
-                # Count bags in their area
-                if user.dispatch_area:
-                    role_stats['area_bags'] = Bag.query.filter_by(dispatch_area=user.dispatch_area).count()
-                else:
-                    role_stats['area_bags'] = 0
+            # Create user object from row data
+            user = {
+                'id': row.id,
+                'username': row.username,
+                'email': row.email,
+                'role': row.role,
+                'dispatch_area': row.dispatch_area,
+                'verified': row.verified,
+                'created_at': row.created_at
+            }
             
             user_data.append({
-                'user': user,
-                'scan_count': scan_count,
-                'last_scan': recent_scan.timestamp if recent_scan else None,
-                'role_stats': role_stats,
-                'can_change_role': user.id != current_user.id  # Can't change own role
+                'user': type('User', (), user)(),  # Convert dict to object-like structure
+                'scan_count': row.scan_count,
+                'last_scan': row.last_scan,
+                'role_stats': {},  # Simplified for performance
+                'can_change_role': row.id != current_user.id
             })
         
-        # Get system role statistics
-        role_counts = {
-            'admins': User.query.filter_by(role=UserRole.ADMIN.value).count(),
-            'billers': User.query.filter_by(role=UserRole.BILLER.value).count(),
-            'dispatchers': User.query.filter_by(role=UserRole.DISPATCHER.value).count()
-        }
-        
-        # Get dispatch areas with user counts
-        from models import DispatchArea
+        # Quick dispatch area counts
         dispatch_areas = []
-        for area in DispatchArea:
-            area_count = User.query.filter_by(
-                role=UserRole.DISPATCHER.value,
-                dispatch_area=area.value
-            ).count()
+        for area in ['lucknow', 'indore', 'jaipur', 'hisar', 'sri_ganganagar', 
+                     'sangaria', 'bathinda', 'raipur', 'ranchi', 'akola']:
+            count = sum(1 for data in user_data 
+                       if data['user'].role == 'dispatcher' and data['user'].dispatch_area == area)
             dispatch_areas.append({
-                'name': area.value,
-                'display': area.value.replace('_', ' ').title(),
-                'count': area_count
+                'name': area,
+                'display': area.replace('_', ' ').title(),
+                'count': count
             })
         
         return render_template('user_management.html', 
@@ -497,7 +517,12 @@ def delete_user(user_id):
             'deleted_by': current_user.username
         })
         
-        return jsonify({'success': True, 'message': f'User {username} has been deleted successfully'})
+        return jsonify({
+            'success': True, 
+            'message': f'User {username} has been deleted successfully',
+            'user_id': user_id,
+            'deleted_username': username
+        })
         
     except Exception as e:
         db.session.rollback()
@@ -555,7 +580,7 @@ def create_user():
         user.role = role
         user.dispatch_area = dispatch_area if role == UserRole.DISPATCHER.value else None
         user.verified = True
-        user.set_password(password)
+        user.password_hash = generate_password_hash(password)
         
         db.session.add(user)
         db.session.commit()
@@ -983,7 +1008,7 @@ def register():
             user.email = email
             user.role = UserRole.DISPATCHER.value
             user.verified = True
-            user.set_password(password)
+            user.password_hash = generate_password_hash(password)
             
             db.session.add(user)
             db.session.commit()
@@ -3226,15 +3251,24 @@ def edit_profile():
                 flash('New passwords do not match.', 'error')
                 return redirect(url_for('user_profile'))
             
-            # Set new password
-            user.set_password(new_password)
+            # Set new password using direct hash generation
+            from werkzeug.security import generate_password_hash
+            user.password_hash = generate_password_hash(new_password)
             changes_made = True
             flash('Password changed successfully.', 'success')
         
         # Save changes if any were made
         if changes_made:
-            db.session.commit()
-            flash('Profile updated successfully.', 'success')
+            try:
+                db.session.commit()
+                # Force session to refresh current user data
+                session.modified = True
+                flash('Profile updated successfully.', 'success')
+            except Exception as commit_error:
+                db.session.rollback()
+                app.logger.error(f'Profile commit error: {str(commit_error)}')
+                flash('Failed to save changes. Please try again.', 'error')
+                return redirect(url_for('user_profile'))
         else:
             flash('No changes were made.', 'info')
         

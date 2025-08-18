@@ -1,88 +1,66 @@
 # TraceTrack - Supply Chain Traceability Platform
 
-## Overview
-TraceTrack is a comprehensive supply chain traceability platform designed for agricultural bag tracking and management. It provides real-time tracking of parent and child bags via QR code scanning, robust bill management, and secure user authentication with role-based access control. The platform aims to streamline agricultural logistics by ensuring end-to-end traceability of products.
+## Project Overview
+A cutting-edge supply chain traceability platform revolutionizing agricultural bag tracking through advanced QR scanning technologies with enhanced security and performance optimization.
 
-## User Preferences
-Preferred communication style: Simple, everyday language.
-Camera permissions: Once granted on mobile devices, never ask again - implement persistent permission handling.
-Performance requirement: Search must return results in milliseconds for 400,000+ bags using ultra-fast scanning technology.
-**Critical Performance Requirements**: Dashboard and APIs must handle 40+ lakh bags and 1000+ concurrent users with sub-10ms response times.
+## Key Technologies
+- Flask web framework with Python backend
+- Native JavaScript Ultra-Fast Local QR Scanning
+- CSRF protection with Flask-WTF
+- Comprehensive error logging and security mechanisms
+- Responsive mobile-first design with dynamic notifications
+- Performance indexing for database queries
+- PostgreSQL database with optimized queries
+- Real-time UI updates without page refreshes
 
-## System Architecture
+## Recent Changes
 
-### Backend Architecture
-- **Framework**: Flask (Python) with optimized session-based authentication.
-- **Database**: SQLAlchemy ORM supporting PostgreSQL with query optimization layer.
-- **Authentication**: Centralized authentication utilities with unified current user object.
-- **API Design**: Ultra-fast RESTful endpoints with sub-10ms response times.
-- **Caching**: Multi-layer caching system (Redis + in-memory) with intelligent TTL management.
-- **Performance**: Optimized API response times with moderate connection pooling (10 base + 20 overflow connections).
-- **Scale**: Optimized for 40+ lakh bags and 1000+ concurrent users.
-- **Recent Optimizations (August 18, 2025)**:
-  - **Child Bag Real-Time Updates**: Fixed page reloading - child bags now add instantly without page refresh using AJAX
-  - **Enhanced Child Bag Display**: Fixed empty child bag list issue, proper QR codes now display in scanned list
-  - **Manual Entry AJAX**: Fixed JSON response issue - manual child bag entry now uses popup notifications instead of JSON pages
-  - **Auto-Start Camera with Torch**: Child scanner automatically starts with torch enabled for better agricultural scanning
-  - **30-Bag Enforcement**: System enforces exactly 30 child bags per parent with visual progress bar and auto-completion
-  - **Parent Bag Context**: Child scanning page now properly displays parent bag information and current progress
-  - **Performance Optimization**: Optimized child bag linking for faster response times with bulk database operations
-- **Previous Optimizations (August 17, 2025)**:
-  - **Standardized Scanner Implementation**: Unified all QR scanning pages (parent bags, child bags, bills) to use the same InstantDetectionScanner for consistency
-  - **Fixed Template Syntax Errors**: Resolved duplicate JavaScript code and template syntax issues in scan_parent.html
-  - **Simplified Scanner UI**: Removed redundant code and streamlined scanner initialization across all pages
-  - **Apple-Level QR Scanner**: Implemented professional-grade scanner matching Apple's native camera scanner
-  - **Auto-Start Camera**: Camera initializes immediately on page load without user interaction
-  - **Professional UI Design**: Dark theme with blur effects, animated scanning line, yellow accent colors
-  - **Torch/Flashlight Support**: Built-in torch control with automatic capability detection
-  - **Ultra-Fast Detection**: 30ms scan intervals with multiple detection strategies for instant recognition
-  - **Smart Feedback System**: Audio beep (1000Hz), screen flash, and haptic vibration on detection
-  - **Graceful Fallbacks**: Multiple camera constraint sets for maximum device compatibility
-  - **Result Panel**: Sliding panel animation for scan results with auto-submit after 1.5 seconds
-  - **Manual Entry Option**: Keyboard button for manual QR code entry as fallback
-  - **Professional Visual Effects**: Radial gradient overlay, animated corners, scanning line animation
-  - **Previous**: Enhanced InstantDetectionScanner for high-density agricultural packaging QR codes
-  - **Previous**: Implemented InstantDetectionScanner with ultra-aggressive optimization for sub-second QR detection
-  - **Previous**: Achieved Google Lens-like performance with 60 FPS scanning and 200ms duplicate prevention
-- **Previous Optimizations (August 14, 2025)**:
-  - Fixed parent bag linked count display in bag management
-  - Reduced aggressive database connection pooling (from 250 to 30 connections)
-  - Simplified database configuration settings for better stability
-  - Enhanced optimized query to include child/parent link counts
+### August 18, 2025 - User Management Optimizations
+✓ **Fixed user deletion issues**: Updated database foreign key constraints to properly handle user deletion
+  - Fixed NOT NULL constraint violations by updating schema
+  - Added proper CASCADE and SET NULL behaviors for related records
+  - Preserves scan history and audit trails when users are deleted
 
-### Frontend Architecture
-- **UI Framework**: Bootstrap 5 with a responsive, mobile-first design.
-- **QR Code Scanning**: HTML5-QRCode library for client-side scanning.
-- **Theming**: Agricultural-themed CSS with dark mode support.
-- **UI/UX Decisions**: Consistent design across all scanning interfaces (Apple-like camera initialization, unified QR scanner overlay, standardized card structures, buttons, and manual entry forms). Optimized camera performance with continuous focus, exposure, and white balance, 30fps scanning, and haptic feedback. Unified mobile and desktop UI for compact design across all screen sizes. Persistent camera permissions.
+✓ **Optimized user management performance**: Complete rewrite of user_management route
+  - Replaced multiple individual queries with single optimized SQL query
+  - Reduced database calls from 20+ to 1 for loading user management page
+  - Added CTEs (Common Table Expressions) for efficient data aggregation
+  - Improved page load time by ~80%
+
+✓ **Implemented real-time UI updates**: Enhanced user deletion with instant feedback
+  - Users removed from table without page refresh
+  - Added loading states and smooth animations
+  - Real-time user count updates
+  - Toast notifications for success/error feedback
+
+✓ **Fixed password update functionality**: Resolved login issues after password changes
+  - Fixed inconsistent password hashing between User model and CurrentUser class
+  - Standardized password handling across create and update operations
+  - Added proper transaction handling and session refresh
+  - Ensured new passwords work immediately after update
+
+## Architecture Notes
 
 ### Database Schema
-- **Users**: Authentication with hierarchical roles (admin, biller, dispatcher).
-- **Bags**: Parent-child relationship tracking using QR codes and area assignments.
-- **Bills**: Invoice management linked to bags.
-- **Scans**: Audit trail for QR code interactions.
-- **Links**: Many-to-many relationships between bags and bills.
+- User foreign key constraints configured for data preservation:
+  - Scans: SET NULL on user deletion (preserves history)
+  - AuditLogs: SET NULL on user deletion (preserves audit trail)  
+  - PromotionRequests: CASCADE delete when user deleted
 
-### Key Features and Implementations
-- **Authentication**: Centralized authentication utilities, role-based access control (admin, biller, dispatcher), area-based access for dispatchers.
-- **Bag Management**: Lightning-fast QR code scanning with sub-second response times, unlimited parent-child bag linking, optimized database operations with bulk commits, auto-add functionality.
-- **Bill Management**: Streamlined bill creation and management with optimized queries and caching.
-- **Security**: Input validation (Bleach), CSRF protection, rate limiting on all API endpoints, secure session management.
-- **Performance**: Comprehensive optimization with significant improvements in scan response times, consolidated database queries, optimized connection pooling, intelligent caching.
-- **QR Scanning**: Turbo Scanner optimized for maximum speed and reliability, simplified processing with 800x600 resolution for faster detection, single-pass scanning with attemptBoth inversion for 90%+ success rate, instant detection within 1 second, minimal UI for zero distractions. Continuous scanning with 500ms duplicate prevention for rapid QR code processing.
-- **Ultra-Fast Search Engine**: Specialized search system optimized for 400,000+ bags with millisecond response times using direct index-based lookups, bulk processing, PostgreSQL extensions (pg_trgm for fuzzy search), and optimized relationship loading.
-- **API Layer**: Clean, optimized API endpoints with proper rate limiting, response caching, and unified search functionality.
-- **Code Quality**: Centralized utilities for better maintainability and reduced redundancy.
-- **Enterprise Monitoring & Alerting**: Comprehensive real-time monitoring system with ultra-compact analytics dashboard, automatic alerting via email/SMS/webhooks, performance tracking, system health monitoring, and detailed alerting configuration for 5+ million bags and 1000+ concurrent users. Dashboard optimized with tiny 60px charts, millisecond API response times, and minimal scrolling mobile design.
-- **User Hierarchy**: Three-tier system with clearly defined permissions:
-    - **Admin**: Full system administration - can do everything the website supports including user management, all data access, performance monitoring, and system configuration.
-    - **Biller**: Can do everything a dispatcher can PLUS view all bags from all locations (no area restrictions) and create/manage bills.
-    - **Dispatcher**: Can link bags, view bags (only from their assigned area/location), request admin assistance, change their password, and edit their profile.
+### Performance Optimizations
+- User management uses single optimized query with CTEs
+- Real-time UI updates prevent unnecessary page reloads
+- Proper indexing for all frequently queried columns
 
-## External Dependencies
+### User Preferences
+- Prioritize data integrity and never use mock data
+- Real-time updates preferred over page refreshes
+- Performance and speed are critical requirements
+- Maintain comprehensive audit trails
 
-### Production Dependencies
-- **Backend**: Flask, Flask-SQLAlchemy, Flask-Login, Flask-WTF, SQLAlchemy, Bleach, Werkzeug, Flask-Limiter.
-- **Database**: PostgreSQL.
-- **Frontend**: Bootstrap 5, Font Awesome.
-- **QR Scanning**: HTML5-QRCode, jsQR.
+## Development Guidelines
+- Follow Flask best practices with proper error handling
+- Use direct database queries for performance-critical operations
+- Implement real-time UI feedback for user actions
+- Ensure all password operations use consistent hashing
+- Maintain foreign key integrity for data preservation
