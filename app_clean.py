@@ -33,10 +33,10 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
-# Configure limiter with proper storage (warnings already suppressed above)
+# Configure limiter with proper storage and higher limits for development
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["2000 per day", "500 per hour", "50 per minute"],  # More generous limits for development
     storage_uri="memory://",  # Explicitly specify memory storage
     strategy="fixed-window"  # Use fixed window strategy for better performance
 )

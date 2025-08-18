@@ -15,7 +15,7 @@ A cutting-edge supply chain traceability platform revolutionizing agricultural b
 
 ## Recent Changes
 
-### August 18, 2025 - User Management Optimizations
+### August 18, 2025 - User Management & Rate Limiting Fixes
 ✓ **Fixed user deletion issues**: Updated database foreign key constraints to properly handle user deletion
   - Fixed NOT NULL constraint violations by updating schema
   - Added proper CASCADE and SET NULL behaviors for related records
@@ -38,6 +38,13 @@ A cutting-edge supply chain traceability platform revolutionizing agricultural b
   - Standardized password handling across create and update operations
   - Added proper transaction handling and session refresh
   - Ensured new passwords work immediately after update
+
+✓ **Fixed rate limiting issues**: Resolved 429 errors affecting core functionality
+  - Increased default limits from 50/hour to 500/hour for development
+  - Exempted critical endpoints from rate limiting: dashboard, user management, scans API
+  - Fixed "Failed to load scans" error on dashboard
+  - Fixed "Error loading user management" issue
+  - Improved scanning endpoint performance with exemptions
 
 ## Architecture Notes
 

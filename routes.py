@@ -66,6 +66,7 @@ def log_audit(action, entity_type, entity_id=None, details=None):
 
 @app.route('/user_management')
 @login_required
+@limiter.exempt  # Exempt from rate limiting for admin functionality
 def user_management():
     """Ultra-optimized user management dashboard for admins"""
     try:
@@ -159,6 +160,7 @@ def user_management():
 
 @app.route('/admin/users/<int:user_id>')
 @login_required
+@limiter.exempt  # Exempt admin functionality from rate limiting
 def get_user_details(user_id):
     """Get user details for editing"""
     if not current_user.is_admin():
@@ -474,6 +476,7 @@ def demote_user(user_id):
 
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
+@limiter.exempt  # Exempt admin functionality from rate limiting
 def delete_user(user_id):
     """Delete user with proper handling of related records"""
     if not current_user.is_admin():
@@ -688,6 +691,7 @@ def favicon():
     return send_from_directory('static', 'favicon.ico', mimetype='image/x-icon')
 
 @app.route('/', methods=['GET', 'POST'])
+@limiter.exempt  # Exempt dashboard from rate limiting
 def index():
     """Main dashboard page"""
     import logging
@@ -1586,6 +1590,7 @@ def scan_parent_bag():
 @app.route('/process_child_scan_fast', methods=['POST'])
 @csrf.exempt
 @login_required
+@limiter.exempt  # Exempt from rate limiting for fast scanning
 def process_child_scan_fast():
     """Ultra-fast child bag processing with CSRF exemption for JSON requests"""
     try:
@@ -3325,6 +3330,7 @@ def api_dashboard_stats():
 
 
 @app.route('/api/scans')
+@limiter.exempt  # Exempt from rate limiting for dashboard functionality
 def api_recent_scans():
     """Get recent scans for dashboard - optimized with single query"""
     try:
