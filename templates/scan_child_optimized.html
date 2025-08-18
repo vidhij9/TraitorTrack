@@ -393,6 +393,25 @@ function showCompletionSection() {
     if (completionSection) {
         completionSection.style.display = 'block';
         completionSection.scrollIntoView({ behavior: 'smooth' });
+        
+        // Also disable scanner controls
+        const startBtn = document.getElementById('start-camera');
+        const stopBtn = document.getElementById('stop-camera');
+        const manualInput = document.getElementById('manual-qr-input');
+        
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.textContent = '✓ Complete';
+            startBtn.className = 'btn btn-success';
+        }
+        if (stopBtn) {
+            stopBtn.disabled = true;
+            stopBtn.style.display = 'none';
+        }
+        if (manualInput) {
+            manualInput.disabled = true;
+            manualInput.placeholder = 'Parent bag complete - 30/30 child bags linked';
+        }
     }
 }
 
@@ -408,6 +427,12 @@ function completeScanning() {
 
 // Initialize scanner with proper InstantDetectionScanner
 document.getElementById('start-camera').addEventListener('click', function() {
+    // Prevent starting if already complete
+    if (scannedCount >= 30) {
+        showToast('Parent bag already complete with 30/30 child bags', 'info');
+        return;
+    }
+    
     if (scanner) scanner.stop();
     
     scanner = new InstantDetectionScanner('child-scanner-container', onScanSuccess);
@@ -462,13 +487,18 @@ document.getElementById('manual-form').addEventListener('submit', async function
 
 // Auto-start scanner on page load
 window.addEventListener('load', function() {
-    // Auto-start only if not at 30 bags
-    if (scannedCount < 30) {
+    // Check if bag is already complete (30/30)
+    console.log('Current scanned count:', scannedCount);
+    
+    if (scannedCount >= 30) {
+        // Show completion section for already complete bags
+        showCompletionSection();
+        showToast('✅ This parent bag is already complete with 30/30 child bags', 'success');
+    } else {
+        // Auto-start scanner for incomplete bags
         setTimeout(() => {
             document.getElementById('start-camera').click();
         }, 500);
-    } else {
-        showCompletionSection();
     }
     
     // Add completion button event listener
