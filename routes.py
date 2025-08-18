@@ -1166,7 +1166,7 @@ def process_parent_scan():
         # Validate parent bag QR format
         import re
         if not re.match(r'^SB\d{5}$', qr_code):
-            flash(f'Invalid parent bag format. Parent bags must be in format "SB" followed by 5 digits (e.g., SB00860, SB00736). Got: {qr_code}', 'error')
+            flash(f'❌ Invalid QR format! Parent bags must start with "SB" followed by exactly 5 digits (e.g., SB00860, SB00736). You scanned: {qr_code}', 'error')
             return redirect(url_for('scan_parent'))
         
         # Create or get parent bag
@@ -1415,7 +1415,11 @@ def scan_parent_bag():
             # Parent bags must be in format "SB" followed by exactly 5 digits
             import re
             if not re.match(r'^SB\d{5}$', qr_id):
-                return jsonify({'success': False, 'message': f'Invalid parent bag format. Parent bags must be in format "SB" followed by 5 digits (e.g., SB00860, SB00736). Got: {qr_id}'})
+                return jsonify({
+                    'success': False, 
+                    'message': f'❌ Invalid QR format!\n\nParent bags must start with "SB" followed by exactly 5 digits.\n\nExample: SB00860, SB00736\n\nYou scanned: {qr_id}',
+                    'show_popup': True
+                })
             
             # OPTIMIZED: Single query to check existing bag
             existing_bag = query_optimizer.get_bag_by_qr(qr_id)
@@ -2992,7 +2996,11 @@ def process_bill_parent_scan():
         # FIX: Enhanced validation for QR codes
         import re
         if not re.match(r'^SB\d{5}$', qr_id):
-            return jsonify({'success': False, 'message': f'Invalid parent bag format. Parent bags must be in format "SB" followed by 5 digits (e.g., SB00860, SB00736). Got: {qr_id}'})
+            return jsonify({
+                'success': False, 
+                'message': f'❌ Invalid QR format! Parent bags must start with "SB" followed by exactly 5 digits (e.g., SB00860, SB00736). You scanned: {qr_id}',
+                'show_popup': True
+            })
         if qr_id.startswith('http'):
             return jsonify({'success': False, 'message': 'Invalid QR code format (URLs not allowed)'})
         
@@ -3639,7 +3647,12 @@ def api_delete_bag():
 @app.route('/edit-parent/<parent_qr>')
 @login_required
 def edit_parent_children(parent_qr):
-    """Edit parent bag children page"""
+    """Edit parent bag children page - Admin only"""
+    # Check if user is admin
+    if not current_user.is_admin():
+        flash('Only administrators can edit parent-child relationships', 'error')
+        return redirect(url_for('bag_management'))
+    
     parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first_or_404()
     
     # Get current children
@@ -3657,7 +3670,14 @@ def edit_parent_children(parent_qr):
 @app.route('/api/edit-parent-children', methods=['POST'])
 @login_required
 def api_edit_parent_children():
-    """Edit the child bag list for a parent bag"""
+    """Edit the child bag list for a parent bag - Admin only"""
+    # Check if user is admin
+    if not current_user.is_admin():
+        return jsonify({
+            'success': False,
+            'message': 'Only administrators can edit parent-child relationships'
+        }), 403
+    
     try:
         parent_qr = request.form.get('parent_qr')
         child_qrs = request.form.getlist('child_qrs[]')  # List of child QR codes

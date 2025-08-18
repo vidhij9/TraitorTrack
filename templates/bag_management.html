@@ -593,13 +593,21 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             if (!bagScanner) {
                 console.log('Creating bag scanner...');
-                bagScanner = new InstantDetectionScanner('bag-scanner-container');
-                bagScanner.onScan = function(qrCode) {
+                bagScanner = new InstantDetectionScanner('bag-scanner-container', function(qrCode) {
+                    // Success callback - auto submit the search
                     scannedQRCode = qrCode;
                     document.getElementById('scan-result-display').className = 'alert alert-success';
                     document.getElementById('scan-result-display').innerHTML = 
                         `<i class="fas fa-check-circle me-2"></i>QR Code detected: <strong>${qrCode}</strong>`;
                     document.getElementById('use-scanned-code').disabled = false;
+                    
+                    // Auto-submit after successful scan
+                    setTimeout(() => {
+                        document.getElementById('search').value = qrCode;
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('qrScannerModal'));
+                        if (modal) modal.hide();
+                        document.getElementById('filterForm').submit();
+                    }, 500);
                 });
                 console.log('Bag scanner created successfully');
             }
@@ -872,9 +880,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 bagScanner.stop();
             }
             
-            // Use Instant Detection Scanner
-            bagScanner = new InstantDetectionScanner('bag-scanner-container');
-            bagScanner.onScan = handleBagScanSuccess;
+            // Use Instant Detection Scanner with callback
+            bagScanner = new InstantDetectionScanner('bag-scanner-container', handleBagScanSuccess);
             
             // Monitor scanner status
             setTimeout(() => {

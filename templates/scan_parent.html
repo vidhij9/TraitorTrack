@@ -223,7 +223,56 @@ function initializeScanner() {
             })
             .then(data => {
                 if (data && !data.success) {
-                    showToast(data.message || 'Error processing parent bag', 'danger');
+                    // Show popup for invalid QR format
+                    if (data.show_popup || data.message.includes('Invalid QR format')) {
+                        // Create and show a Bootstrap modal for invalid format
+                        const modalHtml = `
+                            <div class="modal fade" id="invalidQRModal" tabindex="-1" aria-labelledby="invalidQRModalLabel" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title" id="invalidQRModalLabel">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>Invalid QR Code Format
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="text-center">
+                                                <i class="fas fa-times-circle text-danger" style="font-size: 48px;"></i>
+                                                <div class="mt-3">
+                                                    ${data.message.replace(/\n/g, '<br>')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Try Again</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Remove existing modal if any
+                        const existingModal = document.getElementById('invalidQRModal');
+                        if (existingModal) {
+                            existingModal.remove();
+                        }
+                        
+                        // Add modal to body
+                        document.body.insertAdjacentHTML('beforeend', modalHtml);
+                        
+                        // Show the modal
+                        const modal = new bootstrap.Modal(document.getElementById('invalidQRModal'));
+                        modal.show();
+                        
+                        // Clean up after modal is hidden
+                        document.getElementById('invalidQRModal').addEventListener('hidden.bs.modal', function () {
+                            this.remove();
+                        });
+                    } else {
+                        showToast(data.message || 'Error processing parent bag', 'danger');
+                    }
+                    
                     isProcessing = false;
                     // Re-enable scanner after error
                     if (scanner) scanner.start();
