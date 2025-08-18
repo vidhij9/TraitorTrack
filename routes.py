@@ -1622,7 +1622,16 @@ def scan_child():
                             parent_qr_linked = linked_parent.qr_id if linked_parent else 'Unknown'
                             return jsonify({'success': False, 'message': f'Child bag {qr_id} is already linked to parent bag {parent_qr_linked}. One child can only be linked to one parent.'})
                         elif existing_link and existing_link.parent_bag_id == parent_bag.id:
-                            return jsonify({'success': False, 'message': f'{qr_id} is already linked to parent {parent_qr}'})
+                            # Already linked to this parent - return success with current count
+                            current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                            return jsonify({
+                                'success': True,
+                                'child_qr': qr_id,
+                                'child_name': existing_bag.name if hasattr(existing_bag, 'name') else None,
+                                'parent_qr': parent_qr,
+                                'message': f'{qr_id} was already linked to this parent! ({current_count}/30)',
+                                'child_count': current_count
+                            })
                     else:
                         return jsonify({'success': False, 'message': f'QR code {qr_id} has an invalid bag type ({existing_bag.type}). Please contact support.'})
                 
@@ -1639,11 +1648,34 @@ def scan_child():
                 else:
                     child_bag = existing_bag
                 
-                # OPTIMIZED: Create link with duplicate handling
+                # OPTIMIZED: Check if link already exists before creating
+                existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
+                if existing_link:
+                    # Link already exists - return success with current count
+                    current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                    return jsonify({
+                        'success': True,
+                        'child_qr': qr_id,
+                        'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
+                        'parent_qr': parent_bag.qr_id,
+                        'message': f'{qr_id} was already linked to this parent! ({current_count}/30)',
+                        'child_count': current_count
+                    })
+                
+                # Create new link
                 app.logger.info(f'Creating link between parent {parent_bag.id} ({parent_bag.qr_id}) and child {child_bag.id} ({child_bag.qr_id})')
                 link, created = query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
                 if not created:
-                    return jsonify({'success': False, 'message': f'{qr_id} already linked'})
+                    # This shouldn't happen since we checked above, but handle gracefully
+                    current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                    return jsonify({
+                        'success': True,
+                        'child_qr': qr_id,
+                        'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
+                        'parent_qr': parent_bag.qr_id,
+                        'message': f'{qr_id} was already linked! ({current_count}/30)',
+                        'child_count': current_count
+                    })
                 
                 # OPTIMIZED: Create scan record
                 query_optimizer.create_scan_optimized(
