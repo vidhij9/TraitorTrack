@@ -351,10 +351,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('Processing QR Code:', qrData);
         
+        // Pause scanner immediately after detection
+        if (scanner && scanner.pause) {
+            scanner.pause();
+        }
+        
         // Update UI
         parentQrValue.textContent = qrData;
         resultContainer.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing parent bag...';
         resultContainer.className = 'alert alert-warning mb-2 p-2';
+        updateStatus('Processing... Scanner paused', 'info');
         
         // Create form data
         const formData = new FormData();
@@ -377,27 +383,32 @@ document.addEventListener('DOMContentLoaded', function() {
             resultContainer.className = 'alert alert-success mb-2 p-2';
             scanSuccess.classList.remove('d-none');
             
-            // Stop scanner
+            // Stop scanner completely after successful processing
             if (scanner) {
                 scanner.stop();
             }
             
-            // Auto-redirect after 1.5 seconds
+            // Auto-redirect after 2 seconds
             setTimeout(() => {
                 window.location.href = '{{ url_for("scan_child") }}';
-            }, 1500);
+            }, 2000);
         })
         .catch(error => {
             console.error('Error processing scan:', error);
             resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Error processing scan. Please try again.';
             resultContainer.className = 'alert alert-danger mb-2 p-2';
-            isProcessing = false;
             
-            // Reset scanner after error
+            // Wait 3 seconds before resuming scanner after error
             setTimeout(() => {
+                isProcessing = false;
                 resultContainer.innerHTML = '<i class="fas fa-info-circle me-2"></i>Ready to scan...';
                 resultContainer.className = 'alert alert-info mb-2 p-2';
                 updateStatus('Scanning...', 'success');
+                
+                // Resume scanner if it was paused
+                if (scanner && scanner.resume) {
+                    scanner.resume();
+                }
             }, 3000);
         });
     }
