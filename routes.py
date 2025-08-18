@@ -1163,6 +1163,12 @@ def process_parent_scan():
             flash('No QR code provided.', 'error')
             return redirect(url_for('scan_parent'))
         
+        # Validate parent bag QR format
+        import re
+        if not re.match(r'^SB\d{5}$', qr_code):
+            flash(f'Invalid parent bag format. Parent bags must be in format "SB" followed by 5 digits (e.g., SB00860, SB00736). Got: {qr_code}', 'error')
+            return redirect(url_for('scan_parent'))
+        
         # Create or get parent bag
         app.logger.info(f'PARENT SCAN: Searching for existing bag with QR code: {qr_code}')
         parent_bag = Bag.query.filter_by(qr_id=qr_code).first()
@@ -1405,9 +1411,11 @@ def scan_parent_bag():
             return jsonify({'success': False, 'message': 'Please provide a QR code.'})
         
         try:
-            # Validate QR code format
-            if len(qr_id) < 3:
-                return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
+            # Validate QR code format for parent bags
+            # Parent bags must be in format "SB" followed by exactly 5 digits
+            import re
+            if not re.match(r'^SB\d{5}$', qr_id):
+                return jsonify({'success': False, 'message': f'Invalid parent bag format. Parent bags must be in format "SB" followed by 5 digits (e.g., SB00860, SB00736). Got: {qr_id}'})
             
             # OPTIMIZED: Single query to check existing bag
             existing_bag = query_optimizer.get_bag_by_qr(qr_id)
@@ -2208,10 +2216,19 @@ def bag_management():
             ).filter(Link.parent_bag_id.in_(bag_ids)).group_by(Link.parent_bag_id).all()
             child_counts = {r.parent_bag_id: r.count for r in child_count_results}
             
-            # Get parent links for all child bags in one query
-            parent_link_results = Link.query.filter(Link.child_bag_id.in_(bag_ids)).all()
+            # Get parent links for all child bags in one query with parent bag details
+            parent_link_results = db.session.query(
+                Link.child_bag_id,
+                Link.parent_bag_id,
+                Bag.qr_id.label('parent_qr_id')
+            ).join(Bag, Link.parent_bag_id == Bag.id).filter(
+                Link.child_bag_id.in_(bag_ids)
+            ).all()
             for link in parent_link_results:
-                parent_links[link.child_bag_id] = link
+                parent_links[link.child_bag_id] = {
+                    'parent_bag_id': link.parent_bag_id,
+                    'parent_qr_id': link.parent_qr_id
+                }
             
             # Get bill links for all bags in one query
             bill_link_results = BillBag.query.filter(BillBag.bag_id.in_(bag_ids)).all()
@@ -2229,6 +2246,7 @@ def bag_management():
         # Create optimized bag data using batch-fetched relationships
         bags_data = []
         for bag in bags_result:
+            parent_link_data = parent_links.get(bag.id, {})
             bag_data = {
                 'id': bag.id,
                 'qr_id': bag.qr_id,
@@ -2238,7 +2256,8 @@ def bag_management():
                 'dispatch_area': bag.dispatch_area,
                 'notes': getattr(bag, 'notes', None),
                 'linked_children_count': child_counts.get(bag.id, 0),
-                'linked_parent_id': parent_links.get(bag.id).parent_bag_id if bag.id in parent_links else None,
+                'linked_parent_id': parent_link_data.get('parent_bag_id'),
+                'linked_parent_qr': parent_link_data.get('parent_qr_id'),
                 'bill_id': bill_links.get(bag.id).bill_id if bag.id in bill_links else None,
                 'last_scan_time': last_scans.get(bag.id)
             }
@@ -2273,6 +2292,7 @@ def bag_management():
                 self.__dict__.update(data)
                 self._linked_children_count = data.get('linked_children_count', 0)
                 self._linked_parent_id = data.get('linked_parent_id')
+                self._linked_parent_qr = data.get('linked_parent_qr')
                 self._bill_id = data.get('bill_id')
             
             @property
@@ -2287,17 +2307,18 @@ def bag_management():
             @property
             def parent_links(self):
                 class MockQuery:
-                    def __init__(self, parent_id, bill_id=None):
+                    def __init__(self, parent_id, parent_qr, bill_id=None):
                         self._parent_id = parent_id
+                        self._parent_qr = parent_qr
                         self._bill_id = bill_id
                     def first(self):
                         if self._parent_id:
                             class MockLink:
-                                def __init__(self, parent_id, bill_id):
+                                def __init__(self, parent_id, parent_qr, bill_id):
                                     class MockParentBag:
-                                        def __init__(self, pid, bid):
+                                        def __init__(self, pid, pqr, bid):
                                             self.id = pid
-                                            self.qr_id = f"Parent_{pid}"
+                                            self.qr_id = pqr if pqr else f"Parent_{pid}"
                                             class MockBillLinks:
                                                 def __init__(self, bid):
                                                     self._bid = bid
@@ -2312,10 +2333,10 @@ def bag_management():
                                                         return MockBillLink(self._bid)
                                                     return None
                                             self.bill_links = MockBillLinks(bid)
-                                    self.parent_bag = MockParentBag(parent_id, bill_id)
-                            return MockLink(self._parent_id, self._bill_id)
+                                    self.parent_bag = MockParentBag(parent_id, parent_qr, bill_id)
+                            return MockLink(self._parent_id, self._parent_qr, self._bill_id)
                         return None
-                return MockQuery(self._linked_parent_id, self._bill_id)
+                return MockQuery(self._linked_parent_id, self._linked_parent_qr, self._bill_id)
             
             @property
             def bill_links(self):
@@ -2969,8 +2990,9 @@ def process_bill_parent_scan():
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
         # FIX: Enhanced validation for QR codes
-        if len(qr_id) < 2 or len(qr_id) > 255:
-            return jsonify({'success': False, 'message': 'Invalid QR code length (must be 2-255 characters)'})
+        import re
+        if not re.match(r'^SB\d{5}$', qr_id):
+            return jsonify({'success': False, 'message': f'Invalid parent bag format. Parent bags must be in format "SB" followed by 5 digits (e.g., SB00860, SB00736). Got: {qr_id}'})
         if qr_id.startswith('http'):
             return jsonify({'success': False, 'message': 'Invalid QR code format (URLs not allowed)'})
         
