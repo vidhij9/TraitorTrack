@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}Admin User Profile - {{ profile_user.username }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-user-circle text-primary"></i>
+                        {{ profile_user.username }} Profile
+                    </h2>
+                    <p class="text-muted mb-0">
+                        <span class="badge badge-{{ 'success' if profile_user.role == 'admin' else 'primary' if profile_user.role == 'biller' else 'info' }}">
+                            {{ profile_user.role.title() }}
+                        </span>
+                        {% if profile_user.dispatch_area %}
+                        | Dispatch Area: {{ profile_user.dispatch_area.replace('_', ' ').title() }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ url_for('user_management') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to User Management
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.total_scans }}</h3>
+                    <p class="mb-0">Total Scans</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.scans_today }}</h3>
+                    <p class="mb-0">Scans Today</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.unique_bags_scanned }}</h3>
+                    <p class="mb-0">Unique Bags</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ metrics.days_active }}</h3>
+                    <p class="mb-0">Days Active</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Performance Metrics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Average Scans Per Day:</strong></td>
+                                <td>{{ "%.1f"|format(metrics.avg_scans_per_day) }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Peak Scanning Day:</strong></td>
+                                <td>{{ metrics.peak_day_scans }} scans on {{ metrics.peak_day_date.strftime('%Y-%m-%d') if metrics.peak_day_date else 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Most Active Time:</strong></td>
+                                <td>{{ metrics.most_active_hour }}:00 - {{ metrics.most_active_hour + 1 }}:00</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Scan Accuracy:</strong></td>
+                                <td>
+                                    <span class="text-{{ 'success' if metrics.scan_accuracy > 95 else 'warning' if metrics.scan_accuracy > 90 else 'danger' }}">
+                                        {{ "%.1f"|format(metrics.scan_accuracy) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Error Rate:</strong></td>
+                                <td>
+                                    <span class="text-{{ 'success' if metrics.error_rate < 5 else 'warning' if metrics.error_rate < 10 else 'danger' }}">
+                                        {{ "%.1f"|format(metrics.error_rate) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> Time & Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Account Created:</strong></td>
+                                <td>{{ profile_user.created_at.strftime('%Y-%m-%d %H:%M') if profile_user.created_at else 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Last Login:</strong></td>
+                                <td>{{ metrics.last_login.strftime('%Y-%m-%d %H:%M') if metrics.last_login else 'Never' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Last Scan:</strong></td>
+                                <td>{{ metrics.last_scan.strftime('%Y-%m-%d %H:%M') if metrics.last_scan else 'Never' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Estimated Time Spent:</strong></td>
+                                <td>{{ metrics.estimated_hours }} hours</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Status:</strong></td>
+                                <td>
+                                    <span class="badge badge-{{ 'success' if profile_user.verified else 'warning' }}">
+                                        {{ 'Verified' if profile_user.verified else 'Unverified' }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanning Activity Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> 30-Day Scanning Activity</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="scanChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error History & System Issues -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> Recent Errors</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if metrics.recent_errors %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for error in metrics.recent_errors %}
+                                <tr>
+                                    <td class="text-nowrap">{{ error.timestamp.strftime('%m-%d %H:%M') }}</td>
+                                    <td><span class="badge badge-danger">{{ error.action }}</span></td>
+                                    <td class="text-truncate" style="max-width: 200px;" title="{{ error.details }}">
+                                        {{ error.details }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No recent errors recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if metrics.recent_activity %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in metrics.recent_activity %}
+                                <tr>
+                                    <td class="text-nowrap">{{ activity.timestamp.strftime('%m-%d %H:%M') }}</td>
+                                    <td><span class="badge badge-info">{{ activity.action }}</span></td>
+                                    <td class="text-truncate" style="max-width: 200px;" title="{{ activity.details }}">
+                                        {{ activity.details }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No recent activity recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanning Patterns -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-qrcode"></i> Recent Scans</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if metrics.recent_scans %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Bag QR</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scan in metrics.recent_scans %}
+                                <tr>
+                                    <td class="text-nowrap">{{ scan.timestamp.strftime('%m-%d %H:%M') }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ 'primary' if scan.parent_bag_id else 'secondary' }}">
+                                            {{ 'Parent' if scan.parent_bag_id else 'Child' }}
+                                        </span>
+                                    </td>
+                                    <td class="font-monospace">{{ scan.qr_code }}</td>
+                                    <td>
+                                        <span class="badge badge-success">Success</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No scans recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Scan Distribution</h5>
+                </div>
+                <div class="card-body text-center">
+                    <canvas id="scanTypeChart" height="200"></canvas>
+                    <div class="mt-3">
+                        <p class="mb-1"><strong>Parent Scans:</strong> {{ metrics.parent_scans }}</p>
+                        <p class="mb-0"><strong>Child Scans:</strong> {{ metrics.child_scans }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Performance Impact -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-server"></i> System Performance Impact</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <h4 class="text-{{ 'success' if metrics.avg_response_time < 2 else 'warning' if metrics.avg_response_time < 5 else 'danger' }}">
+                                {{ "%.2f"|format(metrics.avg_response_time) }}s
+                            </h4>
+                            <p class="mb-0">Avg Response Time</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4 class="text-{{ 'success' if metrics.failed_requests < 5 else 'warning' if metrics.failed_requests < 10 else 'danger' }}">
+                                {{ metrics.failed_requests }}
+                            </h4>
+                            <p class="mb-0">Failed Requests</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4 class="text-info">{{ metrics.total_requests }}</h4>
+                            <p class="mb-0">Total Requests</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4 class="text-{{ 'success' if metrics.uptime_percentage > 95 else 'warning' if metrics.uptime_percentage > 90 else 'danger' }}">
+                                {{ "%.1f"|format(metrics.uptime_percentage) }}%
+                            </h4>
+                            <p class="mb-0">Uptime</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 30-Day Activity Chart
+const scanData = {{ metrics.daily_scan_data | tojsonfilter }};
+const ctx = document.getElementById('scanChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: scanData.labels,
+        datasets: [{
+            label: 'Daily Scans',
+            data: scanData.values,
+            borderColor: '#007bff',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Scan Type Distribution Chart
+const scanTypeCtx = document.getElementById('scanTypeChart').getContext('2d');
+new Chart(scanTypeCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Parent Scans', 'Child Scans'],
+        datasets: [{
+            data: [{{ metrics.parent_scans }}, {{ metrics.child_scans }}],
+            backgroundColor: ['#007bff', '#6c757d']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
