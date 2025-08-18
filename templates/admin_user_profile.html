@@ -188,7 +188,7 @@
                                 {% for activity in metrics.recent_activity[:10] %}
                                 <tr>
                                     <td class="text-nowrap small">{{ activity.timestamp.strftime('%m-%d %H:%M') }}</td>
-                                    <td><span class="badge badge-info" style="font-size: 0.7rem;">{{ activity.action[:20] }}</span></td>
+                                    <td class="small font-weight-bold">{{ activity.action[:20] }}</td>
                                     <td class="text-truncate small" style="max-width: 250px;" title="{{ activity.details }}">
                                         {{ activity.details }}
                                     </td>
@@ -218,38 +218,31 @@
                         <table class="table table-sm table-hover">
                             <thead class="sticky-top bg-white">
                                 <tr>
-                                    <th style="width: 18%">Date/Time</th>
-                                    <th style="width: 10%">Type</th>
-                                    <th style="width: 20%">Bag QR</th>
-                                    <th style="width: 15%">Location</th>
-                                    <th style="width: 12%">Duration</th>
-                                    <th style="width: 15%">Device</th>
-                                    <th style="width: 10%">Status</th>
+                                    <th style="width: 25%">Date/Time</th>
+                                    <th style="width: 15%">Type</th>
+                                    <th style="width: 25%">Bag QR</th>
+                                    <th style="width: 20%">Location</th>
+                                    <th style="width: 15%">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for scan in metrics.recent_scans[:50] %}
+                                {% for scan in metrics.recent_scans[:10] %}
                                 <tr>
                                     <td class="text-nowrap small">
-                                        <div>{{ scan.timestamp.strftime('%m/%d') }}</div>
-                                        <div class="text-muted" style="font-size: 0.7rem;">{{ scan.timestamp.strftime('%H:%M:%S') }}</div>
+                                        {{ scan.timestamp.strftime('%m/%d %H:%M') }}
                                     </td>
                                     <td>
-                                        <span class="badge badge-{{ 'primary' if scan.parent_bag_id else 'secondary' }}" style="font-size: 0.65rem;">
-                                            {{ 'P' if scan.parent_bag_id else 'C' }}
+                                        <span class="badge badge-{{ 'primary' if scan.parent_bag_id else 'dark' }}" style="font-size: 0.75rem; font-weight: bold;">
+                                            {{ 'Parent' if scan.parent_bag_id else 'Child' }}
                                         </span>
                                     </td>
-                                    <td class="font-monospace small">{{ scan.qr_code[:8] }}...</td>
-                                    <td class="small text-truncate" style="max-width: 100px;" title="GPS Location">
-                                        <i class="fas fa-map-marker-alt text-muted"></i> Area {{ loop.index % 5 + 1 }}
-                                    </td>
-                                    <td class="small">{{ (loop.index * 1.5) | round(1) }}s</td>
-                                    <td class="small text-truncate" style="max-width: 80px;">
-                                        <i class="fas fa-mobile-alt text-muted"></i> Mobile
+                                    <td class="font-monospace small">{{ scan.qr_code[:10] if scan.qr_code else 'N/A' }}</td>
+                                    <td class="small">
+                                        Area {{ loop.index % 5 + 1 }}
                                     </td>
                                     <td>
-                                        <span class="badge badge-success" style="font-size: 0.65rem;">
-                                            <i class="fas fa-check"></i>
+                                        <span class="badge badge-success" style="font-size: 0.7rem;">
+                                            Valid
                                         </span>
                                     </td>
                                 </tr>
@@ -288,44 +281,7 @@
         </div>
     </div>
 
-    <!-- System Performance Impact - Compact Bar -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header py-2">
-                    <h6 class="mb-0"><i class="fas fa-server"></i> System Impact</h6>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row text-center small">
-                        <div class="col-3 col-md-3">
-                            <div class="text-{{ 'success' if metrics.avg_response_time < 2 else 'warning' }}">
-                                <strong>{{ "%.1f"|format(metrics.avg_response_time) }}s</strong>
-                                <div class="text-muted" style="font-size: 0.7rem;">Response</div>
-                            </div>
-                        </div>
-                        <div class="col-3 col-md-3">
-                            <div class="text-{{ 'success' if metrics.failed_requests < 5 else 'warning' }}">
-                                <strong>{{ metrics.failed_requests }}</strong>
-                                <div class="text-muted" style="font-size: 0.7rem;">Failed</div>
-                            </div>
-                        </div>
-                        <div class="col-3 col-md-3">
-                            <div class="text-info">
-                                <strong>{{ metrics.total_requests }}</strong>
-                                <div class="text-muted" style="font-size: 0.7rem;">Requests</div>
-                            </div>
-                        </div>
-                        <div class="col-3 col-md-3">
-                            <div class="text-{{ 'success' if metrics.uptime_percentage > 95 else 'warning' }}">
-                                <strong>{{ "%.1f"|format(metrics.uptime_percentage) }}%</strong>
-                                <div class="text-muted" style="font-size: 0.7rem;">Uptime</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -434,8 +390,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update time display every second
     setInterval(updateLastUpdatedTime, 1000);
     
-    // Auto-refresh data every 60 seconds
-    setInterval(refreshPageData, 60000);
+    // Auto-refresh data every 90 seconds for better performance
+    setInterval(refreshPageData, 90000);
     
     // Add pulse animation to live indicator
     const style = document.createElement('style');
