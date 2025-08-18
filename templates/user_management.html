@@ -133,13 +133,16 @@
 
 
 
-    <!-- User Table -->
+    <!-- User Table with Real-time Updates -->
     <div class="card">
         <div class="card-header bg-info bg-opacity-25 text-dark">
             <div class="row align-items-center">
                 <div class="col">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-users me-2"></i>System Users ({{ user_data|length }})
+                        <i class="fas fa-users me-2"></i>System Users (<span id="userCount">{{ user_data|length }}</span>)
+                        <span class="badge bg-success ms-2" id="liveIndicator">
+                            <i class="fas fa-circle text-white"></i> Live
+                        </span>
                     </h5>
                 </div>
                 <div class="col-auto">
@@ -148,99 +151,99 @@
                         <button class="btn btn-outline-secondary btn-sm" type="button" onclick="filterUsers()">
                             <i class="fas fa-search"></i>
                         </button>
+                        <button class="btn btn-outline-primary btn-sm ms-1" type="button" onclick="refreshUserData()" title="Refresh Data">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0" id="usersTable">
-                    <thead>
+                <table class="table table-hover table-sm mb-0" id="usersTable">
+                    <thead class="table-light">
                         <tr>
-                            <th>User</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                            <th>Status</th>
-                            <th>Created</th>
-                            <th>Last Active</th>
-                            <th>Total Scans</th>
-                            <th>Actions</th>
+                            <th style="width: 20%">User</th>
+                            <th style="width: 15%">Email</th>
+                            <th style="width: 12%">Role</th>
+                            <th style="width: 8%">Status</th>
+                            <th style="width: 10%">Joined</th>
+                            <th style="width: 12%">Activity</th>
+                            <th style="width: 8%" class="text-center">Scans</th>
+                            <th style="width: 15%" class="text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="userTableBody">
                         {% for data in user_data %}
-                        <tr data-user-id="{{ data.id }}">
+                        <tr data-user-id="{{ data.id }}" class="align-middle">
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
+                                    <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 28px; height: 28px; font-size: 0.75rem;">
                                         {{ data.username[0].upper() }}
                                     </div>
                                     <div>
-                                        <div class="fw-bold">{{ data.username }}</div>
+                                        <div class="fw-bold small">{{ data.username }}</div>
                                         {% if data.id == current_user.id %}
-                                            <small class="text-muted">(You)</small>
+                                            <span class="badge bg-primary" style="font-size: 0.65rem;">You</span>
                                         {% endif %}
                                     </div>
                                 </div>
                             </td>
-                            <td>{{ data.email }}</td>
+                            <td class="small text-truncate" style="max-width: 150px;" title="{{ data.email }}">{{ data.email }}</td>
                             <td>
                                 <span class="badge 
                                     {% if data.role == 'admin' %}bg-warning
                                     {% elif data.role == 'biller' %}bg-info
-                                    {% else %}bg-secondary{% endif %}">
+                                    {% else %}bg-secondary{% endif %}" style="font-size: 0.7rem;">
                                     {{ data.role.title() }}
-                                    {% if data.role == 'dispatcher' and data.dispatch_area %}
-                                        <small>({{ data.dispatch_area }})</small>
-                                    {% endif %}
                                 </span>
-                                {% if data.role == 'biller' and data.role_stats and data.role_stats.active_bills %}
-                                    <br><small class="text-muted">{{ data.role_stats.active_bills }} active bills</small>
-                                {% elif data.role == 'dispatcher' and data.role_stats and data.role_stats.area_bags %}
-                                    <br><small class="text-muted">{{ data.role_stats.area_bags }} area bags</small>
+                                {% if data.role == 'dispatcher' and data.dispatch_area %}
+                                    <div class="text-muted" style="font-size: 0.65rem;">{{ data.dispatch_area.replace('_', ' ').title() }}</div>
                                 {% endif %}
                             </td>
                             <td>
                                 {% if data.verified %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check me-1"></i>Verified
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">
+                                        <i class="fas fa-check"></i>
                                     </span>
                                 {% else %}
-                                    <span class="badge bg-warning">
-                                        <i class="fas fa-clock me-1"></i>Pending
+                                    <span class="badge bg-warning" style="font-size: 0.7rem;">
+                                        <i class="fas fa-clock"></i>
                                     </span>
                                 {% endif %}
                             </td>
-                            <td>{{ data.created_at.strftime('%Y-%m-%d') if data.created_at else 'N/A' }}</td>
+                            <td class="small">{{ data.created_at.strftime('%m/%d/%y') if data.created_at else 'N/A' }}</td>
                             <td>
-                                {% if data.last_scan %}
-                                    {{ data.last_scan.strftime('%Y-%m-%d %H:%M') }}
-                                {% else %}
-                                    <span class="text-muted">Never</span>
-                                {% endif %}
+                                <div class="small">
+                                    {% if data.last_scan %}
+                                        <span class="text-success activity-status" data-timestamp="{{ data.last_scan.isoformat() }}">
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            <span class="time-ago">{{ data.last_scan.strftime('%H:%M') }}</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">Inactive</span>
+                                    {% endif %}
+                                </div>
                             </td>
-                            <td>{{ data.scan_count }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-primary scan-count" data-user-id="{{ data.id }}">{{ data.scan_count }}</span>
+                            </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <a href="{{ url_for('admin_user_profile', user_id=data.id) }}" class="btn btn-outline-info" title="View Profile">
-                                        <i class="fas fa-user-circle"></i>
+                                    <a href="{{ url_for('admin_user_profile', user_id=data.id) }}" class="btn btn-outline-info btn-sm py-0 px-1" title="View Profile">
+                                        <i class="fas fa-eye" style="font-size: 0.7rem;"></i>
                                     </a>
-                                    <button class="btn btn-outline-primary" onclick="editUser({{ data.id }})" title="Edit User">
-                                        <i class="fas fa-edit"></i>
+                                    <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="editUser({{ data.id }})" title="Edit">
+                                        <i class="fas fa-edit" style="font-size: 0.7rem;"></i>
                                     </button>
                                     {% if data.can_change_role %}
-                                        <button class="btn btn-outline-success" onclick="openRoleChangeModal({{ data.id }}, '{{ data.username }}', '{{ data.role }}', '{{ data.dispatch_area or '' }}')" title="Change Role">
-                                            <i class="fas fa-exchange-alt"></i>
-                                        </button>
-                                    {% endif %}
-                                    {% if not data.is_admin and data.id != current_user.id %}
-                                        <button class="btn btn-outline-warning" onclick="promoteUser({{ data.id }})" title="Quick Promote to Admin">
-                                            <i class="fas fa-user-shield"></i>
+                                        <button class="btn btn-outline-success btn-sm py-0 px-1" onclick="openRoleChangeModal({{ data.id }}, '{{ data.username }}', '{{ data.role }}', '{{ data.dispatch_area or '' }}')" title="Role">
+                                            <i class="fas fa-user-tag" style="font-size: 0.7rem;"></i>
                                         </button>
                                     {% endif %}
                                     {% if data.id != current_user.id %}
-                                        <button class="btn btn-outline-danger" onclick="deleteUser({{ data.id }})" title="Delete User">
-                                            <i class="fas fa-trash"></i>
+                                        <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteUser({{ data.id }})" title="Delete">
+                                            <i class="fas fa-trash" style="font-size: 0.7rem;"></i>
                                         </button>
                                     {% endif %}
                                 </div>
@@ -250,6 +253,9 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+        <div class="card-footer py-1 text-muted small">
+            <i class="fas fa-info-circle"></i> Auto-refreshes every 30 seconds | Last updated: <span id="lastUpdated">Just now</span>
         </div>
     </div>
 </div>
@@ -717,5 +723,104 @@ document.getElementById('roleChangeForm').addEventListener('submit', function(e)
         console.error(error);
     });
 });
+
+// Real-time update functions
+let updateInterval;
+let lastUpdateTime = new Date();
+
+function updateTimeAgo() {
+    const activities = document.querySelectorAll('.activity-status');
+    activities.forEach(activity => {
+        const timestamp = activity.dataset.timestamp;
+        if (timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000); // seconds
+            
+            const timeSpan = activity.querySelector('.time-ago');
+            if (diff < 60) {
+                timeSpan.textContent = 'Just now';
+                activity.classList.add('text-success');
+                activity.classList.remove('text-warning', 'text-muted');
+            } else if (diff < 3600) {
+                const mins = Math.floor(diff / 60);
+                timeSpan.textContent = `${mins}m ago`;
+                activity.classList.add('text-success');
+                activity.classList.remove('text-warning', 'text-muted');
+            } else if (diff < 86400) {
+                const hours = Math.floor(diff / 3600);
+                timeSpan.textContent = `${hours}h ago`;
+                activity.classList.add('text-warning');
+                activity.classList.remove('text-success', 'text-muted');
+            } else {
+                const days = Math.floor(diff / 86400);
+                timeSpan.textContent = `${days}d ago`;
+                activity.classList.add('text-muted');
+                activity.classList.remove('text-success', 'text-warning');
+            }
+        }
+    });
+}
+
+async function refreshUserData() {
+    const indicator = document.getElementById('liveIndicator');
+    indicator.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Updating...';
+    indicator.classList.remove('bg-success');
+    indicator.classList.add('bg-warning');
+    
+    try {
+        // Reload page to get fresh data
+        location.reload();
+    } catch (error) {
+        console.error('Error refreshing data:', error);
+        indicator.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
+        indicator.classList.remove('bg-warning', 'bg-success');
+        indicator.classList.add('bg-danger');
+    }
+}
+
+function updateLastUpdatedTime() {
+    const span = document.getElementById('lastUpdated');
+    const now = new Date();
+    const diff = Math.floor((now - lastUpdateTime) / 1000);
+    
+    if (diff < 5) {
+        span.textContent = 'Just now';
+    } else if (diff < 60) {
+        span.textContent = `${diff} seconds ago`;
+    } else {
+        const mins = Math.floor(diff / 60);
+        span.textContent = `${mins} minute${mins > 1 ? 's' : ''} ago`;
+    }
+}
+
+// Initialize real-time updates when document loads
+window.addEventListener('load', function() {
+    updateTimeAgo();
+    updateLastUpdatedTime();
+    
+    // Update time ago every 10 seconds
+    setInterval(updateTimeAgo, 10000);
+    
+    // Update last updated time every second
+    setInterval(updateLastUpdatedTime, 1000);
+    
+    // Auto-refresh data every 30 seconds
+    updateInterval = setInterval(refreshUserData, 30000);
+});
+
+// Add pulse animation style
+const style = document.createElement('style');
+style.textContent = `
+    .pulse-animation {
+        animation: pulse 0.5s ease-in-out;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); background-color: #ffc107 !important; }
+        100% { transform: scale(1); }
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}

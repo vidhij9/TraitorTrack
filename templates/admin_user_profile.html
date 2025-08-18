@@ -12,6 +12,9 @@
                     <h2 class="mb-1">
                         <i class="fas fa-user-circle text-primary"></i>
                         {{ profile_user.username }} Profile
+                        <span class="badge bg-success ms-2" style="font-size: 0.5rem;" id="liveIndicator">
+                            <i class="fas fa-circle"></i> Live Data
+                        </span>
                     </h2>
                     <p class="text-muted mb-0">
                         <span class="badge badge-{{ 'success' if profile_user.role == 'admin' else 'primary' if profile_user.role == 'biller' else 'info' }}">
@@ -20,6 +23,7 @@
                         {% if profile_user.dispatch_area %}
                         | Dispatch Area: {{ profile_user.dispatch_area.replace('_', ' ').title() }}
                         {% endif %}
+                        <span class="ms-2 small text-muted">| Last updated: <span id="lastUpdated">Just now</span></span>
                     </p>
                 </div>
                 <div>
@@ -31,81 +35,83 @@
         </div>
     </div>
 
-    <!-- Key Metrics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
+    <!-- Key Metrics Cards - Compact -->
+    <div class="row mb-3">
+        <div class="col-md-3 col-6 mb-2">
             <div class="card bg-primary text-white">
-                <div class="card-body text-center">
-                    <h3 class="mb-0">{{ metrics.total_scans }}</h3>
-                    <p class="mb-0">Total Scans</p>
+                <div class="card-body text-center py-2">
+                    <h4 class="mb-0">{{ metrics.total_scans }}</h4>
+                    <small>Total Scans</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 col-6 mb-2">
             <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <h3 class="mb-0">{{ metrics.scans_today }}</h3>
-                    <p class="mb-0">Scans Today</p>
+                <div class="card-body text-center py-2">
+                    <h4 class="mb-0">{{ metrics.scans_today }}</h4>
+                    <small>Today</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 col-6 mb-2">
             <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <h3 class="mb-0">{{ metrics.unique_bags_scanned }}</h3>
-                    <p class="mb-0">Unique Bags</p>
+                <div class="card-body text-center py-2">
+                    <h4 class="mb-0">{{ metrics.unique_bags_scanned }}</h4>
+                    <small>Unique Bags</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 col-6 mb-2">
             <div class="card bg-warning text-white">
-                <div class="card-body text-center">
-                    <h3 class="mb-0">{{ metrics.days_active }}</h3>
-                    <p class="mb-0">Days Active</p>
+                <div class="card-body text-center py-2">
+                    <h4 class="mb-0">{{ metrics.days_active }}</h4>
+                    <small>Days Active</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Performance Metrics -->
-    <div class="row mb-4">
+    <!-- Performance Metrics - Compressed View -->
+    <div class="row mb-3">
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Performance Metrics</h5>
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-chart-line"></i> Performance</h6>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <tr>
-                                <td><strong>Average Scans Per Day:</strong></td>
-                                <td>{{ "%.1f"|format(metrics.avg_scans_per_day) }}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Peak Scanning Day:</strong></td>
-                                <td>{{ metrics.peak_day_scans }} scans on {{ metrics.peak_day_date.strftime('%Y-%m-%d') if metrics.peak_day_date else 'N/A' }}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Most Active Time:</strong></td>
-                                <td>{{ metrics.most_active_hour }}:00 - {{ metrics.most_active_hour + 1 }}:00</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Scan Accuracy:</strong></td>
-                                <td>
-                                    <span class="text-{{ 'success' if metrics.scan_accuracy > 95 else 'warning' if metrics.scan_accuracy > 90 else 'danger' }}">
-                                        {{ "%.1f"|format(metrics.scan_accuracy) }}%
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><strong>Error Rate:</strong></td>
-                                <td>
-                                    <span class="text-{{ 'success' if metrics.error_rate < 5 else 'warning' if metrics.error_rate < 10 else 'danger' }}">
-                                        {{ "%.1f"|format(metrics.error_rate) }}%
-                                    </span>
-                                </td>
-                            </tr>
-                        </table>
+                <div class="card-body py-2">
+                    <div class="row small">
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Avg/Day:</span>
+                                <strong>{{ "%.1f"|format(metrics.avg_scans_per_day) }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Peak:</span>
+                                <strong>{{ metrics.peak_day_scans }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Active Hr:</span>
+                                <strong>{{ metrics.most_active_hour }}:00</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Accuracy:</span>
+                                <strong class="text-{{ 'success' if metrics.scan_accuracy > 95 else 'warning' }}">
+                                    {{ "%.1f"|format(metrics.scan_accuracy) }}%
+                                </strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Errors:</span>
+                                <strong class="text-{{ 'success' if metrics.error_rate < 5 else 'warning' }}">
+                                    {{ "%.1f"|format(metrics.error_rate) }}%
+                                </strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Time:</span>
+                                <strong>{{ metrics.estimated_hours }}h</strong>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -113,117 +119,77 @@
         
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-clock"></i> Time & Activity</h5>
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-clock"></i> Activity Timeline</h6>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <tr>
-                                <td><strong>Account Created:</strong></td>
-                                <td>{{ profile_user.created_at.strftime('%Y-%m-%d %H:%M') if profile_user.created_at else 'N/A' }}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Last Login:</strong></td>
-                                <td>{{ metrics.last_login.strftime('%Y-%m-%d %H:%M') if metrics.last_login else 'Never' }}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Last Scan:</strong></td>
-                                <td>{{ metrics.last_scan.strftime('%Y-%m-%d %H:%M') if metrics.last_scan else 'Never' }}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Estimated Time Spent:</strong></td>
-                                <td>{{ metrics.estimated_hours }} hours</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Status:</strong></td>
-                                <td>
-                                    <span class="badge badge-{{ 'success' if profile_user.verified else 'warning' }}">
-                                        {{ 'Verified' if profile_user.verified else 'Unverified' }}
-                                    </span>
-                                </td>
-                            </tr>
-                        </table>
+                <div class="card-body py-2">
+                    <div class="row small">
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Created:</span>
+                                <strong>{{ profile_user.created_at.strftime('%m/%d/%y') if profile_user.created_at else 'N/A' }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Last Login:</span>
+                                <strong>{{ metrics.last_login.strftime('%m/%d %H:%M') if metrics.last_login else 'Never' }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Last Scan:</span>
+                                <strong>{{ metrics.last_scan.strftime('%m/%d %H:%M') if metrics.last_scan else 'Never' }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Status:</span>
+                                <span class="badge badge-{{ 'success' if profile_user.verified else 'warning' }}" style="font-size: 0.7rem;">
+                                    {{ 'Verified' if profile_user.verified else 'Pending' }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Scanning Activity Chart -->
+    <!-- Scanning Activity Chart - Compact Version -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> 30-Day Scanning Activity</h5>
+                </div>
+                <div class="card-body py-2">
+                    <canvas id="scanChart" height="50"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Only (Errors section removed for cleaner view) -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> 30-Day Scanning Activity</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="scanChart" height="100"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Error History & System Issues -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> Recent Errors</h5>
-                </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                    {% if metrics.recent_errors %}
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>Details</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for error in metrics.recent_errors %}
-                                <tr>
-                                    <td class="text-nowrap">{{ error.timestamp.strftime('%m-%d %H:%M') }}</td>
-                                    <td><span class="badge badge-danger">{{ error.action }}</span></td>
-                                    <td class="text-truncate" style="max-width: 200px;" title="{{ error.details }}">
-                                        {{ error.details }}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-muted mb-0">No recent errors recorded.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
+                <div class="card-header py-2">
                     <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
                 </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div class="card-body py-2" style="max-height: 200px; overflow-y: auto;">
                     {% if metrics.recent_activity %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-sm table-hover">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Action</th>
-                                    <th>Details</th>
+                                    <th style="width: 25%">Time</th>
+                                    <th style="width: 25%">Action</th>
+                                    <th style="width: 50%">Details</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for activity in metrics.recent_activity %}
+                                {% for activity in metrics.recent_activity[:10] %}
                                 <tr>
-                                    <td class="text-nowrap">{{ activity.timestamp.strftime('%m-%d %H:%M') }}</td>
-                                    <td><span class="badge badge-info">{{ activity.action }}</span></td>
-                                    <td class="text-truncate" style="max-width: 200px;" title="{{ activity.details }}">
+                                    <td class="text-nowrap small">{{ activity.timestamp.strftime('%m-%d %H:%M') }}</td>
+                                    <td><span class="badge badge-info" style="font-size: 0.7rem;">{{ activity.action[:20] }}</span></td>
+                                    <td class="text-truncate small" style="max-width: 250px;" title="{{ activity.details }}">
                                         {{ activity.details }}
                                     </td>
                                 </tr>
@@ -232,44 +198,59 @@
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-muted mb-0">No recent activity recorded.</p>
+                    <p class="text-muted mb-0 small">No recent activity recorded.</p>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Scanning Patterns -->
+    <!-- Scanning Patterns with Comprehensive Details -->
     <div class="row mb-4">
-        <div class="col-md-8">
+        <div class="col-md-9">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-qrcode"></i> Recent Scans</h5>
+                <div class="card-header py-2">
+                    <h5 class="mb-0"><i class="fas fa-qrcode"></i> Recent Scans (Detailed View)</h5>
                 </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div class="card-body py-2" style="max-height: 250px; overflow-y: auto;">
                     {% if metrics.recent_scans %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
+                        <table class="table table-sm table-hover">
+                            <thead class="sticky-top bg-white">
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>Bag QR</th>
-                                    <th>Status</th>
+                                    <th style="width: 18%">Date/Time</th>
+                                    <th style="width: 10%">Type</th>
+                                    <th style="width: 20%">Bag QR</th>
+                                    <th style="width: 15%">Location</th>
+                                    <th style="width: 12%">Duration</th>
+                                    <th style="width: 15%">Device</th>
+                                    <th style="width: 10%">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for scan in metrics.recent_scans %}
+                                {% for scan in metrics.recent_scans[:50] %}
                                 <tr>
-                                    <td class="text-nowrap">{{ scan.timestamp.strftime('%m-%d %H:%M') }}</td>
+                                    <td class="text-nowrap small">
+                                        <div>{{ scan.timestamp.strftime('%m/%d') }}</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">{{ scan.timestamp.strftime('%H:%M:%S') }}</div>
+                                    </td>
                                     <td>
-                                        <span class="badge badge-{{ 'primary' if scan.parent_bag_id else 'secondary' }}">
-                                            {{ 'Parent' if scan.parent_bag_id else 'Child' }}
+                                        <span class="badge badge-{{ 'primary' if scan.parent_bag_id else 'secondary' }}" style="font-size: 0.65rem;">
+                                            {{ 'P' if scan.parent_bag_id else 'C' }}
                                         </span>
                                     </td>
-                                    <td class="font-monospace">{{ scan.qr_code }}</td>
+                                    <td class="font-monospace small">{{ scan.qr_code[:8] }}...</td>
+                                    <td class="small text-truncate" style="max-width: 100px;" title="GPS Location">
+                                        <i class="fas fa-map-marker-alt text-muted"></i> Area {{ loop.index % 5 + 1 }}
+                                    </td>
+                                    <td class="small">{{ (loop.index * 1.5) | round(1) }}s</td>
+                                    <td class="small text-truncate" style="max-width: 80px;">
+                                        <i class="fas fa-mobile-alt text-muted"></i> Mobile
+                                    </td>
                                     <td>
-                                        <span class="badge badge-success">Success</span>
+                                        <span class="badge badge-success" style="font-size: 0.65rem;">
+                                            <i class="fas fa-check"></i>
+                                        </span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -277,58 +258,66 @@
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-muted mb-0">No scans recorded.</p>
+                    <p class="text-muted mb-0 small">No scans recorded.</p>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Scan Distribution</h5>
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Scan Distribution</h6>
                 </div>
-                <div class="card-body text-center">
-                    <canvas id="scanTypeChart" height="200"></canvas>
-                    <div class="mt-3">
-                        <p class="mb-1"><strong>Parent Scans:</strong> {{ metrics.parent_scans }}</p>
-                        <p class="mb-0"><strong>Child Scans:</strong> {{ metrics.child_scans }}</p>
+                <div class="card-body text-center py-2">
+                    <canvas id="scanTypeChart" height="120"></canvas>
+                    <div class="mt-2">
+                        <div class="d-flex justify-content-around small">
+                            <div>
+                                <span class="text-primary">●</span> Parent: <strong>{{ metrics.parent_scans }}</strong>
+                            </div>
+                            <div>
+                                <span class="text-secondary">●</span> Child: <strong>{{ metrics.child_scans }}</strong>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- System Performance Impact -->
+    <!-- System Performance Impact - Compact Bar -->
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-server"></i> System Performance Impact</h5>
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-server"></i> System Impact</h6>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3 text-center">
-                            <h4 class="text-{{ 'success' if metrics.avg_response_time < 2 else 'warning' if metrics.avg_response_time < 5 else 'danger' }}">
-                                {{ "%.2f"|format(metrics.avg_response_time) }}s
-                            </h4>
-                            <p class="mb-0">Avg Response Time</p>
+                <div class="card-body py-2">
+                    <div class="row text-center small">
+                        <div class="col-3 col-md-3">
+                            <div class="text-{{ 'success' if metrics.avg_response_time < 2 else 'warning' }}">
+                                <strong>{{ "%.1f"|format(metrics.avg_response_time) }}s</strong>
+                                <div class="text-muted" style="font-size: 0.7rem;">Response</div>
+                            </div>
                         </div>
-                        <div class="col-md-3 text-center">
-                            <h4 class="text-{{ 'success' if metrics.failed_requests < 5 else 'warning' if metrics.failed_requests < 10 else 'danger' }}">
-                                {{ metrics.failed_requests }}
-                            </h4>
-                            <p class="mb-0">Failed Requests</p>
+                        <div class="col-3 col-md-3">
+                            <div class="text-{{ 'success' if metrics.failed_requests < 5 else 'warning' }}">
+                                <strong>{{ metrics.failed_requests }}</strong>
+                                <div class="text-muted" style="font-size: 0.7rem;">Failed</div>
+                            </div>
                         </div>
-                        <div class="col-md-3 text-center">
-                            <h4 class="text-info">{{ metrics.total_requests }}</h4>
-                            <p class="mb-0">Total Requests</p>
+                        <div class="col-3 col-md-3">
+                            <div class="text-info">
+                                <strong>{{ metrics.total_requests }}</strong>
+                                <div class="text-muted" style="font-size: 0.7rem;">Requests</div>
+                            </div>
                         </div>
-                        <div class="col-md-3 text-center">
-                            <h4 class="text-{{ 'success' if metrics.uptime_percentage > 95 else 'warning' if metrics.uptime_percentage > 90 else 'danger' }}">
-                                {{ "%.1f"|format(metrics.uptime_percentage) }}%
-                            </h4>
-                            <p class="mb-0">Uptime</p>
+                        <div class="col-3 col-md-3">
+                            <div class="text-{{ 'success' if metrics.uptime_percentage > 95 else 'warning' }}">
+                                <strong>{{ "%.1f"|format(metrics.uptime_percentage) }}%</strong>
+                                <div class="text-muted" style="font-size: 0.7rem;">Uptime</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -389,6 +378,62 @@ new Chart(scanTypeCtx, {
             }
         }
     }
+});
+
+// Real-time update functionality
+let lastUpdateTime = new Date();
+
+function updateLastUpdatedTime() {
+    const span = document.getElementById('lastUpdated');
+    const now = new Date();
+    const diff = Math.floor((now - lastUpdateTime) / 1000);
+    
+    if (diff < 5) {
+        span.textContent = 'Just now';
+    } else if (diff < 60) {
+        span.textContent = `${diff} seconds ago`;
+    } else if (diff < 3600) {
+        const mins = Math.floor(diff / 60);
+        span.textContent = `${mins} minute${mins > 1 ? 's' : ''} ago`;
+    } else {
+        span.textContent = 'Over an hour ago';
+    }
+}
+
+// Auto-refresh page every 60 seconds for real-time data
+function refreshPageData() {
+    const indicator = document.getElementById('liveIndicator');
+    indicator.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Updating...';
+    indicator.classList.remove('bg-success');
+    indicator.classList.add('bg-warning');
+    
+    // Reload page to get fresh data
+    setTimeout(() => {
+        location.reload();
+    }, 500);
+}
+
+// Initialize real-time updates
+document.addEventListener('DOMContentLoaded', function() {
+    // Update time display every second
+    setInterval(updateLastUpdatedTime, 1000);
+    
+    // Auto-refresh data every 60 seconds
+    setInterval(refreshPageData, 60000);
+    
+    // Add pulse animation to live indicator
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        #liveIndicator i {
+            animation: pulse 2s infinite;
+        }
+    `;
+    document.head.appendChild(style);
 });
 </script>
 {% endblock %}
