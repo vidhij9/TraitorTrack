@@ -1,108 +1,144 @@
 {% extends "layout.html" %}
+{% block title %}Scan Child Bags - TraceTrack{% endblock %}
 
-{% block content %}
+{% block head %}
 <style>
-@keyframes scanning {
-    0% { transform: translateY(-50px); opacity: 0; }
-    50% { opacity: 1; }
-    100% { transform: translateY(50px); opacity: 0; }
+/* Enhanced Scanner Container - matching parent scan style */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
-#child-scanner-container video {
-    object-fit: cover !important;
-    width: 100% !important;
-    height: 100% !important;
-    background: #000;
+@media (max-width: 768px) {
+    .scanner-container {
+        height: 300px;
+    }
 }
 
-.toast.show {
-    opacity: 1 !important;
-    transform: none !important;
+/* Toast styles */
+.toast {
+    min-width: 300px;
+}
+
+.toast.bg-success {
+    background-color: #198754 !important;
+    color: white;
+}
+
+.toast.bg-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.toast.bg-warning {
+    background-color: #ffc107 !important;
+    color: black;
+}
+
+/* Completion section styling */
+.completion-section {
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    background-color: #d4edda;
+    display: none;
 }
 </style>
+{% endblock %}
+
+{% block content %}
 <div class="container mt-4">
-    <!-- Parent Bag Info Card -->
-    <div class="card mb-3">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-cube me-2"></i>Parent Bag: {{ parent_qr }}
-                <span class="badge bg-light text-dark float-end">{{ scanned_child_count }}/30</span>
-            </h5>
-        </div>
-    </div>
-
-    <!-- Scanner Card -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-qrcode me-2"></i>Scan Child Bags
-                <span class="badge bg-warning text-dark ms-2">{{ 30 - scanned_child_count }} remaining</span>
-            </h5>
-        </div>
-        <div class="card-body">
-            <!-- Scanner Container -->
-            <div id="child-scanner-container" style="position: relative; width: 100%; height: 400px; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                <video id="scanner-video" style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);" autoplay muted playsinline></video>
-                <canvas id="scanner-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;"></canvas>
-                <div id="scanner-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; 
-                     background: radial-gradient(circle at center, transparent 20%, rgba(0,0,0,0.6) 70%);
-                     border: 2px solid #28a745; border-radius: 8px;"></div>
-                <div id="scanning-line" style="position: absolute; top: 50%; left: 10%; right: 10%; height: 2px; background: #ffc107; 
-                     animation: scanning 2s linear infinite; z-index: 4; pointer-events: none; display: none;"></div>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Parent Bag Info -->
+            <div class="alert alert-primary d-flex justify-content-between align-items-center mb-3">
+                <span><strong>Parent Bag:</strong> {{ parent_qr }}</span>
+                <span class="badge bg-primary">{{ scanned_child_count }}/30 linked</span>
             </div>
-            
-            <!-- Control Buttons -->
-            <div class="d-flex gap-2 mt-3">
-                <button id="start-camera" class="btn btn-success flex-fill">
-                    <i class="fas fa-play me-2"></i>Start Scanner
-                </button>
-                <button id="stop-camera" class="btn btn-danger flex-fill" disabled>
-                    <i class="fas fa-stop me-2"></i>Stop Scanner
-                </button>
+
+            <!-- Main Scanner Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-qrcode me-2"></i>Scan Child Bags
+                        <small class="text-muted ms-2">({{ 30 - scanned_child_count }} remaining)</small>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Camera Scanner -->
+                    <div id="child-scanner-container" class="scanner-container mb-3"></div>
+                    
+                    <!-- Scanner Controls -->
+                    <div class="text-center mb-3">
+                        <button id="start-camera" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i>Start Scanner
+                        </button>
+                        <button id="stop-camera" class="btn btn-secondary" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop Scanner
+                        </button>
+                    </div>
+
+                    <!-- Manual Entry Section -->
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h6>Manual Entry</h6>
+                            <form id="manual-form">
+                                {{ form.hidden_tag() }}
+                                <div class="input-group">
+                                    <input type="text" 
+                                           id="manual-qr-input"
+                                           name="qr_code" 
+                                           class="form-control" 
+                                           placeholder="Enter child bag QR code manually"
+                                           autocomplete="off">
+                                    <button class="btn btn-primary" type="submit">
+                                        <i class="fas fa-plus me-2"></i>Add Child
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Completion Section (Hidden initially) -->
+                    <div id="completion-section" class="completion-section mt-4 p-3">
+                        <div class="text-center">
+                            <h5 class="text-success">
+                                <i class="fas fa-check-circle me-2"></i>All 30 Child Bags Linked!
+                            </h5>
+                            <p class="mb-3">Parent bag <strong>{{ parent_qr }}</strong> is now complete with 30 child bags.</p>
+                            <button id="complete-parent-btn" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>Complete & Continue to Next Parent
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="mt-4 text-center">
+                        <a href="{{ url_for('scan_parent') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Parent Scan
+                        </a>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Manual Entry Card -->
-    <div class="card mt-3">
-        <div class="card-header">
-            <h6 class="mb-0"><i class="fas fa-keyboard me-2"></i>Manual Entry</h6>
-        </div>
-        <div class="card-body">
-            <form id="manual-form" class="row g-2">
-                {{ form.hidden_tag() }}
-                <div class="col">
-                    <input type="text" 
-                           id="manual-qr-input"
-                           name="qr_code" 
-                           class="form-control" 
-                           placeholder="Enter child bag QR code manually"
-                           autocomplete="off">
+            <!-- Scanned Bags List -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Scanned Child Bags ({{ scanned_child_count }}/30)
+                    </h6>
                 </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i>Add Child
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Scanned Bags List -->
-    <div class="card mt-3">
-        <div class="card-header bg-info text-white">
-            <h6 class="mb-0">
-                <i class="fas fa-list me-2"></i>Scanned Child Bags ({{ scanned_child_count }}/30)
-            </h6>
-        </div>
-        <div class="card-body">
-            <ul id="scanned-list" class="list-group">
-                {% if linked_child_bags %}
-                    {% for child in linked_child_bags %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>
-                            <span class="badge bg-success me-2">{{ loop.index }}</span>
-                            <code>{{ child.qr_id }}</code>
+                <div class="card-body">
+                    <ul id="scanned-list" class="list-group">
+                        {% if linked_child_bags %}
+                            {% for child in linked_child_bags %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <span class="badge bg-success me-2">{{ loop.index }}</span>
+                                    <code>{{ child.qr_id }}</code>
                         </span>
                         <span class="text-muted small">Linked</span>
                     </li>
@@ -138,6 +174,22 @@
     </div>
 </div>
 
+<!-- Toast notifications -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="scan-toast" class="toast align-items-center text-white bg-success border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                <i class="fas fa-check-circle me-2"></i>QR Code detected!
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Using the same scanner as parent scan -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
 <script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 <script>
 // Global variables
@@ -180,26 +232,19 @@ async function sendRequest(qrCode) {
 
 // Update counters in real-time
 function updateCounters() {
-    // Update badge in parent info
-    const parentBadge = document.querySelector('.badge.bg-light');
-    if (parentBadge) parentBadge.textContent = `${scannedCount}/30`;
+    // Update parent info badge
+    const parentBadge = document.querySelector('.badge.bg-primary');
+    if (parentBadge) parentBadge.textContent = `${scannedCount}/30 linked`;
     
-    // Update scanner header badge
-    const scannerBadge = document.querySelector('.badge.bg-warning');
-    if (scannerBadge) scannerBadge.textContent = `${30 - scannedCount} remaining`;
+    // Update scanner header remaining count
+    const remainingText = document.querySelector('.text-muted');
+    if (remainingText) remainingText.textContent = `(${30 - scannedCount} remaining)`;
     
     // Update scanned bags list header
     const listHeader = document.querySelector('.card-header.bg-info h6');
     if (listHeader) {
         listHeader.innerHTML = `<i class="fas fa-list me-2"></i>Scanned Child Bags (${scannedCount}/30)`;
     }
-    
-    // Update progress bar
-    const progressBar = document.querySelector('.progress-bar');
-    const percentage = (scannedCount / 30) * 100;
-    progressBar.style.width = `${percentage}%`;
-    progressBar.setAttribute('aria-valuenow', scannedCount);
-    progressBar.textContent = `${scannedCount}/30 bags`;
 }
 
 // Add child to list in real-time (with duplicate prevention)
@@ -285,6 +330,7 @@ async function onScanSuccess(qrCode) {
         if (scannedCount >= 30) {
             showToast('✓ All 30 child bags linked! Scanning complete.', 'success');
             document.getElementById('stop-camera').click();
+            showCompletionSection();
         }
     } else {
         // Show specific error messages with better detection
@@ -341,17 +387,26 @@ function updateUI(qrCode, count) {
     });
 }
 
-// Complete scanning
+// Show completion section when 30 bags are linked
+function showCompletionSection() {
+    const completionSection = document.getElementById('completion-section');
+    if (completionSection) {
+        completionSection.style.display = 'block';
+        completionSection.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+// Complete scanning and go to next parent
 function completeScanning() {
     showToast('✅ Parent bag complete! 30 child bags linked.', 'success');
     if (scanner) scanner.stop();
     
     setTimeout(() => {
         window.location.href = '/scan/parent';
-    }, 2000);
+    }, 1500);
 }
 
-// Initialize scanner
+// Initialize scanner with proper InstantDetectionScanner
 document.getElementById('start-camera').addEventListener('click', function() {
     if (scanner) scanner.stop();
     
@@ -396,7 +451,7 @@ document.getElementById('manual-form').addEventListener('submit', async function
         input.value = '';
         
         if (scannedCount >= 30) {
-            completeScanning();
+            showCompletionSection();
         }
     } else {
         showToast(data.message || 'Error occurred', 'danger');
@@ -407,9 +462,20 @@ document.getElementById('manual-form').addEventListener('submit', async function
 
 // Auto-start scanner on page load
 window.addEventListener('load', function() {
-    setTimeout(() => {
-        document.getElementById('start-camera').click();
-    }, 500);
+    // Auto-start only if not at 30 bags
+    if (scannedCount < 30) {
+        setTimeout(() => {
+            document.getElementById('start-camera').click();
+        }, 500);
+    } else {
+        showCompletionSection();
+    }
+    
+    // Add completion button event listener
+    const completeBtn = document.getElementById('complete-parent-btn');
+    if (completeBtn) {
+        completeBtn.addEventListener('click', completeScanning);
+    }
 });
 </script>
 {% endblock %}
