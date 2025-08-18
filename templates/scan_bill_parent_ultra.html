@@ -190,11 +190,7 @@
                     <!-- Action Buttons -->
                     <div class="mb-3">
                         {% if not is_completed %}
-                        <div class="d-grid gap-2">
-                            <button id="save-bill-btn" class="btn btn-primary fw-bold" style="padding: 12px;">
-                                <i class="fas fa-save me-2"></i>
-                                <span id="save-btn-text">Save Changes</span>
-                            </button>
+                        <div class="d-grid">
                             <button id="complete-bill-btn" class="btn btn-success fw-bold" style="padding: 12px;">
                                 <i class="fas fa-check-circle me-2"></i>
                                 <span id="complete-btn-text">Complete Bill</span>
@@ -586,32 +582,7 @@ function initializeScanner() {
     };
     
     
-    // Save bill function
-    window.saveBill = async function() {
-        const currentCount = parseInt(bagCount.textContent);
-        
-        try {
-            const response = await fetch('/save_bill/{{ bill.id }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ action: 'save' })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showToast(`Bill saved with ${currentCount} bags!`, 'success', 2000);
-            } else {
-                showToast(data.message || 'Error saving bill', 'danger');
-            }
-        } catch (error) {
-            console.error('Error saving bill:', error);
-            showToast('Error saving bill', 'danger');
-        }
-    };
+    // Bills are automatically saved when parent bags are linked - no manual save needed
     
     // Complete bill function
     window.completeBill = async function() {
@@ -683,11 +654,7 @@ function initializeScanner() {
     startBtn.addEventListener('click', initScanner);
     stopBtn.addEventListener('click', stopScanner);
     
-    // Save bill button listener
-    const saveBillBtn = document.getElementById('save-bill-btn');
-    if (saveBillBtn) {
-        saveBillBtn.addEventListener('click', saveBill);
-    }
+    // Save bill button removed - bills auto-save when parent bags are linked
     
     // Complete bill button listener
     const completeBillBtn = document.getElementById('complete-bill-btn');

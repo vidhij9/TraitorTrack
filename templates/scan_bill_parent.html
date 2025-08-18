@@ -66,9 +66,6 @@
                         <button id="complete-bill-btn" class="btn btn-success" onclick="completeBill()">
                             <i class="fas fa-check-circle me-2"></i>Complete Bill
                         </button>
-                        <button id="save-bill-btn" class="btn btn-primary" onclick="saveBill()">
-                            <i class="fas fa-save me-2"></i>Save Changes
-                        </button>
                     </div>
                 </div>
             </div>
@@ -324,34 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Save bill function
-    window.saveBill = function() {
-        const bagCount = parseInt(document.getElementById('bag-count').textContent);
-        
-        // Show confirmation
-        if (confirm(`Save bill with ${bagCount} linked bags?`)) {
-            fetch('/save_bill/{{ bill.id }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ action: 'save' })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast('Bill saved successfully!', 'success');
-                } else {
-                    showToast(data.message || 'Error saving bill', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Network error while saving', 'error');
-            });
-        }
-    };
+    // Bills are automatically saved when parent bags are linked - no manual save needed
     
     // Complete bill function
     window.completeBill = function() {
