@@ -1,0 +1,426 @@
+{% extends "layout.html" %}
+{% block title %}Comprehensive User Deletion - Admin Only{% endblock %}
+
+{% block extra_css %}
+<style>
+    .deletion-section {
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        border: 2px solid #dc2626;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .danger-zone {
+        background-color: #991b1b;
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    .deletion-preview {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+        display: none;
+    }
+    
+    .stat-box {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    
+    .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        color: #dc2626;
+    }
+    
+    .warning-text {
+        color: #dc2626;
+        font-weight: bold;
+    }
+    
+    .confirmation-box {
+        background: #fef2f2;
+        border: 2px dashed #dc2626;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+        display: none;
+    }
+    
+    .affected-bill {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 4px;
+        padding: 8px;
+        margin: 5px 0;
+    }
+    
+    .bag-item {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        padding: 5px 10px;
+        margin: 3px 0;
+        font-size: 0.9rem;
+    }
+    
+    .spinner {
+        display: none;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #dc2626;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header with Warning -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-danger">
+                <h4 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Comprehensive User & Data Deletion - Admin Only
+                </h4>
+                <p class="mb-0">
+                    <strong>WARNING:</strong> This tool permanently deletes a user account and ALL associated scan data, 
+                    including all bags they have scanned. This action CANNOT be undone.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Back to User Management -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <a href="{{ url_for('user_management') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to User Management
+            </a>
+        </div>
+    </div>
+    
+    <!-- Deletion Form Section -->
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            <div class="deletion-section">
+                <h5 class="mb-4">
+                    <i class="fas fa-user-slash me-2"></i>
+                    Select User for Comprehensive Deletion
+                </h5>
+                
+                <form id="deletionForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <strong>Username</strong> (must match exactly)
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="username" 
+                               name="username" 
+                               placeholder="Enter exact username"
+                               required>
+                        <small class="text-muted">Enter the exact username as it appears in the system</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <strong>Email Address</strong> (must match exactly)
+                        </label>
+                        <input type="email" 
+                               class="form-control" 
+                               id="email" 
+                               name="email" 
+                               placeholder="xxx@gmail.com"
+                               required>
+                        <small class="text-muted">Enter the exact email address for verification</small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Double Verification:</strong> Both username AND email must match exactly for safety.
+                    </div>
+                    
+                    <button type="button" 
+                            class="btn btn-warning" 
+                            onclick="previewDeletion()">
+                        <i class="fas fa-search me-2"></i>Preview What Will Be Deleted
+                    </button>
+                </form>
+                
+                <!-- Preview Section -->
+                <div class="deletion-preview" id="deletionPreview">
+                    <h6 class="mb-3">
+                        <i class="fas fa-eye me-2"></i>Deletion Preview
+                    </h6>
+                    
+                    <!-- User Info -->
+                    <div class="mb-3">
+                        <strong>User Information:</strong>
+                        <div id="userInfo" class="mt-2 p-2 bg-white border rounded"></div>
+                    </div>
+                    
+                    <!-- Deletion Statistics -->
+                    <div class="row" id="deletionStats">
+                        <div class="col-md-4 col-6">
+                            <div class="stat-box">
+                                <div class="stat-number" id="totalScans">0</div>
+                                <small>Total Scans</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-6">
+                            <div class="stat-box">
+                                <div class="stat-number" id="totalBags">0</div>
+                                <small>Bags to Delete</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-6">
+                            <div class="stat-box">
+                                <div class="stat-number" id="affectedBills">0</div>
+                                <small>Affected Bills</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Affected Bills List -->
+                    <div id="affectedBillsList" class="mt-3" style="display: none;">
+                        <strong>Affected Bills:</strong>
+                        <div id="billsList" class="mt-2"></div>
+                    </div>
+                    
+                    <!-- Sample of Bags to Delete -->
+                    <div id="bagsPreview" class="mt-3" style="display: none;">
+                        <strong>Sample of Bags to Delete:</strong>
+                        <div id="bagsList" class="mt-2"></div>
+                    </div>
+                    
+                    <!-- Confirmation Section -->
+                    <div class="confirmation-box" id="confirmationBox">
+                        <h6 class="warning-text mb-3">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Final Confirmation Required
+                        </h6>
+                        
+                        <p>To proceed with deletion, type exactly: <strong id="confirmText"></strong></p>
+                        
+                        <input type="text" 
+                               class="form-control mb-3" 
+                               id="confirmationInput" 
+                               placeholder="Type confirmation text here">
+                        
+                        <div class="d-flex gap-2">
+                            <button type="button" 
+                                    class="btn btn-danger" 
+                                    onclick="executeDeletion()">
+                                <i class="fas fa-trash me-2"></i>Delete User & All Data
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-secondary" 
+                                    onclick="cancelDeletion()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Loading Spinner -->
+                <div class="text-center mt-3">
+                    <div class="spinner" id="loadingSpinner"></div>
+                </div>
+            </div>
+            
+            <!-- Safety Information -->
+            <div class="danger-zone">
+                <h6 class="mb-3">
+                    <i class="fas fa-skull-crossbones me-2"></i>
+                    Danger Zone - What This Tool Does
+                </h6>
+                <ul class="mb-0">
+                    <li>Permanently deletes the user account</li>
+                    <li>Deletes ALL scan records created by the user</li>
+                    <li>Deletes ALL bags (parent and child) scanned by the user</li>
+                    <li>Removes all links between bags scanned by the user</li>
+                    <li>Removes associations with bills for deleted bags</li>
+                    <li>This action is IRREVERSIBLE and cannot be undone</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentUserData = null;
+
+function previewDeletion() {
+    const username = document.getElementById('username').value.trim();
+    const email = document.getElementById('email').value.trim();
+    
+    if (!username || !email) {
+        alert('Please enter both username and email');
+        return;
+    }
+    
+    // Show loading
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('deletionPreview').style.display = 'none';
+    
+    // Make preview request
+    fetch('/admin/preview-user-deletion', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: `username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        if (data.success) {
+            currentUserData = data;
+            displayPreview(data);
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        alert('Error: ' + error);
+    });
+}
+
+function displayPreview(data) {
+    // Show preview section
+    document.getElementById('deletionPreview').style.display = 'block';
+    
+    // Display user info
+    document.getElementById('userInfo').innerHTML = `
+        <div><strong>Username:</strong> ${data.user.username}</div>
+        <div><strong>Email:</strong> ${data.user.email}</div>
+        <div><strong>Role:</strong> ${data.user.role}</div>
+        <div><strong>Created:</strong> ${data.user.created_at}</div>
+    `;
+    
+    // Display statistics
+    document.getElementById('totalScans').textContent = data.deletion_summary.total_scans;
+    document.getElementById('totalBags').textContent = data.deletion_summary.total_bags;
+    document.getElementById('affectedBills').textContent = data.deletion_summary.affected_bills;
+    
+    // Display affected bills if any
+    if (data.affected_bills && data.affected_bills.length > 0) {
+        document.getElementById('affectedBillsList').style.display = 'block';
+        const billsHtml = data.affected_bills.map(bill => 
+            `<div class="affected-bill">
+                <strong>Bill ID:</strong> ${bill.bill_id} - ${bill.description}
+            </div>`
+        ).join('');
+        document.getElementById('billsList').innerHTML = billsHtml;
+    } else {
+        document.getElementById('affectedBillsList').style.display = 'none';
+    }
+    
+    // Display sample of bags
+    if (data.bag_details && data.bag_details.length > 0) {
+        document.getElementById('bagsPreview').style.display = 'block';
+        const bagsHtml = data.bag_details.map(bag => 
+            `<div class="bag-item">
+                <span class="badge bg-${bag.type === 'parent' ? 'primary' : 'secondary'} me-2">
+                    ${bag.type}
+                </span>
+                ${bag.qr_id} - ${bag.name}
+            </div>`
+        ).join('');
+        
+        let html = bagsHtml;
+        if (data.more_bags) {
+            html += '<div class="text-muted mt-2">... and more bags</div>';
+        }
+        document.getElementById('bagsList').innerHTML = html;
+    } else {
+        document.getElementById('bagsPreview').style.display = 'none';
+    }
+    
+    // Show confirmation section
+    document.getElementById('confirmationBox').style.display = 'block';
+    const confirmText = `DELETE ${data.user.username}`;
+    document.getElementById('confirmText').textContent = confirmText;
+    document.getElementById('confirmationInput').value = '';
+}
+
+function executeDeletion() {
+    if (!currentUserData) {
+        alert('Please preview the deletion first');
+        return;
+    }
+    
+    const username = currentUserData.user.username;
+    const email = currentUserData.user.email;
+    const confirmation = document.getElementById('confirmationInput').value;
+    
+    if (confirmation !== `DELETE ${username}`) {
+        alert('Confirmation text does not match. Please type exactly: DELETE ' + username);
+        return;
+    }
+    
+    if (!confirm(`Are you absolutely sure you want to delete user ${username} and ALL their scan data?\n\nThis will delete:\n- ${currentUserData.deletion_summary.total_scans} scans\n- ${currentUserData.deletion_summary.total_bags} bags\n\nThis action CANNOT be undone!`)) {
+        return;
+    }
+    
+    // Show loading
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    // Execute deletion
+    fetch('/admin/execute-comprehensive-deletion', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: `username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&confirmation=${encodeURIComponent(confirmation)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        if (data.success) {
+            alert(`Success! ${data.message}\n\nDeleted:\n- ${data.stats.scans_deleted} scans\n- ${data.stats.bags_deleted} bags`);
+            // Redirect to user management
+            window.location.href = '{{ url_for("user_management") }}';
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        alert('Error: ' + error);
+    });
+}
+
+function cancelDeletion() {
+    document.getElementById('deletionPreview').style.display = 'none';
+    document.getElementById('username').value = '';
+    document.getElementById('email').value = '';
+    currentUserData = null;
+}
+</script>
+{% endblock %}

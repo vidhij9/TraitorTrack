@@ -760,6 +760,239 @@ def delete_user(user_id):
         
         return jsonify({'success': False, 'message': f'Error deleting user: {str(e)}'})
 
+@app.route('/admin/comprehensive-user-deletion')
+@login_required
+@limiter.exempt
+def comprehensive_user_deletion():
+    """Admin-only page for comprehensive user and scan deletion"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    # Get all users for the selection dropdown
+    users = User.query.order_by(User.username).all()
+    
+    return render_template('admin_comprehensive_deletion.html', users=users)
+
+@app.route('/admin/preview-user-deletion', methods=['POST'])
+@login_required
+@limiter.exempt
+def preview_user_deletion():
+    """Preview what would be deleted for a specific user"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        
+        if not username or not email:
+            return jsonify({'success': False, 'message': 'Both username and email are required'})
+        
+        # Find the user by username AND email for safety
+        user = User.query.filter_by(username=username, email=email).first()
+        
+        if not user:
+            return jsonify({'success': False, 'message': f'No user found with username "{username}" and email "{email}"'})
+        
+        if user.id == current_user.id:
+            return jsonify({'success': False, 'message': 'You cannot delete your own account'})
+        
+        # Check if this is the last admin
+        if user.role == UserRole.ADMIN.value:
+            admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+            if admin_count <= 1:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Cannot delete the last admin account. Promote another user to admin first.'
+                })
+        
+        # Get all scans by this user
+        user_scans = Scan.query.filter_by(user_id=user.id).all()
+        
+        # Collect unique bag IDs from scans
+        scanned_bag_ids = set()
+        for scan in user_scans:
+            if scan.parent_bag_id:
+                scanned_bag_ids.add(scan.parent_bag_id)
+            if scan.child_bag_id:
+                scanned_bag_ids.add(scan.child_bag_id)
+        
+        # Get bag details
+        bags_to_delete = Bag.query.filter(Bag.id.in_(scanned_bag_ids)).all() if scanned_bag_ids else []
+        
+        # Count related data
+        parent_bags = sum(1 for bag in bags_to_delete if bag.type == BagType.PARENT.value)
+        child_bags = sum(1 for bag in bags_to_delete if bag.type == BagType.CHILD.value)
+        
+        # Check for bills that would be affected
+        affected_bills = []
+        if parent_bags > 0:
+            parent_bag_ids = [bag.id for bag in bags_to_delete if bag.type == BagType.PARENT.value]
+            bill_links = BillBag.query.filter(BillBag.bag_id.in_(parent_bag_ids)).all()
+            for link in bill_links:
+                if link.bill:
+                    affected_bills.append({
+                        'id': link.bill.id,
+                        'bill_id': link.bill.bill_id,
+                        'description': link.bill.description or 'No description'
+                    })
+        
+        # Count links that would be deleted
+        link_count = 0
+        if scanned_bag_ids:
+            link_count = Link.query.filter(
+                (Link.parent_bag_id.in_(scanned_bag_ids)) | 
+                (Link.child_bag_id.in_(scanned_bag_ids))
+            ).count()
+        
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role,
+                'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else 'Unknown'
+            },
+            'deletion_summary': {
+                'total_scans': len(user_scans),
+                'parent_bags': parent_bags,
+                'child_bags': child_bags,
+                'total_bags': len(bags_to_delete),
+                'links': link_count,
+                'affected_bills': len(affected_bills)
+            },
+            'affected_bills': affected_bills,
+            'bag_details': [
+                {
+                    'qr_id': bag.qr_id,
+                    'type': bag.type,
+                    'name': bag.name or 'Unnamed'
+                } for bag in bags_to_delete[:10]  # Show first 10 bags
+            ],
+            'more_bags': len(bags_to_delete) > 10
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error previewing user deletion: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@app.route('/admin/execute-comprehensive-deletion', methods=['POST'])
+@login_required
+@limiter.exempt
+def execute_comprehensive_deletion():
+    """Execute comprehensive deletion of user and all their scan data"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        confirmation = request.form.get('confirmation', '').strip()
+        
+        # Verify confirmation text
+        expected_confirmation = f"DELETE {username}"
+        if confirmation != expected_confirmation:
+            return jsonify({
+                'success': False, 
+                'message': f'Confirmation text must be exactly: {expected_confirmation}'
+            })
+        
+        # Find the user
+        user = User.query.filter_by(username=username, email=email).first()
+        
+        if not user:
+            return jsonify({'success': False, 'message': f'No user found with username "{username}" and email "{email}"'})
+        
+        if user.id == current_user.id:
+            return jsonify({'success': False, 'message': 'You cannot delete your own account'})
+        
+        # Check if this is the last admin
+        if user.role == UserRole.ADMIN.value:
+            admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+            if admin_count <= 1:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Cannot delete the last admin account.'
+                })
+        
+        # Log the comprehensive deletion attempt
+        log_audit('comprehensive_delete_attempt', 'user', user.id, {
+            'username': username,
+            'email': email,
+            'role': user.role,
+            'deleted_by': current_user.username
+        })
+        
+        # Step 1: Get all scans by this user
+        user_scans = Scan.query.filter_by(user_id=user.id).all()
+        scan_count = len(user_scans)
+        
+        # Step 2: Collect unique bag IDs from scans
+        bags_to_delete_ids = set()
+        for scan in user_scans:
+            if scan.parent_bag_id:
+                bags_to_delete_ids.add(scan.parent_bag_id)
+            if scan.child_bag_id:
+                bags_to_delete_ids.add(scan.child_bag_id)
+        
+        # Step 3: Delete all scans by this user
+        Scan.query.filter_by(user_id=user.id).delete()
+        
+        # Step 4: Delete links associated with these bags
+        if bags_to_delete_ids:
+            Link.query.filter(
+                (Link.parent_bag_id.in_(bags_to_delete_ids)) | 
+                (Link.child_bag_id.in_(bags_to_delete_ids))
+            ).delete(synchronize_session=False)
+            
+            # Step 5: Delete bill associations
+            BillBag.query.filter(BillBag.bag_id.in_(bags_to_delete_ids)).delete(synchronize_session=False)
+            
+            # Step 6: Delete the bags themselves
+            bags_deleted = Bag.query.filter(Bag.id.in_(bags_to_delete_ids)).delete(synchronize_session=False)
+        else:
+            bags_deleted = 0
+        
+        # Step 7: Delete the user
+        db.session.delete(user)
+        
+        # Commit all changes
+        db.session.commit()
+        
+        # Log successful deletion
+        log_audit('comprehensive_delete_success', 'user', user.id, {
+            'username': username,
+            'email': email,
+            'scans_deleted': scan_count,
+            'bags_deleted': bags_deleted,
+            'deleted_by': current_user.username
+        })
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully deleted user {username} and all associated data',
+            'stats': {
+                'scans_deleted': scan_count,
+                'bags_deleted': bags_deleted
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error in comprehensive deletion: {str(e)}")
+        
+        # Log failed deletion
+        log_audit('comprehensive_delete_failed', 'user', None, {
+            'username': username,
+            'email': email,
+            'error': str(e),
+            'deleted_by': current_user.username
+        })
+        
+        return jsonify({'success': False, 'message': f'Error during deletion: {str(e)}'})
+
 @app.route('/create_user', methods=['POST'])
 @login_required
 def create_user():
