@@ -2639,6 +2639,7 @@ def bag_management():
     date_to = request.args.get('date_to', '').strip()
     linked_status = request.args.get('linked_status', 'all')
     bill_status = request.args.get('bill_status', 'all')
+    user_filter = request.args.get('user_filter', 'all')  # New user filter parameter
     
     # Date validation
     date_error = None
@@ -2703,6 +2704,20 @@ def bag_management():
         # Area filter for dispatchers
         if dispatch_area:
             filters.append(Bag.dispatch_area == dispatch_area)
+        
+        # User filter - filter bags by who scanned them
+        if user_filter and user_filter != 'all':
+            try:
+                user_id = int(user_filter)
+                # Get bag IDs that were scanned by this user
+                scanned_bag_ids = db.session.query(
+                    func.coalesce(Scan.parent_bag_id, Scan.child_bag_id)
+                ).filter(
+                    Scan.user_id == user_id
+                ).distinct().subquery()
+                filters.append(Bag.id.in_(scanned_bag_ids))
+            except (ValueError, TypeError):
+                pass  # Invalid user_id, ignore filter
         
         # Apply all filters
         if filters:
@@ -2978,12 +2993,28 @@ def bag_management():
             'filtered_count': bags.total
         }
     
+    # Get list of users who have scanned bags for the filter dropdown
+    users_with_scans = db.session.query(
+        User.id,
+        User.username,
+        func.count(Scan.id).label('scan_count')
+    ).join(
+        Scan, User.id == Scan.user_id
+    ).group_by(
+        User.id, User.username
+    ).having(
+        func.count(Scan.id) > 0
+    ).order_by(
+        User.username
+    ).all()
+    
     filters = {
         'type': bag_type,
         'date_from': date_from,
         'date_to': date_to,
         'linked_status': linked_status,
-        'bill_status': bill_status
+        'bill_status': bill_status,
+        'user_filter': user_filter
     }
     
     return render_template('bag_management.html', 
@@ -2991,7 +3022,8 @@ def bag_management():
                          search_query=search_query, 
                          stats=stats, 
                          filters=filters,
-                         date_error=date_error)
+                         date_error=date_error,
+                         users_with_scans=users_with_scans)
 
 # Bill management routes
 @app.route('/bills')

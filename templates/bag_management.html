@@ -128,6 +128,19 @@
                         </select>
                     </div>
 
+                    <!-- User Filter -->
+                    <div class="col-6 col-md-2">
+                        <label for="user_filter" class="form-label">Scanned By</label>
+                        <select class="form-select form-select-sm" id="user_filter" name="user_filter">
+                            <option value="all" {% if filters.user_filter == 'all' %}selected{% endif %}>All Users</option>
+                            {% for user in users_with_scans %}
+                                <option value="{{ user.id }}" {% if filters.user_filter == user.id|string %}selected{% endif %}>
+                                    {{ user.username }} ({{ user.scan_count }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
                     <!-- Search Filter with QR Scanner -->
                     <div class="col-md-6">
                         <label for="search" class="form-label">Search QR Code</label>
@@ -322,7 +335,12 @@ function clearFilters() {
     document.getElementById('type').value = 'all';
     document.getElementById('linked_status').value = 'all';
     document.getElementById('bill_status').value = 'all';
-    document.getElementById('location').value = 'all';
+    document.getElementById('user_filter').value = 'all';
+    // Remove location if it exists (it's not in the current form)
+    const locationElement = document.getElementById('location');
+    if (locationElement) {
+        locationElement.value = 'all';
+    }
     form.submit();
 }
 
