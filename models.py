@@ -226,7 +226,7 @@ class Scan(db.Model):
     parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
     child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
     # location_id removed - no longer tracking locations
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     
     # Relationships with eager loading for performance
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('parent_scans', lazy='dynamic'))
@@ -248,11 +248,11 @@ class PromotionRequest(db.Model):
     """Model for handling admin promotion requests"""
     __tablename__ = 'promotionrequest'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     requested_by = db.relationship('User', foreign_keys=[user_id], backref='promotion_requests')
     reason = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), default=PromotionRequestStatus.PENDING.value)
-    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     processed_by = db.relationship('User', foreign_keys=[admin_id])
     admin_notes = db.Column(db.Text, nullable=True)
     requested_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -266,7 +266,7 @@ class AuditLog(db.Model):
     __tablename__ = 'audit_log'
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     action = db.Column(db.String(50), nullable=False)  # e.g., 'create_bill', 'link_bag', 'delete_bill'
     entity_type = db.Column(db.String(20), nullable=False)  # e.g., 'bill', 'bag', 'link'
     entity_id = db.Column(db.Integer, nullable=True)  # ID of the affected entity

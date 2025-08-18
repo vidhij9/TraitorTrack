@@ -455,7 +455,7 @@ def demote_user(user_id):
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 def delete_user(user_id):
-    """Delete user"""
+    """Delete user with proper handling of related records"""
     if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
@@ -464,14 +464,53 @@ def delete_user(user_id):
     try:
         if user.id == current_user.id:
             return jsonify({'success': False, 'message': 'Cannot delete yourself'})
-            
+        
+        username = user.username  # Store username before deletion
+        
+        # Check if user has any scans that would prevent deletion
+        scan_count = Scan.query.filter_by(user_id=user.id).count()
+        
+        # Log the deletion attempt for audit purposes
+        log_audit('delete_user_attempt', 'user', user.id, {
+            'username': username,
+            'role': user.role,
+            'scan_count': scan_count,
+            'deleted_by': current_user.username
+        })
+        
+        # Instead of hard deleting, we could set user as inactive or anonymize
+        # But for now, let's handle the foreign key constraints properly
+        
+        # Foreign key constraints will handle related records:
+        # - PromotionRequests where user is requester will be CASCADE deleted
+        # - PromotionRequests where user is processor will have admin_id SET NULL
+        # - Scans will have user_id SET NULL (preserving scan history)
+        # - AuditLogs will have user_id SET NULL (preserving audit trail)
+        
+        # Now delete the user
         db.session.delete(user)
         db.session.commit()
         
-        return jsonify({'success': True, 'message': f'User {user.username} deleted'})
+        # Log successful deletion
+        log_audit('delete_user_success', 'user', user_id, {
+            'username': username,
+            'deleted_by': current_user.username
+        })
+        
+        return jsonify({'success': True, 'message': f'User {username} has been deleted successfully'})
         
     except Exception as e:
         db.session.rollback()
+        import logging
+        logging.error(f"Error deleting user {user_id}: {str(e)}")
+        
+        # Log failed deletion
+        log_audit('delete_user_failed', 'user', user_id, {
+            'username': user.username if user else 'Unknown',
+            'error': str(e),
+            'deleted_by': current_user.username
+        })
+        
         return jsonify({'success': False, 'message': f'Error deleting user: {str(e)}'})
 
 @app.route('/create_user', methods=['POST'])
