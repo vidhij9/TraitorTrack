@@ -222,7 +222,13 @@ function initializeScanner() {
                 }
             })
             .then(data => {
-                if (data && !data.success) {
+                if (data && data.success && data.redirect) {
+                    // Successful scan with redirect URL - go to child scanning
+                    console.log('Successful parent scan, redirecting to:', data.redirect);
+                    showToast(`✅ Parent bag ${qrCode} processed! Moving to child scanning...`, 'success');
+                    window.location.href = data.redirect;
+                    return;
+                } else if (data && !data.success) {
                     // Show popup for invalid QR format
                     if (data.show_popup || data.message.includes('Invalid QR format')) {
                         // Create and show a Bootstrap modal for invalid format
