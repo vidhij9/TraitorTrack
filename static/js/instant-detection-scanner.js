@@ -633,6 +633,12 @@ class InstantDetectionScanner {
         this.updateStatus('Scanner stopped', '#9E9E9E');
     }
     
+    start() {
+        if (!this.scanActive) {
+            this.startCamera();
+        }
+    }
+    
     restart() {
         this.stop();
         this.init();

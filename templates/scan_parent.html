@@ -206,13 +206,13 @@ function initializeScanner() {
             // Show processing message
             showToast(`Submitting parent bag: ${qrCode}...`, 'info');
             
-            // Submit via AJAX for better performance
-            fetch('/process_parent_scan', {
+            // Submit via AJAX for better performance - use the correct parent scan endpoint
+            fetch('/scan/parent', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token=${encodeURIComponent(submitForm.querySelector('[name="csrf_token"]').value)}`
+                body: `qr_id=${encodeURIComponent(qrCode)}&csrf_token=${encodeURIComponent(submitForm.querySelector('[name="csrf_token"]').value)}`
             })
             .then(response => {
                 if (response.redirected) {
@@ -265,9 +265,14 @@ function initializeScanner() {
                         const modal = new bootstrap.Modal(document.getElementById('invalidQRModal'));
                         modal.show();
                         
-                        // Clean up after modal is hidden
+                        // Clean up after modal is hidden and restart scanner
                         document.getElementById('invalidQRModal').addEventListener('hidden.bs.modal', function () {
                             this.remove();
+                            // Restart scanner for another attempt
+                            if (scanner) {
+                                scanner.start();
+                            }
+                            isProcessing = false;
                         });
                     } else {
                         showToast(data.message || 'Error processing parent bag', 'danger');
@@ -301,7 +306,9 @@ function initializeScanner() {
         
         // Create new scanner instance with the same container ID as bills
         scanner = new InstantDetectionScanner('parent-scanner-container', onScanSuccess);
-        scanner.start();
+        
+        console.log('Scanner created with onScanSuccess callback');
+        // InstantDetectionScanner auto-starts, no need to call start() manually
         
         // Update button states
         startBtn.disabled = true;

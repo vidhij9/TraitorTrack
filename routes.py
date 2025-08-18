@@ -1886,6 +1886,10 @@ def child_lookup():
     elif request.method == 'POST':
         # Handle direct form submission without WTForms validation
         qr_id = sanitize_input(request.form.get('qr_id', '')).strip()
+        
+        # Check if this is an AJAX request from scanner
+        is_ajax = request.headers.get('Content-Type', '').startswith('application/json') or request.is_json
+        app.logger.info(f'Lookup POST request - QR: {qr_id}, AJAX: {is_ajax}')
     else:
         qr_id = None
     

@@ -449,8 +449,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Use Instant Detection Scanner for Google Lens-like performance (same as scan parent page)
-            lookupScanner = new InstantDetectionScanner('scanner-container');
-            lookupScanner.onScan = handleLookupScanSuccess;
+            lookupScanner = new InstantDetectionScanner('scanner-container', handleLookupScanSuccess);
             window.lookupScanner = lookupScanner; // Store globally for cleanup
             
             // Monitor scanner status
