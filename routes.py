@@ -1540,53 +1540,60 @@ def process_child_scan_fast():
         if qr_id == parent_qr:
             return jsonify({'success': False, 'message': 'Cannot link to itself'})
         
-        # FIX: Use transaction with locking for child scanning
-        # Single optimized database call with lock
-        parent_bag = Bag.query.with_for_update().filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+        # OPTIMIZED: Single query with bulk operations
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
         if not parent_bag:
             return jsonify({'success': False, 'message': 'Parent bag not found'})
         
-        # Check/create child bag with lock
-        child_bag = Bag.query.with_for_update().filter_by(qr_id=qr_id).first()
+        # Check current count and enforce 30-bag limit
+        current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        if current_count >= 30:
+            return jsonify({'success': False, 'message': 'Maximum 30 child bags reached!'})
+        
+        # Check/create child bag
+        child_bag = Bag.query.filter_by(qr_id=qr_id).first()
         if child_bag:
             if child_bag.type == BagType.PARENT.value:
-                return jsonify({'success': False, 'message': f'{qr_id} is already a parent bag'})
-            # DUPLICATE PREVENTION: Check if already linked to any parent with lock
-            existing_link = Link.query.with_for_update().filter_by(child_bag_id=child_bag.id).first()
+                return jsonify({'success': False, 'message': f'DUPLICATE: {qr_id} is already a parent bag'})
+            # STRICT DUPLICATE PREVENTION: Check if already linked
+            existing_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
             if existing_link:
-                if existing_link.parent_bag_id == parent_bag.id:
-                    return jsonify({'success': False, 'message': f'Already linked to current parent'})
-                else:
-                    # Get the other parent bag details
-                    other_parent_bag = db.session.get(Bag, existing_link.parent_bag_id)
-                    parent_name = other_parent_bag.qr_id[:15] if other_parent_bag else "unknown parent"
-                    return jsonify({'success': False, 'message': f'Already linked to {parent_name}...'})
+                return jsonify({'success': False, 'message': f'DUPLICATE: {qr_id} already linked to parent'})
         else:
             # Create new child bag
-            child_bag = query_optimizer.create_bag_optimized(
+            child_bag = Bag(
                 qr_id=qr_id,
-                bag_type=BagType.CHILD.value,
+                type=BagType.CHILD.value,
                 dispatch_area=parent_bag.dispatch_area
             )
+            db.session.add(child_bag)
+            db.session.flush()
         
         # Create link and scan record
-        query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
-        query_optimizer.create_scan_optimized(current_user.id, child_bag_id=child_bag.id)
+        link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+        scan = Scan(user_id=current_user.id, child_bag_id=child_bag.id)
+        db.session.add(link)
+        db.session.add(scan)
         
-        # Fast commit
+        # Single fast commit
         db.session.commit()
+        
+        # Return current count after linking
+        new_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
         
         return jsonify({
             'success': True,
             'child_qr': qr_id,
             'parent_qr': parent_qr,
-            'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
-            'message': f'{qr_id} linked!'
+            'child_count': new_count,
+            'message': f'✓ {qr_id} linked! ({new_count}/30)'
         })
         
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Fast child scan error: {str(e)}')
+        if 'duplicate' in str(e).lower():
+            return jsonify({'success': False, 'message': 'DUPLICATE: Already scanned'})
         return jsonify({'success': False, 'message': 'Error processing scan'})
 
 @app.route('/scan/child', methods=['GET', 'POST'])

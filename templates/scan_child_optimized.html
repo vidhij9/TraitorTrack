@@ -147,16 +147,15 @@ let scannedCount = {{ scanned_child_count }};
 const maxBags = 30;
 const parentQr = '{{ parent_qr }}';
 
-// Optimized request function with retry logic
+// ULTRA FAST request with optimized endpoint and count sync
 async function sendRequest(qrCode) {
-    const formData = new FormData();
-    formData.append('qr_code', qrCode);
-    formData.append('csrf_token', document.querySelector('[name="csrf_token"]').value);
-    
     try {
-        const response = await fetch('/process_child_scan', {
+        const response = await fetch('/process_child_scan_fast', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ qr_code: qrCode })
         });
         
         if (!response.ok) {
@@ -165,8 +164,8 @@ async function sendRequest(qrCode) {
         
         const result = await response.json();
         
-        // Update UI with real-time count only for new successful links
-        if (result.success && !result.message.includes('already')) {
+        // FIXED: Update count from server response for consistency
+        if (result.success) {
             scannedCount = result.child_count || (scannedCount + 1);
             updateCounters();
             addChildToList(qrCode);
@@ -175,42 +174,25 @@ async function sendRequest(qrCode) {
         return result;
     } catch (error) {
         console.error('Request failed:', error);
-        // Retry once after 500ms
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        try {
-            const response = await fetch('/process_child_scan', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
-            
-            if (result.success && !result.message.includes('already')) {
-                scannedCount = result.child_count || (scannedCount + 1);
-                updateCounters();
-                addChildToList(qrCode);
-            }
-            
-            return result;
-        } catch (retryError) {
-            console.error('Retry failed:', retryError);
-            return { success: false, message: 'Network error. Please try manual entry.' };
-        }
+        return { success: false, message: 'Network error. Please try manual entry.' };
     }
 }
 
 // Update counters in real-time
 function updateCounters() {
     // Update badge in parent info
-    document.querySelector('.badge.bg-light').textContent = `${scannedCount}/30`;
+    const parentBadge = document.querySelector('.badge.bg-light');
+    if (parentBadge) parentBadge.textContent = `${scannedCount}/30`;
     
     // Update scanner header badge
-    document.querySelector('.badge.bg-warning').textContent = `${30 - scannedCount} remaining`;
+    const scannerBadge = document.querySelector('.badge.bg-warning');
+    if (scannerBadge) scannerBadge.textContent = `${30 - scannedCount} remaining`;
     
     // Update scanned bags list header
-    document.querySelector('.card-header.bg-info h6').innerHTML = `
-        <i class="fas fa-list me-2"></i>Scanned Child Bags (${scannedCount}/30)
-    `;
+    const listHeader = document.querySelector('.card-header.bg-info h6');
+    if (listHeader) {
+        listHeader.innerHTML = `<i class="fas fa-list me-2"></i>Scanned Child Bags (${scannedCount}/30)`;
+    }
     
     // Update progress bar
     const progressBar = document.querySelector('.progress-bar');
