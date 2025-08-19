@@ -1153,13 +1153,13 @@ def index():
         logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     
-    # Redirect to analysis dashboard for better experience
-    return redirect(url_for('dashboard_analysis'))
+    # Redirect to interactive dashboard for better experience
+    return redirect(url_for('dashboard_interactive'))
 
-@app.route('/dashboard_analysis')
+@app.route('/dashboard_interactive')
 @login_required
 @limiter.exempt
-def dashboard_analysis():
+def dashboard_interactive():
     """Enhanced colorful dashboard with role-based metrics"""
     try:
         # Get basic stats for the dashboard
@@ -1247,7 +1247,7 @@ def dashboard_analysis():
                 'details': f"{bag.type if bag else 'Unknown'} - {bag.qr_id if bag else 'N/A'}"
             })
         
-        return render_template('dashboard_colorful.html',
+        return render_template('dashboard_colorful_simple.html',
                              user_stats=user_stats,
                              bag_stats=bag_stats,
                              scan_stats=scan_stats,
@@ -1257,7 +1257,7 @@ def dashboard_analysis():
     except Exception as e:
         app.logger.error(f"Dashboard error: {str(e)}")
         # Fallback with empty stats
-        return render_template('dashboard_colorful.html',
+        return render_template('dashboard_colorful_simple.html',
                              user_stats={},
                              bag_stats={'total_bags': 0, 'parent_bags': 0, 'child_bags': 0, 'unlinked': 0},
                              scan_stats={'today': 0, 'hourly_rate': 0, 'peak_hour': '--'},
@@ -3593,17 +3593,17 @@ def process_bill_parent_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'QR code missing.'})
     
-    # FIX: Use database transaction with row locking to prevent race conditions
+    # Simplified transaction without complex locking
     try:
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
         
-        # Start transaction with FOR UPDATE lock on bill
-        bill = Bill.query.with_for_update().get_or_404(bill_id)
-        qr_id = sanitize_input(qr_code).strip()  # Don't force uppercase to preserve original format
+        # Get bill without locking first
+        bill = Bill.query.get_or_404(bill_id)
+        qr_id = sanitize_input(qr_code).strip()
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
-        # FIX: Enhanced validation for QR codes - strict SB##### format only
+        # Strict SB##### format validation
         import re
         if not re.match(r'^SB\d{5}$', qr_id):
             return jsonify({
@@ -3611,11 +3611,9 @@ def process_bill_parent_scan():
                 'message': f'❌ Invalid QR format! Parent bags must be exactly "SB" followed by 5 digits (e.g., SB00860, SB00736). You scanned: {qr_id}',
                 'show_popup': True
             })
-        if qr_id.startswith('http'):
-            return jsonify({'success': False, 'message': 'Invalid QR code format (URLs not allowed)'})
         
-        # Direct parent bag lookup with lock
-        parent_bag = Bag.query.with_for_update().filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        # Simple parent bag lookup
+        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
         
         if not parent_bag:
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
@@ -3632,52 +3630,26 @@ def process_bill_parent_scan():
         # Log bill details for debugging
         app.logger.info(f'Bill ID: {bill.id}, Bill parent_bag_count: {bill.parent_bag_count}')
         
-        # FIX: Use SELECT FOR UPDATE to lock existing links during check
-        existing_links = BillBag.query.with_for_update().filter(
-            (BillBag.bill_id == bill.id) | (BillBag.bag_id == parent_bag.id)
-        ).all()
+        # Simple duplicate check without complex locking
+        existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
+        if existing_link:
+            return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill.'})
         
-        app.logger.info(f'Found {len(existing_links)} existing links')
+        # Check if bag is linked to another bill
+        other_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
+        if other_link and other_link.bill_id != bill.id:
+            other_bill = Bill.query.get(other_link.bill_id)
+            other_bill_id = other_bill.bill_id if other_bill else other_link.bill_id
+            return jsonify({'success': False, 'message': f'⚠️ Parent bag "{qr_id}" is already linked to bill "{other_bill_id}".'})
         
-        # Check for duplicates and capacity in one pass
-        bill_bag_count = 0
-        already_linked_to_bill = False
-        linked_to_other_bill = None
+        # Count current links for capacity check
+        bill_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
         
-        app.logger.info(f'Processing {len(existing_links)} existing links...')
-        for i, link in enumerate(existing_links):
-            app.logger.info(f'Link {i}: bill_id={link.bill_id}, bag_id={link.bag_id}, target_bill={bill.id}, target_bag={parent_bag.id}')
-            if link.bill_id == bill.id:
-                bill_bag_count += 1
-                app.logger.info(f'Link {i}: Counting towards bill {bill.id}, new count: {bill_bag_count}')
-                if link.bag_id == parent_bag.id:
-                    already_linked_to_bill = True
-                    app.logger.info(f'Link {i}: Already linked to this bill!')
-            elif link.bag_id == parent_bag.id:
-                linked_to_other_bill = link.bill_id
-                app.logger.info(f'Link {i}: Already linked to different bill {linked_to_other_bill}!')
+        # Check capacity (allow linking to completed bills)
+        if bill_bag_count >= bill.parent_bag_count and bill.status != 'completed':
+            return jsonify({'success': False, 'message': f'⚠️ Bill is at capacity ({bill.parent_bag_count} bags). Complete it first to add more.'})
         
-        app.logger.info(f'About to check conditions...')
-        
-        if already_linked_to_bill:
-            app.logger.info(f'Returning error: already linked to this bill')
-            db.session.rollback()
-            return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill. It was scanned before.'})
-        
-        if linked_to_other_bill:
-            other_bill = Bill.query.get(linked_to_other_bill)
-            other_bill_id = other_bill.bill_id if other_bill else linked_to_other_bill
-            app.logger.info(f'Returning error: already linked to bill {linked_to_other_bill}')
-            db.session.rollback()
-            return jsonify({'success': False, 'message': f'⚠️ Parent bag "{qr_id}" is already linked to different bill "{other_bill_id}". Remove it from that bill first.'})
-        
-        app.logger.info(f'Final results - Bill bag count: {bill_bag_count}, Already linked: {already_linked_to_bill}, Other bill: {linked_to_other_bill}')
-        
-        # FIX: Recheck capacity with current bill state
-        if bill_bag_count >= bill.parent_bag_count:
-            app.logger.info(f'Returning error: bill capacity exceeded {bill_bag_count} >= {bill.parent_bag_count}')
-            db.session.rollback()
-            return jsonify({'success': False, 'message': f'Bill already has maximum {bill.parent_bag_count} parent bags.'})
+        app.logger.info(f'Bill bag count: {bill_bag_count}, capacity: {bill.parent_bag_count}')
         
         # Create bill-bag link
         app.logger.info(f'Creating new bill-bag link...')
@@ -3685,10 +3657,17 @@ def process_bill_parent_scan():
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
-        # FIX: Add audit log entry
+        # Create scan record
+        scan = Scan()
+        scan.user_id = current_user.id
+        scan.parent_bag_id = parent_bag.id
+        scan.timestamp = datetime.now()
+        
+        # Add audit log entry
         app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
         
         db.session.add(bill_bag)
+        db.session.add(scan)
         db.session.commit()
         app.logger.info(f'Database commit successful')
         
