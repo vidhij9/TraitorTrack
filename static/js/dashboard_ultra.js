@@ -134,16 +134,11 @@
                         <td>${type}</td>
                         <td class="text-truncate" style="max-width: 80px;">${username}</td>
                         <td>${time}</td>
-                        <td>
-                            <button class="btn btn-link btn-sm p-0" onclick="viewScanDetails('${qrId}')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </td>
                     </tr>
                 `;
             }).join('');
             
-            tbody.innerHTML = rows || '<tr><td colspan="5" class="text-center">No recent scans</td></tr>';
+            tbody.innerHTML = rows || '<tr><td colspan="4" class="text-center">No recent scans</td></tr>';
             
         } catch (error) {
             console.error('Failed to update recent scans:', error);
@@ -156,7 +151,7 @@
             
             const tbody = document.querySelector('#recent-scans-table tbody');
             if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load scans</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Failed to load scans</td></tr>';
             }
         }
     }
@@ -182,11 +177,6 @@
                     <td>${type}</td>
                     <td class="text-truncate" style="max-width: 80px;">${username}</td>
                     <td>${time}</td>
-                    <td>
-                        <button class="btn btn-link btn-sm p-0" onclick="viewScanDetails('${qrId}')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </td>
                 </tr>
             `;
         }).join('');

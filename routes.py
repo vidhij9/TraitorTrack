@@ -1247,7 +1247,7 @@ def dashboard_interactive():
                 'details': f"{bag.type if bag else 'Unknown'} - {bag.qr_id if bag else 'N/A'}"
             })
         
-        return render_template('dashboard_colorful_simple.html',
+        return render_template('dashboard.html',
                              user_stats=user_stats,
                              bag_stats=bag_stats,
                              scan_stats=scan_stats,
@@ -1257,7 +1257,7 @@ def dashboard_interactive():
     except Exception as e:
         app.logger.error(f"Dashboard error: {str(e)}")
         # Fallback with empty stats
-        return render_template('dashboard_colorful_simple.html',
+        return render_template('dashboard.html',
                              user_stats={},
                              bag_stats={'total_bags': 0, 'parent_bags': 0, 'child_bags': 0, 'unlinked': 0},
                              scan_stats={'today': 0, 'hourly_rate': 0, 'peak_hour': '--'},
