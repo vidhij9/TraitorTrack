@@ -92,11 +92,11 @@
                     <dt class="col-sm-5">QR ID:</dt>
                     <dd class="col-sm-7"><code>{{ bag.qr_id }}</code></dd>
                     
-                    {% if not is_parent and bag.parent_bag %}
+                    {% if not is_parent and parent_bag %}
                     <dt class="col-sm-5">Parent Bag:</dt>
                     <dd class="col-sm-7">
-                        <a href="{{ url_for('bag_details', qr_id=bag.parent_bag.qr_id|urlencode) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-box me-1"></i><code>{{ bag.parent_bag.qr_id }}</code>
+                        <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-box me-1"></i><code>{{ parent_bag.qr_id }}</code>
                         </a>
                     </dd>
                     {% endif %}

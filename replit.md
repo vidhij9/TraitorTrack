@@ -21,6 +21,7 @@ A cutting-edge supply chain traceability platform revolutionizing agricultural b
 - **Parent Bag Scanning**: Added better error handling and debug logging for parent bag scanning
 - **Dashboard Cleanup**: Removed all extra dashboard templates, keeping only simple dashboard.html
 - **UI Simplification**: Removed view buttons from recent scans table for cleaner interface
+- **Bag Detail Page Fix**: Fixed SQLAlchemy lazy loading issue causing 500 error in production by using passed variables instead of model properties
 
 ## Project Architecture
 
