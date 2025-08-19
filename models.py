@@ -110,6 +110,7 @@ class Bag(db.Model):
     name = db.Column(db.String(100), nullable=True)
     child_count = db.Column(db.Integer, nullable=True)  # For parent bags
     parent_id = db.Column(db.Integer, nullable=True)  # For child bags
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)  # Owner/scanner of the bag
     dispatch_area = db.Column(db.String(30), nullable=True)  # Area for area-based access control
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -121,12 +122,17 @@ class Bag(db.Model):
         db.Index('idx_bag_type_created', 'type', 'created_at'),
         db.Index('idx_bag_name_search', 'name'),
         db.Index('idx_bag_parent_id', 'parent_id'),
+        db.Index('idx_bag_user_id', 'user_id'),  # Index for user ownership queries
         # Ultra-fast filtering indexes for bag management page
         db.Index('idx_bag_dispatch_area', 'dispatch_area'),
         db.Index('idx_bag_type_dispatch', 'type', 'dispatch_area'),
         # Composite indexes for common filter combinations
         db.Index('idx_bag_type_area_created', 'type', 'dispatch_area', 'created_at'),
+        db.Index('idx_bag_user_type', 'user_id', 'type'),  # For user's bags by type
     )
+    
+    # Relationship to User model
+    owner = db.relationship('User', backref=db.backref('owned_bags', lazy='dynamic'))
     
     @property
     def last_scan(self):

@@ -1648,7 +1648,7 @@ def scan_parent():
 @app.route('/process_parent_scan', methods=['GET', 'POST'])
 @login_required
 def process_parent_scan():
-    """Process parent bag scan from ultra scanner"""
+    """Process parent bag scan - Optimized for high concurrency"""
     # Handle GET request - redirect to scan_parent
     if request.method == 'GET':
         return redirect(url_for('scan_parent'))
@@ -1656,15 +1656,7 @@ def process_parent_scan():
     try:
         qr_code = request.form.get('qr_code', '').strip()
         
-        # Comprehensive logging
-        app.logger.info(f'PARENT SCAN: Processing request from user {current_user.username}')
-        app.logger.info(f'PARENT SCAN: Raw QR code received: {repr(qr_code)}')
-        app.logger.info(f'PARENT SCAN: QR code length: {len(qr_code) if qr_code else 0}')
-        app.logger.info(f'PARENT SCAN: Form data keys: {list(request.form.keys())}')
-        app.logger.info(f'PARENT SCAN: CSRF token present: {"csrf_token" in request.form}')
-        
         if not qr_code:
-            app.logger.warning('PARENT SCAN: No QR code provided in form')
             flash('No QR code provided.', 'error')
             return redirect(url_for('scan_parent'))
         
@@ -1674,13 +1666,10 @@ def process_parent_scan():
             flash(f'❌ Invalid QR format! Parent bags must start with "SB" followed by exactly 5 digits (e.g., SB00860, SB00736). You scanned: {qr_code}', 'error')
             return redirect(url_for('scan_parent'))
         
-        # Create or get parent bag
-        app.logger.info(f'PARENT SCAN: Searching for existing bag with QR code: {qr_code}')
-        parent_bag = Bag.query.filter_by(qr_id=qr_code).first()
+        # Use query_optimizer for better performance
+        parent_bag = query_optimizer.get_bag_by_qr(qr_code, BagType.PARENT.value)
         
         if not parent_bag:
-            app.logger.info(f'PARENT SCAN: Creating new parent bag for QR code: {qr_code}')
-            # FIX: Create new parent bag with validation
             # Validate QR code length before creating
             if len(qr_code) > 255:
                 flash(f'QR code is too long (maximum 255 characters).', 'error')
@@ -1689,22 +1678,33 @@ def process_parent_scan():
             parent_bag = Bag()
             parent_bag.qr_id = qr_code
             parent_bag.type = BagType.PARENT.value
+            parent_bag.user_id = current_user.id  # Associate parent bag with user
             parent_bag.dispatch_area = current_user.dispatch_area or 'Ultra Scanner Area'
             db.session.add(parent_bag)
             app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) created new parent bag {qr_code}')
         else:
-            # CRITICAL: Check if bag is already a child - cannot be converted to parent
+            # Check if bag is already a child - cannot be converted to parent
             if parent_bag.type == BagType.CHILD.value:
                 flash(f'QR code {qr_code} is already registered as a child bag. One bag can only have one role - either parent OR child, never both.', 'error')
                 return redirect(url_for('scan_parent'))
             elif parent_bag.type != BagType.PARENT.value:
-                # Handle unknown bag types (should not happen in normal operation)
+                # Handle unknown bag types
                 flash(f'QR code {qr_code} has an invalid bag type. Please contact support.', 'error')
                 return redirect(url_for('scan_parent'))
+            
+            # Update user_id if not set (for existing parent bags)
+            if not parent_bag.user_id:
+                parent_bag.user_id = current_user.id
         
+        # Create scan record for parent bag
+        scan = Scan(
+            parent_bag_id=parent_bag.id,
+            user_id=current_user.id
+        )
+        db.session.add(scan)
         db.session.commit()
         
-        # FIX: Store in session with timestamp for validation
+        # Store minimal session data
         session['current_parent_qr'] = qr_code
         session['parent_scan_time'] = datetime.utcnow().isoformat()
         session['last_scan'] = {
@@ -1712,25 +1712,21 @@ def process_parent_scan():
             'qr_id': qr_code,
             'timestamp': datetime.utcnow().isoformat()
         }
-        session.permanent = True  # Ensure session persists
-        
-        app.logger.info(f'PARENT SCAN: Successfully processed parent bag {qr_code}')
-        app.logger.info(f'PARENT SCAN: Session data - current_parent_qr: {session.get("current_parent_qr")}')
-        app.logger.info(f'PARENT SCAN: Redirecting to scan_child page')
+        session.permanent = True
         
         flash(f'Parent bag {qr_code} processed successfully!', 'success')
         return redirect(url_for('scan_child'))
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f'Process parent scan error: {str(e)}')
+        app.logger.error(f'Parent scan error: {str(e)}', exc_info=True)
         flash('Error processing parent scan. Please try again.', 'error')
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan', methods=['GET', 'POST'])
 @login_required
 def process_child_scan():
-    """Ultra-optimized child bag processing with space and time efficiency"""
+    """Optimized child bag processing for high concurrency"""
     # Redirect GET requests to scan_child page
     if request.method == 'GET':
         return redirect(url_for('scan_child'))
@@ -1738,23 +1734,14 @@ def process_child_scan():
     try:
         qr_code = request.form.get('qr_code', '').strip()
         
-        # Comprehensive logging for child scan processing
-        app.logger.info(f'CHILD SCAN: Processing request from user {current_user.username}')
-        app.logger.info(f'CHILD SCAN: Raw QR code received: {repr(qr_code)}')
-        app.logger.info(f'CHILD SCAN: QR code length: {len(qr_code) if qr_code else 0}')
-        app.logger.info(f'CHILD SCAN: Form data keys: {list(request.form.keys())}')
-        app.logger.info(f'CHILD SCAN: Session current_parent_qr: {session.get("current_parent_qr")}')
-        
         if not qr_code:
-            app.logger.warning('CHILD SCAN: No QR code provided in form')
             return jsonify({'success': False, 'message': 'No QR code provided'})
         
         # Validate QR code format
         if len(qr_code) < 3:
             return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
         
-        # FIX: Improved session handling with fallback
-        # Get parent from session with multiple fallback options
+        # Get parent from session with fallback
         parent_qr = session.get('current_parent_qr')
         if not parent_qr:
             # Try to get from last_scan as fallback
@@ -1769,20 +1756,19 @@ def process_child_scan():
         if qr_code == parent_qr:
             return jsonify({'success': False, 'message': f'Cannot link QR code {qr_code} to itself. Parent and child must be different QR codes.'})
         
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+        # Use query_optimizer for better performance
+        parent_bag = query_optimizer.get_bag_by_qr(parent_qr, BagType.PARENT.value)
         if not parent_bag:
             return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
         
         # Check if we've reached the 30 bags limit
         current_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-        app.logger.info(f'CHILD SCAN: Parent {parent_qr} has {current_child_count} child bags')
         
         if current_child_count >= 30:
-            app.logger.warning(f'CHILD SCAN: 30 bag limit reached for parent {parent_qr}')
             return jsonify({'success': False, 'message': 'Parent bag is full! Maximum 30 child bags allowed per parent.'})
         
-        # Check if bag already exists and validate its type
-        existing_bag = Bag.query.filter_by(qr_id=qr_code).first()
+        # Use query_optimizer to check if bag already exists
+        existing_bag = query_optimizer.get_bag_by_qr(qr_code)
         
         if existing_bag:
             # CRITICAL: Prevent parent bags from being used as children
@@ -1799,8 +1785,7 @@ def process_child_scan():
                 existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
                 if existing_link:
                     if existing_link.parent_bag_id == parent_bag.id:
-                        # CRITICAL: Prevent duplicates - DO NOT allow re-linking the same child
-                        app.logger.warning(f'CHILD SCAN: Duplicate attempt - Bag {qr_code} already linked to parent {parent_qr}')
+                        # Prevent duplicates - DO NOT allow re-linking the same child
                         return jsonify({
                             'success': False,
                             'message': f'DUPLICATE: Child bag {qr_code} is already linked to this parent! Each child bag can only be scanned once.'
@@ -1822,45 +1807,37 @@ def process_child_scan():
                     'message': f'QR code {qr_code} has an invalid bag type ({existing_bag.type}). Please contact support.'
                 })
         else:
-            # Create new child bag
+            # Create new child bag with user association
             child_bag = Bag()
             child_bag.qr_id = qr_code
             child_bag.type = BagType.CHILD.value
+            child_bag.user_id = current_user.id  # Associate child bag with user
             child_bag.dispatch_area = parent_bag.dispatch_area
             db.session.add(child_bag)
             db.session.flush()  # Get the ID
         
-        # Create link
-        link = Link()
-        link.parent_bag_id = parent_bag.id
-        link.child_bag_id = child_bag.id
-        db.session.add(link)
-        
-        # Create scan record
-        scan = Scan()
-        scan.user_id = current_user.id
-        scan.child_bag_id = child_bag.id
-        db.session.add(scan)
-        
+        # Create link and scan record in batch
+        link = Link(
+            parent_bag_id=parent_bag.id,
+            child_bag_id=child_bag.id
+        )
+        scan = Scan(
+            user_id=current_user.id,
+            child_bag_id=child_bag.id
+        )
+        db.session.add_all([link, scan])
         db.session.commit()
         
-        # Get updated count
-        updated_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        # Use cached count + 1 instead of querying again
+        updated_count = current_child_count + 1
         
-        app.logger.info(f'CHILD SCAN SUCCESS: Linked {qr_code} to {parent_qr}')
-        app.logger.info(f'CHILD SCAN SUCCESS: Current count {updated_count}/30')
-        app.logger.info(f'CHILD SCAN SUCCESS: Returning JSON response')
-        
-        response_data = {
+        return jsonify({
             'success': True,
             'message': f'Child bag {qr_code} linked successfully! ({updated_count}/30)',
             'child_qr': qr_code,
             'parent_qr': parent_qr,
             'child_count': updated_count
-        }
-        app.logger.info(f'CHILD SCAN SUCCESS: Response data: {response_data}')
-        
-        return jsonify(response_data)
+        })
         
     except ValueError as e:
         # Handle validation errors from query_optimizer
@@ -1869,9 +1846,7 @@ def process_child_scan():
         return jsonify({'success': False, 'message': str(e)})
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f'CHILD SCAN ERROR: Exception occurred: {str(e)}')
-        app.logger.error(f'CHILD SCAN ERROR: Exception type: {type(e).__name__}')
-        app.logger.error(f'CHILD SCAN ERROR: Full traceback:', exc_info=True)
+        app.logger.error(f'Child scan error: {str(e)}', exc_info=True)
         
         # Check for common database errors
         if 'duplicate key' in str(e).lower():
@@ -1879,7 +1854,6 @@ def process_child_scan():
             existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id if 'child_bag' in locals() else None).first()
             if existing_link:
                 current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-                app.logger.info(f'CHILD SCAN: Duplicate key but link exists, returning success with count {current_count}')
                 return jsonify({
                     'success': True,
                     'child_qr': qr_code,
