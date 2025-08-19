@@ -313,6 +313,9 @@ function initializeScanner() {
         const now = Date.now();
         console.log('Bill parent scan detected:', qrCode);
         
+        // Show immediate visual feedback
+        showToast('Processing scan...', 'info', 1000);
+        
         // Scanner automatically handles duplicate prevention
         
         // Check for duplicate scan
@@ -345,6 +348,7 @@ function initializeScanner() {
         
         // Process the scan
         try {
+            console.log('Sending scan request for:', qrCode);
             const response = await fetch('/process_bill_parent_scan', {
                 method: 'POST',
                 headers: {
@@ -354,7 +358,19 @@ function initializeScanner() {
                 body: `bill_id={{ bill.id }}&qr_code=${encodeURIComponent(qrCode)}`
             });
             
-            const data = await response.json();
+            console.log('Response status:', response.status);
+            
+            let data;
+            try {
+                data = await response.json();
+                console.log('Response data:', data);
+            } catch (jsonError) {
+                console.error('JSON parse error:', jsonError);
+                const responseText = await response.text();
+                console.error('Response text:', responseText);
+                showToast('Invalid server response', 'danger', 3000);
+                return;
+            }
             
             if (data.success) {
                 // Add to scanned set
@@ -402,7 +418,7 @@ function initializeScanner() {
             }
         } catch (error) {
             console.error('Error processing scan:', error);
-            showToast('Network error. Please try again.', 'danger', 3000);
+            showToast(`Error: ${error.message || 'Network error'}`, 'danger', 3000);
             
             // Resume scanning for retry quickly
             if (scanner && scanner.resumeScanning) {
@@ -487,7 +503,8 @@ function initializeScanner() {
                 console.log('Creating InstantDetectionScanner for bill parent scanning...');
                 scanner = new InstantDetectionScanner('bill-scanner-container');
                 scanner.onScan = onScanSuccess;
-                console.log('Bill InstantDetectionScanner initialized');
+                scanner.onSuccess = onScanSuccess; // Set both for compatibility
+                console.log('Bill InstantDetectionScanner initialized with callbacks');
             }
             
             // InstantDetectionScanner starts automatically

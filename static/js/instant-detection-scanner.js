@@ -413,15 +413,18 @@ class InstantDetectionScanner {
         this.updateStatus('QR code detected!', '#4CAF50');
         
         // Trigger the success callback if provided
-        if (this.onSuccess && typeof this.onSuccess === 'function') {
-            console.log('Calling success callback with data:', data);
+        // Support both onSuccess and onScan for compatibility
+        const callback = this.onScan || this.onSuccess;
+        
+        if (callback && typeof callback === 'function') {
+            console.log('Calling scan callback with data:', data);
             try {
-                this.onSuccess(data);
+                callback(data);
             } catch (error) {
-                console.error('Error calling success callback:', error);
+                console.error('Error calling scan callback:', error);
             }
         } else {
-            console.warn('No success callback provided or callback is not a function');
+            console.warn('No scan callback provided (checked onScan and onSuccess)');
         }
         
         // Auto-reset status after short delay

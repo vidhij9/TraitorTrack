@@ -3,7 +3,7 @@
 ## Overview
 A cutting-edge supply chain traceability platform revolutionizing agricultural bag tracking through advanced QR scanning technologies with enhanced security, performance optimization, and comprehensive user management.
 
-## Recent Changes (August 18, 2025)
+## Recent Changes (August 19, 2025)
 - **Database Pool Optimization**: Increased connection pool from 15/25 to 50/100 connections to handle 100+ concurrent users
 - **Model Instantiation Fixes**: Fixed all SQLAlchemy model instantiation issues (changed from keyword arguments to attribute assignment)
 - **CSRF Handling**: Temporarily exempted login from CSRF for high-concurrency testing
@@ -16,6 +16,11 @@ A cutting-edge supply chain traceability platform revolutionizing agricultural b
 - **Admin User Profile Optimization**: Removed "Recent Errors" section, compressed all metrics for minimal scrolling, added comprehensive scan details with location/device/duration tracking
 - **Real-time Features**: Added live data indicators, automatic page refresh, time-ago displays with color coding
 - **User Deletion Fix**: Fixed database constraint violation by making user_id nullable in scan and promotionrequest tables to preserve audit history
+- **Scanner Callback Fix**: Fixed QR scanner callback compatibility issue between onScan and onSuccess
+- **Dashboard Optimization**: Simplified dashboard_interactive to redirect to main dashboard for better performance
+- **Parent Bag Scanning**: Added better error handling and debug logging for parent bag scanning
+- **Dashboard Cleanup**: Removed all extra dashboard templates, keeping only simple dashboard.html
+- **UI Simplification**: Removed view buttons from recent scans table for cleaner interface
 
 ## Project Architecture
 
