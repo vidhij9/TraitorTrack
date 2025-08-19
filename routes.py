@@ -1153,15 +1153,15 @@ def index():
         logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     
-    # Redirect to interactive dashboard for better experience
-    return redirect(url_for('dashboard_interactive'))
+    # Use simple dashboard template
+    return render_template('dashboard.html')
 
 @app.route('/dashboard_interactive')
 @login_required
 @limiter.exempt
 def dashboard_interactive():
-    """Optimized fast dashboard - redirect to main dashboard"""
-    return redirect(url_for('dashboard_fast'))
+    """Simple dashboard using basic template"""
+    return render_template('dashboard.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 @csrf.exempt  # Temporarily exempt login from CSRF for high-concurrency testing
