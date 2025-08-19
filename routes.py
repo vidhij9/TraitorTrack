@@ -1161,7 +1161,7 @@ def index():
 @limiter.exempt
 def dashboard_interactive():
     """Optimized fast dashboard - redirect to main dashboard"""
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('dashboard_fast'))
 
 @app.route('/login', methods=['GET', 'POST'])
 @csrf.exempt  # Temporarily exempt login from CSRF for high-concurrency testing
