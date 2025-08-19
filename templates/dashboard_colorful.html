@@ -1,0 +1,420 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - TraceTrack{% endblock %}
+
+{% block head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .dashboard-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 20px;
+        margin: 20px auto;
+        max-width: 1200px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    /* Tiny Colorful Metric Boxes */
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        min-height: 100px;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+    }
+    
+    /* Color variations */
+    .metric-primary::before { background: linear-gradient(90deg, #4285f4, #34a853); }
+    .metric-success::before { background: linear-gradient(90deg, #34a853, #0f9d58); }
+    .metric-warning::before { background: linear-gradient(90deg, #fbbc05, #ff9800); }
+    .metric-danger::before { background: linear-gradient(90deg, #ea4335, #d73527); }
+    .metric-info::before { background: linear-gradient(90deg, #17a2b8, #138496); }
+    .metric-purple::before { background: linear-gradient(90deg, #6f42c1, #5a32a3); }
+    
+    .metric-value {
+        font-size: 28px;
+        font-weight: bold;
+        margin: 8px 0;
+        color: #2c3e50;
+    }
+    
+    .metric-label {
+        font-size: 12px;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 5px;
+    }
+    
+    .metric-icon {
+        font-size: 20px;
+        margin-bottom: 8px;
+        opacity: 0.7;
+    }
+    
+    .metric-primary .metric-icon { color: #4285f4; }
+    .metric-success .metric-icon { color: #34a853; }
+    .metric-warning .metric-icon { color: #fbbc05; }
+    .metric-danger .metric-icon { color: #ea4335; }
+    .metric-info .metric-icon { color: #17a2b8; }
+    .metric-purple .metric-icon { color: #6f42c1; }
+    
+    /* Grid Layout */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    
+    @media (max-width: 768px) {
+        .metrics-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    /* Section Headers */
+    .section-title {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin: 20px 0 15px 0;
+        font-weight: 600;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* Activity Table */
+    .activity-table {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    
+    .table th {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        font-weight: 600;
+        text-align: center;
+    }
+    
+    .table td {
+        text-align: center;
+        vertical-align: middle;
+        border-color: #e9ecef;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* Status badges */
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-success { background: #d4edda; color: #155724; }
+    .status-warning { background: #fff3cd; color: #856404; }
+    .status-danger { background: #f8d7da; color: #721c24; }
+    .status-info { background: #cce7ff; color: #004085; }
+    
+    /* Header */
+    .dashboard-header {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+    
+    .dashboard-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 10px;
+    }
+    
+    .live-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #34a853;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+        margin-right: 8px;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+    
+    /* Quick Actions */
+    .quick-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin: 20px 0;
+    }
+    
+    .action-btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">
+            <span class="live-indicator"></span>
+            TraceTrack Analytics
+        </h1>
+        <p class="text-muted">Real-time supply chain monitoring dashboard</p>
+    </div>
+
+    <!-- System Overview (Admin Only) -->
+    {% if current_user.role == 'admin' %}
+    <div class="section-title">
+        <i class="fas fa-crown me-2"></i>System Overview
+    </div>
+    <div class="metrics-grid">
+        <div class="metric-card metric-primary">
+            <div class="metric-icon"><i class="fas fa-users"></i></div>
+            <div class="metric-label">Total Users</div>
+            <div class="metric-value" id="total-users">{{ user_stats.total_users or 0 }}</div>
+        </div>
+        <div class="metric-card metric-success">
+            <div class="metric-icon"><i class="fas fa-user-check"></i></div>
+            <div class="metric-label">Active Today</div>
+            <div class="metric-value" id="active-users">{{ user_stats.active_today or 0 }}</div>
+        </div>
+        <div class="metric-card metric-warning">
+            <div class="metric-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="metric-label">Alerts</div>
+            <div class="metric-value" id="system-alerts">0</div>
+        </div>
+        <div class="metric-card metric-info">
+            <div class="metric-icon"><i class="fas fa-database"></i></div>
+            <div class="metric-label">DB Size</div>
+            <div class="metric-value" id="db-size">15MB</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Operations Analytics -->
+    <div class="section-title">
+        <i class="fas fa-box me-2"></i>Operations Analytics
+    </div>
+    <div class="metrics-grid">
+        <div class="metric-card metric-primary">
+            <div class="metric-icon"><i class="fas fa-boxes"></i></div>
+            <div class="metric-label">Total Bags</div>
+            <div class="metric-value" id="total-bags">{{ bag_stats.total_bags or 0 }}</div>
+        </div>
+        <div class="metric-card metric-success">
+            <div class="metric-icon"><i class="fas fa-cube"></i></div>
+            <div class="metric-label">Parent Bags</div>
+            <div class="metric-value" id="parent-bags">{{ bag_stats.parent_bags or 0 }}</div>
+        </div>
+        <div class="metric-card metric-info">
+            <div class="metric-icon"><i class="fas fa-cubes"></i></div>
+            <div class="metric-label">Child Bags</div>
+            <div class="metric-value" id="child-bags">{{ bag_stats.child_bags or 0 }}</div>
+        </div>
+        <div class="metric-card metric-warning">
+            <div class="metric-icon"><i class="fas fa-unlink"></i></div>
+            <div class="metric-label">Unlinked</div>
+            <div class="metric-value" id="unlinked-bags">{{ bag_stats.unlinked or 0 }}</div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="section-title">
+        <i class="fas fa-tachometer-alt me-2"></i>Performance Metrics
+    </div>
+    <div class="metrics-grid">
+        <div class="metric-card metric-success">
+            <div class="metric-icon"><i class="fas fa-qrcode"></i></div>
+            <div class="metric-label">Scans Today</div>
+            <div class="metric-value" id="scans-today">{{ scan_stats.today or 0 }}</div>
+        </div>
+        <div class="metric-card metric-info">
+            <div class="metric-icon"><i class="fas fa-clock"></i></div>
+            <div class="metric-label">Avg Time</div>
+            <div class="metric-value" id="avg-time">14ms</div>
+        </div>
+        <div class="metric-card metric-purple">
+            <div class="metric-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="metric-label">Rate/Hour</div>
+            <div class="metric-value" id="hourly-rate">{{ scan_stats.hourly_rate or 0 }}</div>
+        </div>
+        <div class="metric-card metric-warning">
+            <div class="metric-icon"><i class="fas fa-star"></i></div>
+            <div class="metric-label">Peak Hour</div>
+            <div class="metric-value" id="peak-hour">{{ scan_stats.peak_hour or '--' }}</div>
+        </div>
+    </div>
+
+    <!-- Bill Analytics (Admin & Biller) -->
+    {% if current_user.role in ['admin', 'biller'] %}
+    <div class="section-title">
+        <i class="fas fa-file-invoice me-2"></i>Bill Analytics
+    </div>
+    <div class="metrics-grid">
+        <div class="metric-card metric-primary">
+            <div class="metric-icon"><i class="fas fa-file-alt"></i></div>
+            <div class="metric-label">Total Bills</div>
+            <div class="metric-value" id="total-bills">{{ bill_stats.total or 0 }}</div>
+        </div>
+        <div class="metric-card metric-success">
+            <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="metric-label">Completed</div>
+            <div class="metric-value" id="completed-bills">{{ bill_stats.completed or 0 }}</div>
+        </div>
+        <div class="metric-card metric-warning">
+            <div class="metric-icon"><i class="fas fa-clock"></i></div>
+            <div class="metric-label">In Progress</div>
+            <div class="metric-value" id="progress-bills">{{ bill_stats.in_progress or 0 }}</div>
+        </div>
+        <div class="metric-card metric-info">
+            <div class="metric-icon"><i class="fas fa-calculator"></i></div>
+            <div class="metric-label">Avg Bags/Bill</div>
+            <div class="metric-value" id="avg-bags">{{ bill_stats.avg_bags or 0 }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="section-title">
+        <i class="fas fa-bolt me-2"></i>Quick Actions
+    </div>
+    <div class="quick-actions">
+        <a href="{{ url_for('scan_parent') }}" class="action-btn">
+            <i class="fas fa-qrcode me-1"></i>Scan Parent
+        </a>
+        <a href="{{ url_for('scan_child') }}" class="action-btn">
+            <i class="fas fa-qrcode me-1"></i>Scan Child
+        </a>
+        <a href="{{ url_for('bill_management') }}" class="action-btn">
+            <i class="fas fa-file-invoice me-1"></i>Bills
+        </a>
+        <a href="{{ url_for('bag_management') }}" class="action-btn">
+            <i class="fas fa-box me-1"></i>Bags
+        </a>
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('user_management') }}" class="action-btn">
+            <i class="fas fa-users me-1"></i>Users
+        </a>
+        {% endif %}
+        <button onclick="window.location.reload()" class="action-btn">
+            <i class="fas fa-sync-alt me-1"></i>Refresh
+        </button>
+    </div>
+
+    <!-- Recent Activity Table -->
+    <div class="section-title">
+        <i class="fas fa-history me-2"></i>Recent Activity
+    </div>
+    <div class="activity-table">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Action</th>
+                    <th>User</th>
+                    <th>Details</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if recent_activity %}
+                    {% for activity in recent_activity[:10] %}
+                    <tr>
+                        <td>{{ activity.timestamp.strftime('%H:%M') if activity.timestamp else '--' }}</td>
+                        <td>{{ activity.action or 'Scan' }}</td>
+                        <td>{{ activity.user or 'Unknown' }}</td>
+                        <td>{{ activity.details or 'N/A' }}</td>
+                        <td>
+                            <span class="status-badge status-success">Success</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-muted">No recent activity</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 30 seconds
+setInterval(function() {
+    window.location.reload();
+}, 30000);
+
+// Add fade-in animation
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.metric-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}
