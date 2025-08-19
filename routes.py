@@ -1140,6 +1140,7 @@ def favicon():
     return send_from_directory('static', 'favicon.ico', mimetype='image/x-icon')
 
 @app.route('/', methods=['GET', 'POST'])
+@app.route('/dashboard', methods=['GET', 'POST'])  # Alias for dashboard
 @limiter.exempt  # Exempt dashboard from rate limiting
 def index():
     """Main dashboard page"""
@@ -1637,6 +1638,7 @@ def process_promotion_request(request_id):
 # Scanning workflow routes (simplified without location selection)
 
 @app.route('/scan/parent')
+@app.route('/scan_parent')  # Alias for compatibility
 @login_required
 def scan_parent():
     """Scan parent bag QR code - Fast scanner optimized"""
@@ -2088,6 +2090,7 @@ def process_child_scan_fast():
         return jsonify({'success': False, 'message': 'Error processing scan'})
 
 @app.route('/scan/child', methods=['GET', 'POST'])
+@app.route('/scan_child', methods=['GET', 'POST'])  # Alias for compatibility
 @login_required  
 def scan_child():
     """Scan child bag QR code - unified GET/POST handler"""
@@ -2595,6 +2598,7 @@ def delete_bag(bag_id):
         })
 
 @app.route('/bags')
+@app.route('/bag_management')  # Alias for compatibility
 @login_required
 def bag_management():
     """Ultra-fast bag management with optimized filtering"""
@@ -3001,6 +3005,7 @@ def bag_management():
 
 # Bill management routes
 @app.route('/bills')
+@app.route('/bill_management')  # Alias for compatibility
 @login_required
 @cached(ttl=30, prefix='bills_mgmt')
 def bill_management():
