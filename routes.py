@@ -1153,29 +1153,15 @@ def index():
         logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     
-    # Dashboard data for logged-in users
-    today = datetime.now().date()
-    
-    # User's scan activity today
-    user_scans_today = Scan.query.filter(
-        Scan.user_id == session.get('user_id'),
-        func.date(Scan.timestamp) == today
-    ).count()
-    
-    # Recent scans by current user
-    recent_scans = Scan.query.filter(Scan.user_id == session.get('user_id'))\
-                             .order_by(desc(Scan.timestamp))\
-                             .limit(5).all()
-    
-    # System-wide statistics (for context)
-    total_scans_today = Scan.query.filter(func.date(Scan.timestamp) == today).count()
-    total_bags = Bag.query.count()
-    
-    return render_template('dashboard.html',
-                         user_scans_today=user_scans_today,
-                         recent_scans=recent_scans,
-                         total_scans_today=total_scans_today,
-                         total_bags=total_bags)
+    # Redirect to analysis dashboard for better experience
+    return redirect(url_for('dashboard_analysis'))
+
+@app.route('/dashboard_analysis')
+@login_required
+@limiter.exempt
+def dashboard_analysis():
+    """Enhanced analysis dashboard with role-based metrics"""
+    return render_template('dashboard_analysis.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 @csrf.exempt  # Temporarily exempt login from CSRF for high-concurrency testing
@@ -3516,16 +3502,13 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
-        # FIX: Enhanced validation for QR codes
-        import re
-        if not re.match(r'^SB\d{5}$', qr_id):
-            return jsonify({
-                'success': False, 
-                'message': f'❌ Invalid QR format! Parent bags must start with "SB" followed by exactly 5 digits (e.g., SB00860, SB00736). You scanned: {qr_id}',
-                'show_popup': True
-            })
+        # FIX: Enhanced validation for QR codes - removed strict format requirement
         if qr_id.startswith('http'):
             return jsonify({'success': False, 'message': 'Invalid QR code format (URLs not allowed)'})
+        
+        # Allow any QR format that's not a URL
+        if len(qr_id) < 2 or len(qr_id) > 50:
+            return jsonify({'success': False, 'message': f'Invalid QR code length: {qr_id}'})
         
         # Direct parent bag lookup with lock
         parent_bag = Bag.query.with_for_update().filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
