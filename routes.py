@@ -1156,13 +1156,6 @@ def index():
     # Use simple dashboard template
     return render_template('dashboard.html')
 
-@app.route('/dashboard_interactive')
-@login_required
-@limiter.exempt
-def dashboard_interactive():
-    """Simple dashboard using basic template"""
-    return render_template('dashboard.html')
-
 @app.route('/login', methods=['GET', 'POST'])
 @csrf.exempt  # Temporarily exempt login from CSRF for high-concurrency testing
 def login():
