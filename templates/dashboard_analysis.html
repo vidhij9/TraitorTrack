@@ -293,9 +293,9 @@
         <a href="{{ url_for('user_management') }}" class="btn btn-secondary quick-action-btn">
             <i class="fas fa-users me-1"></i>Users
         </a>
-        <a href="{{ url_for('analytics') }}" class="btn btn-purple quick-action-btn">
-            <i class="fas fa-chart-bar me-1"></i>Analytics
-        </a>
+        <button onclick="refreshDashboard()" class="btn btn-purple quick-action-btn">
+            <i class="fas fa-chart-bar me-1"></i>Refresh
+        </button>
         {% endif %}
     </div>
 

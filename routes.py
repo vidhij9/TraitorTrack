@@ -3502,13 +3502,16 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
-        # FIX: Enhanced validation for QR codes - removed strict format requirement
+        # FIX: Enhanced validation for QR codes - strict SB##### format only
+        import re
+        if not re.match(r'^SB\d{5}$', qr_id):
+            return jsonify({
+                'success': False, 
+                'message': f'❌ Invalid QR format! Parent bags must be exactly "SB" followed by 5 digits (e.g., SB00860, SB00736). You scanned: {qr_id}',
+                'show_popup': True
+            })
         if qr_id.startswith('http'):
             return jsonify({'success': False, 'message': 'Invalid QR code format (URLs not allowed)'})
-        
-        # Allow any QR format that's not a URL
-        if len(qr_id) < 2 or len(qr_id) > 50:
-            return jsonify({'success': False, 'message': f'Invalid QR code length: {qr_id}'})
         
         # Direct parent bag lookup with lock
         parent_bag = Bag.query.with_for_update().filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()

@@ -44,7 +44,7 @@ def get_dashboard_analytics():
                 ).scalar() or 0,
                 'users_growth': User.query.filter(User.created_at >= week_ago).count(),
                 'database_size_mb': db.session.execute(
-                    "SELECT pg_database_size(current_database()) / 1024 / 1024 as size"
+                    text("SELECT pg_database_size(current_database()) / 1024 / 1024 as size")
                 ).scalar() or 0,
                 'uptime_hours': int((now - datetime(2025, 8, 19)).total_seconds() / 3600),
                 'system_alerts': 0  # Placeholder for alerts
