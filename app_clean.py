@@ -98,25 +98,33 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# High-concurrency database configuration for 100+ users
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 50,                # Increased for high concurrency
-    "max_overflow": 100,            # Allow up to 150 total connections
-    "pool_recycle": 300,            # Recycle every 5 minutes for freshness
-    "pool_pre_ping": True,          # Enable pre-ping for reliability
-    "pool_timeout": 30,             # Longer timeout for busy periods
-    "echo": False,                  # No SQL logging
-    "echo_pool": False,             # No pool logging
-    "connect_args": {               # Optimized PostgreSQL settings
-        "keepalives": 1,
-        "keepalives_idle": 30,       # Shorter idle time for faster detection
-        "keepalives_interval": 10,   # More frequent keepalives
-        "keepalives_count": 5,       # More retries for reliability
-        "connect_timeout": 5,        # Faster connection timeout
-        "application_name": "TraceTrack_HighConcurrency",
-        "options": "-c statement_timeout=60000 -c idle_in_transaction_session_timeout=30000"  # 60s query, 30s idle timeout
+# Import resilient database configuration
+try:
+    from database_resilience import ResilientDatabaseConfig, configure_resilient_database
+    # Apply resilient database configuration
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ResilientDatabaseConfig.get_enhanced_config()
+    logger.info("Using enhanced resilient database configuration")
+except ImportError:
+    # Fallback to original configuration if resilience module not available
+    logger.warning("Database resilience module not found, using standard configuration")
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_size": 50,                # Increased for high concurrency
+        "max_overflow": 100,            # Allow up to 150 total connections
+        "pool_recycle": 300,            # Recycle every 5 minutes for freshness
+        "pool_pre_ping": True,          # Enable pre-ping for reliability
+        "pool_timeout": 30,             # Longer timeout for busy periods
+        "echo": False,                  # No SQL logging
+        "echo_pool": False,             # No pool logging
+        "connect_args": {               # Optimized PostgreSQL settings
+            "keepalives": 1,
+            "keepalives_idle": 30,       # Shorter idle time for faster detection
+            "keepalives_interval": 10,   # More frequent keepalives
+            "keepalives_count": 5,       # More retries for reliability
+            "connect_timeout": 10,       # Increased from 5 to 10 for DNS issues
+            "application_name": "TraceTrack_HighConcurrency",
+            "options": "-c statement_timeout=60000 -c idle_in_transaction_session_timeout=30000"  # 60s query, 30s idle timeout
+        }
     }
-}
 
 # Disable SQL logging to reduce noise
 app.config["SQLALCHEMY_ECHO"] = False
