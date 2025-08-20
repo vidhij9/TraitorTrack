@@ -2,7 +2,7 @@ modules = ["python-3.11", "postgresql-16", "python3", "nodejs-20"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["freetype", "glibcLocales", "libev", "librsvg", "nodejs", "openssl", "postgresql"]
+packages = ["cargo", "freetype", "glibcLocales", "libev", "libiconv", "librsvg", "nodejs", "openssl", "postgresql", "rustc"]
 
 [deployment]
 deploymentTarget = "autoscale"

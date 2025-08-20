@@ -50,8 +50,13 @@ class User(UserMixin, db.Model):
     
     def set_password(self, password):
         """Set user password hash"""
-        # Use default method for consistent hashing
-        self.password_hash = generate_password_hash(password)
+        # Use fast bcrypt hashing if available
+        try:
+            from fast_auth import FastAuth
+            self.password_hash = FastAuth.hash_password(password)
+        except ImportError:
+            # Fallback to werkzeug
+            self.password_hash = generate_password_hash(password)
         # Log for debugging
         import logging
         logging.info(f"Password hash set for user {self.username}: {self.password_hash[:20]}...")
@@ -62,7 +67,12 @@ class User(UserMixin, db.Model):
             return False
             
         try:
-            return check_password_hash(self.password_hash, password)
+            # Use fast authentication if available
+            try:
+                from fast_auth import FastAuth
+                return FastAuth.verify_password(password, self.password_hash)
+            except ImportError:
+                return check_password_hash(self.password_hash, password)
         except Exception as e:
             import logging
             logging.error(f"Password check error: {str(e)}")

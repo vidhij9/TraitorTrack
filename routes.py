@@ -4,6 +4,13 @@ Optimized routes for TraceTrack application - consolidated and performance-optim
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 
+# Import fast authentication for better performance
+try:
+    from fast_auth import FastAuth
+    USE_FAST_AUTH = True
+except ImportError:
+    USE_FAST_AUTH = False
+
 # Import optimized authentication utilities
 from auth_utils import current_user, require_auth, is_authenticated
 from query_optimizer import query_optimizer
@@ -1186,7 +1193,18 @@ def login():
                 password_valid = check_password_hash(user.password_hash, password)
                 app.logger.info(f"Password valid: {password_valid}")
                 
-            if user and user.verified and check_password_hash(user.password_hash, password):
+            # Use fast authentication if available
+            password_valid = False
+            if user and user.password_hash:
+                if USE_FAST_AUTH:
+                    password_valid = FastAuth.verify_password(password, user.password_hash)
+                    # Migrate to fast hash on successful login
+                    if password_valid and not user.password_hash.startswith('$2'):
+                        FastAuth.migrate_password_hash(user, password)
+                else:
+                    password_valid = check_password_hash(user.password_hash, password)
+            
+            if user and user.verified and password_valid:
                 # Create authenticated session
                 session.clear()
                 session.permanent = True

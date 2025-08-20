@@ -171,6 +171,14 @@ csrf.init_app(app)
 # CSRF exemption will be handled in routes.py for specific endpoints
 limiter.init_app(app)
 
+# Apply performance optimizations
+try:
+    from performance_patches import apply_performance_patches
+    apply_performance_patches(app)
+    logging.info("Performance patches applied successfully")
+except Exception as e:
+    logging.warning(f"Performance patches not applied: {e}")
+
 # Create tables after app initialization
 with app.app_context():
     try:

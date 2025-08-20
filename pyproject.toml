@@ -5,6 +5,7 @@ description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.12.15",
+    "bcrypt>=4.3.0",
     "beautifulsoup4>=4.13.4",
     "bleach>=6.2.0",
     "faker>=37.5.3",
