@@ -3520,8 +3520,8 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
         
-        # Get bill with proper error handling
-        bill = Bill.query.get(bill_id)
+        # Get bill with proper error handling - use bill_id field, not primary key
+        bill = Bill.query.filter_by(bill_id=bill_id).first()
         if not bill:
             return jsonify({'success': False, 'message': 'Bill not found.'})
         
@@ -3538,15 +3538,8 @@ def process_bill_parent_scan():
                 'show_popup': True
             })
         
-        # Optimized parent bag lookup with caching
-        cache_key = f'bag:qr:{qr_id}'
-        parent_bag = cache.get(cache_key)
-        
-        if parent_bag is None:
-            parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
-            if parent_bag:
-                # Cache the bag for 5 minutes
-                cache.set(cache_key, {'id': parent_bag.id, 'qr_id': parent_bag.qr_id}, ttl=300)
+        # Direct parent bag lookup - no caching to avoid model/dict confusion
+        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
         
         if not parent_bag:
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
@@ -3563,15 +3556,9 @@ def process_bill_parent_scan():
         # Log bill details for debugging
         app.logger.info(f'Bill ID: {bill.id}, Bill parent_bag_count: {bill.parent_bag_count}')
         
-        # Optimized duplicate check with caching
-        link_cache_key = f'bill_bag_link:{bill.id}:{parent_bag.id}'
-        if cache.get(link_cache_key):
-            return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill.'})
-        
+        # Direct duplicate check
         existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
         if existing_link:
-            # Cache the existence of this link
-            cache.set(link_cache_key, True, ttl=600)
             return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill.'})
         
         # Check if bag is linked to another bill
@@ -3613,8 +3600,7 @@ def process_bill_parent_scan():
         # Commit outside the nested transaction
         db.session.commit()
         
-        # Update cache after successful commit
-        cache.set(link_cache_key, True, ttl=600)
+        # Clear relevant caches after successful commit
         cache.invalidate_bill_cache(bill.id)
         cache.delete_pattern(f'bill_bags:{bill.id}')
         cache.delete_pattern('api_stats_*')
