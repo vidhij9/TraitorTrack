@@ -1245,72 +1245,54 @@ def login():
         
         try:
             # Import models locally to avoid circular imports
-            from models import User, UserRole, Bag, BagType, Link, Scan, Bill, BillBag, PromotionRequest, PromotionRequestStatus, AuditLog
+            from models import User
             
+            # Find user
             user = User.query.filter_by(username=username).first()
-            app.logger.info(f"Login attempt for username: {username}")
-            app.logger.info(f"User found: {user is not None}")
+            app.logger.info(f"LOGIN ATTEMPT: {username}")
             
-            password_valid = False
-            if user and user.password_hash:
-                app.logger.info(f"User role: {user.role}, verified: {user.verified}")
-                app.logger.info(f"Hash format: {user.password_hash[:20]}...")
-                
-                # Try both hash formats - bcrypt and werkzeug scrypt
-                try:
-                    # First try bcrypt format (starts with $2b$)
-                    if user.password_hash.startswith('$2b$'):
-                        password_valid = check_password_hash(user.password_hash, password)
-                        app.logger.info(f"Bcrypt auth result: {password_valid}")
-                    # Then try werkzeug scrypt format (starts with scrypt:)
-                    elif user.password_hash.startswith('scrypt:'):
-                        password_valid = check_password_hash(user.password_hash, password)
-                        app.logger.info(f"Scrypt auth result: {password_valid}")
-                    # Try FastAuth if available (skip if not defined)
-                    elif 'USE_FAST_AUTH' in globals() and USE_FAST_AUTH:
-                        try:
-                            password_valid = FastAuth.verify_password(password, user.password_hash)
-                            app.logger.info(f"Fast auth result: {password_valid}")
-                        except:
-                            password_valid = False
-                    else:
-                        # Fallback to standard werkzeug check
-                        password_valid = check_password_hash(user.password_hash, password)
-                        app.logger.info(f"Fallback auth result: {password_valid}")
-                        
-                except Exception as auth_error:
-                    app.logger.error(f"Password verification error: {auth_error}")
-                    # Ultimate fallback - try all methods
-                    try:
-                        password_valid = check_password_hash(user.password_hash, password)
-                        app.logger.info(f"Fallback check_password_hash: {password_valid}")
-                    except Exception as fallback_error:
-                        app.logger.error(f"All auth methods failed: {fallback_error}")
-                        password_valid = False
-            
-            # Check login - remove verified check for now as it may not be set in production
-            if user and password_valid:
-                # Create authenticated session
-                session.clear()
-                session.permanent = True
-                session['logged_in'] = True
-                session['authenticated'] = True
-                session['user_id'] = user.id
-                session['username'] = user.username
-                session['user_role'] = user.role
-                session['dispatch_area'] = user.dispatch_area  # Store dispatch area for area-based access control
-                session['auth_time'] = time.time()
-                
-                # Login tracking simplified for optimized version
-                
-                flash('Login successful!', 'success')
-                return redirect(url_for('index'))
-            else:
-                # Failed login tracking simplified for optimized version  
+            if not user:
+                app.logger.warning(f"LOGIN FAILED: User {username} not found")
                 flash('Invalid username or password.', 'error')
+                return render_template('login.html')
+            
+            app.logger.info(f"USER FOUND: {user.username}, role: {user.role}, verified: {user.verified}")
+            
+            # Verify password
+            password_valid = False
+            try:
+                password_valid = check_password_hash(user.password_hash, password)
+                app.logger.info(f"PASSWORD CHECK: {password_valid} for user {username}")
+            except Exception as e:
+                app.logger.error(f"PASSWORD ERROR: {e} for user {username}")
+                
+            if not password_valid:
+                app.logger.warning(f"LOGIN FAILED: Invalid password for {username}")
+                flash('Invalid username or password.', 'error')
+                return render_template('login.html')
+                
+            if not user.verified:
+                app.logger.warning(f"LOGIN FAILED: User {username} not verified")
+                flash('Account not verified.', 'error')
+                return render_template('login.html')
+            
+            # SUCCESS - Create session
+            session.clear()
+            session.permanent = True
+            session['logged_in'] = True
+            session['authenticated'] = True
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['user_role'] = user.role
+            session['dispatch_area'] = user.dispatch_area
+            session['auth_time'] = time.time()
+            
+            app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}")
+            flash('Login successful!', 'success')
+            return redirect(url_for('index'))
                 
         except Exception as e:
-            logging.error(f"Login error: {e}")
+            app.logger.error(f"LOGIN EXCEPTION: {e}")
             flash('Login failed. Please try again.', 'error')
         
         return render_template('login.html')
