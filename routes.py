@@ -1266,10 +1266,13 @@ def login():
                     elif user.password_hash.startswith('scrypt:'):
                         password_valid = check_password_hash(user.password_hash, password)
                         app.logger.info(f"Scrypt auth result: {password_valid}")
-                    # Try FastAuth if available
-                    elif USE_FAST_AUTH:
-                        password_valid = FastAuth.verify_password(password, user.password_hash)
-                        app.logger.info(f"Fast auth result: {password_valid}")
+                    # Try FastAuth if available (skip if not defined)
+                    elif 'USE_FAST_AUTH' in globals() and USE_FAST_AUTH:
+                        try:
+                            password_valid = FastAuth.verify_password(password, user.password_hash)
+                            app.logger.info(f"Fast auth result: {password_valid}")
+                        except:
+                            password_valid = False
                     else:
                         # Fallback to standard werkzeug check
                         password_valid = check_password_hash(user.password_hash, password)
