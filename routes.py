@@ -188,16 +188,34 @@ def user_management():
 @limiter.exempt  # Exempt admin functionality from rate limiting
 def get_user_details(user_id):
     """Get user details for editing"""
-    if not current_user.is_admin():
-        return jsonify({'error': 'Admin access required'}), 403
-    
-    user = User.query.get_or_404(user_id)
-    return jsonify({
-        'id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'role': user.role
-    })
+    try:
+        # Import models locally to avoid circular imports
+        from models import User
+        
+        user_id_from_session = session.get('user_id')
+        if not user_id_from_session:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        current_user_obj = User.query.get(user_id_from_session)
+        if not current_user_obj or current_user_obj.role != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        return jsonify({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role,
+            'verified': getattr(user, 'verified', True),
+            'dispatch_area': getattr(user, 'dispatch_area', 'lucknow')
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error loading user {user_id}: {str(e)}")
+        return jsonify({'error': 'Error loading user data'}), 500
 
 @app.route('/admin/users/<int:user_id>/profile')
 @login_required
@@ -546,16 +564,27 @@ def change_user_role(user_id):
 @login_required
 def edit_user(user_id):
     """Edit user details"""
-    if not current_user.is_admin():
-        return jsonify({'success': False, 'message': 'Admin access required'}), 403
-    
-    user = User.query.get_or_404(user_id)
-    
     try:
+        # Import models locally to avoid circular imports
+        from models import User, UserRole
+        
+        user_id_from_session = session.get('user_id')
+        if not user_id_from_session:
+            return jsonify({'success': False, 'message': 'Authentication required'}), 401
+            
+        current_user_obj = User.query.get(user_id_from_session)
+        if not current_user_obj or current_user_obj.role != 'admin':
+            return jsonify({'success': False, 'message': 'Admin access required'}), 403
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+            
         username = request.form.get('username')
         email = request.form.get('email')
         role = request.form.get('role')
         dispatch_area = request.form.get('dispatch_area')
+        new_password = request.form.get('password')  # Add password support
         
         # Store old values for comparison
         old_username = user.username
@@ -567,7 +596,7 @@ def edit_user(user_id):
             existing_user = User.query.filter_by(username=username).first()
             if existing_user:
                 flash('Username already exists.', 'error')
-                return redirect(url_for('user_management'))
+                return jsonify({'success': False, 'message': 'Username already exists'})
             user.username = username
         
         # Validate email uniqueness if changed
@@ -575,7 +604,7 @@ def edit_user(user_id):
             existing_email = User.query.filter_by(email=email).first()
             if existing_email:
                 flash('Email already exists.', 'error')
-                return redirect(url_for('user_management'))
+                return jsonify({'success': False, 'message': 'Email already exists'})
             user.email = email
         
         # Handle role change with validation
@@ -585,37 +614,57 @@ def edit_user(user_id):
                 admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
                 if admin_count <= 1:
                     flash('Cannot change role. This is the last admin account.', 'error')
-                    return redirect(url_for('user_management'))
+                    return jsonify({'success': False, 'message': 'Cannot change role - this is the last admin account'})
             
             user.role = role
             # Update dispatch area based on role
             if role == UserRole.DISPATCHER.value:
                 if not dispatch_area:
                     flash('Dispatch area is required for dispatchers.', 'error')
-                    return redirect(url_for('user_management'))
+                    return jsonify({'success': False, 'message': 'Dispatch area required for dispatchers'})
                 user.dispatch_area = dispatch_area
             else:
                 user.dispatch_area = None  # Clear dispatch area for non-dispatchers
         
+        # Handle password change if provided
+        password_changed = False
+        if new_password and len(new_password.strip()) > 0:
+            from werkzeug.security import generate_password_hash
+            user.password_hash = generate_password_hash(new_password.strip())
+            password_changed = True
+        
         # Log the changes
-        if username != old_username or email != old_email or role != old_role:
+        if username != old_username or email != old_email or role != old_role or password_changed:
+            from models import log_audit  # Import locally
             log_audit('user_edit', 'user', user.id, {
                 'changed_fields': {
                     'username': username != old_username,
                     'email': email != old_email,
-                    'role': role != old_role
+                    'role': role != old_role,
+                    'password': password_changed
                 },
-                'edited_by': current_user.username
+                'edited_by': current_user_obj.username
             })
         
         db.session.commit()
-        flash('User updated successfully!', 'success')
-        return redirect(url_for('user_management'))
+        
+        success_message = 'User updated successfully!'
+        if password_changed:
+            success_message += f' New password set for {user.username}.'
+            
+        return jsonify({
+            'success': True, 
+            'message': success_message,
+            'redirect': '/user_management'
+        })
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Error updating user: {str(e)}', 'error')
-        return redirect(url_for('user_management'))
+        app.logger.error(f'Error updating user {user_id}: {str(e)}')
+        return jsonify({
+            'success': False, 
+            'message': f'Error updating user: {str(e)}'
+        }), 500
 
 @app.route('/admin/users/<int:user_id>/promote', methods=['POST'])
 @login_required
