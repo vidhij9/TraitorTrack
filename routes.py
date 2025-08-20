@@ -68,6 +68,25 @@ def log_audit(action, entity_type, entity_id=None, details=None):
     except Exception as e:
         app.logger.error(f'Audit logging failed: {str(e)}')
 
+# Health check endpoint for load balancers
+@app.route('/health')
+@csrf.exempt
+def system_health_check():
+    """Health check endpoint for production monitoring"""
+    try:
+        # Check database connectivity
+        db.session.execute(text('SELECT 1'))
+        db_status = 'healthy'
+    except:
+        db_status = 'unhealthy'
+    
+    return jsonify({
+        'status': 'healthy' if db_status == 'healthy' else 'degraded',
+        'database': db_status,
+        'timestamp': datetime.utcnow().isoformat(),
+        'version': '1.0.0'
+    }), 200 if db_status == 'healthy' else 503
+
 # Analytics route removed as requested
 
 @app.route('/user_management')

@@ -8,8 +8,8 @@ import os
 bind = "0.0.0.0:5000"
 backlog = 2048
 
-# Worker processes
-workers = 4  # Fixed number for consistent performance
+# Worker processes - automatically scale based on CPU cores
+workers = multiprocessing.cpu_count() * 2 + 1  # Optimal for production
 worker_class = "gthread"  # Use threaded workers for better concurrency
 worker_connections = 1000
 threads = 4  # 4 threads per worker = 16 concurrent requests
@@ -40,14 +40,14 @@ keyfile = None
 certfile = None
 
 # Debugging
-reload = True  # Auto-reload on code changes (disable in production)
+reload = os.environ.get('FLASK_ENV', 'production') == 'development'  # Only reload in dev
 reload_engine = "auto"
 reload_extra_files = []
 spew = False
 check_config = False
 
 # Pre-fork settings
-preload_app = False  # Don't preload to avoid database connection issues
+preload_app = True  # Preload for better memory usage in production
 reuse_port = True  # Allow multiple workers to bind to the same port
 
 def when_ready(server):

@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-08-20T10:11:03.347367",
+  "health": true,
+  "performance": {
+    "login_page": {
+      "status": 200,
+      "time": 0.279,
+      "ok": true
+    },
+    "dashboard": {
+      "status": 200,
+      "time": 0.012,
+      "ok": true
+    },
+    "api_endpoint": {
+      "status": 200,
+      "time": 0.998,
+      "ok": true
+    }
+  },
+  "resources": {
+    "cpu_percent": 9.5,
+    "memory_percent": 33.2,
+    "memory_available_gb": 41.96,
+    "disk_percent": 57.5,
+    "disk_free_gb": 20.0
+  },
+  "database": {
+    "active": 12,
+    "idle": 38,
+    "total": 50,
+    "max": 150
+  },
+  "alerts": []
+}
