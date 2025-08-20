@@ -633,18 +633,9 @@ def edit_user(user_id):
             user.password_hash = generate_password_hash(new_password.strip())
             password_changed = True
         
-        # Log the changes
+        # Log the changes (simplified to avoid import issues)
         if username != old_username or email != old_email or role != old_role or password_changed:
-            from models import log_audit  # Import locally
-            log_audit('user_edit', 'user', user.id, {
-                'changed_fields': {
-                    'username': username != old_username,
-                    'email': email != old_email,
-                    'role': role != old_role,
-                    'password': password_changed
-                },
-                'edited_by': current_user_obj.username
-            })
+            app.logger.info(f'User {user.id} updated by admin {current_user_obj.username}: username={username != old_username}, email={email != old_email}, role={role != old_role}, password={password_changed}')
         
         db.session.commit()
         
