@@ -1627,6 +1627,7 @@ def scan_parent():
 
 
 @app.route('/process_parent_scan', methods=['GET', 'POST'])
+@csrf.exempt
 @login_required
 def process_parent_scan():
     """Process parent bag scan - Optimized for high concurrency"""
@@ -1634,17 +1635,27 @@ def process_parent_scan():
     if request.method == 'GET':
         return redirect(url_for('scan_parent'))
     
+    # Check if this is an API call
+    is_api = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+             request.headers.get('Content-Type') == 'application/json' or \
+             'api' in request.path
+    
     try:
         qr_code = request.form.get('qr_code', '').strip()
         
         if not qr_code:
+            if is_api:
+                return jsonify({'success': False, 'message': 'No QR code provided'}), 400
             flash('No QR code provided.', 'error')
             return redirect(url_for('scan_parent'))
         
         # Validate parent bag QR format
         import re
         if not re.match(r'^SB\d{5}$', qr_code):
-            flash(f'❌ Invalid QR format! Parent bags must start with "SB" followed by exactly 5 digits (e.g., SB00860, SB00736). You scanned: {qr_code}', 'error')
+            error_msg = f'❌ Invalid QR format! Parent bags must start with "SB" followed by exactly 5 digits (e.g., SB00860, SB00736). You scanned: {qr_code}'
+            if is_api:
+                return jsonify({'success': False, 'message': error_msg})
+            flash(error_msg, 'error')
             return redirect(url_for('scan_parent'))
         
         # Use query_optimizer for better performance
@@ -1695,16 +1706,26 @@ def process_parent_scan():
         }
         session.permanent = True
         
+        if is_api:
+            return jsonify({
+                'success': True,
+                'message': f'Parent bag {qr_code} processed successfully!',
+                'parent_qr': qr_code,
+                'redirect': url_for('scan_child')
+            })
         flash(f'Parent bag {qr_code} processed successfully!', 'success')
         return redirect(url_for('scan_child'))
         
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Parent scan error: {str(e)}', exc_info=True)
+        if is_api:
+            return jsonify({'success': False, 'message': 'Error processing parent scan'}), 500
         flash('Error processing parent scan. Please try again.', 'error')
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan', methods=['GET', 'POST'])
+@csrf.exempt
 @login_required
 def process_child_scan():
     """Optimized child bag processing for high concurrency"""
@@ -3058,6 +3079,7 @@ def bill_management():
                          status_filter=status_filter)
 
 @app.route('/bill/create', methods=['GET', 'POST'])
+@csrf.exempt
 @login_required
 def create_bill():
     """Create a new bill - admin and employee access"""
@@ -3067,6 +3089,11 @@ def create_bill():
     if request.method == 'GET':
         # Display the create bill form
         return render_template('create_bill.html')
+    
+    # Check if this is an API call
+    is_api = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+             request.headers.get('Content-Type') == 'application/json' or \
+             'api' in request.path
     
     # Handle POST request
     if request.method == 'POST':
@@ -3114,6 +3141,15 @@ def create_bill():
             db.session.commit()
             
             app.logger.info(f'Bill created successfully: {bill_id} with {parent_bag_count} parent bags')
+            
+            if is_api:
+                return jsonify({
+                    'success': True,
+                    'message': f'Bill {bill_id} created successfully!',
+                    'bill_id': bill.bill_id,
+                    'bill_db_id': bill.id
+                })
+            
             flash('Bill created successfully!', 'success')
             
             # Add debugging to check redirect
@@ -3511,7 +3547,7 @@ def process_bill_parent_scan():
         return jsonify({'success': False, 'message': 'Bill ID missing.'})
     
     if not qr_code:
-        return jsonify({'success': False, 'message': 'QR code missing.'})
+        return jsonify({'success': False, 'message': 'Please scan a parent bag QR code.'})
     
     # Optimized transaction with proper concurrency handling
     try:
@@ -3520,10 +3556,16 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
         
-        # Get bill with proper error handling - use bill_id field, not primary key
-        bill = Bill.query.filter_by(bill_id=bill_id).first()
+        # Get bill - handle both integer ID and string bill_id
+        try:
+            # First try as integer primary key (from template)
+            bill = Bill.query.get(int(bill_id))
+        except (ValueError, TypeError):
+            # If not integer, try as string bill_id
+            bill = Bill.query.filter_by(bill_id=bill_id).first()
+        
         if not bill:
-            return jsonify({'success': False, 'message': 'Bill not found.'})
+            return jsonify({'success': False, 'message': f'Bill with ID "{bill_id}" not found. Please check the bill exists.'})
         
         qr_id = sanitize_input(qr_code).strip()
         
@@ -3534,7 +3576,7 @@ def process_bill_parent_scan():
         if not re.match(r'^SB\d{5}$', qr_id):
             return jsonify({
                 'success': False, 
-                'message': f'❌ Invalid QR format! Parent bags must be exactly "SB" followed by 5 digits (e.g., SB00860, SB00736). You scanned: {qr_id}',
+                'message': f'❌ Invalid parent bag QR code! Expected format: SB##### (e.g., SB00860). You scanned: {qr_id}',
                 'show_popup': True
             })
         
@@ -3543,7 +3585,7 @@ def process_bill_parent_scan():
         
         if not parent_bag:
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
-            return jsonify({'success': False, 'message': f'❌ Parent bag "{qr_id}" is not registered yet. Please register this bag first or verify the QR code is correct.'})
+            return jsonify({'success': False, 'message': f'❌ Parent bag "{qr_id}" not found! This bag needs to be registered as a parent bag first.'})
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
         

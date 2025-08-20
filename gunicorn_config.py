@@ -9,9 +9,10 @@ bind = "0.0.0.0:5000"
 backlog = 2048
 
 # Worker processes
-workers = multiprocessing.cpu_count() * 2 + 1  # Recommended formula
-worker_class = "sync"  # Use sync workers for database-heavy operations
+workers = 4  # Fixed number for consistent performance
+worker_class = "gthread"  # Use threaded workers for better concurrency
 worker_connections = 1000
+threads = 4  # 4 threads per worker = 16 concurrent requests
 max_requests = 1000  # Restart workers after 1000 requests to prevent memory leaks
 max_requests_jitter = 50  # Add randomness to prevent all workers restarting at once
 timeout = 120  # Increase timeout for slow database operations
