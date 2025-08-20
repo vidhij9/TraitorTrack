@@ -1464,6 +1464,12 @@ def log_scan():
         flash('Failed to log scan', 'error')
         return redirect(url_for('scan'))
 
+@app.route('/scan')
+@login_required  
+def scan():
+    """Main QR scanning page"""
+    return render_template('scan.html')
+
 @app.route('/fix-admin-password')
 def fix_admin_password():
     """Fix admin password - temporary endpoint"""
