@@ -1484,6 +1484,9 @@ def register():
                 flash('Email already registered. Please use a different email.', 'error')
                 return render_template('register.html')
             
+            # Import models locally to avoid circular imports
+            from models import User, UserRole
+            
             # Create new user
             user = User()
             user.username = username
