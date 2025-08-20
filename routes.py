@@ -3135,30 +3135,58 @@ def delete_bill(bill_id):
     if not current_user.is_admin():
         flash('Admin access required to delete bills.', 'error')
         return redirect(url_for('bill_management'))
+    
     try:
-        # FIX: Use transaction with proper locking
-        bill = Bill.query.with_for_update().get_or_404(bill_id)
+        # Import cache utilities
+        from redis_cache import cache
+        from performance_utils import retry_on_db_error
         
-        # FIX: Store linked bag IDs for audit before deletion
-        linked_bags = BillBag.query.filter_by(bill_id=bill.id).all()
-        linked_bag_ids = [link.bag_id for link in linked_bags]
+        # Get bill with proper error handling
+        bill = Bill.query.get(bill_id)
+        if not bill:
+            flash('Bill not found.', 'error')
+            app.logger.error(f'Bill deletion failed: Bill ID {bill_id} not found')
+            return redirect(url_for('bill_management'))
         
-        # Delete all bag links first
-        BillBag.query.filter_by(bill_id=bill.id).delete()
+        # Store bill info for logging
+        bill_identifier = bill.bill_id
         
-        # FIX: Add audit log before deletion
-        app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) deleted bill {bill.bill_id} which had {len(linked_bag_ids)} linked bags')
+        # Use transaction with proper locking
+        with db.session.begin_nested():
+            # Lock the bill for update
+            bill = Bill.query.with_for_update().get(bill_id)
+            
+            # Store linked bag IDs for audit before deletion
+            linked_bags = BillBag.query.filter_by(bill_id=bill.id).all()
+            linked_bag_ids = [link.bag_id for link in linked_bags]
+            
+            # Delete all bag links first (cascade delete)
+            BillBag.query.filter_by(bill_id=bill.id).delete(synchronize_session=False)
+            
+            # Add audit log before deletion
+            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) deleted bill {bill_identifier} which had {len(linked_bag_ids)} linked bags')
+            
+            # Delete the bill
+            db.session.delete(bill)
         
-        # Delete the bill
-        db.session.delete(bill)
+        # Commit the transaction
         db.session.commit()
         
-        flash('Bill deleted successfully.', 'success')
+        # Invalidate related cache entries
+        cache.invalidate_bill_cache(bill_id)
+        cache.delete_pattern('bill_list:*')
+        cache.delete_pattern('api_stats_*')
+        
+        flash(f'Bill {bill_identifier} deleted successfully.', 'success')
+        app.logger.info(f'Bill {bill_identifier} (ID: {bill_id}) deleted successfully by {current_user.username}')
         
     except Exception as e:
         db.session.rollback()
-        flash('Error deleting bill.', 'error')
-        app.logger.error(f'Bill deletion error: {str(e)}')
+        error_msg = f'Error deleting bill: {str(e)}'
+        flash('Error deleting bill. Please try again.', 'error')
+        app.logger.error(f'Bill deletion error for ID {bill_id}: {str(e)}')
+        import traceback
+        app.logger.error(f'Traceback: {traceback.format_exc()}')
     
     return redirect(url_for('bill_management'))
 
@@ -3485,12 +3513,18 @@ def process_bill_parent_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'QR code missing.'})
     
-    # Simplified transaction without complex locking
+    # Optimized transaction with proper concurrency handling
     try:
+        from redis_cache import cache
+        from performance_utils import measure_performance, retry_on_db_error
+        
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
         
-        # Get bill without locking first
-        bill = Bill.query.get_or_404(bill_id)
+        # Get bill with proper error handling
+        bill = Bill.query.get(bill_id)
+        if not bill:
+            return jsonify({'success': False, 'message': 'Bill not found.'})
+        
         qr_id = sanitize_input(qr_code).strip()
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
@@ -3504,8 +3538,15 @@ def process_bill_parent_scan():
                 'show_popup': True
             })
         
-        # Simple parent bag lookup
-        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        # Optimized parent bag lookup with caching
+        cache_key = f'bag:qr:{qr_id}'
+        parent_bag = cache.get(cache_key)
+        
+        if parent_bag is None:
+            parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+            if parent_bag:
+                # Cache the bag for 5 minutes
+                cache.set(cache_key, {'id': parent_bag.id, 'qr_id': parent_bag.qr_id}, ttl=300)
         
         if not parent_bag:
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
@@ -3522,9 +3563,15 @@ def process_bill_parent_scan():
         # Log bill details for debugging
         app.logger.info(f'Bill ID: {bill.id}, Bill parent_bag_count: {bill.parent_bag_count}')
         
-        # Simple duplicate check without complex locking
+        # Optimized duplicate check with caching
+        link_cache_key = f'bill_bag_link:{bill.id}:{parent_bag.id}'
+        if cache.get(link_cache_key):
+            return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill.'})
+        
         existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
         if existing_link:
+            # Cache the existence of this link
+            cache.set(link_cache_key, True, ttl=600)
             return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill.'})
         
         # Check if bag is linked to another bill
@@ -3543,24 +3590,35 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Bill bag count: {bill_bag_count}, capacity: {bill.parent_bag_count}')
         
-        # Create bill-bag link
-        app.logger.info(f'Creating new bill-bag link...')
-        bill_bag = BillBag()
-        bill_bag.bill_id = bill.id
-        bill_bag.bag_id = parent_bag.id
+        # Use transaction for atomic operations
+        with db.session.begin_nested():
+            # Create bill-bag link
+            app.logger.info(f'Creating new bill-bag link...')
+            bill_bag = BillBag()
+            bill_bag.bill_id = bill.id
+            bill_bag.bag_id = parent_bag.id
+            
+            # Create scan record
+            scan = Scan()
+            scan.user_id = current_user.id
+            scan.parent_bag_id = parent_bag.id
+            scan.timestamp = datetime.now()
+            
+            # Add audit log entry
+            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
+            
+            db.session.add(bill_bag)
+            db.session.add(scan)
         
-        # Create scan record
-        scan = Scan()
-        scan.user_id = current_user.id
-        scan.parent_bag_id = parent_bag.id
-        scan.timestamp = datetime.now()
-        
-        # Add audit log entry
-        app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
-        
-        db.session.add(bill_bag)
-        db.session.add(scan)
+        # Commit outside the nested transaction
         db.session.commit()
+        
+        # Update cache after successful commit
+        cache.set(link_cache_key, True, ttl=600)
+        cache.invalidate_bill_cache(bill.id)
+        cache.delete_pattern(f'bill_bags:{bill.id}')
+        cache.delete_pattern('api_stats_*')
+        
         app.logger.info(f'Database commit successful')
         
         app.logger.info(f'Successfully linked parent bag {qr_id} to bill {bill.bill_id}')

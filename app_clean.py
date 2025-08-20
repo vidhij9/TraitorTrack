@@ -33,13 +33,26 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
-# Configure limiter with proper storage and higher limits for concurrent testing
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["10000 per day", "5000 per hour", "500 per minute"],  # Much higher limits for concurrent testing
-    storage_uri="memory://",  # Explicitly specify memory storage
-    strategy="fixed-window"  # Use fixed window strategy for better performance
-)
+# Configure limiter with Redis backend for distributed rate limiting
+try:
+    import os
+    redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=["100000 per day", "10000 per hour", "1000 per minute"],  # Higher limits for 50+ concurrent users
+        storage_uri=redis_url if 'REDIS_URL' in os.environ else "memory://",
+        strategy="fixed-window",  # Use fixed window strategy for better performance
+        headers_enabled=True,  # Enable rate limit headers
+        swallow_errors=True  # Don't fail on Redis errors
+    )
+except:
+    # Fallback to memory storage
+    limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=["100000 per day", "10000 per hour", "1000 per minute"],
+        storage_uri="memory://",
+        strategy="fixed-window"
+    )
 
 # Create Flask application
 app = Flask(__name__)
@@ -98,33 +111,39 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Import resilient database configuration
+# Import performance and resilient database configuration
 try:
-    from database_resilience import ResilientDatabaseConfig, configure_resilient_database
-    # Apply resilient database configuration
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ResilientDatabaseConfig.get_enhanced_config()
-    logger.info("Using enhanced resilient database configuration")
+    from performance_utils import DatabaseConnectionPool
+    # Apply optimized database configuration for high concurrency
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = DatabaseConnectionPool.get_optimized_engine_config()
+    logger.info("Using optimized database configuration for high concurrency")
 except ImportError:
-    # Fallback to original configuration if resilience module not available
-    logger.warning("Database resilience module not found, using standard configuration")
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 50,                # Increased for high concurrency
-        "max_overflow": 100,            # Allow up to 150 total connections
-        "pool_recycle": 300,            # Recycle every 5 minutes for freshness
-        "pool_pre_ping": True,          # Enable pre-ping for reliability
-        "pool_timeout": 30,             # Longer timeout for busy periods
-        "echo": False,                  # No SQL logging
-        "echo_pool": False,             # No pool logging
-        "connect_args": {               # Optimized PostgreSQL settings
-            "keepalives": 1,
-            "keepalives_idle": 30,       # Shorter idle time for faster detection
-            "keepalives_interval": 10,   # More frequent keepalives
-            "keepalives_count": 5,       # More retries for reliability
-            "connect_timeout": 10,       # Increased from 5 to 10 for DNS issues
-            "application_name": "TraceTrack_HighConcurrency",
-            "options": "-c statement_timeout=60000 -c idle_in_transaction_session_timeout=30000"  # 60s query, 30s idle timeout
+    try:
+        from database_resilience import ResilientDatabaseConfig, configure_resilient_database
+        # Apply resilient database configuration
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ResilientDatabaseConfig.get_enhanced_config()
+        logger.info("Using enhanced resilient database configuration")
+    except ImportError:
+        # Fallback to optimized configuration for 50+ concurrent users
+        logger.warning("Using fallback optimized configuration")
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": 100,               # Optimized for 50+ concurrent users
+            "max_overflow": 200,            # Allow up to 300 total connections
+            "pool_recycle": 300,            # Recycle every 5 minutes
+            "pool_pre_ping": True,          # Test connections before use
+            "pool_timeout": 30,             # Wait up to 30 seconds
+            "echo": False,                  # Disable SQL logging for performance
+            "echo_pool": False,             # Disable pool logging
+            "connect_args": {               # Optimized PostgreSQL settings
+                "keepalives": 1,
+                "keepalives_idle": 30,       
+                "keepalives_interval": 10,   
+                "keepalives_count": 5,       
+                "connect_timeout": 10,       
+                "application_name": "TraceTrack_HighPerf",
+                "options": "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=20000"  # 30s query, 20s idle timeout
+            }
         }
-    }
 
 # Disable SQL logging to reduce noise
 app.config["SQLALCHEMY_ECHO"] = False
@@ -179,6 +198,14 @@ try:
 except Exception as e:
     logging.warning(f"Security config not applied: {e}")
 
+# Apply header fixes for high concurrency
+try:
+    from fix_headers import setup_app_fixes
+    setup_app_fixes(app)
+    logging.info("Header fixes applied for high concurrency")
+except Exception as e:
+    logging.warning(f"Header fixes not applied: {e}")
+
 # Add session validation and cache control
 @app.before_request
 def before_request():
@@ -204,19 +231,26 @@ def before_request():
 
 @app.after_request
 def after_request(response):
-    """Add security headers and cache control"""
+    """Add security headers and cache control with header limit check"""
     from flask import session, request
     
-    # Security headers are now applied via security_config.py to avoid conflicts
-    # Only add headers not already set by security_config
-    if 'X-Content-Type-Options' not in response.headers:
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-    if 'X-Frame-Options' not in response.headers:
-        response.headers['X-Frame-Options'] = 'DENY'
-    if 'X-XSS-Protection' not in response.headers:
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-    if 'Strict-Transport-Security' not in response.headers:
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # Limit total headers to prevent issues with concurrent requests
+    if len(response.headers) > 50:
+        # Keep only essential headers
+        essential = ['Content-Type', 'Content-Length', 'Cache-Control', 'Set-Cookie', 'Location']
+        headers_to_keep = {k: v for k, v in response.headers.items() if k in essential}
+        response.headers.clear()
+        for k, v in headers_to_keep.items():
+            response.headers[k] = v
+    
+    # Security headers - only add if not exceeding limit
+    if len(response.headers) < 40:
+        if 'X-Content-Type-Options' not in response.headers:
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+        if 'X-Frame-Options' not in response.headers:
+            response.headers['X-Frame-Options'] = 'DENY'
+        if 'X-XSS-Protection' not in response.headers:
+            response.headers['X-XSS-Protection'] = '1; mode=block'
     
     # Check if user is authenticated
     if session.get('logged_in') or session.get('auth_session_id'):
