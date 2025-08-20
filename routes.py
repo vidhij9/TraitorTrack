@@ -1207,32 +1207,40 @@ def login():
             user = User.query.filter_by(username=username).first()
             app.logger.info(f"Login attempt for username: {username}")
             app.logger.info(f"User found: {user is not None}")
-            if user:
-                app.logger.info(f"User role: {user.role}, verified: {user.verified}")
-                password_valid = check_password_hash(user.password_hash, password)
-                app.logger.info(f"Password valid: {password_valid}")
-                
-            # Use fast authentication if available
+            
             password_valid = False
             if user and user.password_hash:
+                app.logger.info(f"User role: {user.role}, verified: {user.verified}")
+                app.logger.info(f"Hash format: {user.password_hash[:20]}...")
+                
+                # Try both hash formats - bcrypt and werkzeug scrypt
                 try:
-                    if USE_FAST_AUTH:
+                    # First try bcrypt format (starts with $2b$)
+                    if user.password_hash.startswith('$2b$'):
+                        password_valid = check_password_hash(user.password_hash, password)
+                        app.logger.info(f"Bcrypt auth result: {password_valid}")
+                    # Then try werkzeug scrypt format (starts with scrypt:)
+                    elif user.password_hash.startswith('scrypt:'):
+                        password_valid = check_password_hash(user.password_hash, password)
+                        app.logger.info(f"Scrypt auth result: {password_valid}")
+                    # Try FastAuth if available
+                    elif USE_FAST_AUTH:
                         password_valid = FastAuth.verify_password(password, user.password_hash)
                         app.logger.info(f"Fast auth result: {password_valid}")
-                        # Migrate to fast hash on successful login
-                        if password_valid and not user.password_hash.startswith('$2'):
-                            FastAuth.migrate_password_hash(user, password)
                     else:
+                        # Fallback to standard werkzeug check
                         password_valid = check_password_hash(user.password_hash, password)
-                        app.logger.info(f"Werkzeug auth result: {password_valid}")
+                        app.logger.info(f"Fallback auth result: {password_valid}")
+                        
                 except Exception as auth_error:
                     app.logger.error(f"Password verification error: {auth_error}")
-                    # Try both methods as fallback
+                    # Ultimate fallback - try all methods
                     try:
                         password_valid = check_password_hash(user.password_hash, password)
-                    except:
-                        if USE_FAST_AUTH:
-                            password_valid = FastAuth.verify_password(password, user.password_hash)
+                        app.logger.info(f"Fallback check_password_hash: {password_valid}")
+                    except Exception as fallback_error:
+                        app.logger.error(f"All auth methods failed: {fallback_error}")
+                        password_valid = False
             
             # Check login - remove verified check for now as it may not be set in production
             if user and password_valid:
