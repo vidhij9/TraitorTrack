@@ -1,6 +1,9 @@
 // Agricultural QR Scanner - Ultra-fast detection for agricultural supply chain packets
 // Optimized for high-density QR codes on plastic packaging with auto-torch enabled
 
+// Global scanner instance manager to prevent conflicts
+window.activeScanners = window.activeScanners || new Map();
+
 class InstantDetectionScanner {
     constructor(containerId, onSuccessCallback = null) {
         console.log('InstantDetectionScanner constructor called with:', {
@@ -22,6 +25,7 @@ class InstantDetectionScanner {
         this.torchEnabled = false;
         this.torchSupported = false;
         this.track = null;
+        this.stream = null; // Store stream reference for cleanup
         
         // Agricultural packet optimized settings - balanced for performance
         this.SCAN_INTERVAL = 33; // 30 FPS for smoother performance
@@ -36,6 +40,16 @@ class InstantDetectionScanner {
         this.lastFpsUpdate = Date.now();
         this.currentFps = 0;
         
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => this.stop());
+        window.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.pause();
+            } else {
+                this.resume();
+            }
+        });
+        
         // Initialize immediately
         this.init();
     }
@@ -47,14 +61,26 @@ class InstantDetectionScanner {
             return;
         }
         
+        // Check for existing scanner instance
+        if (window.activeScanners.has(this.containerId)) {
+            console.log('Cleaning up existing scanner instance...');
+            const existingScanner = window.activeScanners.get(this.containerId);
+            await existingScanner.stop();
+        }
+        
+        // Register this scanner instance
+        window.activeScanners.set(this.containerId, this);
+        
         // Clear any existing content
         this.container.innerHTML = '';
         
         // Create ultra-minimal UI
         this.createMinimalUI();
         
-        // Start camera immediately
-        await this.startCamera();
+        // Start camera with delay to prevent conflicts
+        setTimeout(() => {
+            this.startCamera();
+        }, 100);
     }
     
     createMinimalUI() {
@@ -235,73 +261,253 @@ class InstantDetectionScanner {
     }
     
     async startCamera() {
-        try {
-            this.updateStatus('Initializing camera...', '#FFC107');
-            console.log('Requesting camera access...');
-            
-            // Request camera with optimized constraints for better FPS
-            const constraints = {
-                video: {
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: this.VIDEO_WIDTH },
-                    height: { ideal: this.VIDEO_HEIGHT },
-                    frameRate: { ideal: 30, min: 15 }, // Balanced frame rate
-                    advanced: [{
-                        torch: true
-                    }]
+        const maxRetries = 3;
+        const retryDelay = [1000, 2000, 3000]; // Progressive delay
+        
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                this.updateStatus(`Initializing camera... (${attempt + 1}/${maxRetries})`, '#FFC107');
+                console.log(`Camera access attempt ${attempt + 1}/${maxRetries}`);
+                
+                // Add timeout to prevent hanging
+                const stream = await this.requestCameraWithTimeout();
+                
+                if (stream) {
+                    return await this.setupCameraStream(stream);
                 }
-            };
+                
+            } catch (error) {
+                console.error(`Camera attempt ${attempt + 1} failed:`, error);
+                
+                if (attempt === maxRetries - 1) {
+                    // Last attempt failed
+                    this.handleCameraError(error);
+                    return;
+                }
+                
+                // Wait before retry
+                this.updateStatus(`Camera busy, retrying in ${retryDelay[attempt]/1000}s...`, '#FF9800');
+                await new Promise(resolve => setTimeout(resolve, retryDelay[attempt]));
+            }
+        }
+    }
+    
+    async requestCameraWithTimeout(timeoutMs = 10000) {
+        const constraints = {
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: this.VIDEO_WIDTH },
+                height: { ideal: this.VIDEO_HEIGHT },
+                frameRate: { ideal: 30, min: 15 },
+                advanced: [{ torch: true }]
+            }
+        };
+        
+        // Create timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+                reject(new Error('Camera initialization timeout - device may be in use'));
+            }, timeoutMs);
+        });
+        
+        // Race between camera request and timeout
+        const cameraPromise = navigator.mediaDevices.getUserMedia(constraints);
+        
+        try {
+            const stream = await Promise.race([cameraPromise, timeoutPromise]);
+            console.log('✓ Camera stream obtained successfully');
+            return stream;
+        } catch (error) {
+            // Try fallback with simpler constraints
+            console.log('Primary camera request failed, trying fallback...');
+            return await this.tryFallbackCamera();
+        }
+    }
+    
+    async tryFallbackCamera() {
+        const fallbackConstraints = {
+            video: {
+                facingMode: 'environment', // Remove ideal constraint
+                width: { min: 320, ideal: 640 },
+                height: { min: 240, ideal: 480 }
+            }
+        };
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+            console.log('✓ Fallback camera stream obtained');
+            return stream;
+        } catch (error) {
+            console.log('Fallback failed, trying basic constraints...');
+            return await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+    }
+    
+    async setupCameraStream(stream) {
+        try {
+            // Store stream reference for cleanup
+            this.stream = stream;
             
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             this.video.srcObject = stream;
-            console.log('🌾 Agricultural scanner camera stream obtained');
+            console.log('✓ Camera stream assigned to video element');
             
             // Store track for torch control
             this.track = stream.getVideoTracks()[0];
-            console.log('Video track:', this.track);
             
-            // Setup torch for agricultural scanning
-            await this.setupAgriculturalTorch();
+            // Setup torch with error handling
+            try {
+                await this.setupAgriculturalTorch();
+            } catch (torchError) {
+                console.warn('Torch setup failed (non-critical):', torchError);
+            }
             
-            // Apply agricultural camera optimizations
-            await this.optimizeCameraForAgriculture();
+            // Apply camera optimizations with error handling
+            try {
+                await this.optimizeCameraForAgriculture();
+            } catch (optimizeError) {
+                console.warn('Camera optimization failed (non-critical):', optimizeError);
+            }
             
-            // Wait for video to be ready
-            await new Promise((resolve) => {
+            // Wait for video to be ready with timeout
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Video metadata load timeout'));
+                }, 5000);
+                
                 this.video.onloadedmetadata = () => {
-                    console.log('Video metadata loaded, dimensions:', this.video.videoWidth, 'x', this.video.videoHeight);
-                    this.video.play();
-                    resolve();
+                    clearTimeout(timeout);
+                    console.log('✓ Video ready, dimensions:', this.video.videoWidth, 'x', this.video.videoHeight);
+                    this.video.play().then(() => {
+                        resolve();
+                    }).catch(reject);
                 };
+                
+                // Handle case where metadata is already loaded
+                if (this.video.readyState >= 1) {
+                    clearTimeout(timeout);
+                    this.video.play().then(() => {
+                        resolve();
+                    }).catch(reject);
+                }
             });
             
-            // Use actual video dimensions for region calculation with safety checks
-            const actualWidth = (this.video && this.video.videoWidth) ? this.video.videoWidth : this.VIDEO_WIDTH;
-            const actualHeight = (this.video && this.video.videoHeight) ? this.video.videoHeight : this.VIDEO_HEIGHT;
+            // Scan region is now initialized in initializeScanRegion method
             
-            // Calculate scan region (center 90% of frame)
-            const regionOffset = (1 - this.REGION_SIZE) / 2;
-            this.scanRegion = {
-                x: Math.floor(actualWidth * regionOffset),
-                y: Math.floor(actualHeight * regionOffset),
-                width: Math.floor(actualWidth * this.REGION_SIZE),
-                height: Math.floor(actualHeight * this.REGION_SIZE)
-            };
-            
-            // Update canvas size to match scan region for better performance
-            this.canvas.width = this.scanRegion.width;
-            this.canvas.height = this.scanRegion.height;
-            
-            console.log('Scan region:', this.scanRegion);
-            
-            // Start scanning immediately
+            // Initialize scan region and start scanning
+            this.initializeScanRegion();
             this.scanActive = true;
-            this.updateStatus('Scanning...', '#4CAF50');
+            this.updateStatus('Ready to scan', '#4CAF50');
             this.startScanning();
             
+            console.log('✓ Camera initialization completed successfully');
+            return true;
+            
         } catch (error) {
-            console.error('Camera error:', error);
-            this.updateStatus(`Camera error: ${error.message}`, '#F44336');
+            console.error('Camera setup error:', error);
+            throw error;
+        }
+    }
+    
+    initializeScanRegion() {
+        // Use actual video dimensions for region calculation with safety checks
+        const actualWidth = (this.video && this.video.videoWidth) ? this.video.videoWidth : this.VIDEO_WIDTH;
+        const actualHeight = (this.video && this.video.videoHeight) ? this.video.videoHeight : this.VIDEO_HEIGHT;
+        
+        // Calculate scan region (center 90% of frame)
+        const regionOffset = (1 - this.REGION_SIZE) / 2;
+        this.scanRegion = {
+            x: Math.floor(actualWidth * regionOffset),
+            y: Math.floor(actualHeight * regionOffset),
+            width: Math.floor(actualWidth * this.REGION_SIZE),
+            height: Math.floor(actualHeight * this.REGION_SIZE)
+        };
+        
+        // Update canvas size to match scan region for better performance
+        this.canvas.width = this.scanRegion.width;
+        this.canvas.height = this.scanRegion.height;
+        
+        console.log('✓ Scan region initialized:', this.scanRegion);
+    }
+    
+    handleCameraError(error) {
+        console.error('Final camera error:', error);
+        
+        let errorMessage = 'Camera access failed';
+        let suggestions = [];
+        
+        if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+            errorMessage = 'Camera permission denied';
+            suggestions = [
+                'Click the camera icon in your browser address bar',
+                'Allow camera access and refresh the page'
+            ];
+        } else if (error.name === 'NotFoundError') {
+            errorMessage = 'No camera found';
+            suggestions = [
+                'Check if your device has a camera',
+                'Try using a different device'
+            ];
+        } else if (error.name === 'NotReadableError' || error.message.includes('in use')) {
+            errorMessage = 'Camera is busy or in use';
+            suggestions = [
+                'Close other apps using the camera',
+                'Refresh the page and try again',
+                'Wait a moment and retry'
+            ];
+        } else if (error.message.includes('timeout')) {
+            errorMessage = 'Camera initialization timed out';
+            suggestions = [
+                'Try refreshing the page',
+                'Check if other apps are using the camera',
+                'Wait a moment and try again'
+            ];
+        }
+        
+        // Show error with helpful suggestions
+        this.updateStatus(errorMessage, '#F44336');
+        
+        // Add retry button
+        const retryButton = document.createElement('button');
+        retryButton.textContent = '🔄 Retry Camera';
+        retryButton.style.cssText = `
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+        retryButton.onclick = () => {
+            retryButton.remove();
+            this.startCamera();
+        };
+        
+        const statusDiv = document.getElementById('scan-status');
+        if (statusDiv) {
+            statusDiv.appendChild(retryButton);
+        }
+        
+        // Show suggestions
+        if (suggestions.length > 0) {
+            const suggestionDiv = document.createElement('div');
+            suggestionDiv.style.cssText = `
+                margin-top: 10px;
+                padding: 10px;
+                background: rgba(255, 235, 59, 0.1);
+                border: 1px solid #FFC107;
+                border-radius: 5px;
+                font-size: 12px;
+                line-height: 1.4;
+            `;
+            suggestionDiv.innerHTML = '<strong>Try this:</strong><ul>' + 
+                suggestions.map(s => `<li>${s}</li>`).join('') + '</ul>';
+            
+            const container = this.container.querySelector('.instant-scanner-container');
+            if (container) {
+                container.appendChild(suggestionDiv);
+            }
         }
     }
     
@@ -400,6 +606,61 @@ class InstantDetectionScanner {
         
         // Start the scanning loop
         requestAnimationFrame(processFrame);
+    }
+    
+    // Resource management methods
+    stop() {
+        console.log('Stopping scanner and cleaning up resources...');
+        
+        this.scanActive = false;
+        
+        // Stop video stream
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => {
+                console.log('Stopping track:', track.kind);
+                track.stop();
+            });
+            this.stream = null;
+        }
+        
+        // Clear video source
+        if (this.video) {
+            this.video.srcObject = null;
+        }
+        
+        // Remove from active scanners
+        if (window.activeScanners && window.activeScanners.has(this.containerId)) {
+            window.activeScanners.delete(this.containerId);
+        }
+        
+        console.log('✓ Scanner cleanup completed');
+    }
+    
+    pause() {
+        console.log('Pausing scanner...');
+        this.scanActive = false;
+        this.updateStatus('Paused', '#FFC107');
+    }
+    
+    resume() {
+        console.log('Resuming scanner...');
+        if (this.video && this.video.srcObject) {
+            this.scanActive = true;
+            this.updateStatus('Scanning...', '#4CAF50');
+            this.startScanning();
+        } else {
+            // Restart camera if stream was lost
+            this.startCamera();
+        }
+    }
+    
+    // Improved cleanup on page hide/show
+    handleVisibilityChange() {
+        if (document.hidden) {
+            this.pause();
+        } else {
+            setTimeout(() => this.resume(), 500); // Small delay to ensure page is ready
+        }
     }
     
     handleQRCode(data) {
