@@ -1,0 +1,165 @@
+{
+  "timestamp": "2025-08-21T06:36:49.778203",
+  "configuration": {
+    "concurrent_users": 55,
+    "test_duration": 60
+  },
+  "metrics": {
+    "test_duration": 77.50916051864624,
+    "total_requests": 522,
+    "successful_requests": 384,
+    "failed_requests": 138,
+    "error_rate": 26.436781609195403,
+    "requests_per_second": 6.734687829245981,
+    "avg_response_time": 4.5326134838820415,
+    "min_response_time": 0.0023691654205322266,
+    "max_response_time": 30.976014137268066,
+    "p50_response_time": 0.006791830062866211,
+    "p95_response_time": 30.274450063705444,
+    "p99_response_time": 30.8608455657959,
+    "endpoint_stats": {
+      "/login": {
+        "count": 56,
+        "errors": 19,
+        "total_time": 1140.080340385437,
+        "status_codes": {
+          "200": 37,
+          "0": 19
+        }
+      },
+      "/health": {
+        "count": 1,
+        "errors": 0,
+        "total_time": 0.9357650279998779,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/dashboard": {
+        "count": 35,
+        "errors": 1,
+        "total_time": 124.68184924125671,
+        "status_codes": {
+          "200": 34,
+          "0": 1
+        }
+      },
+      "/bags": {
+        "count": 32,
+        "errors": 2,
+        "total_time": 118.3176965713501,
+        "status_codes": {
+          "200": 30,
+          "0": 2
+        }
+      },
+      "/bills": {
+        "count": 36,
+        "errors": 0,
+        "total_time": 0.853264570236206,
+        "status_codes": {
+          "200": 36
+        }
+      },
+      "/scans": {
+        "count": 29,
+        "errors": 2,
+        "total_time": 89.87106466293335,
+        "status_codes": {
+          "200": 27,
+          "0": 2
+        }
+      },
+      "/user_management": {
+        "count": 13,
+        "errors": 1,
+        "total_time": 31.970463514328003,
+        "status_codes": {
+          "200": 12,
+          "0": 1
+        }
+      },
+      "/api/stats": {
+        "count": 49,
+        "errors": 3,
+        "total_time": 130.17239832878113,
+        "status_codes": {
+          "200": 46,
+          "0": 3
+        }
+      },
+      "/api/scans": {
+        "count": 1,
+        "errors": 0,
+        "total_time": 0.003688335418701172,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/profile": {
+        "count": 1,
+        "errors": 0,
+        "total_time": 0.007611751556396484,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/scan/parent": {
+        "count": 104,
+        "errors": 104,
+        "total_time": 361.3206911087036,
+        "status_codes": {
+          "400": 97,
+          "0": 7
+        }
+      },
+      "/process_child_scan_fast": {
+        "count": 104,
+        "errors": 2,
+        "total_time": 118.45472526550293,
+        "status_codes": {
+          "200": 102,
+          "0": 2
+        }
+      },
+      "/bill/create": {
+        "count": 48,
+        "errors": 4,
+        "total_time": 247.84724044799805,
+        "status_codes": {
+          "0": 4,
+          "200": 44
+        }
+      },
+      "/admin/system-integrity": {
+        "count": 13,
+        "errors": 0,
+        "total_time": 1.507439374923706,
+        "status_codes": {
+          "200": 13
+        }
+      }
+    }
+  },
+  "resources": {
+    "initial": {
+      "cpu_percent": 44.5,
+      "memory_percent": 82.4,
+      "memory_used_gb": 51.0581169128418,
+      "memory_total_gb": 62.805362701416016,
+      "disk_percent": 68.8,
+      "network_sent_mb": 10.01644515991211,
+      "network_recv_mb": 3.343031883239746
+    },
+    "final": {
+      "cpu_percent": 56.5,
+      "memory_percent": 81.4,
+      "memory_used_gb": 50.41952133178711,
+      "memory_total_gb": 62.805362701416016,
+      "disk_percent": 68.8,
+      "network_sent_mb": 15.1119966506958,
+      "network_recv_mb": 8.435733795166016
+    }
+  },
+  "verdict": "\u274c POOR: System struggles with current load, immediate optimization required"
+}

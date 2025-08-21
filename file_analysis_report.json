@@ -1,0 +1,123 @@
+{
+  "summary": {
+    "total_files": 154,
+    "python_files": 50,
+    "required_files": 15,
+    "test_files": 19,
+    "config_duplicates": 14,
+    "potential_duplicates": 0
+  },
+  "potentially_unrequired": {
+    "test_files": [
+      "./comprehensive_performance_test.py",
+      "./comprehensive_test.py",
+      "./critical_test.py",
+      "./debug_api_test.py",
+      "./final_performance_test.py",
+      "./full_workflow_test.py",
+      "./load_test_production.py",
+      "./performance_test.py",
+      "./quick_workflow_test.py",
+      "./simple_api_test.py",
+      "./stress_test_high_load.py",
+      "./stress_test_production.py",
+      "./stress_test_report_20250820_063512.json",
+      "./stress_test_report_20250820_063724.json",
+      "./test_bill_operations.py",
+      "./test_camera_fix.html",
+      "./test_login_fix.py",
+      "./test_optimized_performance.py",
+      "./test_production_ready.py"
+    ],
+    "config_duplicates": [
+      "./api_highperf.py",
+      "./api_optimized.py",
+      "./deploy_production.sh",
+      "./gunicorn_config.py",
+      "./gunicorn_highperf_config.py",
+      "./high_performance_config.py",
+      "./load_test_production.py",
+      "./monitor_production.py",
+      "./optimized_cache.py",
+      "./production_config.py",
+      "./start_optimized.py",
+      "./stress_test_production.py",
+      "./test_optimized_performance.py",
+      "./test_production_ready.py"
+    ],
+    "route_duplicates": [
+      "./routes_fast.py",
+      "./routes_ultra_fast.py"
+    ],
+    "api_duplicates": [
+      "./api_highperf.py",
+      "./api_optimized.py",
+      "./debug_api_test.py",
+      "./simple_api_test.py"
+    ],
+    "cache_duplicates": [
+      "./optimized_cache.py",
+      "./redis_cache.py",
+      "./ultra_cache.py"
+    ],
+    "performance_duplicates": [
+      "./comprehensive_performance_test.py",
+      "./final_performance_test.py",
+      "./high_performance_config.py",
+      "./performance_monitoring.py",
+      "./performance_optimizer.py",
+      "./performance_patches.py",
+      "./performance_report_1755751454.json",
+      "./performance_test.py",
+      "./performance_utils.py",
+      "./query_optimizer.py",
+      "./ultra_optimizer.py"
+    ],
+    "documentation": [
+      "./DEPLOYMENT_CHECKLIST.md",
+      "./LOGIN_FIX_SUMMARY.md",
+      "./replit.md"
+    ],
+    "deployment_scripts": [
+      "./deploy_production.sh"
+    ],
+    "monitoring_files": [
+      "./monitor_production.py",
+      "./monitoring_results.json"
+    ],
+    "debug_files": [
+      "./LOGIN_FIX_SUMMARY.md",
+      "./debug_api_test.py",
+      "./fix_headers.py",
+      "./fix_user_passwords.py"
+    ],
+    "temporary_files": [
+      "./cookies.txt",
+      "./headers.txt",
+      "./monitoring_results.json",
+      "./performance_report_1755751454.json",
+      "./stress_test_report_20250820_063512.json",
+      "./stress_test_report_20250820_063724.json",
+      "./test_camera_fix.html",
+      "./uv.lock"
+    ]
+  },
+  "exact_duplicates": {},
+  "required_files": [
+    "./app_clean.py",
+    "./auth_utils.py",
+    "./connection_manager.py",
+    "./error_handlers.py",
+    "./forms.py",
+    "./gunicorn_config.py",
+    "./high_performance_config.py",
+    "./main.py",
+    "./models.py",
+    "./optimized_cache.py",
+    "./pyproject.toml",
+    "./query_optimizer.py",
+    "./replit.md",
+    "./routes.py",
+    "./validation_utils.py"
+  ]
+}
