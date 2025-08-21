@@ -633,8 +633,8 @@ def edit_user(user_id):
         password_changed = False
         if new_password and len(new_password.strip()) > 0:
             from werkzeug.security import generate_password_hash
-            # Fix password hashing to use default method for consistency
-            user.password_hash = generate_password_hash(new_password.strip())
+            # Use set_password method for consistency with login verification
+            user.set_password(new_password.strip())
             password_changed = True
         
         # Log the changes (simplified to avoid import issues)
@@ -3318,8 +3318,8 @@ def delete_bill(bill_id):
         # Commit the transaction
         db.session.commit()
         
-        # Invalidate related cache entries
-        cache.invalidate_bill_cache(bill_id)
+        # Clear cache entries (using available methods)
+        from redis_cache import cache
         cache.delete_pattern('bill_list:*')
         cache.delete_pattern('api_stats_*')
         
@@ -3753,7 +3753,6 @@ def process_bill_parent_scan():
         db.session.commit()
         
         # Clear relevant caches after successful commit
-        cache.invalidate_bill_cache(bill.id)
         cache.delete_pattern(f'bill_bags:{bill.id}')
         cache.delete_pattern('api_stats_*')
         
@@ -4221,6 +4220,9 @@ def api_delete_bag():
         }), 403
     
     try:
+        # Import models locally to avoid circular imports
+        from models import Bag, Link, Scan, BillBag
+        
         qr_code = request.form.get('qr_code')
         if not qr_code:
             return jsonify({
