@@ -12,8 +12,30 @@ except ImportError:
     USE_FAST_AUTH = False
 
 # Import optimized authentication utilities
-from flask_login import current_user, login_required
-from auth_utils import require_auth, is_authenticated
+from simple_auth import (
+    create_session, clear_session, is_logged_in, 
+    login_required, admin_required, get_current_user,
+    get_current_user_id, get_current_username, get_current_user_role
+)
+# Create a current_user proxy for compatibility
+class CurrentUserProxy:
+    @property
+    def id(self):
+        return get_current_user_id()
+    @property
+    def username(self):
+        return get_current_username()
+    @property
+    def role(self):
+        return get_current_user_role()
+    @property
+    def is_authenticated(self):
+        return is_logged_in()
+    @property
+    def dispatch_area(self):
+        return session.get('dispatch_area')
+        
+current_user = CurrentUserProxy()
 from query_optimizer import query_optimizer
 from optimized_cache import cached, cache, invalidate_cache
 
@@ -1225,10 +1247,10 @@ def index():
     """Main dashboard page"""
     import logging
     logging.info(f"Index route - Session data: {dict(session)}")
-    logging.info(f"Authenticated: {is_authenticated()}")
+    logging.info(f"Authenticated: {is_logged_in()}")
     
     # Simple authentication check
-    if not is_authenticated():
+    if not is_logged_in():
         logging.info("User not authenticated, showing landing page")
         return render_template('landing.html')
     
@@ -1239,7 +1261,7 @@ def index():
 @csrf.exempt  # Temporarily exempt login from CSRF for high-concurrency testing
 def login():
     """User login endpoint with improved error handling"""
-    if is_authenticated() and request.method == 'GET':
+    if is_logged_in() and request.method == 'GET':
         return redirect(url_for('index'))
     
     if request.method == 'POST':
@@ -1289,22 +1311,9 @@ def login():
                 flash('Account not verified.', 'error')
                 return render_template('login.html')
             
-            # SUCCESS - Set session data directly (Flask-Login not working properly)
-            # Don't use Flask-Login as it's not working with our setup
+            # SUCCESS - Use simple authentication system
+            create_session(user)
             
-            # Set session data directly
-            session.clear()  # Clear any existing session
-            session.permanent = True
-            session['logged_in'] = True
-            session['authenticated'] = True
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['user_role'] = user.role
-            session['dispatch_area'] = user.dispatch_area
-            session['auth_time'] = time.time()
-            session.modified = True   # Force session save
-            
-            # Debug log to verify session is set
             app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
             app.logger.info(f"Session after login: user_id={session.get('user_id')}, keys={list(session.keys())}")
             
@@ -1323,7 +1332,7 @@ def login():
 def logout():
     """User logout endpoint"""
     username = session.get('username', 'unknown')
-    session.clear()
+    clear_session()
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
 
@@ -1360,7 +1369,7 @@ def fix_session():
 def test_session():
     """Debug endpoint to check session state"""
     return jsonify({
-        'authenticated': is_authenticated(),
+        'authenticated': is_logged_in(),
         'user_id': session.get('user_id'),
         'username': session.get('username'),
         'logged_in': session.get('logged_in'),
@@ -1749,7 +1758,7 @@ def process_promotion_request(request_id):
 def scan_parent():
     """Scan parent bag QR code - Fast scanner optimized"""
     # Manual authentication check that works
-    if not is_authenticated():
+    if not is_logged_in():
         return redirect(url_for('login'))
     # Direct template render for fastest response
     return render_template('scan_parent.html')
@@ -1761,7 +1770,7 @@ def scan_parent():
 def process_parent_scan():
     """Process parent bag scan - Optimized for high concurrency"""
     # Manual authentication check that works
-    if not is_authenticated():
+    if not is_logged_in():
         return redirect(url_for('login'))
     
     # Handle GET request - redirect to scan_parent
@@ -1871,7 +1880,7 @@ def process_parent_scan():
 def process_child_scan():
     """Optimized child bag processing for high concurrency"""
     # Manual authentication check
-    if not is_authenticated():
+    if not is_logged_in():
         return jsonify({'success': False, 'message': 'Not authenticated. Please login first.'})
     
     # Redirect GET requests to scan_child page
@@ -2239,7 +2248,7 @@ def process_child_scan_fast():
 def scan_child():
     """Scan child bag QR code - unified GET/POST handler"""
     # Manual authentication check
-    if not is_authenticated():
+    if not is_logged_in():
         if request.method == 'POST':
             return jsonify({'success': False, 'message': 'Not authenticated. Please login first.'})
         return redirect(url_for('login'))

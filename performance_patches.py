@@ -158,6 +158,10 @@ def patch_slow_functions():
         
         def fast_check(pwhash, password):
             """Use fast verification"""
+            # For scrypt hashes, use original werkzeug function
+            if pwhash and pwhash.startswith('scrypt:'):
+                return original_check(pwhash, password)
+            # For bcrypt hashes, use FastAuth
             return FastAuth.verify_password(password, pwhash)
         
         security.generate_password_hash = fast_generate
