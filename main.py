@@ -18,19 +18,7 @@ logger = logging.getLogger(__name__)
 # Import all the main routes to ensure they're registered
 import routes
 import api  # Import consolidated API endpoints
-import api_optimized  # Import optimized high-performance API endpoints
-import routes_fast  # Ultra-fast scanning routes
-import routes_ultra_fast  # Instant scanning for 100+ concurrent users
 from optimized_cache import cache
-from performance_monitoring import monitor
-
-# Register high-performance API for 50+ concurrent users
-try:
-    from api_highperf import register_api
-    register_api(app)
-    logger.info("✅ High-performance API loaded for 50+ concurrent users")
-except ImportError as e:
-    logger.warning(f"High-performance API not loaded: {e}")
 
 # Setup monitoring for all routes
 @app.before_request
