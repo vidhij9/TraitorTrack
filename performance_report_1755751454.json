@@ -1,0 +1,80 @@
+{
+  "timestamp": "2025-08-21 04:44:14",
+  "config": {
+    "concurrent_users": 50
+  },
+  "results": {
+    "bill_creation": [
+      {
+        "total_operations": 50,
+        "successful": 50,
+        "failed": 0,
+        "success_rate": 100.0,
+        "min_time": 120.27931213378906,
+        "max_time": 185.28437614440918,
+        "avg_time": 150.40016174316406,
+        "median_time": 150.4526138305664,
+        "p95_time": 176.89073085784912,
+        "p99_time": 188.59858751296997
+      },
+      {
+        "total_operations": 100,
+        "successful": 100,
+        "failed": 0,
+        "success_rate": 100.0,
+        "min_time": 297.8534698486328,
+        "max_time": 457.1237564086914,
+        "avg_time": 374.22709941864014,
+        "median_time": 371.69575691223145,
+        "p95_time": 434.6899628639221,
+        "p99_time": 457.0470643043518
+      }
+    ],
+    "bag_linking": [
+      {
+        "total_operations": 100,
+        "successful": 100,
+        "failed": 0,
+        "success_rate": 100.0,
+        "min_time": 237.46466636657715,
+        "max_time": 371.8540668487549,
+        "avg_time": 305.94606161117554,
+        "median_time": 305.99141120910645,
+        "p95_time": 358.78716707229614,
+        "p99_time": 371.80731534957886
+      },
+      {
+        "total_operations": 500,
+        "successful": 500,
+        "failed": 0,
+        "success_rate": 100.0,
+        "min_time": 395.85399627685547,
+        "max_time": 2047.060251235962,
+        "avg_time": 1251.0738620758057,
+        "median_time": 1226.8216609954834,
+        "p95_time": 2003.7215828895567,
+        "p99_time": 2039.971339702606
+      }
+    ],
+    "bill_deletion": [],
+    "bill_query": [
+      {
+        "total_operations": 200,
+        "successful": 200,
+        "failed": 0,
+        "success_rate": 100.0,
+        "min_time": 238.6162281036377,
+        "max_time": 684.4124794006348,
+        "avg_time": 468.8601303100586,
+        "median_time": 482.1641445159912,
+        "p95_time": 672.5188851356506,
+        "p99_time": 683.4055614471436
+      }
+    ],
+    "concurrent_operations": []
+  },
+  "summary": {
+    "overall_success_rate": 100.0,
+    "overall_avg_response_time_ms": 510.1014630317688
+  }
+}
