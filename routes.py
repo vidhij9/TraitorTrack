@@ -3115,79 +3115,70 @@ def bag_management():
 @app.route('/bills')
 @app.route('/bill_management')  # Alias for compatibility
 @login_required
-@cached(ttl=30, prefix='bills_mgmt')
 def bill_management():
-    """Bill management dashboard with search functionality - admin and biller access - optimized"""
-    if not current_user.can_edit_bills():
+    """Bill management dashboard - simplified for stability"""
+    if not (current_user.is_admin() or current_user.is_biller()):
         flash('Access restricted to admin and biller users.', 'error')
         return redirect(url_for('index'))
     
-    # Import models locally to avoid circular imports
-    from models import Bill, Bag, BillBag
-    
-    # Get search parameters
-    search_bill_id = request.args.get('search_bill_id', '').strip()
-    status_filter = request.args.get('status_filter', 'all').strip()
-    
-    # Build query with prioritized search
-    if search_bill_id:
-        # Optimized search with exact matches first, then partial matches by relevance
-        from sqlalchemy import case, func
+    try:
+        # Import models locally to avoid circular imports
+        from models import Bill, Bag, BillBag
         
-        # Search with priority ordering:
-        # 1. Exact matches (highest priority)
-        # 2. Starts with search term (high priority) 
-        # 3. Contains search term (ordered by position)
-        exact_match = case(
-            (Bill.bill_id == search_bill_id, 1),
-            else_=0
-        )
-        starts_with = case(
-            (Bill.bill_id.like(f'{search_bill_id}%'), 1),
-            else_=0
-        )
-        position_in_id = func.strpos(func.lower(Bill.bill_id), func.lower(search_bill_id))
+        # Get search parameters
+        search_bill_id = request.args.get('search_bill_id', '').strip()
+        status_filter = request.args.get('status_filter', 'all').strip()
         
-        # Get bills matching the search term
-        bills = Bill.query.filter(
-            Bill.bill_id.ilike(f'%{search_bill_id}%')
-        ).order_by(
-            exact_match.desc(),      # Exact matches first
-            starts_with.desc(),      # Then starts-with matches
-            position_in_id.asc(),    # Then by position (earlier = higher priority)
-            desc(Bill.created_at)    # Finally by creation date
-        ).all()
-    else:
-        # No search term - just get all bills ordered by creation date
-        bills = Bill.query.order_by(desc(Bill.created_at)).all()
-    
-    # Get parent bags count for each bill and apply status filter
-    bill_data = []
-    for bill in bills:
-        parent_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).all()
-        parent_count = len(parent_bags)
-        
-        # Determine status based on bag count
-        if parent_count == bill.parent_bag_count:
-            bill_status = 'completed'
-        elif parent_count > 0:
-            bill_status = 'in_progress'
+        # Simple query without complex ordering
+        if search_bill_id:
+            bills = Bill.query.filter(
+                Bill.bill_id.ilike(f'%{search_bill_id}%')
+            ).order_by(desc(Bill.created_at)).all()
         else:
-            bill_status = 'empty'
+            bills = Bill.query.order_by(desc(Bill.created_at)).all()
         
-        # Apply status filter
-        if status_filter == 'all' or status_filter == bill_status:
-            bill_data.append({
-                'bill': bill,
-                'parent_bags': parent_bags,
-                'parent_count': parent_count,
-                'status': bill_status
-            })
-    
-    return render_template('bill_management.html', 
-                         bill_data=bill_data, 
-                         search_bill_id=search_bill_id,
-                         status_filter=status_filter)
+        # Build bill data with simplified logic
+        bill_data = []
+        for bill in bills:
+            try:
+                # Simple count query
+                parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
+                
+                # Get parent bags (limit to avoid performance issues)
+                parent_bags = db.session.query(Bag).join(BillBag, Bag.id == BillBag.bag_id).filter(BillBag.bill_id == bill.id).limit(20).all()
+                
+                # Determine status
+                if hasattr(bill, 'parent_bag_count') and bill.parent_bag_count:
+                    if parent_count >= bill.parent_bag_count:
+                        bill_status = 'completed'
+                    elif parent_count > 0:
+                        bill_status = 'in_progress'
+                    else:
+                        bill_status = 'empty'
+                else:
+                    bill_status = 'in_progress' if parent_count > 0 else 'empty'
+                
+                # Apply status filter
+                if status_filter == 'all' or status_filter == bill_status:
+                    bill_data.append({
+                        'bill': bill,
+                        'parent_bags': parent_bags,
+                        'parent_count': parent_count,
+                        'status': bill_status
+                    })
+            except Exception as e:
+                app.logger.error(f"Error processing bill {bill.id}: {str(e)}")
+                continue
+        
+        return render_template('bill_management.html', 
+                             bill_data=bill_data, 
+                             search_bill_id=search_bill_id,
+                             status_filter=status_filter)
+                             
+    except Exception as e:
+        app.logger.error(f"Bill management error: {str(e)}")
+        flash('Error loading bill management. Please try again.', 'error')
+        return redirect(url_for('index'))
 
 @app.route('/bill/create', methods=['GET', 'POST'])
 @csrf.exempt
