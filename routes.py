@@ -450,14 +450,14 @@ def change_user_role(user_id):
     
     try:
         # Validate new role
-        if new_role not in [UserRole.ADMIN.value, UserRole.BILLER.value, UserRole.DISPATCHER.value]:
+        if new_role not in ['admin', 'biller', 'dispatcher']:
             return jsonify({'success': False, 'message': 'Invalid role specified'})
         
         old_role = user.role
         
         # REAL-WORLD SCENARIO 1: Prevent removing the last admin
-        if old_role == UserRole.ADMIN.value and new_role != UserRole.ADMIN.value:
-            admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+        if old_role == 'admin' and new_role != 'admin':
+            admin_count = User.query.filter_by(role='admin').count()
             if admin_count <= 1:
                 return jsonify({
                     'success': False, 
@@ -466,7 +466,7 @@ def change_user_role(user_id):
                 })
         
         # REAL-WORLD SCENARIO 2: Check for pending work when changing from biller
-        if old_role == UserRole.BILLER.value and new_role != UserRole.BILLER.value:
+        if old_role == 'biller' and new_role != 'biller':
             # Check for incomplete bills assigned to this user
             from sqlalchemy import exists
             incomplete_bills = Bill.query.filter(
@@ -481,7 +481,7 @@ def change_user_role(user_id):
                 })
         
         # REAL-WORLD SCENARIO 3: Handle dispatcher area requirements
-        if new_role == UserRole.DISPATCHER.value:
+        if new_role == 'dispatcher':
             if not dispatch_area:
                 return jsonify({
                     'success': False,
@@ -490,7 +490,7 @@ def change_user_role(user_id):
                 })
             # Check if area already has too many dispatchers
             area_dispatchers = User.query.filter_by(
-                role=UserRole.DISPATCHER.value,
+                role='dispatcher',
                 dispatch_area=dispatch_area
             ).count()
             if area_dispatchers >= 10:  # Limit dispatchers per area
@@ -501,7 +501,7 @@ def change_user_role(user_id):
                 })
         
         # REAL-WORLD SCENARIO 4: Clear sensitive data when demoting from admin
-        if old_role == UserRole.ADMIN.value and new_role != UserRole.ADMIN.value:
+        if old_role == 'admin' and new_role != 'admin':
             # Log this critical change
             log_audit('demote_admin', 'user', user.id, {
                 'username': user.username,
@@ -525,7 +525,7 @@ def change_user_role(user_id):
         user.role = new_role
         
         # Update dispatch area based on new role
-        if new_role == UserRole.DISPATCHER.value:
+        if new_role == 'dispatcher':
             user.dispatch_area = dispatch_area
         else:
             user.dispatch_area = None  # Clear for non-dispatchers
@@ -610,15 +610,15 @@ def edit_user(user_id):
         # Handle role change with validation
         if role and role != old_role:
             # Use the comprehensive role change logic
-            if old_role == UserRole.ADMIN.value and role != UserRole.ADMIN.value:
-                admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+            if old_role == 'admin' and role != 'admin':
+                admin_count = User.query.filter_by(role='admin').count()
                 if admin_count <= 1:
                     flash('Cannot change role. This is the last admin account.', 'error')
                     return jsonify({'success': False, 'message': 'Cannot change role - this is the last admin account'})
             
             user.role = role
             # Update dispatch area based on role
-            if role == UserRole.DISPATCHER.value:
+            if role == 'dispatcher':
                 if not dispatch_area:
                     flash('Dispatch area is required for dispatchers.', 'error')
                     return jsonify({'success': False, 'message': 'Dispatch area required for dispatchers'})
@@ -667,7 +667,7 @@ def promote_user(user_id):
     user = User.query.with_for_update().get_or_404(user_id)
     
     try:
-        if user.role == UserRole.ADMIN.value:
+        if user.role == 'admin':
             return jsonify({'success': False, 'message': 'User is already an admin'})
             
         if user.id == current_user.id:
@@ -677,7 +677,7 @@ def promote_user(user_id):
         old_area = user.dispatch_area
         
         # Clear dispatch area when promoting to admin
-        user.role = UserRole.ADMIN.value
+        user.role = 'admin'
         user.dispatch_area = None
         
         # Log the promotion
@@ -704,7 +704,7 @@ def demote_user(user_id):
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
     user = User.query.with_for_update().get_or_404(user_id)
-    new_role = request.form.get('new_role', UserRole.DISPATCHER.value)
+    new_role = request.form.get('new_role', 'dispatcher')
     dispatch_area = request.form.get('dispatch_area')
     
     try:
@@ -712,8 +712,8 @@ def demote_user(user_id):
             return jsonify({'success': False, 'message': 'Cannot demote yourself'})
         
         # Check if this is the last admin
-        if user.role == UserRole.ADMIN.value:
-            admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+        if user.role == 'admin':
+            admin_count = User.query.filter_by(role='admin').count()
             if admin_count <= 1:
                 return jsonify({
                     'success': False, 
@@ -724,11 +724,11 @@ def demote_user(user_id):
         old_role = user.role
         
         # Validate new role
-        if new_role not in [UserRole.BILLER.value, UserRole.DISPATCHER.value]:
+        if new_role not in ['biller', 'dispatcher']:
             return jsonify({'success': False, 'message': 'Invalid demotion role'})
         
         # Handle dispatcher area requirement
-        if new_role == UserRole.DISPATCHER.value and not dispatch_area:
+        if new_role == 'dispatcher' and not dispatch_area:
             return jsonify({
                 'success': False,
                 'message': 'Dispatch area required for dispatcher role',
@@ -736,7 +736,7 @@ def demote_user(user_id):
             })
         
         user.role = new_role
-        user.dispatch_area = dispatch_area if new_role == UserRole.DISPATCHER.value else None
+        user.dispatch_area = dispatch_area if new_role == 'dispatcher' else None
         
         # Log the demotion
         log_audit('demote_user', 'user', user.id, {
@@ -869,8 +869,8 @@ def preview_user_deletion():
             return jsonify({'success': False, 'message': 'You cannot delete your own account'})
         
         # Check if this is the last admin
-        if user.role == UserRole.ADMIN.value:
-            admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+        if user.role == 'admin':
+            admin_count = User.query.filter_by(role='admin').count()
             if admin_count <= 1:
                 return jsonify({
                     'success': False, 
@@ -979,8 +979,8 @@ def execute_comprehensive_deletion():
             return jsonify({'success': False, 'message': 'You cannot delete your own account'})
         
         # Check if this is the last admin
-        if user.role == UserRole.ADMIN.value:
-            admin_count = User.query.filter_by(role=UserRole.ADMIN.value).count()
+        if user.role == 'admin':
+            admin_count = User.query.filter_by(role='admin').count()
             if admin_count <= 1:
                 return jsonify({
                     'success': False, 
@@ -1076,7 +1076,7 @@ def create_user():
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
-        role = request.form.get('role', UserRole.DISPATCHER.value)
+        role = request.form.get('role', 'dispatcher')
         dispatch_area = request.form.get('dispatch_area')
         
         # Validate required fields
@@ -1085,7 +1085,7 @@ def create_user():
             return redirect(url_for('user_management'))
         
         # Validate dispatch area for dispatchers
-        if role == UserRole.DISPATCHER.value and not dispatch_area:
+        if role == 'dispatcher' and not dispatch_area:
             flash('Dispatch area is required for dispatchers.', 'error')
             return redirect(url_for('user_management'))
         
@@ -1103,7 +1103,7 @@ def create_user():
         user.username = username
         user.email = email
         user.role = role
-        user.dispatch_area = dispatch_area if role == UserRole.DISPATCHER.value else None
+        user.dispatch_area = dispatch_area if role == 'dispatcher' else None
         user.verified = True
         user.set_password(password)
         
@@ -1500,16 +1500,15 @@ def register():
                 flash('Username must be between 3 and 20 characters.', 'error')
                 return render_template('register.html')
             
-            if len(password) < 8:
-                flash('Password must be at least 8 characters long.', 'error')
-                return render_template('register.html')
+            # Password length constraint removed as requested
+            # Users can set any password length they want
             
             if password != confirm_password:
                 flash('Passwords do not match.', 'error')
                 return render_template('register.html')
             
             # Import models locally to avoid circular imports
-            from models import User, UserRole
+            from models import User
             
             # Check if user already exists
             existing_user = User.query.filter_by(username=username).first()
@@ -1526,7 +1525,7 @@ def register():
             user = User()
             user.username = username
             user.email = email
-            user.role = UserRole.DISPATCHER.value
+            user.role = 'dispatcher'
             user.verified = True
             user.set_password(password)
             
@@ -1641,14 +1640,14 @@ def admin_promote_user():
     form = AdminPromotionForm()
     
     # Populate user choices (only employees)
-    dispatchers = User.query.filter_by(role=UserRole.DISPATCHER.value).all()
+    dispatchers = User.query.filter_by(role='dispatcher').all()
     form.user_id.choices = [(u.id, f"{u.username} ({u.email})") for u in dispatchers]
     
     if form.validate_on_submit():
         try:
             user_to_promote = User.query.get(form.user_id.data)
             if user_to_promote:
-                user_to_promote.role = UserRole.ADMIN.value
+                user_to_promote.role = 'admin'
                 db.session.commit()
                 
                 app.logger.info(f'User {user_to_promote.username} promoted to admin by {current_user.username}')
@@ -1691,7 +1690,7 @@ def process_promotion_request(request_id):
                 promotion_request.status = PromotionRequestStatus.APPROVED.value
                 # Promote the user
                 user_to_promote = promotion_request.requested_by
-                user_to_promote.role = UserRole.ADMIN.value
+                user_to_promote.role = 'admin'
                 
                 app.logger.info(f'Promotion request approved for {user_to_promote.username} by {current_user.username}')
                 flash(f'Promotion request approved! {user_to_promote.username} is now an admin.', 'success')
@@ -3040,6 +3039,8 @@ def bag_management():
         app.logger.error(f"Optimized bag query failed, falling back to standard query: {str(e)}")
         
         # Fallback to original query if optimization fails
+        # Import models locally
+        from models import Bag, User, Scan
         query = Bag.query
         
         if dispatch_area:
@@ -3060,30 +3061,31 @@ def bag_management():
             page=page, per_page=20, error_out=False
         )
         
-        # Basic stats
+        # Basic stats - use raw SQL to avoid model import issues
+        total_result = db.session.execute(db.text('SELECT COUNT(*) FROM bag')).scalar()
+        parent_result = db.session.execute(db.text("SELECT COUNT(*) FROM bag WHERE type = 'parent'")).scalar()
+        child_result = db.session.execute(db.text("SELECT COUNT(*) FROM bag WHERE type = 'child'")).scalar()
+        
         stats = {
-            'total_bags': Bag.query.count(),
-            'parent_bags': Bag.query.filter(Bag.type == 'parent').count(),
-            'child_bags': Bag.query.filter(Bag.type == 'child').count(),
+            'total_bags': total_result or 0,
+            'parent_bags': parent_result or 0,
+            'child_bags': child_result or 0,
             'linked_bags': 0,
             'unlinked_bags': 0,
             'filtered_count': bags.total
         }
     
     # Get list of users who have scanned bags for the filter dropdown
-    users_with_scans = db.session.query(
-        User.id,
-        User.username,
-        func.count(Scan.id).label('scan_count')
-    ).join(
-        Scan, User.id == Scan.user_id
-    ).group_by(
-        User.id, User.username
-    ).having(
-        func.count(Scan.id) > 0
-    ).order_by(
-        User.username
-    ).all()
+    # Use raw SQL to avoid import issues
+    users_with_scans_sql = """
+    SELECT u.id, u.username, COUNT(s.id) as scan_count
+    FROM "user" u
+    JOIN scan s ON u.id = s.user_id
+    GROUP BY u.id, u.username
+    HAVING COUNT(s.id) > 0
+    ORDER BY u.username
+    """
+    users_with_scans = db.session.execute(db.text(users_with_scans_sql)).fetchall()
     
     filters = {
         'type': bag_type,
@@ -3822,13 +3824,22 @@ def bag_details(qr_id):
 @login_required
 def user_profile():
     """User profile page where users can view and edit their information"""
-    return render_template('user_profile.html', user=current_user)
+    # Import User model locally
+    from models import User
+    # Get the actual user from database to avoid lazy loading issues
+    user = User.query.get(current_user.id)
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('index'))
+    return render_template('user_profile.html', user=user)
 
 @app.route('/profile/edit', methods=['POST'])
 @login_required
 def edit_profile():
     """Edit user profile - all users can edit their own profile"""
     try:
+        # Import User model locally
+        from models import User
         # Get the actual user from database
         user = User.query.get(current_user.id)
         if not user:
