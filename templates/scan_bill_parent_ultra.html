@@ -78,14 +78,14 @@
 
 {% block content %}
 <div class="container">
-    <!-- Header Card -->
+    <!-- Header Card with Scan Parent Bags and Details -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
                         <h2 class="card-title mb-0">
-                            <i class="fas fa-qrcode me-2"></i>{{ 'Edit Bill #' + bill.bill_id if is_completed else 'Scan Parent Bags for Bill #' + bill.bill_id }}
+                            <i class="fas fa-qrcode me-2"></i>Scan Parent Bags
                             {% if is_completed %}
                                 <span class="badge bg-success ms-2">Completed</span>
                             {% endif %}
@@ -104,23 +104,17 @@
                             </a>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bill Information and Capacity -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body py-2 px-3">
+                    <!-- Bill Information and Capacity in same row -->
                     <div class="row align-items-center">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <span class="text-muted">Bill ID:</span> <strong>{{ bill.bill_id }}</strong>
+                        </div>
+                        <div class="col-md-4">
                             {% if bill.description %}
                                 <span class="text-muted">Description:</span> {{ bill.description }}
                             {% endif %}
                         </div>
-                        <div class="col-md-6 text-md-end">
+                        <div class="col-md-4 text-md-end">
                             <span class="text-muted">Target Capacity:</span> 
                             <strong><span id="capacity-value">{{ bill.parent_bag_count }}</span> parent bags</strong>
                         </div>
