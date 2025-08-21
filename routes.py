@@ -1367,6 +1367,9 @@ def link_to_bill(qr_id):
                 flash('Bill ID is required', 'error')
                 return render_template('link_to_bill.html', parent_bag=parent_bag)
             
+            # Import models locally to avoid circular imports  
+            from models import Bill
+            
             # Check if bill already exists
             bill = Bill.query.filter_by(bill_id=bill_id).first()
             if not bill:
@@ -3350,9 +3353,12 @@ def finish_bill_scan(bill_id):
     return redirect(url_for('view_bill', bill_id=bill_id))
 
 @app.route('/bill/<int:bill_id>')
-@login_required
+@login_required  
 def view_bill(bill_id):
     """View bill details with parent bags and child bags"""
+    # Import models locally to avoid circular imports
+    from models import Bill, Bag, BillBag, Link, Scan
+    
     bill = Bill.query.get_or_404(bill_id)
     
     # Get all parent bags linked to this bill
@@ -3536,6 +3542,9 @@ def scan_bill_parent(bill_id):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('index'))
     
+    # Import models locally to avoid circular imports
+    from models import Bill, Bag, BillBag
+    
     # Get the bill or return 404 if not found
     bill = Bill.query.get_or_404(bill_id)
     
@@ -3570,6 +3579,9 @@ def complete_bill():
         return jsonify({'success': False, 'message': 'Bill ID is required.'})
     
     try:
+        # Import models locally to avoid circular imports
+        from models import Bill
+        
         # Get the bill
         bill = Bill.query.get_or_404(bill_id)
         
@@ -3610,6 +3622,9 @@ def reopen_bill():
         return jsonify({'success': False, 'message': 'Bill ID is required.'})
     
     try:
+        # Import models locally to avoid circular imports
+        from models import Bill
+        
         # Get the bill
         bill = Bill.query.get_or_404(bill_id)
         
@@ -3656,6 +3671,9 @@ def process_bill_parent_scan():
         from performance_utils import measure_performance, retry_on_db_error
         
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
+        
+        # Import models locally to avoid circular imports
+        from models import Bill, Bag, BillBag
         
         # Get bill - handle both integer ID and string bill_id
         try:
