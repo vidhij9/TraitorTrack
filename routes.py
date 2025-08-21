@@ -633,7 +633,7 @@ def edit_user(user_id):
         password_changed = False
         if new_password and len(new_password.strip()) > 0:
             from werkzeug.security import generate_password_hash
-            # Use set_password method for consistency with login verification
+            # Use user's set_password method for consistency
             user.set_password(new_password.strip())
             password_changed = True
         
@@ -1261,10 +1261,10 @@ def login():
             
             app.logger.info(f"USER FOUND: {user.username}, role: {user.role}, verified: {user.verified}")
             
-            # Verify password
+            # Verify password using user's check_password method for consistency
             password_valid = False
             try:
-                password_valid = check_password_hash(user.password_hash, password)
+                password_valid = user.check_password(password)
                 app.logger.info(f"PASSWORD CHECK: {password_valid} for user {username}")
             except Exception as e:
                 app.logger.error(f"PASSWORD ERROR: {e} for user {username}")
