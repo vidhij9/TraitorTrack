@@ -145,11 +145,11 @@ app.config["SQLALCHEMY_ECHO"] = False
 
 # Security settings - Fix session management for deployment
 app.config.update(
-    SESSION_COOKIE_SECURE=False,  # Temporarily disable for troubleshooting
+    SESSION_COOKIE_SECURE=False,  # False for HTTP development
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE=None,  # Allow cross-site for deployment
+    SESSION_COOKIE_SAMESITE='Lax',  # Changed from None to Lax for proper session handling
     PERMANENT_SESSION_LIFETIME=1800,
-    SESSION_REFRESH_EACH_REQUEST=True,
+    SESSION_REFRESH_EACH_REQUEST=False,  # Changed to False to prevent session loss
     PREFERRED_URL_SCHEME='https',
     WTF_CSRF_TIME_LIMIT=None,
     WTF_CSRF_SSL_STRICT=False,

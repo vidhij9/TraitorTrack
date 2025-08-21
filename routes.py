@@ -12,12 +12,12 @@ except ImportError:
     USE_FAST_AUTH = False
 
 # Import optimized authentication utilities
-from auth_utils import current_user, require_auth, is_authenticated
+from flask_login import current_user, login_required
+from auth_utils import require_auth, is_authenticated
 from query_optimizer import query_optimizer
 from optimized_cache import cached, cache, invalidate_cache
 
-# Use optimized auth decorator
-login_required = require_auth
+# Using Flask-Login's login_required decorator directly
 
 def validate_qr_code(qr_id):
     """Optimized QR code validation"""
@@ -1289,8 +1289,11 @@ def login():
                 flash('Account not verified.', 'error')
                 return render_template('login.html')
             
-            # SUCCESS - Create session
-            session.clear()
+            # SUCCESS - Set session data directly (Flask-Login not working properly)
+            # Don't use Flask-Login as it's not working with our setup
+            
+            # Set session data directly
+            session.clear()  # Clear any existing session
             session.permanent = True
             session['logged_in'] = True
             session['authenticated'] = True
@@ -1299,10 +1302,12 @@ def login():
             session['user_role'] = user.role
             session['dispatch_area'] = user.dispatch_area
             session['auth_time'] = time.time()
-            session.permanent = True  # Make session permanent
             session.modified = True   # Force session save
             
+            # Debug log to verify session is set
             app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
+            app.logger.info(f"Session after login: user_id={session.get('user_id')}, keys={list(session.keys())}")
+            
             flash('Login successful!', 'success')
             return redirect(url_for('index'))
                 
@@ -1350,6 +1355,17 @@ def fix_session():
     except Exception as e:
         flash(f'Error fixing session: {str(e)}', 'error')
         return redirect(url_for('index'))
+
+@app.route('/test-session')
+def test_session():
+    """Debug endpoint to check session state"""
+    return jsonify({
+        'authenticated': is_authenticated(),
+        'user_id': session.get('user_id'),
+        'username': session.get('username'),
+        'logged_in': session.get('logged_in'),
+        'session_keys': list(session.keys())
+    })
 
 @app.route('/auth-test')
 def auth_test():
@@ -1730,9 +1746,11 @@ def process_promotion_request(request_id):
 
 @app.route('/scan/parent')
 @app.route('/scan_parent')  # Alias for compatibility
-@login_required
 def scan_parent():
     """Scan parent bag QR code - Fast scanner optimized"""
+    # Manual authentication check that works
+    if not is_authenticated():
+        return redirect(url_for('login'))
     # Direct template render for fastest response
     return render_template('scan_parent.html')
 
@@ -1742,9 +1760,8 @@ def scan_parent():
 @csrf.exempt
 def process_parent_scan():
     """Process parent bag scan - Optimized for high concurrency"""
-    # Manual authentication check
+    # Manual authentication check that works
     if not is_authenticated():
-        app.logger.error(f'PARENT SCAN: Not authenticated, session user_id: {session.get("user_id")}')
         return redirect(url_for('login'))
     
     # Handle GET request - redirect to scan_parent
@@ -1851,9 +1868,12 @@ def process_parent_scan():
 
 @app.route('/process_child_scan', methods=['GET', 'POST'])
 @csrf.exempt
-@login_required
 def process_child_scan():
     """Optimized child bag processing for high concurrency"""
+    # Manual authentication check
+    if not is_authenticated():
+        return jsonify({'success': False, 'message': 'Not authenticated. Please login first.'})
+    
     # Redirect GET requests to scan_child page
     if request.method == 'GET':
         return redirect(url_for('scan_child'))
@@ -2216,9 +2236,13 @@ def process_child_scan_fast():
 
 @app.route('/scan/child', methods=['GET', 'POST'])
 @app.route('/scan_child', methods=['GET', 'POST'])  # Alias for compatibility
-@login_required  
 def scan_child():
     """Scan child bag QR code - unified GET/POST handler"""
+    # Manual authentication check
+    if not is_authenticated():
+        if request.method == 'POST':
+            return jsonify({'success': False, 'message': 'Not authenticated. Please login first.'})
+        return redirect(url_for('login'))
     # Handle JSON request (from QR scanner and manual entry)
     if request.method == 'POST':
         # Check if it's JSON data (AJAX) - exempt from CSRF for QR scanning
