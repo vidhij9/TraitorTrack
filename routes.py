@@ -566,12 +566,12 @@ def edit_user(user_id):
     """Edit user details"""
     try:
         # Import models locally to avoid circular imports
-        from models import User, UserRole
+        from models import User
         
         user_id_from_session = session.get('user_id')
         if not user_id_from_session:
             flash('Authentication required', 'error')
-        return redirect(url_for('login'))
+            return redirect(url_for('login'))
             
         current_user_obj = User.query.get(user_id_from_session)
         if not current_user_obj or current_user_obj.role != 'admin':
@@ -633,6 +633,7 @@ def edit_user(user_id):
         password_changed = False
         if new_password and len(new_password.strip()) > 0:
             from werkzeug.security import generate_password_hash
+            # Fix password hashing to use default method for consistency
             user.password_hash = generate_password_hash(new_password.strip())
             password_changed = True
         
@@ -2741,6 +2742,8 @@ def bag_management():
         dispatch_area = None
     
     try:
+        # Import models locally to avoid circular imports
+        from models import Bag, User, Scan, Link, Bill, BillBag
         # Build simplified query for better stability
         query = db.session.query(Bag)
         
@@ -3044,7 +3047,7 @@ def bag_management():
         
         # Fallback to original query if optimization fails
         # Import models locally
-        from models import Bag, User, Scan
+        from models import Bag, User, Scan, Link, Bill, BillBag
         query = Bag.query
         
         if dispatch_area:
@@ -3281,9 +3284,8 @@ def delete_bill(bill_id):
         return redirect(url_for('bill_management'))
     
     try:
-        # Import cache utilities
-        from redis_cache import cache
-        from performance_utils import retry_on_db_error
+        # Import models locally to avoid circular imports
+        from models import Bill, BillBag
         
         # Get bill with proper error handling
         bill = Bill.query.get(bill_id)
