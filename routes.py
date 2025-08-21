@@ -570,15 +570,18 @@ def edit_user(user_id):
         
         user_id_from_session = session.get('user_id')
         if not user_id_from_session:
-            return jsonify({'success': False, 'message': 'Authentication required'}), 401
+            flash('Authentication required', 'error')
+        return redirect(url_for('login'))
             
         current_user_obj = User.query.get(user_id_from_session)
         if not current_user_obj or current_user_obj.role != 'admin':
-            return jsonify({'success': False, 'message': 'Admin access required'}), 403
+            flash('Admin access required', 'error')
+            return redirect(url_for('index'))
         
         user = User.query.get(user_id)
         if not user:
-            return jsonify({'success': False, 'message': 'User not found'}), 404
+            flash('User not found', 'error')
+            return redirect(url_for('user_management'))
             
         username = request.form.get('username')
         email = request.form.get('email')
@@ -596,7 +599,7 @@ def edit_user(user_id):
             existing_user = User.query.filter_by(username=username).first()
             if existing_user:
                 flash('Username already exists.', 'error')
-                return jsonify({'success': False, 'message': 'Username already exists'})
+                return redirect(url_for('user_management'))
             user.username = username
         
         # Validate email uniqueness if changed
@@ -604,7 +607,7 @@ def edit_user(user_id):
             existing_email = User.query.filter_by(email=email).first()
             if existing_email:
                 flash('Email already exists.', 'error')
-                return jsonify({'success': False, 'message': 'Email already exists'})
+                return redirect(url_for('user_management'))
             user.email = email
         
         # Handle role change with validation
@@ -614,14 +617,14 @@ def edit_user(user_id):
                 admin_count = User.query.filter_by(role='admin').count()
                 if admin_count <= 1:
                     flash('Cannot change role. This is the last admin account.', 'error')
-                    return jsonify({'success': False, 'message': 'Cannot change role - this is the last admin account'})
+                    return redirect(url_for('user_management'))
             
             user.role = role
             # Update dispatch area based on role
             if role == 'dispatcher':
                 if not dispatch_area:
                     flash('Dispatch area is required for dispatchers.', 'error')
-                    return jsonify({'success': False, 'message': 'Dispatch area required for dispatchers'})
+                    return redirect(url_for('user_management'))
                 user.dispatch_area = dispatch_area
             else:
                 user.dispatch_area = None  # Clear dispatch area for non-dispatchers
@@ -643,19 +646,14 @@ def edit_user(user_id):
         if password_changed:
             success_message += f' New password set for {user.username}.'
             
-        return jsonify({
-            'success': True, 
-            'message': success_message,
-            'redirect': '/user_management'
-        })
+        flash(success_message, 'success')
+        return redirect(url_for('user_management'))
         
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Error updating user {user_id}: {str(e)}')
-        return jsonify({
-            'success': False, 
-            'message': f'Error updating user: {str(e)}'
-        }), 500
+        flash(f'Error updating user: {str(e)}', 'error')
+        return redirect(url_for('user_management'))
 
 @app.route('/admin/users/<int:user_id>/promote', methods=['POST'])
 @login_required
@@ -1765,6 +1763,9 @@ def process_parent_scan():
                 flash(f'QR code is too long (maximum 255 characters).', 'error')
                 return redirect(url_for('scan_parent'))
             
+            # Import models locally to avoid circular imports
+            from models import Bag, Scan
+            
             parent_bag = Bag()
             parent_bag.qr_id = qr_code
             parent_bag.type = 'parent'
@@ -2631,6 +2632,9 @@ def delete_bag(bag_id):
         return jsonify({'success': False, 'message': 'Admin or biller access required'}), 403
     
     try:
+        # Import models locally to avoid circular imports
+        from models import Bag, Link, Scan, BillBag, Bill
+        
         # Use transaction with locking
         bag = Bag.query.with_for_update().get_or_404(bag_id)
         
@@ -3114,6 +3118,9 @@ def bill_management():
     if not current_user.can_edit_bills():
         flash('Access restricted to admin and biller users.', 'error')
         return redirect(url_for('index'))
+    
+    # Import models locally to avoid circular imports
+    from models import Bill, Bag, BillBag
     
     # Get search parameters
     search_bill_id = request.args.get('search_bill_id', '').strip()
