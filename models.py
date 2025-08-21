@@ -210,10 +210,12 @@ class Bill(db.Model):
     status = db.Column(db.String(20), default='new')  # Possible values: new, processing, completed
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-    # Index for faster bill lookups
+    # Ultra-fast indexes for bill management
     __table_args__ = (
         db.Index('idx_bill_id', 'bill_id'),
         db.Index('idx_bill_status', 'status'),
+        db.Index('idx_bill_created', 'created_at'),
+        db.Index('idx_bill_status_created', 'status', 'created_at'),
     )
     
     def __repr__(self):
