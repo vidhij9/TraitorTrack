@@ -892,13 +892,13 @@ def preview_user_deletion():
         bags_to_delete = Bag.query.filter(Bag.id.in_(scanned_bag_ids)).all() if scanned_bag_ids else []
         
         # Count related data
-        parent_bags = sum(1 for bag in bags_to_delete if bag.type == BagType.PARENT.value)
-        child_bags = sum(1 for bag in bags_to_delete if bag.type == BagType.CHILD.value)
+        parent_bags = sum(1 for bag in bags_to_delete if bag.type == 'parent')
+        child_bags = sum(1 for bag in bags_to_delete if bag.type == 'child')
         
         # Check for bills that would be affected
         affected_bills = []
         if parent_bags > 0:
-            parent_bag_ids = [bag.id for bag in bags_to_delete if bag.type == BagType.PARENT.value]
+            parent_bag_ids = [bag.id for bag in bags_to_delete if bag.type == 'parent']
             bill_links = BillBag.query.filter(BillBag.bag_id.in_(parent_bag_ids)).all()
             for link in bill_links:
                 if link.bill:
@@ -1152,7 +1152,7 @@ def seed_sample_data():
                 # Create parent bags
                 parent_bag = Bag()
                 parent_bag.qr_id = f"PARENT_{i+1:03d}_{secrets.token_hex(4).upper()}"
-                parent_bag.type = BagType.PARENT.value
+                parent_bag.type = 'parent'
                 parent_bag.name = f"Parent Bag {i+1}"
                 parent_bag.child_count = random.randint(1, 5)
                 db.session.add(parent_bag)
@@ -1162,7 +1162,7 @@ def seed_sample_data():
                 for j in range(parent_bag.child_count):
                     child_bag = Bag()
                     child_bag.qr_id = f"CHILD_{i+1:03d}_{j+1:02d}_{secrets.token_hex(3).upper()}"
-                    child_bag.type = BagType.CHILD.value
+                    child_bag.type = 'child'
                     child_bag.name = f"Child Bag {i+1}-{j+1}"
                     child_bag.parent_id = parent_bag.id
                     db.session.add(child_bag)
@@ -1185,7 +1185,7 @@ def seed_sample_data():
                 scan.timestamp = datetime.utcnow() - timedelta(days=random.randint(0, 30))
                 scan.user_id = current_user.id
                 
-                if bag.type == BagType.PARENT.value:
+                if bag.type == 'parent':
                     scan.parent_bag_id = bag.id
                 else:
                     scan.child_bag_id = bag.id
@@ -1357,7 +1357,7 @@ def auth_test():
 def link_to_bill(qr_id):
     """Link parent bag to bill"""
     try:
-        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        parent_bag = Bag.query.filter_by(qr_id=qr_id, type='parent').first()
         if not parent_bag:
             flash('Parent bag not found', 'error')
             return redirect(url_for('index'))
@@ -1433,8 +1433,8 @@ def log_scan():
         
         # Create scan record
         scan = Scan()
-        scan.parent_bag_id = bag.id if bag.type == BagType.PARENT.value else None
-        scan.child_bag_id = bag.id if bag.type == BagType.CHILD.value else None
+        scan.parent_bag_id = bag.id if bag.type == 'parent' else None
+        scan.child_bag_id = bag.id if bag.type == 'child' else None
         scan.user_id = current_user.id
         scan.timestamp = datetime.utcnow()
         
@@ -1758,7 +1758,7 @@ def process_parent_scan():
             return redirect(url_for('scan_parent'))
         
         # Use query_optimizer for better performance
-        parent_bag = query_optimizer.get_bag_by_qr(qr_code, BagType.PARENT.value)
+        parent_bag = query_optimizer.get_bag_by_qr(qr_code, 'parent')
         
         if not parent_bag:
             # Validate QR code length before creating
@@ -1768,17 +1768,17 @@ def process_parent_scan():
             
             parent_bag = Bag()
             parent_bag.qr_id = qr_code
-            parent_bag.type = BagType.PARENT.value
+            parent_bag.type = 'parent'
             parent_bag.user_id = current_user.id  # Associate parent bag with user
             parent_bag.dispatch_area = current_user.dispatch_area or 'Ultra Scanner Area'
             db.session.add(parent_bag)
             app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) created new parent bag {qr_code}')
         else:
             # Check if bag is already a child - cannot be converted to parent
-            if parent_bag.type == BagType.CHILD.value:
+            if parent_bag.type == 'child':
                 flash(f'QR code {qr_code} is already registered as a child bag. One bag can only have one role - either parent OR child, never both.', 'error')
                 return redirect(url_for('scan_parent'))
-            elif parent_bag.type != BagType.PARENT.value:
+            elif parent_bag.type != 'parent':
                 # Handle unknown bag types
                 flash(f'QR code {qr_code} has an invalid bag type. Please contact support.', 'error')
                 return redirect(url_for('scan_parent'))
@@ -1858,7 +1858,7 @@ def process_child_scan():
             return jsonify({'success': False, 'message': f'Cannot link QR code {qr_code} to itself. Parent and child must be different QR codes.'})
         
         # Use query_optimizer for better performance
-        parent_bag = query_optimizer.get_bag_by_qr(parent_qr, BagType.PARENT.value)
+        parent_bag = query_optimizer.get_bag_by_qr(parent_qr, 'parent')
         if not parent_bag:
             return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
         
@@ -1873,7 +1873,7 @@ def process_child_scan():
         
         if existing_bag:
             # CRITICAL: Prevent parent bags from being used as children
-            if existing_bag.type == BagType.PARENT.value:
+            if existing_bag.type == 'parent':
                 # Get details about this parent bag
                 child_count = Link.query.filter_by(parent_bag_id=existing_bag.id).count()
                 return jsonify({
@@ -1882,7 +1882,7 @@ def process_child_scan():
                 })
             
             # If it's already a child, check if it's linked to any parent
-            if existing_bag.type == BagType.CHILD.value:
+            if existing_bag.type == 'child':
                 existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
                 if existing_link:
                     if existing_link.parent_bag_id == parent_bag.id:
@@ -1911,7 +1911,7 @@ def process_child_scan():
             # Create new child bag with user association
             child_bag = Bag()
             child_bag.qr_id = qr_code
-            child_bag.type = BagType.CHILD.value
+            child_bag.type = 'child'
             child_bag.user_id = current_user.id  # Associate child bag with user
             child_bag.dispatch_area = parent_bag.dispatch_area
             db.session.add(child_bag)
@@ -2001,7 +2001,7 @@ def scan_parent_bag():
             existing_bag = query_optimizer.get_bag_by_qr(qr_id)
             
             if existing_bag:
-                if existing_bag.type == BagType.PARENT.value:
+                if existing_bag.type == 'parent':
                     parent_bag = existing_bag
                     # Get current linked child count for existing parent
                     child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
@@ -2023,7 +2023,7 @@ def scan_parent_bag():
                         'message': f'Existing parent bag {qr_id} found with {child_count} linked child bags. Continue to add more children.',
                         'redirect': url_for('scan_child', s=request.args.get('s'))
                     })
-                elif existing_bag.type == BagType.CHILD.value:
+                elif existing_bag.type == 'child':
                     # Check if this child is already linked to a parent
                     existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
                     if existing_link:
@@ -2039,7 +2039,7 @@ def scan_parent_bag():
                 try:
                     parent_bag = query_optimizer.create_bag_optimized(
                         qr_id=qr_id,
-                        bag_type=BagType.PARENT.value,
+                        bag_type='parent',
                         dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
                     )
                 except ValueError as e:
@@ -2130,7 +2130,7 @@ def process_child_scan_fast():
             return jsonify({'success': False, 'message': 'Cannot link to itself'})
         
         # OPTIMIZED: Single query with bulk operations
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
         if not parent_bag:
             return jsonify({'success': False, 'message': 'Parent bag not found'})
         
@@ -2142,7 +2142,7 @@ def process_child_scan_fast():
         # Check/create child bag
         child_bag = Bag.query.filter_by(qr_id=qr_id).first()
         if child_bag:
-            if child_bag.type == BagType.PARENT.value:
+            if child_bag.type == 'parent':
                 return jsonify({'success': False, 'message': f'DUPLICATE: {qr_id} is already a parent bag'})
             # STRICT DUPLICATE PREVENTION: Check if already linked
             existing_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
@@ -2152,7 +2152,7 @@ def process_child_scan_fast():
             # Create new child bag
             child_bag = Bag()
             child_bag.qr_id = qr_id
-            child_bag.type = BagType.CHILD.value
+            child_bag.type = 'child'
             child_bag.dispatch_area = parent_bag.dispatch_area
             db.session.add(child_bag)
             db.session.flush()
@@ -2229,11 +2229,11 @@ def scan_child():
                     return jsonify({'success': False, 'message': 'No parent bag selected. Please scan a parent bag first.'})
                 
                 # OPTIMIZED: Get parent bag efficiently - try direct query first
-                parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+                parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
                 if not parent_bag:
                     # Try without type restriction as fallback
                     parent_bag = Bag.query.filter_by(qr_id=parent_qr).first()
-                    if parent_bag and parent_bag.type != BagType.PARENT.value:
+                    if parent_bag and parent_bag.type != 'parent':
                         app.logger.error(f'Bag {parent_qr} exists but is type {parent_bag.type}, not parent')
                         return jsonify({'success': False, 'message': f'QR {parent_qr} is not a parent bag. Please scan a parent bag first.'})
                     
@@ -2249,11 +2249,11 @@ def scan_child():
                 existing_bag = query_optimizer.get_bag_by_qr(qr_id)
                 
                 if existing_bag:
-                    if existing_bag.type == BagType.PARENT.value:
+                    if existing_bag.type == 'parent':
                         # Get details about this parent bag
                         child_count = Link.query.filter_by(parent_bag_id=existing_bag.id).count()
                         return jsonify({'success': False, 'message': f'QR code {qr_id} is already registered as a parent bag with {child_count} child bags linked. One bag can only have one role - either parent OR child, never both.'})
-                    elif existing_bag.type == BagType.CHILD.value:
+                    elif existing_bag.type == 'child':
                         # Check if this child is already linked to another parent
                         existing_link = Link.query.filter_by(child_bag_id=existing_bag.id).first()
                         if existing_link and existing_link.parent_bag_id != parent_bag.id:
@@ -2279,7 +2279,7 @@ def scan_child():
                     try:
                         child_bag = query_optimizer.create_bag_optimized(
                             qr_id=qr_id,
-                            bag_type=BagType.CHILD.value,
+                            bag_type='child',
                             dispatch_area=parent_bag.dispatch_area
                         )
                     except ValueError as e:
@@ -2365,7 +2365,7 @@ def scan_child():
         linked_child_bags = []
         if parent_qr:
             # Single optimized query to get parent and children
-            parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+            parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
             
             if not parent_bag:
                 # Try without type restriction
@@ -2373,8 +2373,8 @@ def scan_child():
                 if parent_bag_any:
                     app.logger.warning(f'CHILD SCAN PAGE: Bag {parent_qr} exists but is type {parent_bag_any.type}, not parent')
                     # If it exists but not as parent, update its type
-                    if parent_bag_any.type != BagType.PARENT.value:
-                        parent_bag_any.type = BagType.PARENT.value
+                    if parent_bag_any.type != 'parent':
+                        parent_bag_any.type = 'parent'
                         db.session.commit()
                         parent_bag = parent_bag_any
                         app.logger.info(f'CHILD SCAN PAGE: Updated bag {parent_qr} to parent type')
@@ -2389,7 +2389,7 @@ def scan_child():
                     Link, Bag.id == Link.child_bag_id
                 ).filter(
                     Link.parent_bag_id == parent_bag.id,
-                    Bag.type == BagType.CHILD.value
+                    Bag.type == 'child'
                 ).all()
         
         # Pass proper context with parent bag details
@@ -2422,7 +2422,7 @@ def scan_complete():
             return redirect(url_for('index'))
         
         # Get parent bag details
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
         if not parent_bag:
             flash('Parent bag not found.', 'error')
             return redirect(url_for('index'))
@@ -2432,7 +2432,7 @@ def scan_complete():
             Link, Bag.id == Link.child_bag_id
         ).filter(
             Link.parent_bag_id == parent_bag.id,
-            Bag.type == BagType.CHILD.value
+            Bag.type == 'child'
         ).all()
         scan_count = len(child_bags)
         
@@ -2636,7 +2636,7 @@ def delete_bag(bag_id):
         bag = Bag.query.with_for_update().get_or_404(bag_id)
         
         # Check if bag is linked to a bill
-        if bag.type == BagType.PARENT.value:
+        if bag.type == 'parent':
             bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
             if bill_link:
                 bill = Bill.query.get(bill_link.bill_id)
@@ -2653,7 +2653,7 @@ def delete_bag(bag_id):
                     'message': f'Cannot delete. This parent bag has {child_links} child bags linked to it. Remove all children first.'
                 })
         
-        if bag.type == BagType.CHILD.value:
+        if bag.type == 'child':
             # Check if child is linked to a parent
             parent_link = Link.query.filter_by(child_bag_id=bag.id).first()
             if parent_link:
@@ -2747,9 +2747,9 @@ def bag_management():
         # Type filter
         if bag_type != 'all':
             if bag_type == 'parent':
-                filters.append(Bag.type == BagType.PARENT.value)
+                filters.append(Bag.type == 'parent')
             elif bag_type == 'child':
-                filters.append(Bag.type == BagType.CHILD.value)
+                filters.append(Bag.type == 'child')
         
         # Search filter - exact match first, then partial match
         if search_query:
@@ -2904,8 +2904,8 @@ def bag_management():
         # Use single optimized query for all stats
         stats_query = db.session.query(
             func.count(Bag.id).label('total'),
-            func.sum(func.cast(Bag.type == BagType.PARENT.value, db.Integer)).label('parents'),
-            func.sum(func.cast(Bag.type == BagType.CHILD.value, db.Integer)).label('children')
+            func.sum(func.cast(Bag.type == 'parent', db.Integer)).label('parents'),
+            func.sum(func.cast(Bag.type == 'child', db.Integer)).label('children')
         )
         
         if dispatch_area:
@@ -3063,8 +3063,8 @@ def bag_management():
         # Basic stats
         stats = {
             'total_bags': Bag.query.count(),
-            'parent_bags': Bag.query.filter(Bag.type == BagType.PARENT.value).count(),
-            'child_bags': Bag.query.filter(Bag.type == BagType.CHILD.value).count(),
+            'parent_bags': Bag.query.filter(Bag.type == 'parent').count(),
+            'child_bags': Bag.query.filter(Bag.type == 'child').count(),
             'linked_bags': 0,
             'unlinked_bags': 0,
             'filtered_count': bags.total
@@ -3471,7 +3471,7 @@ def remove_bag_from_bill():
             return redirect(url_for('bill_management'))
         
         # Find the parent bag
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type=BagType.PARENT.value).first()
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
         if not parent_bag:
             flash('Parent bag not found.', 'error')
             return redirect(url_for('scan_bill_parent', bill_id=bill_id))
@@ -3680,7 +3680,7 @@ def process_bill_parent_scan():
             })
         
         # Direct parent bag lookup - no caching to avoid model/dict confusion
-        parent_bag = Bag.query.filter_by(qr_id=qr_id, type=BagType.PARENT.value).first()
+        parent_bag = Bag.query.filter_by(qr_id=qr_id, type='parent').first()
         
         if not parent_bag:
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
@@ -3791,7 +3791,7 @@ def bag_details(qr_id):
     bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
     
     # Get related information
-    if bag.type == BagType.PARENT.value:
+    if bag.type == 'parent':
         # Get child bags through links
         links = Link.query.filter_by(parent_bag_id=bag.id).all()
         child_bags = [Bag.query.get(link.child_bag_id) for link in links if link.child_bag_id]
@@ -3814,7 +3814,7 @@ def bag_details(qr_id):
                          parent_bag=parent_bag,
                          bills=bills,
                          scans=scans,
-                         is_parent=bag.type == BagType.PARENT.value,
+                         is_parent=bag.type == 'parent',
                          link=bills[0] if bills else None)
 
 # User Profile Management
@@ -4067,7 +4067,7 @@ def api_scanned_children():
             if last_scan and last_scan.get('type') == 'parent':
                 parent_qr_id = last_scan.get('qr_id')
                 if parent_qr_id:
-                    parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type=BagType.PARENT.value).first()
+                    parent_bag = Bag.query.filter_by(qr_id=parent_qr_id, type='parent').first()
                     if parent_bag:
                         parent_qr = parent_qr_id
         
@@ -4402,7 +4402,7 @@ def api_edit_parent_children():
                     child_bag = Bag()
                     child_bag.qr_id = child_qr.strip()
                     child_bag.name = f"Bag {child_qr.strip()}"
-                    child_bag.type = BagType.CHILD.value
+                    child_bag.type = 'child'
                     db.session.add(child_bag)
                     db.session.flush()  # Get the ID for the new bag
                     app.logger.info(f'New child bag created for QR code: {child_qr.strip()}')
