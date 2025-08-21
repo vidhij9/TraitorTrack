@@ -1299,8 +1299,10 @@ def login():
             session['user_role'] = user.role
             session['dispatch_area'] = user.dispatch_area
             session['auth_time'] = time.time()
+            session.permanent = True  # Make session permanent
+            session.modified = True   # Force session save
             
-            app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}")
+            app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
             flash('Login successful!', 'success')
             return redirect(url_for('index'))
                 
@@ -1738,9 +1740,13 @@ def scan_parent():
 
 @app.route('/process_parent_scan', methods=['GET', 'POST'])
 @csrf.exempt
-@login_required
 def process_parent_scan():
     """Process parent bag scan - Optimized for high concurrency"""
+    # Manual authentication check
+    if not is_authenticated():
+        app.logger.error(f'PARENT SCAN: Not authenticated, session user_id: {session.get("user_id")}')
+        return redirect(url_for('login'))
+    
     # Handle GET request - redirect to scan_parent
     if request.method == 'GET':
         return redirect(url_for('scan_parent'))
@@ -1751,6 +1757,10 @@ def process_parent_scan():
              'api' in request.path
     
     try:
+        # Debug logging
+        app.logger.info(f'PARENT SCAN START: User authenticated: {current_user.is_authenticated}')
+        app.logger.info(f'PARENT SCAN START: User ID: {current_user.id if current_user.is_authenticated else "None"}')
+        
         qr_code = request.form.get('qr_code', '').strip()
         
         if not qr_code:
@@ -1782,7 +1792,8 @@ def process_parent_scan():
             parent_bag.qr_id = qr_code
             parent_bag.type = 'parent'
             parent_bag.user_id = current_user.id  # Associate parent bag with user
-            parent_bag.dispatch_area = current_user.dispatch_area or 'Ultra Scanner Area'
+            # Safely get dispatch_area attribute
+            parent_bag.dispatch_area = getattr(current_user, 'dispatch_area', None) or 'Ultra Scanner Area'
             db.session.add(parent_bag)
             app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) created new parent bag {qr_code}')
         else:
@@ -1806,7 +1817,7 @@ def process_parent_scan():
         db.session.add(scan)
         db.session.commit()
         
-        # Store minimal session data
+        # Store minimal session data - ensure it persists
         session['current_parent_qr'] = qr_code
         session['parent_scan_time'] = datetime.utcnow().isoformat()
         session['last_scan'] = {
@@ -1815,6 +1826,10 @@ def process_parent_scan():
             'timestamp': datetime.utcnow().isoformat()
         }
         session.permanent = True
+        session.modified = True  # Force session save
+        
+        # Log for debugging
+        app.logger.info(f'PARENT SCAN: Session saved with parent_qr={qr_code}, user={current_user.username}')
         
         if is_api:
             return jsonify({
@@ -3297,8 +3312,9 @@ def delete_bill(bill_id):
         
         bill_identifier = bill.bill_id
         
-        # Fast bulk delete without loading records
-        db.session.execute(f"DELETE FROM bill_bag WHERE bill_id = {bill_id}")
+        # Fast bulk delete without loading records (use parameterized query for safety)
+        from sqlalchemy import text
+        db.session.execute(text("DELETE FROM bill_bag WHERE bill_id = :bill_id"), {"bill_id": bill_id})
         db.session.delete(bill)
         db.session.commit()
         
