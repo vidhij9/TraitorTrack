@@ -39,7 +39,7 @@ try:
     redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     limiter = Limiter(
         key_func=get_remote_address,
-        default_limits=["100000 per day", "10000 per hour", "1000 per minute"],  # Higher limits for 50+ concurrent users
+        default_limits=["1000000 per day", "100000 per hour", "10000 per minute"],  # Much higher limits for 50+ concurrent users
         storage_uri=redis_url if 'REDIS_URL' in os.environ else "memory://",
         strategy="fixed-window",  # Use fixed window strategy for better performance
         headers_enabled=True,  # Enable rate limit headers
@@ -49,7 +49,7 @@ except:
     # Fallback to memory storage
     limiter = Limiter(
         key_func=get_remote_address,
-        default_limits=["100000 per day", "10000 per hour", "1000 per minute"],
+        default_limits=["1000000 per day", "100000 per hour", "10000 per minute"],  # Much higher limits
         storage_uri="memory://",
         strategy="fixed-window"
     )
@@ -111,39 +111,46 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Import performance and resilient database configuration
+# Import high-performance configuration
 try:
-    from performance_utils import DatabaseConnectionPool
-    # Apply optimized database configuration for high concurrency
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = DatabaseConnectionPool.get_optimized_engine_config()
-    logger.info("Using optimized database configuration for high concurrency")
+    from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
+    # Apply high-performance configuration
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
+    HighPerformanceConfig.apply_to_app(app)
+    logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
 except ImportError:
     try:
-        from database_resilience import ResilientDatabaseConfig, configure_resilient_database
-        # Apply resilient database configuration
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ResilientDatabaseConfig.get_enhanced_config()
-        logger.info("Using enhanced resilient database configuration")
+        from performance_utils import DatabaseConnectionPool
+        # Apply optimized database configuration for high concurrency
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = DatabaseConnectionPool.get_optimized_engine_config()
+        logger.info("Using optimized database configuration for high concurrency")
     except ImportError:
-        # Fallback to optimized configuration for 50+ concurrent users
-        logger.warning("Using fallback optimized configuration")
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-            "pool_size": 100,               # Optimized for 50+ concurrent users
-            "max_overflow": 200,            # Allow up to 300 total connections
-            "pool_recycle": 300,            # Recycle every 5 minutes
-            "pool_pre_ping": True,          # Test connections before use
-            "pool_timeout": 30,             # Wait up to 30 seconds
-            "echo": False,                  # Disable SQL logging for performance
-            "echo_pool": False,             # Disable pool logging
-            "connect_args": {               # Optimized PostgreSQL settings
-                "keepalives": 1,
-                "keepalives_idle": 30,       
-                "keepalives_interval": 10,   
-                "keepalives_count": 5,       
-                "connect_timeout": 10,       
-                "application_name": "TraceTrack_HighPerf",
-                "options": "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=20000"  # 30s query, 20s idle timeout
+        try:
+            from database_resilience import ResilientDatabaseConfig, configure_resilient_database
+            # Apply resilient database configuration
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ResilientDatabaseConfig.get_enhanced_config()
+            logger.info("Using enhanced resilient database configuration")
+        except ImportError:
+            # Fallback to optimized configuration for 50+ concurrent users
+            logger.warning("Using fallback optimized configuration")
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+                "pool_size": 100,               # Optimized for 50+ concurrent users
+                "max_overflow": 200,            # Allow up to 300 total connections
+                "pool_recycle": 300,            # Recycle every 5 minutes
+                "pool_pre_ping": True,          # Test connections before use
+                "pool_timeout": 30,             # Wait up to 30 seconds
+                "echo": False,                  # Disable SQL logging for performance
+                "echo_pool": False,             # Disable pool logging
+                "connect_args": {               # Optimized PostgreSQL settings
+                    "keepalives": 1,
+                    "keepalives_idle": 30,       
+                    "keepalives_interval": 10,   
+                    "keepalives_count": 5,       
+                    "connect_timeout": 10,       
+                    "application_name": "TraceTrack_HighPerf",
+                    "options": "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=20000"  # 30s query, 20s idle timeout
+                }
             }
-        }
 
 # Disable SQL logging to reduce noise
 app.config["SQLALCHEMY_ECHO"] = False

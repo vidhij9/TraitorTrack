@@ -43,6 +43,16 @@ from app_clean import app, db, limiter, csrf
 from forms import LoginForm, RegistrationForm, ChildLookupForm, ManualScanForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 
+# Import all required models - FIX for 288 errors
+from models import (
+    User, UserRole, 
+    Bag, BagType, 
+    Link, Bill, BillBag, 
+    Scan, AuditLog, 
+    PromotionRequest, PromotionRequestStatus,
+    DispatchArea
+)
+
 import csv
 import io
 import json

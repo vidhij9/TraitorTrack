@@ -24,6 +24,14 @@ import routes_ultra_fast  # Instant scanning for 100+ concurrent users
 from optimized_cache import cache
 from performance_monitoring import monitor
 
+# Register high-performance API for 50+ concurrent users
+try:
+    from api_highperf import register_api
+    register_api(app)
+    logger.info("✅ High-performance API loaded for 50+ concurrent users")
+except ImportError as e:
+    logger.warning(f"High-performance API not loaded: {e}")
+
 # Setup monitoring for all routes
 @app.before_request
 def before_request():
