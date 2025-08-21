@@ -1777,9 +1777,7 @@ def process_parent_scan():
                 flash(f'QR code is too long (maximum 255 characters).', 'error')
                 return redirect(url_for('scan_parent'))
             
-            # Import models locally to avoid circular imports
-            from models import Bag, Scan
-            
+            # Create new parent bag (models already imported at top)
             parent_bag = Bag()
             parent_bag.qr_id = qr_code
             parent_bag.type = 'parent'
@@ -1802,10 +1800,9 @@ def process_parent_scan():
                 parent_bag.user_id = current_user.id
         
         # Create scan record for parent bag
-        scan = Scan(
-            parent_bag_id=parent_bag.id,
-            user_id=current_user.id
-        )
+        scan = Scan()
+        scan.parent_bag_id = parent_bag.id
+        scan.user_id = current_user.id
         db.session.add(scan)
         db.session.commit()
         
@@ -1932,14 +1929,14 @@ def process_child_scan():
             db.session.flush()  # Get the ID
         
         # Create link and scan record in batch
-        link = Link(
-            parent_bag_id=parent_bag.id,
-            child_bag_id=child_bag.id
-        )
-        scan = Scan(
-            user_id=current_user.id,
-            child_bag_id=child_bag.id
-        )
+        link = Link()
+        link.parent_bag_id = parent_bag.id
+        link.child_bag_id = child_bag.id
+        
+        scan = Scan()
+        scan.user_id = current_user.id
+        scan.child_bag_id = child_bag.id
+        
         db.session.add_all([link, scan])
         db.session.commit()
         
@@ -2647,7 +2644,7 @@ def delete_bag(bag_id):
     
     try:
         # Import models locally to avoid circular imports
-        from models import Bag, Link, Scan, BillBag, Bill
+        # Models already imported globally
         
         # Use transaction with locking
         bag = Bag.query.with_for_update().get_or_404(bag_id)
@@ -2756,7 +2753,7 @@ def bag_management():
     
     try:
         # Import models locally to avoid circular imports
-        from models import Bag, User, Scan, Link, Bill, BillBag
+        # Models already imported globally
         # Build simplified query for better stability
         query = db.session.query(Bag)
         
@@ -3060,7 +3057,7 @@ def bag_management():
         
         # Fallback to original query if optimization fails
         # Import models locally
-        from models import Bag, User, Scan, Link, Bill, BillBag
+        # Models already imported globally
         query = Bag.query
         
         if dispatch_area:
@@ -3340,7 +3337,7 @@ def finish_bill_scan(bill_id):
 def view_bill(bill_id):
     """Ultra-fast bill view - optimized for 8+ lakh bags"""
     # Import models locally
-    from models import Bill, Bag, BillBag, Link, Scan
+    # Models already imported globally
     from sqlalchemy import func
     
     bill = Bill.query.get_or_404(bill_id)
@@ -4213,7 +4210,7 @@ def api_delete_bag():
     
     try:
         # Import models locally to avoid circular imports
-        from models import Bag, Link, Scan, BillBag
+        # Models already imported globally
         
         qr_code = request.form.get('qr_code')
         if not qr_code:
