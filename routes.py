@@ -104,6 +104,13 @@ from models import (
     DispatchArea
 )
 
+# Import fast scanning routes for millisecond performance
+try:
+    import fast_scanning_routes
+    app.logger.info("Fast scanning routes loaded successfully")
+except Exception as e:
+    app.logger.warning(f"Fast scanning routes not loaded: {e}")
+
 import csv
 import io
 import json
@@ -4116,6 +4123,7 @@ def edit_profile():
 
 # API endpoints for dashboard data
 @app.route('/api/stats')
+@app.route('/api/v2/stats')  # Support v2 endpoint as well
 @cached(ttl=60, prefix='api_stats_v2')
 def api_dashboard_stats():
     """Get dashboard statistics - optimized with caching"""

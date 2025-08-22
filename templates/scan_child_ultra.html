@@ -382,8 +382,8 @@ document.addEventListener('DOMContentLoaded', function() {
         scannedBags.add(qrData);
         updateBagCount();
         
-        // Submit to backend
-        fetch('{{ url_for("scan_child") }}', {
+        // Submit to fast backend endpoint for millisecond performance
+        fetch('/fast/child_scan', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',

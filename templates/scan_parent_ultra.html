@@ -366,8 +366,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('qr_code', qrData);
         
-        // Submit to correct backend endpoint
-        fetch('{{ url_for("process_parent_scan") }}', {
+        // Submit to fast backend endpoint for millisecond performance
+        fetch('/fast/parent_scan', {
             method: 'POST',
             body: formData
         })

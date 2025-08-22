@@ -411,7 +411,7 @@ function initializeScanner() {
         // Process the scan
         try {
             console.log('Sending scan request for:', qrCode);
-            const response = await fetch('/process_bill_parent_scan', {
+            const response = await fetch('/fast/bill_parent_scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
