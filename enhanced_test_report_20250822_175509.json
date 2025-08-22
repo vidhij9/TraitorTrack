@@ -1,0 +1,104 @@
+{
+  "timestamp": "2025-08-22T17:55:09.360294",
+  "configuration": {
+    "concurrent_users": 55,
+    "test_duration": 120
+  },
+  "summary": {
+    "test_duration": 124.09177803993225,
+    "total_requests": 60,
+    "successful_requests": 5,
+    "failed_requests": 55,
+    "error_rate": 91.66666666666666,
+    "requests_per_second": 0.4835130977065397,
+    "bags_created": 0,
+    "bills_created": 0,
+    "scans_completed": 0,
+    "avg_response_time": 42.14432998100914,
+    "p50_response_time": 45.137224601847784,
+    "p95_response_time": 45.137224601847784,
+    "p99_response_time": 45.137224601847784,
+    "endpoint_metrics": {
+      "/login": {
+        "count": 56,
+        "success": 1,
+        "errors": 55,
+        "total_time": 2527.684577703476,
+        "min_time": 1.0286142826080322,
+        "max_time": 45.971760749816895,
+        "status_codes": {
+          "200": 1,
+          "0": 55
+        }
+      },
+      "/api/stats": {
+        "count": 1,
+        "success": 1,
+        "errors": 0,
+        "total_time": 0.9451355934143066,
+        "min_time": 0.9451355934143066,
+        "max_time": 0.9451355934143066,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/bags?page=1&limit=100": {
+        "count": 1,
+        "success": 1,
+        "errors": 0,
+        "total_time": 0.012195825576782227,
+        "min_time": 0.012195825576782227,
+        "max_time": 0.012195825576782227,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/bills?status=completed": {
+        "count": 1,
+        "success": 1,
+        "errors": 0,
+        "total_time": 0.010731697082519531,
+        "min_time": 0.010731697082519531,
+        "max_time": 0.010731697082519531,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/scans?limit=1000": {
+        "count": 1,
+        "success": 1,
+        "errors": 0,
+        "total_time": 0.007158041000366211,
+        "min_time": 0.007158041000366211,
+        "max_time": 0.007158041000366211,
+        "status_codes": {
+          "200": 1
+        }
+      }
+    }
+  },
+  "resources": {
+    "initial": {
+      "cpu_percent": 32.4,
+      "memory_percent": 30.0,
+      "memory_available_gb": 43.934078216552734,
+      "disk_percent": 60.2,
+      "network_sent_mb": 9.76661491394043,
+      "network_recv_mb": 10.44162654876709
+    },
+    "final": {
+      "cpu_percent": 27.9,
+      "memory_percent": 33.3,
+      "memory_available_gb": 41.903114318847656,
+      "disk_percent": 60.2,
+      "network_sent_mb": 10.138635635375977,
+      "network_recv_mb": 10.806375503540039
+    }
+  },
+  "verdict": "\u274c NEEDS IMPROVEMENT: Critical optimizations required",
+  "capacity_assessment": {
+    "bags_per_second": 0.0,
+    "time_for_800k_hours": Infinity,
+    "ready_for_production": false
+  }
+}
