@@ -420,14 +420,14 @@ def admin_user_profile(user_id):
             AuditLog.timestamp.desc()
         ).limit(15).all()
         
-        # Recent scans with bag information
+        # Recent scans with bag information - Fixed subquery syntax
         recent_scans = db.session.query(
             Scan.timestamp,
             Scan.parent_bag_id,
             Scan.child_bag_id,
             func.coalesce(
-                db.session.query(Bag.qr_id).filter_by(id=Scan.parent_bag_id).scalar_subquery(),
-                db.session.query(Bag.qr_id).filter_by(id=Scan.child_bag_id).scalar_subquery(),
+                db.session.query(Bag.qr_id).filter(Bag.id == Scan.parent_bag_id).scalar_subquery(),
+                db.session.query(Bag.qr_id).filter(Bag.id == Scan.child_bag_id).scalar_subquery(),
                 'Unknown'
             ).label('qr_code')
         ).filter_by(user_id=user_id).order_by(Scan.timestamp.desc()).limit(20).all()
