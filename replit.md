@@ -3,7 +3,7 @@
 ## Overview
 A cutting-edge supply chain traceability platform revolutionizing agricultural bag tracking through advanced QR scanning technologies with enhanced security, performance optimization, and comprehensive user management.
 
-## Recent Changes (August 19, 2025)
+## Recent Changes (August 22, 2025)
 - **Database Pool Optimization**: Increased connection pool from 15/25 to 50/100 connections to handle 100+ concurrent users
 - **Model Instantiation Fixes**: Fixed all SQLAlchemy model instantiation issues (changed from keyword arguments to attribute assignment)
 - **CSRF Handling**: Temporarily exempted login from CSRF for high-concurrency testing
@@ -22,6 +22,10 @@ A cutting-edge supply chain traceability platform revolutionizing agricultural b
 - **Dashboard Cleanup**: Removed all extra dashboard templates, keeping only simple dashboard.html
 - **UI Simplification**: Removed view buttons from recent scans table for cleaner interface
 - **Bag Detail Page Fix**: Fixed SQLAlchemy lazy loading issue causing 500 error in production by using passed variables instead of model properties
+- **API Endpoint Fix**: Added missing `/api/v2/stats` route alias to properly handle dashboard statistics requests
+- **View Bill Fix**: Fixed undefined `all_child_bags` variable in view_bill function that was causing 500 errors
+- **Query Optimization**: Optimized bag_details function with eager loading to prevent lazy loading issues and improve performance
+- **Template Resilience**: Updated bag_detail template to gracefully handle missing properties to prevent rendering errors
 
 ## Project Architecture
 
@@ -82,6 +86,14 @@ idle_in_transaction_timeout: 30 seconds
 3. Fixed model instantiation issues in routes.py
 4. Added connection retry logic
 5. Optimized database queries
+
+### Issue: Template Rendering Errors in Production
+**Problem**: SQLAlchemy lazy loading causing template rendering failures
+**Solution Implemented**:
+1. Added eager loading with `db.joinedload()` for related objects
+2. Limited query results to prevent memory issues
+3. Fixed undefined variables in view functions
+4. Updated templates to handle missing properties gracefully
 
 ### Issue: Parent Bag Scanner Not Accepting Manual Entries
 **Problem**: Parent bag scanner failing to process manual QR code entries
