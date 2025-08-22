@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile UI for Low Literacy Users</title>
+    <style>
+        /* OPTIMIZED MOBILE UI FOR LOW LITERACY USERS */
+        
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 18px; /* Larger base font */
+            background: #f5f5f5;
+        }
+        
+        /* VISUAL HIERARCHY WITH ICONS AND COLORS */
+        
+        .app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .app-logo {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 10px;
+            background: white;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+        }
+        
+        /* LARGE ICON BUTTONS FOR EASY RECOGNITION */
+        
+        .icon-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            margin: 15px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-decoration: none;
+            color: #333;
+            transition: all 0.3s ease;
+            min-height: 150px;
+        }
+        
+        .icon-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .icon-button .icon {
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+        
+        .icon-button .label {
+            font-size: 20px;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .icon-button .sublabel {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* COLOR CODING FOR DIFFERENT ACTIONS */
+        
+        .scan-parent {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .scan-child {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .create-bill {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .view-history {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+        
+        /* VISUAL FEEDBACK STATES */
+        
+        .success-state {
+            background: #4caf50;
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 15px;
+            display: flex;
+            align-items: center;
+            animation: pulse 1s ease;
+        }
+        
+        .error-state {
+            background: #f44336;
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 15px;
+            display: flex;
+            align-items: center;
+            animation: shake 0.5s ease;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        /* PROGRESS INDICATORS WITH VISUAL CUES */
+        
+        .progress-visual {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: white;
+            margin: 15px;
+            border-radius: 15px;
+        }
+        
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0.3;
+        }
+        
+        .progress-step.active {
+            opacity: 1;
+        }
+        
+        .progress-step.completed {
+            opacity: 1;
+        }
+        
+        .progress-step .step-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .progress-step.active .step-icon {
+            background: #ff9800;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        
+        .progress-step.completed .step-icon {
+            background: #4caf50;
+            color: white;
+        }
+        
+        /* VOICE FEEDBACK BUTTON */
+        
+        .voice-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            font-size: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .voice-button:active {
+            transform: scale(0.9);
+        }
+        
+        /* SIMPLIFIED FORMS WITH VISUAL HINTS */
+        
+        .simple-form {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-label {
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .form-label .icon {
+            font-size: 24px;
+            margin-right: 10px;
+            color: #667eea;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 20px;
+            font-size: 20px;
+            border: 3px solid #e0e0e0;
+            border-radius: 15px;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* VISUAL NUMBER PAD FOR EASY INPUT */
+        
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 300px;
+            margin: 20px auto;
+        }
+        
+        .number-pad button {
+            padding: 25px;
+            font-size: 24px;
+            font-weight: bold;
+            border: none;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .number-pad button:active {
+            background: #667eea;
+            color: white;
+            transform: scale(0.95);
+        }
+        
+        /* STATUS CARDS WITH ICONS */
+        
+        .status-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .status-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .status-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            margin-right: 15px;
+        }
+        
+        .status-icon.success {
+            background: #e8f5e9;
+            color: #4caf50;
+        }
+        
+        .status-icon.warning {
+            background: #fff3e0;
+            color: #ff9800;
+        }
+        
+        .status-icon.error {
+            background: #ffebee;
+            color: #f44336;
+        }
+        
+        .status-title {
+            font-size: 22px;
+            font-weight: 600;
+        }
+        
+        .status-subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* TUTORIAL OVERLAY */
+        
+        .tutorial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            z-index: 2000;
+        }
+        
+        .tutorial-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 90%;
+            text-align: center;
+        }
+        
+        .tutorial-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        
+        .tutorial-text {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .tutorial-button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+        }
+        
+        /* ACCESSIBILITY FEATURES */
+        
+        .high-contrast {
+            filter: contrast(1.5);
+        }
+        
+        .large-text {
+            font-size: 24px !important;
+        }
+        
+        /* OFFLINE INDICATOR */
+        
+        .offline-banner {
+            background: #ff9800;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            display: none;
+        }
+        
+        .offline .offline-banner {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- MOBILE UI DEMO FOR LOW LITERACY USERS -->
+    
+    <!-- App Header with Logo -->
+    <div class="app-header">
+        <div class="app-logo">📦</div>
+        <h1 style="margin: 0; font-size: 24px;">TraceTrack</h1>
+        <p style="margin: 5px 0; opacity: 0.9; font-size: 16px;">Bag Tracking System</p>
+    </div>
+    
+    <!-- Offline Indicator -->
+    <div class="offline-banner">
+        ⚠️ No Internet - Working Offline
+    </div>
+    
+    <!-- Main Menu with Large Icons -->
+    <div style="padding: 10px;">
+        <!-- Scan Parent Bag -->
+        <a href="#" class="icon-button scan-parent">
+            <div class="icon">📦</div>
+            <div class="label">Scan Big Bag</div>
+            <div class="sublabel">Start here</div>
+        </a>
+        
+        <!-- Scan Child Bags -->
+        <a href="#" class="icon-button scan-child">
+            <div class="icon">📱</div>
+            <div class="label">Scan Small Bags</div>
+            <div class="sublabel">Add 30 bags</div>
+        </a>
+        
+        <!-- Create Bill -->
+        <a href="#" class="icon-button create-bill">
+            <div class="icon">📋</div>
+            <div class="label">Make Bill</div>
+            <div class="sublabel">Complete order</div>
+        </a>
+        
+        <!-- View History -->
+        <a href="#" class="icon-button view-history">
+            <div class="icon">📊</div>
+            <div class="label">See History</div>
+            <div class="sublabel">Past work</div>
+        </a>
+    </div>
+    
+    <!-- Visual Progress Indicator -->
+    <div class="progress-visual">
+        <div class="progress-step completed">
+            <div class="step-icon">✓</div>
+            <div>Step 1</div>
+        </div>
+        <div class="progress-step active">
+            <div class="step-icon">2</div>
+            <div>Step 2</div>
+        </div>
+        <div class="progress-step">
+            <div class="step-icon">3</div>
+            <div>Step 3</div>
+        </div>
+    </div>
+    
+    <!-- Status Card Example -->
+    <div class="status-card">
+        <div class="status-header">
+            <div class="status-icon success">✓</div>
+            <div>
+                <div class="status-title">Good Job!</div>
+                <div class="status-subtitle">15 bags scanned</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Voice Assistant Button -->
+    <button class="voice-button">🎤</button>
+    
+    <!-- Tutorial Overlay -->
+    <div class="tutorial-overlay" id="tutorial">
+        <div class="tutorial-content">
+            <div class="tutorial-icon">👆</div>
+            <div class="tutorial-text">
+                Tap the big box to start scanning
+            </div>
+            <button class="tutorial-button" onclick="closeTutorial()">
+                OK, I understand
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // Voice feedback for actions
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9; // Slower speech
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                speechSynthesis.speak(utterance);
+            }
+        }
+        
+        // Haptic feedback
+        function vibrate(pattern = [200]) {
+            if ('vibrate' in navigator) {
+                navigator.vibrate(pattern);
+            }
+        }
+        
+        // Show tutorial on first visit
+        if (!localStorage.getItem('tutorialShown')) {
+            document.getElementById('tutorial').style.display = 'block';
+            speak('Welcome to TraceTrack. Tap the big box to start scanning.');
+        }
+        
+        function closeTutorial() {
+            document.getElementById('tutorial').style.display = 'none';
+            localStorage.setItem('tutorialShown', 'true');
+        }
+        
+        // Add click feedback to all buttons
+        document.querySelectorAll('.icon-button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                vibrate([50]);
+                const label = this.querySelector('.label').textContent;
+                speak(label);
+            });
+        });
+        
+        // Offline detection
+        window.addEventListener('online', () => {
+            document.body.classList.remove('offline');
+            speak('Internet connected');
+        });
+        
+        window.addEventListener('offline', () => {
+            document.body.classList.add('offline');
+            speak('No internet. You can still work.');
+        });
+    </script>
+</body>
+</html>
