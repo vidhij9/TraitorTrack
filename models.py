@@ -122,6 +122,8 @@ class Bag(db.Model):
     parent_id = db.Column(db.Integer, nullable=True)  # For child bags
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)  # Owner/scanner of the bag
     dispatch_area = db.Column(db.String(30), nullable=True)  # Area for area-based access control
+    status = db.Column(db.String(20), default='pending')  # pending, completed (for parent bags)
+    weight_kg = db.Column(db.Float, default=0.0)  # Weight in kg (1kg per child, 30kg for full parent)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     # Ultra-optimized indexes for lightning-fast filtering
@@ -207,9 +209,13 @@ class Bill(db.Model):
     bill_id = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
     parent_bag_count = db.Column(db.Integer, default=1)
+    total_weight_kg = db.Column(db.Float, default=0.0)  # Total weight in kg
+    total_child_bags = db.Column(db.Integer, default=0)  # Total number of child bags
     status = db.Column(db.String(20), default='new')  # Possible values: new, processing, completed
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_by = db.relationship('User', backref=db.backref('created_bills', lazy='dynamic'))
     # Ultra-fast indexes for bill management
     __table_args__ = (
         db.Index('idx_bill_id', 'bill_id'),

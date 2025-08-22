@@ -64,6 +64,7 @@ class CurrentUserProxy:
         return self.is_admin()
         
 current_user = CurrentUserProxy()
+
 from query_optimizer import query_optimizer
 from optimized_cache import cached, cache, invalidate_cache
 
@@ -2541,15 +2542,24 @@ def scan_complete():
             flash(f'Error: You have scanned {scan_count} bags but exactly 30 are required. Please continue scanning.', 'error')
             return redirect(url_for('scan_child'))
         
+        # Update parent bag status to completed and calculate weight
+        parent_bag.status = 'completed'
+        parent_bag.child_count = scan_count
+        parent_bag.weight_kg = scan_count * 1.0  # 1kg per child bag
+        db.session.commit()
+        
+        app.logger.info(f'Parent bag {parent_qr} marked as completed with {scan_count} children, weight: {parent_bag.weight_kg}kg')
+        
         # Store completion data in session
         session['last_scan'] = {
             'type': 'completed',
             'parent_qr': parent_qr,
             'child_count': scan_count,
+            'weight_kg': parent_bag.weight_kg,
             'timestamp': datetime.utcnow().isoformat()
         }
         
-        flash(f'Successfully completed! Parent bag {parent_qr} linked with exactly {scan_count} child bags.', 'success')
+        flash(f'Successfully completed! Parent bag {parent_qr} linked with exactly {scan_count} child bags (Total weight: {parent_bag.weight_kg}kg).', 'success')
         
         return render_template('scan_complete.html', 
                              parent_bag=parent_bag, 
@@ -3324,6 +3334,9 @@ def create_bill():
             bill.description = ''
             bill.parent_bag_count = parent_bag_count
             bill.status = 'new'
+            bill.created_by_id = current_user.id
+            bill.total_weight_kg = 0.0
+            bill.total_child_bags = 0
             
             # FIX: Add audit log
             app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) created bill {bill_id} with capacity {parent_bag_count}')
@@ -3726,9 +3739,6 @@ def process_bill_parent_scan():
     
     # Optimized transaction with proper concurrency handling
     try:
-        from redis_cache import cache
-        from performance_utils import measure_performance, retry_on_db_error
-        
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
         
         # Import models locally to avoid circular imports
@@ -3766,6 +3776,16 @@ def process_bill_parent_scan():
             return jsonify({'success': False, 'message': f'❌ Parent bag "{qr_id}" not found! This bag needs to be registered as a parent bag first.'})
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
+        
+        # CHECK BAG STATUS - Only allow completed parent bags to be attached to bills
+        if parent_bag.status != 'completed':
+            # Count child bags to provide helpful feedback
+            child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+            return jsonify({
+                'success': False,
+                'message': f'❌ Parent bag "{qr_id}" is not completed! It has {child_count}/30 child bags. Please complete scanning all 30 child bags first.',
+                'show_popup': True
+            })
         
         # FIX: Check current bill capacity (after potential edits)
         current_capacity = bill.parent_bag_count
@@ -3805,6 +3825,15 @@ def process_bill_parent_scan():
             bill_bag.bill_id = bill.id
             bill_bag.bag_id = parent_bag.id
             
+            # Update bill weight calculations
+            # Each parent bag with 30 child bags = 30kg (1kg per child)
+            bill.total_weight_kg = (bill.total_weight_kg or 0) + parent_bag.weight_kg
+            bill.total_child_bags = (bill.total_child_bags or 0) + (parent_bag.child_count or 30)
+            
+            # Track who created/modified the bill
+            if not bill.created_by_id:
+                bill.created_by_id = current_user.id
+            
             # Create scan record
             scan = Scan()
             scan.user_id = current_user.id
@@ -3813,6 +3842,7 @@ def process_bill_parent_scan():
             
             # Add audit log entry
             app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
+            app.logger.info(f'Bill weight updated: {bill.total_weight_kg}kg, Total child bags: {bill.total_child_bags}')
             
             db.session.add(bill_bag)
             db.session.add(scan)
@@ -3833,11 +3863,13 @@ def process_bill_parent_scan():
         
         response_data = {
             'success': True, 
-            'message': f'Parent bag {qr_id} linked successfully!',
+            'message': f'Parent bag {qr_id} linked successfully! (Weight: {parent_bag.weight_kg}kg)',
             'bag_qr': qr_id,  # Changed from parent_qr to bag_qr for consistency
             'linked_count': updated_bag_count,
             'expected_count': bill.parent_bag_count or 10,
-            'remaining_bags': (bill.parent_bag_count or 10) - updated_bag_count
+            'remaining_bags': (bill.parent_bag_count or 10) - updated_bag_count,
+            'total_weight': bill.total_weight_kg,
+            'total_child_bags': bill.total_child_bags
         }
         
         app.logger.info(f'Sending response: {response_data}')
@@ -4559,3 +4591,313 @@ def api_get_parent_children(parent_qr):
             'success': False,
             'message': 'Error retrieving parent bag children'
         }), 500
+
+# Bill Summary and Manual Entry Routes
+@app.route('/bill/manual_parent_entry', methods=['POST'])
+@login_required
+def manual_parent_entry():
+    """Manually enter a parent bag QR code to link to a bill"""
+    if not (current_user.is_admin() or current_user.is_biller()):
+        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
+    
+    try:
+        bill_id = request.form.get('bill_id', type=int)
+        manual_qr = request.form.get('manual_qr', '').strip().upper()
+        
+        if not bill_id:
+            return jsonify({'success': False, 'message': 'Bill ID is required.'})
+        
+        if not manual_qr:
+            return jsonify({'success': False, 'message': 'Please enter a parent bag QR code.'})
+        
+        # Validate format: Must be SB##### (SB followed by exactly 5 digits)
+        import re
+        if not re.match(r'^SB\d{5}$', manual_qr):
+            return jsonify({
+                'success': False,
+                'message': f'Invalid format! Parent bag QR must be SB##### (e.g., SB12345). You entered: {manual_qr}'
+            })
+        
+        # Get the bill
+        bill = Bill.query.get(bill_id)
+        if not bill:
+            return jsonify({'success': False, 'message': 'Bill not found.'})
+        
+        # Check if parent bag exists
+        parent_bag = Bag.query.filter_by(qr_id=manual_qr, type='parent').first()
+        
+        if not parent_bag:
+            # Create the parent bag if it doesn't exist (for manual entry)
+            parent_bag = Bag()
+            parent_bag.qr_id = manual_qr
+            parent_bag.type = 'parent'
+            parent_bag.name = f'Manual Entry - {manual_qr}'
+            parent_bag.status = 'pending'  # Manual entries start as pending
+            parent_bag.child_count = 0
+            parent_bag.weight_kg = 0.0
+            parent_bag.user_id = current_user.id
+            parent_bag.dispatch_area = current_user.dispatch_area if hasattr(current_user, 'dispatch_area') else None
+            db.session.add(parent_bag)
+            db.session.flush()
+            
+            app.logger.info(f'Created new parent bag via manual entry: {manual_qr}')
+        
+        # Check if bag is already linked to this bill
+        existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
+        if existing_link:
+            return jsonify({'success': False, 'message': f'Parent bag {manual_qr} is already linked to this bill.'})
+        
+        # Check if bag is linked to another bill
+        other_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
+        if other_link and other_link.bill_id != bill.id:
+            other_bill = Bill.query.get(other_link.bill_id)
+            return jsonify({
+                'success': False,
+                'message': f'Parent bag {manual_qr} is already linked to bill {other_bill.bill_id if other_bill else "another bill"}.'
+            })
+        
+        # Create the link
+        bill_bag = BillBag()
+        bill_bag.bill_id = bill.id
+        bill_bag.bag_id = parent_bag.id
+        
+        # Update bill weights
+        bill.total_weight_kg = (bill.total_weight_kg or 0) + parent_bag.weight_kg
+        bill.total_child_bags = (bill.total_child_bags or 0) + (parent_bag.child_count or 0)
+        
+        db.session.add(bill_bag)
+        db.session.commit()
+        
+        # Get updated count
+        linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Parent bag {manual_qr} added manually! Status: {parent_bag.status}',
+            'bag_qr': manual_qr,
+            'linked_count': linked_count,
+            'expected_count': bill.parent_bag_count,
+            'remaining_bags': bill.parent_bag_count - linked_count,
+            'bag_status': parent_bag.status,
+            'weight_kg': parent_bag.weight_kg
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Manual parent entry error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error adding parent bag manually.'})
+
+@app.route('/bill_summary')
+@login_required
+def bill_summary():
+    """Display bill summary report - billers see their own, admins see all"""
+    try:
+        # Get date range parameters (default to today)
+        date_from = request.args.get('date_from', datetime.now().strftime('%Y-%m-%d'))
+        date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+        
+        # Parse dates
+        try:
+            start_date = datetime.strptime(date_from, '%Y-%m-%d')
+            end_date = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)  # Include entire end day
+        except ValueError:
+            start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date + timedelta(days=1)
+        
+        # Base query
+        bills_query = db.session.query(Bill).filter(
+            Bill.created_at >= start_date,
+            Bill.created_at < end_date
+        )
+        
+        # Filter by creator for billers
+        if current_user.is_biller() and not current_user.is_admin():
+            bills_query = bills_query.filter(Bill.created_by_id == current_user.id)
+            summary_title = f"My Bill Summary - {current_user.username}"
+        else:
+            summary_title = "All Bills Summary (Admin View)"
+        
+        bills = bills_query.order_by(desc(Bill.created_at)).all()
+        
+        # Calculate summary statistics
+        summary_data = []
+        total_bills = 0
+        total_parent_bags = 0
+        total_child_bags = 0
+        total_weight_kg = 0
+        completed_bills = 0
+        pending_bills = 0
+        
+        for bill in bills:
+            # Get linked parent bags
+            bill_bags = BillBag.query.filter_by(bill_id=bill.id).all()
+            parent_count = len(bill_bags)
+            
+            # Calculate totals for this bill
+            bill_weight = bill.total_weight_kg or 0
+            bill_child_count = bill.total_child_bags or 0
+            
+            # If not stored, calculate from parent bags
+            if bill_weight == 0 and parent_count > 0:
+                for bb in bill_bags:
+                    parent_bag = Bag.query.get(bb.bag_id)
+                    if parent_bag:
+                        bill_weight += parent_bag.weight_kg or 0
+                        bill_child_count += parent_bag.child_count or 0
+            
+            # Determine bill status
+            if bill.status == 'completed':
+                status = 'Completed'
+                completed_bills += 1
+            elif parent_count >= bill.parent_bag_count:
+                status = 'Full'
+                completed_bills += 1
+            elif parent_count > 0:
+                status = 'In Progress'
+                pending_bills += 1
+            else:
+                status = 'Empty'
+                pending_bills += 1
+            
+            # Get creator name
+            creator = User.query.get(bill.created_by_id) if bill.created_by_id else None
+            creator_name = creator.username if creator else 'Unknown'
+            
+            # Add to summary
+            summary_data.append({
+                'bill_id': bill.bill_id,
+                'created_at': bill.created_at,
+                'created_by': creator_name,
+                'status': status,
+                'parent_bags': parent_count,
+                'expected_bags': bill.parent_bag_count,
+                'child_bags': bill_child_count,
+                'weight_kg': bill_weight,
+                'completion_percent': (parent_count / bill.parent_bag_count * 100) if bill.parent_bag_count > 0 else 0
+            })
+            
+            # Update totals
+            total_bills += 1
+            total_parent_bags += parent_count
+            total_child_bags += bill_child_count
+            total_weight_kg += bill_weight
+        
+        # Overall statistics
+        overall_stats = {
+            'total_bills': total_bills,
+            'completed_bills': completed_bills,
+            'pending_bills': pending_bills,
+            'total_parent_bags': total_parent_bags,
+            'total_child_bags': total_child_bags,
+            'total_weight_kg': total_weight_kg,
+            'average_weight_per_bill': (total_weight_kg / total_bills) if total_bills > 0 else 0,
+            'average_completion': (total_parent_bags / (total_bills * 10)) * 100 if total_bills > 0 else 0
+        }
+        
+        # Get user-wise summary for admins
+        user_summary = []
+        if current_user.is_admin():
+            user_stats = db.session.query(
+                User.username,
+                func.count(Bill.id).label('bill_count'),
+                func.sum(Bill.total_child_bags).label('total_bags'),
+                func.sum(Bill.total_weight_kg).label('total_weight')
+            ).join(
+                Bill, Bill.created_by_id == User.id
+            ).filter(
+                Bill.created_at >= start_date,
+                Bill.created_at < end_date
+            ).group_by(User.id, User.username).all()
+            
+            for stat in user_stats:
+                user_summary.append({
+                    'username': stat.username,
+                    'bill_count': stat.bill_count,
+                    'total_bags': stat.total_bags or 0,
+                    'total_weight': stat.total_weight or 0
+                })
+        
+        return render_template('bill_summary.html',
+                             summary_title=summary_title,
+                             summary_data=summary_data,
+                             overall_stats=overall_stats,
+                             user_summary=user_summary,
+                             date_from=date_from,
+                             date_to=date_to,
+                             is_admin=current_user.is_admin())
+                             
+    except Exception as e:
+        app.logger.error(f'Bill summary error: {str(e)}')
+        flash('Error generating bill summary report.', 'error')
+        return redirect(url_for('index'))
+
+
+@app.route('/api/bill_summary/eod')
+@login_required
+def eod_bill_summary():
+    """Generate End of Day (EOD) bill summary - JSON API for automated reports"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Admin access required for EOD summary'}), 403
+    
+    try:
+        # Get today's date range
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
+        
+        # Get all bills created today
+        bills = Bill.query.filter(
+            Bill.created_at >= today,
+            Bill.created_at < tomorrow
+        ).all()
+        
+        # Compile EOD report data
+        eod_data = {
+            'report_date': today.strftime('%Y-%m-%d'),
+            'generated_at': datetime.now().isoformat(),
+            'total_bills': len(bills),
+            'bills_by_status': {},
+            'bills_by_user': {},
+            'total_parent_bags': 0,
+            'total_child_bags': 0,
+            'total_weight_kg': 0,
+            'detailed_bills': []
+        }
+        
+        # Process each bill
+        for bill in bills:
+            # Get creator
+            creator = User.query.get(bill.created_by_id) if bill.created_by_id else None
+            creator_name = creator.username if creator else 'Unknown'
+            
+            # Get linked bags count
+            parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
+            
+            # Update totals
+            eod_data['total_parent_bags'] += parent_count
+            eod_data['total_child_bags'] += bill.total_child_bags or 0
+            eod_data['total_weight_kg'] += bill.total_weight_kg or 0
+            
+            # Count by status
+            status = bill.status or 'new'
+            eod_data['bills_by_status'][status] = eod_data['bills_by_status'].get(status, 0) + 1
+            
+            # Count by user
+            eod_data['bills_by_user'][creator_name] = eod_data['bills_by_user'].get(creator_name, 0) + 1
+            
+            # Add detailed bill info
+            eod_data['detailed_bills'].append({
+                'bill_id': bill.bill_id,
+                'created_by': creator_name,
+                'created_at': bill.created_at.isoformat(),
+                'status': status,
+                'parent_bags': parent_count,
+                'expected_bags': bill.parent_bag_count,
+                'child_bags': bill.total_child_bags or 0,
+                'weight_kg': bill.total_weight_kg or 0
+            })
+        
+        return jsonify(eod_data)
+        
+    except Exception as e:
+        app.logger.error(f'EOD summary error: {str(e)}')
+        return jsonify({'error': 'Error generating EOD summary'}), 500

@@ -150,6 +150,25 @@
                             <i class="fas fa-stop me-1"></i>Stop Scanner
                         </button>
                     </div>
+                    
+                    <!-- Manual Entry Section -->
+                    <hr class="my-3">
+                    <div class="manual-entry-section">
+                        <h6 class="mb-2"><i class="fas fa-keyboard me-2"></i>Manual Entry</h6>
+                        <div class="input-group">
+                            <input type="text" 
+                                   id="manual-qr-input" 
+                                   class="form-control" 
+                                   placeholder="Enter parent bag QR (SB12345)" 
+                                   pattern="^SB\d{5}$"
+                                   maxlength="7"
+                                   style="text-transform: uppercase;">
+                            <button class="btn btn-primary" type="button" onclick="submitManualEntry()">
+                                <i class="fas fa-plus me-1"></i>Add
+                            </button>
+                        </div>
+                        <small class="text-muted">Format: SB##### (e.g., SB12345)</small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -298,6 +317,56 @@ function initializeScanner() {
         // Only show critical errors as toast
         if (type === 'danger') {
             showToast(message.replace(/<[^>]*>/g, ''), 'danger');
+        }
+    }
+    
+    // Submit manual entry
+    window.submitManualEntry = async function() {
+        const input = document.getElementById('manual-qr-input');
+        const manualQR = input.value.trim().toUpperCase();
+        
+        if (!manualQR) {
+            showToast('Please enter a parent bag QR code', 'warning');
+            return;
+        }
+        
+        // Validate format (SB#####)
+        if (!/^SB\d{5}$/.test(manualQR)) {
+            showToast('Invalid format! Must be SB##### (e.g., SB12345)', 'danger');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/bill/manual_parent_entry', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'bill_id': {{ bill.id }},
+                    'manual_qr': manualQR
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast(data.message, 'success');
+                
+                // Add to list visually
+                addBagToList(data.bag_qr, data.bag_status || 'pending', data.weight_kg || 0);
+                
+                // Update counts
+                updateProgress(data.linked_count, data.expected_count);
+                
+                // Clear input
+                input.value = '';
+            } else {
+                showToast(data.message, 'danger');
+            }
+        } catch (error) {
+            console.error('Manual entry error:', error);
+            showToast('Error adding parent bag manually', 'danger');
         }
     }
     
