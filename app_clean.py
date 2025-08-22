@@ -196,21 +196,8 @@ setup_error_handlers(app)
 setup_request_logging(app)
 setup_health_monitoring(app)
 
-# Apply enhanced security configuration
-try:
-    from security_config import init_security
-    init_security(app)
-    logging.info("Security configuration applied")
-except Exception as e:
-    logging.warning(f"Security config not applied: {e}")
-
-# Apply header fixes for high concurrency
-try:
-    from fix_headers import setup_app_fixes
-    setup_app_fixes(app)
-    logging.info("Header fixes applied for high concurrency")
-except Exception as e:
-    logging.warning(f"Header fixes not applied: {e}")
+# Security headers and optimizations are built into the application
+# No additional modules needed - security is handled in the main app configuration
 
 # Add session validation and cache control
 @app.before_request
