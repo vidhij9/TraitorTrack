@@ -10,7 +10,7 @@ backlog = 2048
 
 # Worker processes - automatically scale based on CPU cores
 workers = multiprocessing.cpu_count() * 2 + 1  # Optimal for production
-worker_class = "gthread"  # Use threaded workers for better concurrency
+worker_class = "gevent"  # Use async workers for maximum concurrency
 worker_connections = 1000
 threads = 4  # 4 threads per worker = 16 concurrent requests
 max_requests = 1000  # Restart workers after 1000 requests to prevent memory leaks
