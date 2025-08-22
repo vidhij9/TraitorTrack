@@ -194,6 +194,7 @@ def user_management():
             WITH user_scans AS (
                 SELECT user_id, 
                        COUNT(*) as scan_count,
+                       COUNT(DISTINCT COALESCE(parent_bag_id, child_bag_id)) as unique_bags_scanned,
                        MAX(timestamp) as last_scan
                 FROM scan 
                 WHERE user_id IS NOT NULL
@@ -210,6 +211,7 @@ def user_management():
                 u.id, u.username, u.email, u.role, u.dispatch_area, 
                 u.verified, u.created_at,
                 COALESCE(us.scan_count, 0) as scan_count,
+                COALESCE(us.unique_bags_scanned, 0) as unique_bags_scanned,
                 us.last_scan,
                 rs.admin_count, rs.biller_count, rs.dispatcher_count
             FROM "user" u
@@ -242,6 +244,7 @@ def user_management():
                 'verified': row.verified,
                 'created_at': row.created_at,
                 'scan_count': row.scan_count,
+                'unique_bags_scanned': row.unique_bags_scanned,
                 'last_scan': row.last_scan,
                 'role_stats': {},  # Simplified for performance
                 'can_change_role': row.id != current_user.id,

@@ -165,14 +165,15 @@
                 <table class="table table-hover table-sm mb-0" id="usersTable">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 20%">User</th>
-                            <th style="width: 15%">Email</th>
-                            <th style="width: 12%">Role</th>
-                            <th style="width: 8%">Status</th>
-                            <th style="width: 10%">Joined</th>
-                            <th style="width: 12%">Activity</th>
+                            <th style="width: 18%">User</th>
+                            <th style="width: 14%">Email</th>
+                            <th style="width: 10%">Role</th>
+                            <th style="width: 7%">Status</th>
+                            <th style="width: 9%">Joined</th>
+                            <th style="width: 10%">Activity</th>
                             <th style="width: 8%" class="text-center">Scans</th>
-                            <th style="width: 15%" class="text-center">Actions</th>
+                            <th style="width: 8%" class="text-center">Bags</th>
+                            <th style="width: 16%" class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
@@ -228,7 +229,10 @@
                                 </div>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-primary scan-count" data-user-id="{{ data.id }}">{{ data.scan_count }}</span>
+                                <span class="badge bg-primary scan-count" data-user-id="{{ data.id }}" title="Total scans">{{ data.scan_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info" title="Unique bags scanned">{{ data.unique_bags_scanned or 0 }}</span>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
