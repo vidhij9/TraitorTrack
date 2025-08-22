@@ -13,12 +13,17 @@ import warnings
 warnings.filterwarnings("ignore", module="flask_limiter")
 warnings.filterwarnings("ignore", message=".*flask_limiter.*")
 
-# Initialize logging - reduced for performance
+# Initialize logging - comprehensive for debugging
 logging.basicConfig(
-    level=logging.ERROR,  # Only log errors in production
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO,  # Changed to INFO to see all logs
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True  # Force reconfigure logging
 )
 logger = logging.getLogger(__name__)
+
+# Also set Flask app logger to INFO
+logging.getLogger('app').setLevel(logging.INFO)
+logging.getLogger('routes').setLevel(logging.INFO)
 
 # Suppress specific warnings that are not critical
 warnings.filterwarnings("ignore", message="Using the in-memory storage for tracking rate limits")

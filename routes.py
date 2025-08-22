@@ -112,6 +112,16 @@ import random
 import time
 import logging
 
+# Set up comprehensive logging for debugging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True
+)
+app.logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 # Helper function for audit logging
 def log_audit(action, entity_type, entity_id=None, details=None):
     """Log an audit trail entry"""
@@ -130,6 +140,18 @@ def log_audit(action, entity_type, entity_id=None, details=None):
         app.logger.error(f'Audit logging failed: {str(e)}')
 
 # Health check endpoint for load balancers
+@app.route('/test_manual_entry')
+@csrf.exempt
+def test_manual_entry_page():
+    """Test page for manual parent entry"""
+    return render_template('test_manual_entry_ui.html')
+
+@app.route('/manual_entry_info')
+@csrf.exempt
+def manual_entry_info_page():
+    """Information page about manual parent entry"""
+    return render_template('manual_entry_info.html')
+
 @app.route('/health')
 @csrf.exempt
 def system_health_check():
@@ -4659,40 +4681,86 @@ def api_get_parent_children(parent_qr):
         }), 500
 
 # Bill Summary and Manual Entry Routes
-@app.route('/bill/manual_parent_entry', methods=['POST'])
+@app.route('/bill/manual_parent_entry', methods=['GET', 'POST'])
+@csrf.exempt  # Exempt from CSRF for AJAX requests
 @login_required
 def manual_parent_entry():
     """Manually enter a parent bag QR code to link to a bill"""
+    # Comprehensive logging
+    app.logger.info(f'=== MANUAL PARENT ENTRY START ===')
+    app.logger.info(f'Request Method: {request.method}')
+    app.logger.info(f'Request Headers: {dict(request.headers)}')
+    app.logger.info(f'Request Form Data: {dict(request.form)}')
+    app.logger.info(f'Request JSON: {request.get_json() if request.is_json else "Not JSON"}')
+    app.logger.info(f'User: {current_user.username if current_user.is_authenticated else "Not authenticated"}')
+    app.logger.info(f'User Role: {current_user.role if hasattr(current_user, "role") else "No role"}')
+    
+    # Handle GET requests (when user navigates directly to URL)
+    if request.method == 'GET':
+        app.logger.warning('GET request to manual_parent_entry - redirecting to bills page')
+        flash('Manual parent entry must be done from the bill scanning page, not by direct URL access.', 'warning')
+        return redirect(url_for('bill_management'))
+    
+    # Check authentication
+    if not current_user.is_authenticated:
+        app.logger.error('User not authenticated')
+        return jsonify({'success': False, 'message': 'User not authenticated'}), 401
+    
+    # Check permissions
     if not (current_user.is_admin() or current_user.is_biller()):
-        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
+        app.logger.error(f'Access denied for user role: {current_user.role}')
+        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'}), 403
     
     try:
-        bill_id = request.form.get('bill_id', type=int)
-        manual_qr = request.form.get('manual_qr', '').strip().upper()
+        # Try to get data from form or JSON
+        if request.is_json:
+            data = request.get_json()
+            bill_id = data.get('bill_id')
+            manual_qr = data.get('manual_qr', '').strip()
+            app.logger.info(f'Extracted from JSON - bill_id: {bill_id}, manual_qr: {manual_qr}')
+        else:
+            # Try to get bill_id as integer or string
+            bill_id = request.form.get('bill_id')
+            if bill_id:
+                try:
+                    bill_id = int(bill_id)
+                except ValueError:
+                    app.logger.error(f'Invalid bill_id format: {bill_id}')
+                    bill_id = None
+            manual_qr = request.form.get('manual_qr', '').strip()
+            app.logger.info(f'Extracted from Form - bill_id: {bill_id}, manual_qr: {manual_qr}')
         
         if not bill_id:
-            return jsonify({'success': False, 'message': 'Bill ID is required.'})
+            app.logger.error('Bill ID is missing')
+            return jsonify({'success': False, 'message': 'Bill ID is required.'}), 400
         
         if not manual_qr:
-            return jsonify({'success': False, 'message': 'Please enter a parent bag QR code.'})
+            app.logger.error('Manual QR is missing')
+            return jsonify({'success': False, 'message': 'Please enter a parent bag QR code.'}), 400
         
         # Convert to uppercase for validation
         manual_qr = manual_qr.upper()
+        app.logger.info(f'Manual QR after uppercase: {manual_qr}')
         
         # Validate format: Must be SB##### (SB followed by exactly 5 digits)
         import re
         if not re.match(r'^SB\d{5}$', manual_qr):
+            app.logger.error(f'Invalid QR format: {manual_qr}')
             return jsonify({
                 'success': False,
                 'message': f'Invalid format! Parent bag QR must be SB##### (e.g., SB12345). You entered: {manual_qr}'
-            })
+            }), 400
         
         # Get the bill
+        app.logger.info(f'Looking for bill with ID: {bill_id}')
         bill = Bill.query.get(bill_id)
         if not bill:
-            return jsonify({'success': False, 'message': 'Bill not found.'})
+            app.logger.error(f'Bill not found with ID: {bill_id}')
+            return jsonify({'success': False, 'message': 'Bill not found.'}), 404
+        app.logger.info(f'Found bill: {bill.bill_id}')
         
         # Check if parent bag exists
+        app.logger.info(f'Checking if parent bag exists: {manual_qr}')
         parent_bag = Bag.query.filter_by(qr_id=manual_qr, type='parent').first()
         
         if not parent_bag:
@@ -4710,6 +4778,8 @@ def manual_parent_entry():
             db.session.flush()
             
             app.logger.info(f'Created new parent bag via manual entry: {manual_qr}')
+        else:
+            app.logger.info(f'Parent bag already exists: {manual_qr}, status: {parent_bag.status}')
         
         # CHECK BAG STATUS - Only allow completed parent bags
         if parent_bag.status != 'completed':
@@ -4723,41 +4793,50 @@ def manual_parent_entry():
                 parent_bag.weight_kg = 30.0
                 db.session.commit()
             else:
+                app.logger.warning(f'Parent bag {manual_qr} not completed: {child_count}/30 children')
                 return jsonify({
                     'success': False,
                     'message': f'Parent bag {manual_qr} is not completed! It has {child_count}/30 child bags. Complete scanning before adding to bill.'
-                })
+                }), 400
         
         # Check if bag is already linked to this bill
+        app.logger.info(f'Checking if bag already linked to bill {bill.id}')
         existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
         if existing_link:
-            return jsonify({'success': False, 'message': f'Parent bag {manual_qr} is already linked to this bill.'})
+            app.logger.warning(f'Parent bag {manual_qr} already linked to bill {bill.bill_id}')
+            return jsonify({'success': False, 'message': f'Parent bag {manual_qr} is already linked to this bill.'}), 400
         
         # Check if bag is linked to another bill
+        app.logger.info(f'Checking if bag linked to another bill')
         other_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
         if other_link and other_link.bill_id != bill.id:
             other_bill = Bill.query.get(other_link.bill_id)
+            app.logger.warning(f'Parent bag {manual_qr} already linked to another bill: {other_bill.bill_id if other_bill else other_link.bill_id}')
             return jsonify({
                 'success': False,
                 'message': f'Parent bag {manual_qr} is already linked to bill {other_bill.bill_id if other_bill else "another bill"}.'
-            })
+            }), 400
         
         # Create the link
+        app.logger.info(f'Creating link between bag {parent_bag.id} and bill {bill.id}')
         bill_bag = BillBag()
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
         # Update bill weights
+        app.logger.info(f'Updating bill weights - current: {bill.total_weight_kg}kg, adding: {parent_bag.weight_kg}kg')
         bill.total_weight_kg = (bill.total_weight_kg or 0) + parent_bag.weight_kg
         bill.total_child_bags = (bill.total_child_bags or 0) + (parent_bag.child_count or 0)
         
         db.session.add(bill_bag)
         db.session.commit()
+        app.logger.info(f'Successfully linked parent bag {manual_qr} to bill {bill.bill_id}')
         
         # Get updated count
         linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        app.logger.info(f'Bill now has {linked_count}/{bill.parent_bag_count} parent bags')
         
-        return jsonify({
+        response_data = {
             'success': True,
             'message': f'Parent bag {manual_qr} added manually! Status: {parent_bag.status}',
             'bag_qr': manual_qr,
@@ -4766,12 +4845,20 @@ def manual_parent_entry():
             'remaining_bags': bill.parent_bag_count - linked_count,
             'bag_status': parent_bag.status,
             'weight_kg': parent_bag.weight_kg
-        })
+        }
+        
+        app.logger.info(f'=== MANUAL PARENT ENTRY SUCCESS ===')
+        app.logger.info(f'Response: {response_data}')
+        return jsonify(response_data)
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f'Manual parent entry error: {str(e)}')
-        return jsonify({'success': False, 'message': 'Error adding parent bag manually.'})
+        app.logger.error(f'=== MANUAL PARENT ENTRY ERROR ===')
+        app.logger.error(f'Error Type: {type(e).__name__}')
+        app.logger.error(f'Error Message: {str(e)}')
+        import traceback
+        app.logger.error(f'Traceback: {traceback.format_exc()}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 @app.route('/bill_summary')
 @login_required
