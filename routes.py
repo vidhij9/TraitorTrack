@@ -2259,6 +2259,14 @@ def process_child_scan_fast():
         # Return current count after linking
         new_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
         
+        # UPDATE PARENT BAG STATUS AND WEIGHT WHEN 30 CHILDREN ARE LINKED
+        if new_count == 30:
+            parent_bag.status = 'completed'
+            parent_bag.child_count = 30
+            parent_bag.weight_kg = 30.0  # 1kg per child bag
+            db.session.commit()
+            app.logger.info(f'Parent bag {parent_qr} automatically marked as completed with 30 children')
+        
         return jsonify({
             'success': True,
             'child_qr': qr_id,
@@ -2273,6 +2281,51 @@ def process_child_scan_fast():
         if 'duplicate' in str(e).lower():
             return jsonify({'success': False, 'message': 'DUPLICATE: Already scanned'})
         return jsonify({'success': False, 'message': 'Error processing scan'})
+
+@app.route('/complete_parent_scan', methods=['POST'])
+@csrf.exempt
+@login_required
+def complete_parent_scan():
+    """Complete parent bag scanning and mark as completed if 30 children"""
+    try:
+        # Get parent from session
+        parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            return jsonify({'success': False, 'message': 'No parent bag in session'})
+        
+        # Get parent bag
+        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        if not parent_bag:
+            return jsonify({'success': False, 'message': 'Parent bag not found'})
+        
+        # Count linked children
+        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        
+        # Update status if 30 children
+        if child_count == 30:
+            parent_bag.status = 'completed'
+            parent_bag.child_count = 30
+            parent_bag.weight_kg = 30.0  # 1kg per child
+            db.session.commit()
+            
+            # Clear session
+            session.pop('current_parent_qr', None)
+            
+            return jsonify({
+                'success': True,
+                'message': f'Parent bag {parent_qr} completed with 30 children (30kg)',
+                'redirect': url_for('index')
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Parent bag has only {child_count}/30 children. Please scan {30-child_count} more.'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Complete parent scan error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error completing parent scan'})
 
 @app.route('/scan/child', methods=['GET', 'POST'])
 @app.route('/scan_child', methods=['GET', 'POST'])  # Alias for compatibility
@@ -3781,11 +3834,20 @@ def process_bill_parent_scan():
         if parent_bag.status != 'completed':
             # Count child bags to provide helpful feedback
             child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-            return jsonify({
-                'success': False,
-                'message': f'❌ Parent bag "{qr_id}" is not completed! It has {child_count}/30 child bags. Please complete scanning all 30 child bags first.',
-                'show_popup': True
-            })
+            
+            # Auto-update status if 30 children are present
+            if child_count == 30:
+                parent_bag.status = 'completed'
+                parent_bag.child_count = 30
+                parent_bag.weight_kg = 30.0
+                db.session.commit()
+                app.logger.info(f'Auto-completed parent bag {qr_id} with 30 children')
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': f'❌ Parent bag "{qr_id}" is not completed! It has {child_count}/30 child bags. Please complete scanning all 30 child bags first.',
+                    'show_popup': True
+                })
         
         # FIX: Check current bill capacity (after potential edits)
         current_capacity = bill.parent_bag_count
@@ -3826,9 +3888,13 @@ def process_bill_parent_scan():
             bill_bag.bag_id = parent_bag.id
             
             # Update bill weight calculations
-            # Each parent bag with 30 child bags = 30kg (1kg per child)
-            bill.total_weight_kg = (bill.total_weight_kg or 0) + parent_bag.weight_kg
-            bill.total_child_bags = (bill.total_child_bags or 0) + (parent_bag.child_count or 30)
+            # Each completed parent bag = 30kg (30 children x 1kg each)
+            # Use actual weight from parent_bag which is set when completed
+            weight_to_add = parent_bag.weight_kg if parent_bag.weight_kg > 0 else 30.0
+            child_count_to_add = parent_bag.child_count if parent_bag.child_count > 0 else 30
+            
+            bill.total_weight_kg = (bill.total_weight_kg or 0) + weight_to_add
+            bill.total_child_bags = (bill.total_child_bags or 0) + child_count_to_add
             
             # Track who created/modified the bill
             if not bill.created_by_id:
@@ -4610,6 +4676,9 @@ def manual_parent_entry():
         if not manual_qr:
             return jsonify({'success': False, 'message': 'Please enter a parent bag QR code.'})
         
+        # Convert to uppercase for validation
+        manual_qr = manual_qr.upper()
+        
         # Validate format: Must be SB##### (SB followed by exactly 5 digits)
         import re
         if not re.match(r'^SB\d{5}$', manual_qr):
@@ -4634,13 +4703,30 @@ def manual_parent_entry():
             parent_bag.name = f'Manual Entry - {manual_qr}'
             parent_bag.status = 'pending'  # Manual entries start as pending
             parent_bag.child_count = 0
-            parent_bag.weight_kg = 0.0
+            parent_bag.weight_kg = 0.0  # Will be updated when children are added
             parent_bag.user_id = current_user.id
             parent_bag.dispatch_area = current_user.dispatch_area if hasattr(current_user, 'dispatch_area') else None
             db.session.add(parent_bag)
             db.session.flush()
             
             app.logger.info(f'Created new parent bag via manual entry: {manual_qr}')
+        
+        # CHECK BAG STATUS - Only allow completed parent bags
+        if parent_bag.status != 'completed':
+            # Count child bags for feedback
+            child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+            
+            # Auto-complete if 30 children exist
+            if child_count == 30:
+                parent_bag.status = 'completed'
+                parent_bag.child_count = 30
+                parent_bag.weight_kg = 30.0
+                db.session.commit()
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': f'Parent bag {manual_qr} is not completed! It has {child_count}/30 child bags. Complete scanning before adding to bill.'
+                })
         
         # Check if bag is already linked to this bill
         existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
