@@ -17,6 +17,9 @@ from simple_auth import (
     login_required, admin_required, get_current_user,
     get_current_user_id, get_current_username, get_current_user_role
 )
+
+# Import caching and timezone utilities
+from cache_utils import cached_route, clear_cache, get_cache_stats, format_datetime_ist, get_ist_now, CACHE_TTL
 # Create a current_user proxy for compatibility
 class CurrentUserProxy:
     @property
@@ -182,8 +185,9 @@ def system_health_check():
 @app.route('/user_management')
 @login_required
 @limiter.exempt  # Exempt from rate limiting for admin functionality
+@cached_route(seconds=CACHE_TTL['user_management'])
 def user_management():
-    """Ultra-optimized user management dashboard for admins"""
+    """Ultra-optimized user management dashboard for admins with caching"""
     try:
         if not current_user.is_admin():
             flash('Admin access required.', 'error')
@@ -313,8 +317,9 @@ def get_user_details(user_id):
 @app.route('/admin/users/<int:user_id>/profile')
 @login_required
 @limiter.exempt  # Exempt admin functionality from rate limiting
+@cached_route(seconds=CACHE_TTL['user_profile'])
 def admin_user_profile(user_id):
-    """Comprehensive user profile page for admins with detailed metrics and analytics"""
+    """Comprehensive user profile page for admins with caching and IST timezone"""
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('user_management'))
@@ -1015,7 +1020,7 @@ def preview_user_deletion():
                 'username': user.username,
                 'email': user.email,
                 'role': user.role,
-                'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else 'Unknown'
+                'created_at': format_datetime_ist(user.created_at, 'full') if user.created_at else 'Unknown'
             },
             'deletion_summary': {
                 'total_scans': len(user_scans),
@@ -2886,8 +2891,9 @@ def delete_bag(bag_id):
 @app.route('/bags')
 @app.route('/bag_management')  # Alias for compatibility
 @login_required
+@cached_route(seconds=CACHE_TTL['bag_management'])
 def bag_management():
-    """Ultra-fast bag management with optimized filtering"""
+    """Ultra-fast bag management with caching and optimized filtering"""
     import time
     from sqlalchemy import and_, or_, func
     from sqlalchemy.orm import joinedload, selectinload
@@ -4142,9 +4148,9 @@ def edit_profile():
 # API endpoints for dashboard data
 @app.route('/api/stats')
 @app.route('/api/v2/stats')  # Support v2 endpoint as well
-@cached(ttl=60, prefix='api_stats_v2')
+@cached_route(seconds=CACHE_TTL['dashboard_stats'])
 def api_dashboard_stats():
-    """Get dashboard statistics - ULTRA OPTIMIZED"""
+    """Get dashboard statistics with in-memory caching"""
     try:
         # Use indexed counts for sub-millisecond performance
         stats_result = db.session.execute(text("""
@@ -4891,8 +4897,8 @@ def bill_summary():
     """Display bill summary report - billers see their own, admins see all"""
     try:
         # Get date range parameters (default to today)
-        date_from = request.args.get('date_from', datetime.now().strftime('%Y-%m-%d'))
-        date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+        date_from = request.args.get('date_from', get_ist_now().strftime('%Y-%m-%d'))
+        date_to = request.args.get('date_to', get_ist_now().strftime('%Y-%m-%d'))
         
         # Parse dates
         try:
@@ -5050,7 +5056,7 @@ def eod_bill_summary():
         
         # Compile EOD report data
         eod_data = {
-            'report_date': today.strftime('%Y-%m-%d'),
+            'report_date': format_datetime_ist(today, 'date'),
             'generated_at': datetime.now().isoformat(),
             'total_bills': len(bills),
             'bills_by_status': {},

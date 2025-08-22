@@ -27,4 +27,5 @@ dependencies = [
     "pyjwt>=2.10.1",
     "gevent>=25.5.1",
     "psycopg2-binary>=2.9.10",
+    "pytz>=2025.2",
 ]
