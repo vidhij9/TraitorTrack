@@ -22,18 +22,46 @@ class CurrentUserProxy:
     @property
     def id(self):
         return get_current_user_id()
+    
     @property
     def username(self):
         return get_current_username()
+    
     @property
     def role(self):
         return get_current_user_role()
+    
     @property
     def is_authenticated(self):
         return is_logged_in()
+    
     @property
     def dispatch_area(self):
         return session.get('dispatch_area')
+    
+    @property
+    def email(self):
+        return session.get('email')
+    
+    def is_admin(self):
+        """Check if user is admin"""
+        return self.role == 'admin'
+    
+    def is_biller(self):
+        """Check if user is biller"""
+        return self.role == 'biller'
+    
+    def is_dispatcher(self):
+        """Check if user is dispatcher"""
+        return self.role == 'dispatcher'
+    
+    def can_edit_bills(self):
+        """Check if user can edit bills"""
+        return self.is_admin() or self.is_biller()
+    
+    def can_manage_users(self):
+        """Check if user can manage users"""
+        return self.is_admin()
         
 current_user = CurrentUserProxy()
 from query_optimizer import query_optimizer
@@ -1313,6 +1341,8 @@ def login():
             
             # SUCCESS - Use simple authentication system
             create_session(user)
+            # Ensure user_role is saved
+            session['user_role'] = user.role
             
             app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
             app.logger.info(f"Session after login: user_id={session.get('user_id')}, keys={list(session.keys())}")
