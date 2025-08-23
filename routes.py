@@ -3364,7 +3364,12 @@ def bill_management():
             if current_user.is_biller() and not current_user.is_admin():
                 summary_query = summary_query.filter(Bill.created_by_id == current_user.id)
             elif summary_user_id and current_user.is_admin():
-                summary_query = summary_query.filter(Bill.created_by_id == summary_user_id)
+                try:
+                    user_id_int = int(summary_user_id)
+                    summary_query = summary_query.filter(Bill.created_by_id == user_id_int)
+                except ValueError:
+                    # Invalid user_id, skip filter
+                    pass
             
             summary_bills = summary_query.all()
             
