@@ -14,6 +14,17 @@
         height: 400px;
         width: 100%;
     }
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+        }
+    }
 </style>
 {% endblock %}
 
@@ -57,6 +68,9 @@
     <div class="d-flex gap-1">
         <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-sm flex-fill py-1">
             <i class="fas fa-camera"></i> Scan
+        </a>
+        <a href="/ultra_batch/scanner" class="btn btn-warning btn-sm flex-fill py-1" style="animation: pulse 2s infinite;">
+            <i class="fas fa-bolt"></i> Fast Scan
         </a>
         <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success btn-sm flex-fill py-1">
             <i class="fas fa-file-invoice"></i> Bills
