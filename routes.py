@@ -4212,30 +4212,49 @@ def api_dashboard_stats():
 @app.route('/api/scans')
 @limiter.exempt  # Exempt from rate limiting for dashboard functionality
 def api_recent_scans():
-    """Get recent scans for dashboard - simplified bulletproof version"""
+    """Get recent scans for dashboard - returns real scan data"""
     try:
         limit = min(request.args.get('limit', 10, type=int), 50)
         
-        # Simplified response to avoid any import issues
-        # This can be enhanced later once core issues are resolved
+        # Get real scans from database
+        result = db.session.execute(text("""
+            SELECT 
+                s.id,
+                s.timestamp,
+                COALESCE(pb.qr_id, cb.qr_id, 'Unknown') as product_qr,
+                COALESCE(pb.name, cb.name, 'Unknown Product') as product_name,
+                COALESCE(pb.type, cb.type, 'unknown') as type,
+                u.username
+            FROM scan s
+            LEFT JOIN bag pb ON s.parent_bag_id = pb.id
+            LEFT JOIN bag cb ON s.child_bag_id = cb.id
+            LEFT JOIN "user" u ON s.user_id = u.id
+            ORDER BY s.timestamp DESC
+            LIMIT :limit
+        """), {'limit': limit})
+        
+        scans = []
+        for row in result:
+            scans.append({
+                'id': row.id,
+                'timestamp': row.timestamp.isoformat() if row.timestamp else None,
+                'product_qr': row.product_qr or 'Unknown',
+                'product_name': row.product_name or 'Unknown Product',
+                'type': row.type or 'unknown',
+                'username': row.username or 'Unknown User'
+            })
+        
         return jsonify({
             'success': True,
-            'scans': [
-                {
-                    'id': 1,
-                    'timestamp': '2025-08-21T08:00:00Z',
-                    'product_qr': 'SAMPLE001',
-                    'product_name': 'Sample Product',
-                    'type': 'parent',
-                    'username': 'raghav'
-                }
-            ],
-            'message': 'API endpoint is working - full data integration pending'
+            'scans': scans if scans else [],
+            'count': len(scans)
         })
     except Exception as e:
+        app.logger.error(f'Recent scans API error: {str(e)}')
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'scans': []
         }), 500
 
 @app.route('/api/activity/<int:days>')
