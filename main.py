@@ -20,6 +20,13 @@ import routes
 import api  # Import consolidated API endpoints
 from optimized_cache import cache
 
+# Import ultra-fast API for <50ms response times
+try:
+    import ultra_fast_api
+    logger.info("Ultra-fast API loaded successfully")
+except Exception as e:
+    logger.warning(f"Ultra-fast API not loaded: {e}")
+
 # Setup monitoring for all routes
 @app.before_request
 def before_request():
