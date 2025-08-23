@@ -242,11 +242,6 @@
                                     <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="editUser({{ data.id }})" title="Edit">
                                         <i class="fas fa-edit" style="font-size: 0.7rem;"></i>
                                     </button>
-                                    {% if data.can_change_role %}
-                                        <button class="btn btn-outline-success btn-sm py-0 px-1" onclick="openRoleChangeModal({{ data.id }}, '{{ data.username }}', '{{ data.role }}', '{{ data.dispatch_area or '' }}')" title="Role">
-                                            <i class="fas fa-user-tag" style="font-size: 0.7rem;"></i>
-                                        </button>
-                                    {% endif %}
                                     {% if data.id != current_user.id %}
                                         <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteUser({{ data.id }})" title="Delete">
                                             <i class="fas fa-trash" style="font-size: 0.7rem;"></i>

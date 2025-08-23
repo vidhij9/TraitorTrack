@@ -178,8 +178,13 @@
                         
                         {% if current_user.is_admin() or current_user.can_edit_bills() %}
                             <li class="nav-item">
-                                <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
+                                <a class="nav-link{% if '/bill' in request.path and '/bill_summary' not in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
                                     <i class="fas fa-file-invoice"></i> Bills
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/bill_summary' in request.path %} active{% endif %}" href="{{ url_for('bill_summary', s=request.args.get('s')) }}">
+                                    <i class="fas fa-chart-bar"></i> Bill Summary
                                 </a>
                             </li>
                         {% endif %}
