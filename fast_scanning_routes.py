@@ -23,7 +23,7 @@ QUERIES = {
     'get_bag': """
         SELECT id, qr_id, type, status, weight_kg, user_id, dispatch_area
         FROM bag 
-        WHERE qr_id = :qr_id
+        WHERE UPPER(qr_id) = UPPER(:qr_id)
         LIMIT 1
     """,
     
@@ -52,7 +52,7 @@ QUERIES = {
         FROM link l
         JOIN bag p ON p.id = l.parent_bag_id
         JOIN bag c ON c.id = l.child_bag_id
-        WHERE c.qr_id = :child_qr
+        WHERE UPPER(c.qr_id) = UPPER(:child_qr)
         LIMIT 1
     """,
     
@@ -359,7 +359,7 @@ def fast_bill_parent_scan():
                     FROM bag b
                     LEFT JOIN bag cb ON cb.parent_id = b.id
                     LEFT JOIN bill_bag bb ON bb.parent_bag_id = b.id
-                    WHERE b.qr_id = :qr_id
+                    WHERE UPPER(b.qr_id) = UPPER(:qr_id)
                     GROUP BY b.id, b.type, b.status, bb.bill_id
                 )
                 SELECT * FROM bag_info LIMIT 1

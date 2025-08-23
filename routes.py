@@ -1878,7 +1878,7 @@ def api_fast_parent_scan():
     try:
         # Fast SQL query
         result = db.session.execute(
-            text("SELECT id, type FROM bag WHERE qr_id = :qr_id LIMIT 1"),
+            text("SELECT id, type FROM bag WHERE UPPER(qr_id) = UPPER(:qr_id) LIMIT 1"),
             {'qr_id': qr_code}
         ).fetchone()
         
