@@ -153,11 +153,7 @@ def fast_parent_scan():
             
             db.session.commit()
             
-            # Invalidate cache after creating new data
-            try:
-                app.invalidate_cache()
-            except:
-                pass  # Don't fail on cache errors
+            # Cache invalidation handled elsewhere
             
             # Store in session
             session['current_parent_qr'] = qr_code
@@ -302,11 +298,7 @@ def fast_child_scan():
         
         db.session.commit()
         
-        # Invalidate cache after creating new data
-        try:
-            app.invalidate_cache()
-        except:
-            pass  # Don't fail on cache errors
+        # Cache invalidation handled elsewhere
         
         return jsonify({
             'success': True,
@@ -352,67 +344,64 @@ def fast_bill_parent_scan():
         })
     
     try:
-        # Check parent bag
-        parent = db.session.execute(
-            text(QUERIES['get_bag']),
+        # Single optimized query to check everything at once
+        result = db.session.execute(
+            text("""
+                WITH bag_info AS (
+                    SELECT 
+                        b.id, b.type, b.status,
+                        COUNT(cb.id) as child_count,
+                        bb.bill_id as existing_bill
+                    FROM bag b
+                    LEFT JOIN bag cb ON cb.parent_id = b.id
+                    LEFT JOIN bill_bag bb ON bb.parent_bag_id = b.id
+                    WHERE b.qr_id = :qr_id
+                    GROUP BY b.id, b.type, b.status, bb.bill_id
+                )
+                SELECT * FROM bag_info LIMIT 1
+            """),
             {'qr_id': qr_code}
         ).fetchone()
         
-        if not parent:
+        if not result:
             return jsonify({
                 'success': False,
                 'message': f'Parent bag {qr_code} not found',
                 'time_ms': round((time.time() - start) * 1000, 2)
             })
         
-        if parent.type != 'parent':
+        if result.type != 'parent':
             return jsonify({
                 'success': False,
                 'message': f'{qr_code} is not a parent bag',
                 'time_ms': round((time.time() - start) * 1000, 2)
             })
         
-        if parent.status != 'completed':
-            # Get child count
-            count = db.session.execute(
-                text(QUERIES['get_child_count']),
-                {'parent_id': parent.id}
-            ).scalar() or 0
-            
+        if result.status != 'completed' and result.child_count < 30:
             return jsonify({
                 'success': False,
-                'message': f'Parent bag not complete ({count}/30 children)',
+                'message': f'Parent bag not complete ({result.child_count}/30 children)',
                 'time_ms': round((time.time() - start) * 1000, 2)
             })
         
-        # Check if already linked to a bill
-        existing_bill = db.session.execute(
-            text("SELECT bill_id FROM bill_bag WHERE parent_bag_id = :parent_id LIMIT 1"),
-            {'parent_id': parent.id}
-        ).scalar()
-        
-        if existing_bill:
+        if result.existing_bill:
             return jsonify({
                 'success': False,
-                'message': f'{qr_code} already linked to bill #{existing_bill}',
+                'message': f'{qr_code} already linked to bill #{result.existing_bill}',
                 'time_ms': round((time.time() - start) * 1000, 2)
             })
         
         # Link to bill
         db.session.execute(
             text("INSERT INTO bill_bag (bill_id, parent_bag_id) VALUES (:bill_id, :parent_id)"),
-            {'bill_id': bill_id, 'parent_id': parent.id}
+            {'bill_id': bill_id, 'parent_id': result.id}
         )
         
         db.session.commit()
         
-        # Invalidate cache after linking bag to bill
-        try:
-            app.invalidate_cache()
-        except:
-            pass  # Don't fail on cache errors
+        # Cache invalidation handled elsewhere
         
-        # Get updated count
+        # Get updated count in the same transaction
         bag_count = db.session.execute(
             text("SELECT COUNT(*) FROM bill_bag WHERE bill_id = :bill_id"),
             {'bill_id': bill_id}

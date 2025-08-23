@@ -3418,6 +3418,7 @@ def bag_management():
 @app.route('/bills')
 @app.route('/bill_management')  # Alias for compatibility
 @login_required
+@limiter.limit("30 per minute")  # Add rate limiting to prevent overload
 def bill_management():
     """Ultra-fast bill management with integrated summary generation"""
     if not (current_user.is_admin() or current_user.is_biller()):
@@ -3659,13 +3660,17 @@ def create_bill():
                 flash('Number of parent bags must be between 1 and 50.', 'error')
                 return render_template('create_bill.html')
             
-            # FIX: Check for duplicate bill IDs
-            existing_bill = Bill.query.filter_by(bill_id=bill_id).first()
-            if existing_bill:
+            # Optimized duplicate check using direct SQL
+            existing = db.session.execute(
+                text("SELECT id FROM bill WHERE bill_id = :bill_id LIMIT 1"),
+                {'bill_id': bill_id}
+            ).scalar()
+            
+            if existing:
                 flash(f'Bill ID "{bill_id}" already exists. Please use a different ID.', 'error')
                 return render_template('create_bill.html')
             
-            # Create new bill with transaction
+            # Create new bill with optimized insertion
             bill = Bill()
             bill.bill_id = bill_id
             bill.description = ''
