@@ -121,6 +121,7 @@ import secrets
 import random
 import time
 import logging
+import os
 
 # Set up comprehensive logging for debugging
 logging.basicConfig(
@@ -5152,3 +5153,162 @@ def eod_bill_summary():
     except Exception as e:
         app.logger.error(f'EOD summary error: {str(e)}')
         return jsonify({'error': 'Error generating EOD summary'}), 500
+
+@app.route('/api/bill_summary/send_eod', methods=['POST'])
+@login_required
+def send_eod_summaries():
+    """Send EOD bill summaries via email to billers and admins"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Admin access required to send EOD summaries'}), 403
+    
+    try:
+        from eod_bill_sharing import eod_sharing
+        
+        # Get date range from request (optional)
+        date_from = request.json.get('date_from') if request.json else None
+        date_to = request.json.get('date_to') if request.json else None
+        
+        if date_from:
+            date_from = datetime.strptime(date_from, '%Y-%m-%d')
+        if date_to:
+            date_to = datetime.strptime(date_to, '%Y-%m-%d')
+        
+        # Send EOD summaries
+        results = eod_sharing.send_eod_summaries(date_from, date_to)
+        
+        return jsonify({
+            'success': True,
+            'message': 'EOD summaries sent successfully',
+            'results': results
+        })
+        
+    except Exception as e:
+        app.logger.error(f'Error sending EOD summaries: {str(e)}')
+        return jsonify({'error': f'Failed to send EOD summaries: {str(e)}'}), 500
+
+@app.route('/eod_summary_preview')
+@login_required  
+def eod_summary_preview():
+    """Preview EOD summary that will be sent to users"""
+    if not current_user.is_admin():
+        flash('Admin access required to preview EOD summaries', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        from eod_bill_sharing import eod_sharing
+        
+        # Generate preview for current user
+        if current_user.is_admin():
+            # Show admin summary
+            summary = eod_sharing.generate_admin_summary()
+            html_content = eod_sharing.format_admin_email(summary)
+        else:
+            # Show biller summary
+            summary = eod_sharing.generate_biller_summary(current_user.id)
+            html_content = eod_sharing.format_biller_email(current_user.username, summary)
+        
+        # Return the HTML directly for preview
+        return f"""
+        <html>
+        <head>
+            <title>EOD Summary Preview</title>
+            <style>
+                .preview-header {{
+                    background: #2c3e50;
+                    color: white;
+                    padding: 20px;
+                    text-align: center;
+                }}
+                .preview-actions {{
+                    background: #ecf0f1;
+                    padding: 15px;
+                    text-align: center;
+                }}
+                .preview-actions button {{
+                    background: #3498db;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    margin: 5px;
+                    cursor: pointer;
+                    border-radius: 5px;
+                }}
+                .preview-actions button:hover {{
+                    background: #2980b9;
+                }}
+                .email-content {{
+                    border: 2px solid #bdc3c7;
+                    margin: 20px;
+                    padding: 20px;
+                    background: white;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="preview-header">
+                <h1>EOD Summary Preview</h1>
+                <p>This is how the email will appear when sent to users</p>
+            </div>
+            <div class="preview-actions">
+                <button onclick="sendEOD()">Send EOD Summaries Now</button>
+                <button onclick="window.location.href='/bill_summary'">Back to Bill Summary</button>
+            </div>
+            <div class="email-content">
+                {html_content}
+            </div>
+            <script>
+                function sendEOD() {{
+                    if (confirm('Send EOD summaries to all billers and admins now?')) {{
+                        fetch('/api/bill_summary/send_eod', {{
+                            method: 'POST',
+                            headers: {{'Content-Type': 'application/json'}},
+                        }})
+                        .then(response => response.json())
+                        .then(data => {{
+                            if (data.success) {{
+                                alert('EOD summaries sent successfully!');
+                            }} else {{
+                                alert('Error: ' + (data.error || 'Failed to send summaries'));
+                            }}
+                        }});
+                    }}
+                }}
+            </script>
+        </body>
+        </html>
+        """
+        
+    except Exception as e:
+        app.logger.error(f'Error generating EOD preview: {str(e)}')
+        flash('Error generating EOD preview', 'error')
+        return redirect(url_for('bill_summary'))
+
+@app.route('/api/bill_summary/schedule_eod', methods=['POST'])
+@csrf.exempt  # Exempt from CSRF for scheduled tasks
+def schedule_eod_summary():
+    """Endpoint for cron job to trigger EOD summary sending"""
+    # This can be called by a cron job without authentication
+    # Add a secret key check for security
+    secret_key = request.headers.get('X-EOD-Secret')
+    expected_secret = os.environ.get('EOD_SECRET_KEY', 'default-eod-secret-2025')
+    
+    if secret_key != expected_secret:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        from eod_bill_sharing import eod_sharing
+        
+        # Send EOD summaries for today
+        results = eod_sharing.send_eod_summaries()
+        
+        app.logger.info(f"Scheduled EOD summary sent: {results}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Scheduled EOD summaries sent',
+            'results': results
+        })
+        
+    except Exception as e:
+        app.logger.error(f'Scheduled EOD error: {str(e)}')
+        return jsonify({'error': str(e)}), 500

@@ -211,6 +211,8 @@
             <button class="btn btn-info" onclick="printReport()">Print Report</button>
             {% if is_admin %}
             <a href="{{ url_for('eod_bill_summary') }}" class="btn btn-warning">Generate EOD JSON</a>
+            <a href="{{ url_for('eod_summary_preview') }}" class="btn btn-primary">Preview EOD Email</a>
+            <button class="btn btn-danger" onclick="sendEODSummaries()">Send EOD Summaries</button>
             {% endif %}
         </div>
     </div>
@@ -248,6 +250,28 @@
         
         function printReport() {
             window.print();
+        }
+        
+        function sendEODSummaries() {
+            if (confirm('Send EOD bill summaries to all billers and admins now?\n\nBillers will receive their own summaries.\nAdmins will receive all user summaries.')) {
+                fetch('/api/bill_summary/send_eod', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('EOD summaries sent successfully!\n\n' + 
+                              'Billers sent: ' + data.results.billers_sent.length + '\n' +
+                              'Admins sent: ' + data.results.admins_sent.length);
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to send summaries'));
+                    }
+                })
+                .catch(error => {
+                    alert('Error sending EOD summaries: ' + error);
+                });
+            }
         }
     </script>
 </body>

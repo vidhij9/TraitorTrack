@@ -3,6 +3,27 @@
 ## Overview
 A cutting-edge supply chain traceability platform revolutionizing agricultural bag tracking through advanced QR scanning technologies with enhanced security, performance optimization, and comprehensive user management.
 
+## Recent Changes (August 23, 2025)
+### EOD Bill Summary Sharing Feature
+- **Automated EOD Summaries**: Implemented comprehensive end-of-day bill summary generation and sharing system
+  - Billers receive their own daily bill summaries via email
+  - Admins receive comprehensive summaries of all user activities
+  - HTML-formatted emails with statistics, charts, and detailed bill lists
+- **Multiple Access Methods**: 
+  - Web UI: Enhanced `/bill_summary` page with EOD preview and send buttons
+  - Preview endpoint: `/eod_summary_preview` for admins to preview emails
+  - API endpoints: `/api/bill_summary/eod` (JSON), `/api/bill_summary/send_eod` (email)
+  - Scheduled endpoint: `/api/bill_summary/schedule_eod` for cron jobs
+- **Security Features**:
+  - Role-based access control (admin-only for sending summaries)
+  - Secret key authentication for scheduled jobs
+  - CSRF protection with appropriate exemptions for automation
+- **Email Templates**: Created professional HTML email templates with:
+  - Individual biller summaries with their statistics
+  - Comprehensive admin reports with all user data
+  - Color-coded status indicators and progress bars
+- **Scheduling Support**: Full documentation for setting up automated daily EOD reports via cron
+
 ## Recent Changes (August 22, 2025)
 ### AWS Production Optimizations & India Timezone Support
 - **In-Memory Caching Layer**: Implemented comprehensive caching with `cache_utils.py` achieving 10x performance improvement
