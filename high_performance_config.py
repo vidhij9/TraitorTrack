@@ -14,24 +14,25 @@ logging.getLogger('sqlalchemy.pool').setLevel(logging.ERROR)
 class HighPerformanceConfig:
     """Configuration optimized for high load and concurrent users"""
     
-    # Database Configuration for 50+ concurrent users
+    # Database Configuration optimized for stability and performance
     DATABASE_CONFIG = {
-        "pool_size": 200,                    # Base connections for 50+ users
-        "max_overflow": 400,                 # Allow up to 600 total connections
-        "pool_recycle": 600,                 # Recycle every 10 minutes
+        "pool_size": 25,                     # Optimized for Neon's connection limits
+        "max_overflow": 25,                  # Total 50 connections max
+        "pool_recycle": 300,                 # Recycle every 5 minutes
         "pool_pre_ping": True,               # Test connections before use
-        "pool_timeout": 60,                  # Wait up to 60 seconds
+        "pool_timeout": 10,                  # Fail fast - wait max 10 seconds
         "echo": False,                       # Disable SQL logging
         "echo_pool": False,                  # Disable pool logging
         "pool_use_lifo": True,               # Use LIFO for better cache locality
+        "pool_reset_on_return": "rollback",  # Always rollback on connection return
         "connect_args": {
             "keepalives": 1,
-            "keepalives_idle": 30,
-            "keepalives_interval": 10,
-            "keepalives_count": 10,
-            "connect_timeout": 30,
-            "application_name": "TraceTrack_HighPerf",
-            "options": "-c statement_timeout=60000 -c idle_in_transaction_session_timeout=30000 -c jit=on -c random_page_cost=1.1"
+            "keepalives_idle": 10,
+            "keepalives_interval": 5,
+            "keepalives_count": 3,
+            "connect_timeout": 5,            # Fast connection timeout
+            "application_name": "TraceTrack_Prod",
+            "options": "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=10000 -c jit=on -c random_page_cost=1.1"
         }
     }
     
@@ -123,17 +124,17 @@ class HighPerformanceConfig:
         cpu_count = multiprocessing.cpu_count()
         
         return {
-            'workers': min(cpu_count * 4, 16),     # 4 workers per CPU, max 16
-            'worker_class': 'sync',                # Use sync workers for stability
-            'worker_connections': 1000,            # High connection count
-            'max_requests': 10000,                 # Restart workers after 10k requests
-            'max_requests_jitter': 1000,          # Add jitter to prevent simultaneous restarts
-            'timeout': 60,                         # 60 second timeout
-            'graceful_timeout': 30,               # 30 second graceful shutdown
-            'keepalive': 5,                        # Keep connections alive for 5 seconds
-            'threads': 4,                          # 4 threads per worker
-            'backlog': 2048,                       # Large backlog for high load
-            'preload_app': True,                   # Preload app for faster worker starts
+            'workers': 1,                          # Single worker for Replit
+            'worker_class': 'sync',                # Sync worker for stability
+            'worker_connections': 200,             # Moderate connection count
+            'max_requests': 5000,                  # Restart after 5k requests
+            'max_requests_jitter': 500,           # Add jitter
+            'timeout': 30,                         # 30 second timeout
+            'graceful_timeout': 10,               # 10 second graceful shutdown
+            'keepalive': 2,                        # Keep connections alive for 2 seconds
+            'threads': 1,                          # Single thread
+            'backlog': 512,                        # Moderate backlog
+            'preload_app': True,                   # Preload app
             'daemon': False
         }
 

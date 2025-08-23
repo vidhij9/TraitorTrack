@@ -4,6 +4,19 @@ import logging
 import time
 from flask import request, g
 
+# Import production optimizer for zero failures
+try:
+    from production_optimizer import (
+        apply_production_fixes, 
+        production_optimizer,
+        query_optimizer,
+        performance_monitor
+    )
+    app = apply_production_fixes(app)
+    logging.info("Production optimizations applied successfully")
+except ImportError as e:
+    logging.warning(f"Production optimizer not loaded: {e}")
+
 # Setup logging for production - suppress warnings
 import warnings
 warnings.filterwarnings("ignore", module="flask_limiter")
@@ -19,6 +32,13 @@ logger = logging.getLogger(__name__)
 import routes
 import api  # Import consolidated API endpoints
 from optimized_cache import cache
+
+# Inject query optimizer into routes
+try:
+    from production_optimizer import query_optimizer
+    routes.query_optimizer = query_optimizer
+except:
+    pass
 
 # Import ultra-fast API for <50ms response times
 try:

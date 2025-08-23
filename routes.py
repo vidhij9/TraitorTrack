@@ -2099,9 +2099,9 @@ def process_child_scan():
         else:
             return jsonify({'success': False, 'message': 'Error processing scan. Please try again or contact support.'})
 
-@app.route('/scan/parent', methods=['POST'])
+@app.route('/ajax/scan_parent', methods=['POST'])
 @login_required
-def scan_parent_bag():
+def ajax_scan_parent_bag():
     """Process the parent bag QR code scan"""
     # Check if it's an AJAX request (simpler detection)
     is_ajax = 'qr_id' in request.form and request.method == 'POST'
