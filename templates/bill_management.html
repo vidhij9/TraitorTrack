@@ -122,7 +122,7 @@
     </div>
     
     <!-- Summary Report Display -->
-    {% if summary_data %}
+    {% if summary_data is not none %}
     <div class="row mb-3">
         <div class="col-12">
             <div class="card border-success">
@@ -200,32 +200,43 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in summary_data %}
-                                <tr>
-                                    <td>{{ item.bill_id }}</td>
-                                    <td>{{ item.created_at }}</td>
-                                    <td>{{ item.created_by }}</td>
-                                    <td>{{ item.parent_bags }}</td>
-                                    <td>{{ item.child_bags }}</td>
-                                    <td>{{ item.weight_kg }}</td>
-                                    <td>
-                                        {% if item.status == 'completed' %}
-                                            <span class="badge bg-success">Completed</span>
-                                        {% elif item.status == 'in_progress' %}
-                                            <span class="badge bg-warning">In Progress</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Empty</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar" role="progressbar" style="width: {{ item.completion }}%">
-                                                {{ item.completion }}%
+                                {% if summary_data and summary_data|length > 0 %}
+                                    {% for item in summary_data %}
+                                    <tr>
+                                        <td>{{ item.bill_id }}</td>
+                                        <td>{{ item.created_at }}</td>
+                                        <td>{{ item.created_by }}</td>
+                                        <td>{{ item.parent_bags }}</td>
+                                        <td>{{ item.child_bags }}</td>
+                                        <td>{{ item.weight_kg }}</td>
+                                        <td>
+                                            {% if item.status == 'completed' %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% elif item.status == 'in_progress' %}
+                                                <span class="badge bg-warning">In Progress</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Empty</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" role="progressbar" style="width: {{ item.completion }}%">
+                                                    {{ item.completion }}%
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4">
+                                            <div class="text-muted">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                No bills found for the selected date range and filters.
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
