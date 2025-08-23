@@ -177,22 +177,10 @@
                         </li>
                         
                         {% if current_user.is_admin() or current_user.can_edit_bills() %}
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle{% if '/bill' in request.path %} active{% endif %}" href="#" id="billsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <li class="nav-item">
+                                <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
                                     <i class="fas fa-file-invoice"></i> Bills
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="billsDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
-                                            <i class="fas fa-list me-2"></i>Manage Bills
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{{ url_for('bill_summary', s=request.args.get('s')) }}">
-                                            <i class="fas fa-chart-bar me-2"></i>Bill Summary
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
                         {% endif %}
                         
