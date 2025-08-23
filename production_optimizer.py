@@ -143,10 +143,13 @@ class QueryOptimizer:
     
     @staticmethod
     @lru_cache(maxsize=1000)
-    def get_bag_by_qr(qr_id):
-        """Cached bag lookup by QR code"""
+    def get_bag_by_qr(qr_id, bag_type=None):
+        """Cached bag lookup by QR code with optional type filter"""
         from models import Bag
-        return Bag.query.filter_by(qr_id=qr_id).first()
+        query = Bag.query.filter_by(qr_id=qr_id)
+        if bag_type:
+            query = query.filter_by(type=bag_type)
+        return query.first()
     
     @staticmethod
     def create_bag_optimized(qr_id, bag_type, dispatch_area=None):

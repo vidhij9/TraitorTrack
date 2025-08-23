@@ -4155,58 +4155,67 @@ def edit_profile():
 @app.route('/api/stats')
 @app.route('/api/v2/stats')  # Support v2 endpoint as well
 def api_dashboard_stats():
-    """Redirect to ultra-fast cached stats endpoint for production performance"""
-    # Use the ultra-fast cached version for <5ms response times
-    from ultra_performance_cache import UltraCache
-    cache = UltraCache()
-    
-    # Get cached stats - UltraCache.get() returns (value, is_cached)
-    cached_stats, is_cached = cache.get('dashboard_stats')
-    if is_cached and cached_stats:
-        return jsonify({
-            'success': True,
-            'statistics': cached_stats,
-            'cached': True,
-            'response_time_ms': 5
-        })
-    
-    # Fallback to basic stats if cache miss (rare)
+    """Ultra-fast cached stats endpoint for production performance"""
+    # Try to use high-performance cache if available
     try:
-        # Quick indexed query as fallback
-        stats_result = db.session.execute(text("""
-            SELECT 
-                (SELECT COUNT(*) FROM bag WHERE type = 'parent')::int as parent_count,
-                (SELECT COUNT(*) FROM bag WHERE type = 'child')::int as child_count,
-                (SELECT COUNT(*) FROM scan)::int as scan_count,
-                (SELECT COUNT(*) FROM bill)::int as bill_count
-        """)).fetchone()
+        from high_performance_cache import query_engine
+        # Get cached stats with 10 second TTL
+        stats = query_engine.get_dashboard_stats_cached()
         
-        stats = {
-            'total_parent_bags': stats_result.parent_count or 0,
-            'total_child_bags': stats_result.child_count or 0,
-            'total_scans': stats_result.scan_count or 0,
-            'total_bills': stats_result.bill_count or 0,
-            'total_products': (stats_result.parent_count or 0) + (stats_result.child_count or 0),
+        # Format response for API
+        formatted_stats = {
+            'total_parent_bags': stats['parent_count'],
+            'total_child_bags': stats['child_count'],
+            'total_scans': stats['total_scans'],
+            'total_bills': stats.get('total_bills', 0),
+            'total_products': stats['total_bags'],
             'active_dispatchers': 0,
             'status_counts': {
-                'active': (stats_result.parent_count or 0) + (stats_result.child_count or 0),
-                'scanned': stats_result.scan_count or 0
+                'active': stats['total_bags'],
+                'scanned': stats['total_scans']
             }
         }
         
-        # Update cache
-        cache.set('dashboard_stats', stats, ttl=5)
-        
         return jsonify({
             'success': True,
-            'statistics': stats,
-            'cached': False
+            'statistics': formatted_stats,
+            'cached': True
         })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+    except:
+        # Fallback to optimized direct query if cache not available
+        try:
+            # Single optimized query for all stats
+            stats_result = db.session.execute(text("""
+                SELECT 
+                    (SELECT COUNT(*) FROM bag WHERE type = 'parent')::int as parent_count,
+                    (SELECT COUNT(*) FROM bag WHERE type = 'child')::int as child_count,
+                    (SELECT COUNT(*) FROM scan)::int as scan_count,
+                    (SELECT COUNT(*) FROM bill)::int as bill_count
+            """)).fetchone()
+            
+            stats = {
+                'total_parent_bags': stats_result.parent_count or 0,
+                'total_child_bags': stats_result.child_count or 0,
+                'total_scans': stats_result.scan_count or 0,
+                'total_bills': stats_result.bill_count or 0,
+                'total_products': (stats_result.parent_count or 0) + (stats_result.child_count or 0),
+                'active_dispatchers': 0,
+                'status_counts': {
+                    'active': (stats_result.parent_count or 0) + (stats_result.child_count or 0),
+                    'scanned': stats_result.scan_count or 0
+                }
+            }
+            
+            return jsonify({
+                'success': True,
+                'statistics': stats,
+                'cached': False
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
 
 @app.route('/api/scans')

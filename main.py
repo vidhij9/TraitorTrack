@@ -47,6 +47,16 @@ try:
 except Exception as e:
     logger.warning(f"Ultra-fast API not loaded: {e}")
 
+# Import high-performance caching for query optimization
+try:
+    from high_performance_cache import optimize_database_queries, query_engine
+    app = optimize_database_queries(app)
+    # Inject optimized query engine into routes
+    routes.query_engine = query_engine
+    logger.info("High-performance caching loaded successfully")
+except Exception as e:
+    logger.warning(f"High-performance caching not loaded: {e}")
+
 # Setup monitoring for all routes
 @app.before_request
 def before_request():
