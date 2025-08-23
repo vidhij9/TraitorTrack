@@ -1565,7 +1565,7 @@ def log_scan():
         flash('Failed to log scan', 'error')
         return redirect(url_for('scan'))
 
-@app.route('/scan')
+@app.route('/scan', methods=['GET', 'POST'])
 @login_required  
 def scan():
     """Main QR scanning page"""
@@ -1829,8 +1829,8 @@ def process_promotion_request(request_id):
 
 # Scanning workflow routes (simplified without location selection)
 
-@app.route('/scan/parent')
-@app.route('/scan_parent')  # Alias for compatibility
+@app.route('/scan/parent', methods=['GET', 'POST'])
+@app.route('/scan_parent', methods=['GET', 'POST'])  # Alias for compatibility
 def scan_parent():
     """Scan parent bag QR code - Fast scanner optimized"""
     # Manual authentication check that works
@@ -2598,7 +2598,7 @@ def scan_child():
                              linked_child_bags=linked_child_bags,
                              form=ManualScanForm())
 
-@app.route('/scan/complete')
+@app.route('/scan/complete', methods=['GET', 'POST'])
 @login_required
 def scan_complete():
     """Completion page for scanning workflow"""
@@ -2668,7 +2668,7 @@ def scan_complete():
         flash('Error loading scan summary.', 'error')
         return redirect(url_for('index'))
 
-@app.route('/scan/finish')
+@app.route('/scan/finish', methods=['GET', 'POST'])
 @login_required
 def finish_scanning():
     """Complete the scanning process"""

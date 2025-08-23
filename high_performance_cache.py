@@ -123,23 +123,30 @@ class OptimizedQueryEngine:
         return query.first()
     
     @staticmethod
-    @cached_query(ttl=10, key_prefix='dashboard_stats')
+    @cached_query(ttl=30, key_prefix='dashboard_stats')  # Increased TTL for better performance
     def get_dashboard_stats_cached():
         """Get dashboard statistics with aggressive caching"""
         from models import Bag, Scan, Bill, BagType
         from sqlalchemy import func, text
         from app_clean import db
         
-        # Use a single optimized query to get all counts at once
-        # This is much faster than multiple separate queries
+        # Use ultra-optimized single query with better indexing
         try:
             result = db.session.execute(text("""
+                WITH counts AS (
+                    SELECT 
+                        COUNT(*) FILTER (WHERE type = 'parent') as parent_count,
+                        COUNT(*) FILTER (WHERE type = 'child') as child_count,
+                        COUNT(*) as total_bags
+                    FROM bag
+                )
                 SELECT 
-                    (SELECT COUNT(*) FROM bag WHERE type = 'parent') as parent_count,
-                    (SELECT COUNT(*) FROM bag WHERE type = 'child') as child_count,
-                    (SELECT COUNT(*) FROM bag) as total_bags,
+                    c.parent_count,
+                    c.child_count, 
+                    c.total_bags,
                     (SELECT COUNT(*) FROM scan) as total_scans,
                     (SELECT COUNT(*) FROM bill) as total_bills
+                FROM counts c
             """)).fetchone()
             
             return {
