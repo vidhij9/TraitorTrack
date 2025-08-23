@@ -1839,6 +1839,104 @@ def scan_parent():
     # Direct template render for fastest response
     return render_template('scan_parent.html')
 
+@app.route('/api/fast_parent_scan', methods=['POST'])
+def api_fast_parent_scan():
+    """Ultra-fast parent scan API endpoint"""
+    import time
+    start_time = time.time()
+    
+    # Quick session check
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({
+            'success': False,
+            'message': 'Please login first',
+            'auth_required': True
+        }), 401
+    
+    # Get QR code
+    qr_code = request.form.get('qr_code', '').strip()
+    if not qr_code:
+        return jsonify({
+            'success': False,
+            'message': 'No QR code provided'
+        }), 400
+    
+    # Validate format
+    import re
+    if not re.match(r'^SB\d{5}$', qr_code):
+        return jsonify({
+            'success': False,
+            'message': f'Invalid format! Must be SB##### (got: {qr_code})',
+            'show_popup': True
+        }), 400
+    
+    try:
+        # Fast SQL query
+        result = db.session.execute(
+            text("SELECT id, type FROM bag WHERE qr_id = :qr_id LIMIT 1"),
+            {'qr_id': qr_code}
+        ).fetchone()
+        
+        if result:
+            if result.type != 'parent':
+                return jsonify({
+                    'success': False,
+                    'message': f'{qr_code} is a {result.type} bag, not a parent bag'
+                }), 400
+            
+            bag_id = result.id
+        else:
+            # Create new parent bag
+            new_id = db.session.execute(
+                text("""
+                    INSERT INTO bag (qr_id, type, user_id, dispatch_area, created_at)
+                    VALUES (:qr_id, 'parent', :user_id, :area, NOW())
+                    RETURNING id
+                """),
+                {
+                    'qr_id': qr_code,
+                    'user_id': user_id,
+                    'area': session.get('dispatch_area', 'Default')
+                }
+            ).scalar()
+            bag_id = new_id
+        
+        # Record scan
+        db.session.execute(
+            text("""
+                INSERT INTO scan (parent_bag_id, user_id, timestamp)
+                VALUES (:bag_id, :user_id, NOW())
+            """),
+            {'bag_id': bag_id, 'user_id': user_id}
+        )
+        
+        db.session.commit()
+        
+        # Update session
+        session['current_parent_qr'] = qr_code
+        session['current_parent_id'] = bag_id
+        session.modified = True
+        
+        elapsed = round((time.time() - start_time) * 1000, 2)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Parent bag {qr_code} ready',
+            'parent_qr': qr_code,
+            'redirect': url_for('scan_child'),
+            'time_ms': elapsed
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Fast parent scan error: {str(e)}')
+        
+        return jsonify({
+            'success': False,
+            'message': 'Scan failed - please try again'
+        }), 500
+
 
 
 @app.route('/process_parent_scan', methods=['GET', 'POST'])
@@ -1858,10 +1956,17 @@ def process_parent_scan():
              request.headers.get('Content-Type') == 'application/json' or \
              'api' in request.path
     
+    # Get user_id from session for faster authentication
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+    if not user_id:
+        if is_api:
+            return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+        return redirect(url_for('login'))
+    
     try:
         # Debug logging
-        app.logger.info(f'PARENT SCAN START: User authenticated: {current_user.is_authenticated}')
-        app.logger.info(f'PARENT SCAN START: User ID: {current_user.id if current_user.is_authenticated else "None"}')
+        app.logger.info(f'PARENT SCAN START: User ID from session: {user_id}')
         
         qr_code = request.form.get('qr_code', '').strip()
         
@@ -1893,11 +1998,11 @@ def process_parent_scan():
             parent_bag = Bag()
             parent_bag.qr_id = qr_code
             parent_bag.type = 'parent'
-            parent_bag.user_id = current_user.id  # Associate parent bag with user
-            # Safely get dispatch_area attribute
-            parent_bag.dispatch_area = getattr(current_user, 'dispatch_area', None) or 'Ultra Scanner Area'
+            parent_bag.user_id = user_id  # Associate parent bag with user
+            # Get dispatch_area from session
+            parent_bag.dispatch_area = session.get('dispatch_area', 'Default Area')
             db.session.add(parent_bag)
-            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) created new parent bag {qr_code}')
+            app.logger.info(f'AUDIT: User {username} (ID: {user_id}) created new parent bag {qr_code}')
         else:
             # Check if bag is already a child - cannot be converted to parent
             if parent_bag.type == 'child':
@@ -1910,12 +2015,12 @@ def process_parent_scan():
             
             # Update user_id if not set (for existing parent bags)
             if not parent_bag.user_id:
-                parent_bag.user_id = current_user.id
+                parent_bag.user_id = user_id
         
         # Create scan record for parent bag
         scan = Scan()
         scan.parent_bag_id = parent_bag.id
-        scan.user_id = current_user.id
+        scan.user_id = user_id
         db.session.add(scan)
         db.session.commit()
         
@@ -1931,7 +2036,7 @@ def process_parent_scan():
         session.modified = True  # Force session save
         
         # Log for debugging
-        app.logger.info(f'PARENT SCAN: Session saved with parent_qr={qr_code}, user={current_user.username}')
+        app.logger.info(f'PARENT SCAN: Session saved with parent_qr={qr_code}, user={username}')
         
         if is_api:
             return jsonify({

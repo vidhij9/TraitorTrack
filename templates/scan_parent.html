@@ -206,20 +206,25 @@ function initializeScanner() {
             // Show processing message
             showToast(`Submitting parent bag: ${qrCode}...`, 'info');
             
-            // Submit via AJAX for better performance - use the correct parent scan endpoint
-            fetch('/scan/parent', {
+            // Submit via AJAX for better performance - use the fast parent scan endpoint
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+            
+            fetch('/api/fast_parent_scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: `qr_id=${encodeURIComponent(qrCode)}&csrf_token=${encodeURIComponent(submitForm.querySelector('[name="csrf_token"]').value)}`
+                body: `qr_code=${encodeURIComponent(qrCode)}&csrf_token=${encodeURIComponent(submitForm.querySelector('[name="csrf_token"]').value || '')}`,
+                signal: controller.signal
             })
             .then(response => {
-                if (response.redirected) {
-                    window.location.href = response.url;
-                } else {
-                    return response.json();
+                clearTimeout(timeoutId);
+                if (!response.ok && response.status !== 400) {
+                    throw new Error(`Server error: ${response.status}`);
                 }
+                return response.json();
             })
             .then(data => {
                 if (data && data.success && data.redirect) {
@@ -290,11 +295,19 @@ function initializeScanner() {
                 }
             })
             .catch(error => {
+                clearTimeout(timeoutId);
                 console.error('Error:', error);
-                showToast('Network error. Please try again.', 'danger');
-                isProcessing = false;
-                // Re-enable scanner after error
-                if (scanner) scanner.start();
+                
+                if (error.name === 'AbortError') {
+                    showToast('Request timeout. Server is slow, trying faster endpoint...', 'warning');
+                    // Retry with process_parent_scan as fallback
+                    retryWithFallback(qrCode);
+                } else {
+                    showToast('Network error. Please try again.', 'danger');
+                    isProcessing = false;
+                    // Re-enable scanner after error
+                    if (scanner) scanner.start();
+                }
             });
             
         } catch (error) {
@@ -302,6 +315,35 @@ function initializeScanner() {
             showToast(`Error: ${error.message}`, 'danger');
             isProcessing = false;
         }
+    }
+    
+    // Fallback retry function
+    function retryWithFallback(qrCode) {
+        fetch('/process_parent_scan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `qr_code=${encodeURIComponent(qrCode)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.success && data.redirect) {
+                showToast(`✅ Parent bag ${qrCode} processed!`, 'success');
+                window.location.href = data.redirect;
+            } else {
+                showToast(data.message || 'Error processing parent bag', 'danger');
+                isProcessing = false;
+                if (scanner) scanner.start();
+            }
+        })
+        .catch(error => {
+            console.error('Fallback error:', error);
+            showToast('Server error. Please try again or contact support.', 'danger');
+            isProcessing = false;
+            if (scanner) scanner.start();
+        });
     }
     
     // Start scanner button
