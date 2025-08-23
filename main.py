@@ -57,6 +57,14 @@ try:
 except Exception as e:
     logger.warning(f"High-performance caching not loaded: {e}")
 
+# Import ultra performance optimizer for 800,000+ bags scale
+try:
+    from ultra_performance_optimizer import apply_ultra_optimizations
+    app = apply_ultra_optimizations(app)
+    logger.info("Ultra performance optimizations applied for 800,000+ bags scale")
+except Exception as e:
+    logger.warning(f"Ultra performance optimizer not loaded: {e}")
+
 # Setup monitoring for all routes
 @app.before_request
 def before_request():
