@@ -159,15 +159,14 @@
                             <input type="text" 
                                    id="manual-qr-input" 
                                    class="form-control" 
-                                   placeholder="Enter parent bag QR (SB12345)" 
-                                   pattern="^SB\d{5}$"
-                                   maxlength="7"
-                                   style="text-transform: uppercase;">
+                                   placeholder="Enter parent bag QR (accepts: SB, Sb, sB, sb)" 
+                                   pattern="^[sS][bB]\d{5}$"
+                                   maxlength="7">
                             <button class="btn btn-primary" type="button" onclick="submitManualEntry()">
                                 <i class="fas fa-plus me-1"></i>Add
                             </button>
                         </div>
-                        <small class="text-muted">Format: SB##### (e.g., SB12345)</small>
+                        <small class="text-muted">Format: SB##### (accepts: SB, Sb, sB, sb - e.g., SB12345, sb00860)</small>
                     </div>
                 </div>
             </div>
@@ -330,9 +329,9 @@ function initializeScanner() {
             return;
         }
         
-        // Validate format (SB#####)
-        if (!/^SB\d{5}$/.test(manualQR)) {
-            showToast('Invalid format! Must be SB##### (e.g., SB12345)', 'danger');
+        // Validate format (SB##### - case insensitive)
+        if (!/^[sS][bB]\d{5}$/.test(manualQR)) {
+            showToast('Invalid format! Must be SB##### (accepts: SB, Sb, sB, sb)', 'danger');
             return;
         }
         

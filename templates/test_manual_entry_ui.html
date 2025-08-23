@@ -92,13 +92,13 @@
         
         <div class="form-group">
             <label for="manualQr">Parent Bag QR Code:</label>
-            <input type="text" id="manualQr" placeholder="Format: SB##### (e.g., SB12345)" 
-                   pattern="^SB\d{5}$" maxlength="7" style="text-transform: uppercase;">
+            <input type="text" id="manualQr" placeholder="Format: SB##### (accepts: SB, Sb, sB, sb)" 
+                   pattern="^[sS][bB]\d{5}$" maxlength="7">
         </div>
         
         <div class="example">
-            <strong>Valid examples:</strong> SB12345, SB00860, SB00736<br>
-            <strong>Invalid examples:</strong> SB123 (too short), 12345 (missing SB), sb12345a (extra character)
+            <strong>Valid examples:</strong> SB12345, sb00860, Sb00736, sB00123<br>
+            <strong>Invalid examples:</strong> SB123 (too short), 12345 (missing SB prefix), sb12345a (extra character)
         </div>
         
         <button onclick="testManualEntry()">Test Manual Entry</button>
@@ -137,8 +137,9 @@
             return;
         }
         
-        if (!/^SB\d{5}$/.test(manualQr)) {
-            showResult('error', 'Invalid format! Must be SB##### (e.g., SB12345)');
+        // Validate format (case-insensitive)
+        if (!/^[sS][bB]\d{5}$/.test(manualQr)) {
+            showResult('error', 'Invalid format! Must be SB##### (accepts: SB, Sb, sB, sb)');
             return;
         }
         

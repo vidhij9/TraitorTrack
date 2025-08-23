@@ -15,8 +15,8 @@ def is_logged_in():
     """Check if user is logged in using session data"""
     return session.get('logged_in', False) and session.get('user_id') is not None
 
-# Pre-compiled regex for validation
-PARENT_QR_PATTERN = re.compile(r'^SB\d{5}$')
+# Pre-compiled regex for validation (case-insensitive)
+PARENT_QR_PATTERN = re.compile(r'^[sS][bB]\d{5}$')
 
 # Optimized SQL queries
 QUERIES = {
@@ -97,12 +97,16 @@ def fast_parent_scan():
             'time_ms': round((time.time() - start) * 1000, 2)
         })
     
+    # Validate format (case-insensitive) and normalize to uppercase
     if not PARENT_QR_PATTERN.match(qr_code):
         return jsonify({
             'success': False,
-            'message': f'Invalid format! Must be SB##### (got: {qr_code})',
+            'message': f'Invalid format! Must be SB##### (accepts: SB, Sb, sB, sb). Got: {qr_code}',
             'time_ms': round((time.time() - start) * 1000, 2)
         })
+    
+    # Normalize to uppercase for storage
+    qr_code = qr_code.upper()
     
     try:
         # Use raw SQL for speed
