@@ -4944,6 +4944,9 @@ def manual_parent_entry():
 def bill_summary():
     """Display bill summary report - billers see their own, admins see all"""
     try:
+        # Import models locally to avoid circular imports
+        from models import Bill, User, Bag, BillBag
+        
         # Get date range parameters (default to today)
         date_from = request.args.get('date_from', get_ist_now().strftime('%Y-%m-%d'))
         date_to = request.args.get('date_to', get_ist_now().strftime('%Y-%m-%d'))
