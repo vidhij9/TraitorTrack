@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}QR Scanner - Bill #{{ bill.bill_id }}{% endblock %}
+{% block title %}Ultra-Fast Bill Scanner - Bill #{{ bill.bill_id }}{% endblock %}
 
 {% block head %}
 
@@ -73,6 +73,17 @@
         opacity: 1;
     }
 }
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
 </style>
 {% endblock %}
 
@@ -85,7 +96,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h2 class="card-title mb-0">
-                            <i class="fas fa-qrcode me-2"></i>Scan Parent Bags
+                            <i class="fas fa-bolt me-2 text-warning"></i>Ultra-Fast Bill Scanner
                             {% if is_completed %}
                                 <span class="badge bg-success ms-2">Completed</span>
                             {% endif %}
@@ -319,6 +330,50 @@ function initializeScanner() {
         }
     }
     
+    // Show scan pause overlay when QR is detected
+    function showScanPauseOverlay(qrCode) {
+        // Create overlay if it doesn't exist
+        let overlay = document.getElementById('scan-pause-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'scan-pause-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(76, 175, 80, 0.95);
+                color: white;
+                padding: 30px;
+                border-radius: 15px;
+                z-index: 10000;
+                text-align: center;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                animation: fadeIn 0.3s ease;
+            `;
+            document.body.appendChild(overlay);
+        }
+        
+        overlay.innerHTML = `
+            <i class="fas fa-pause-circle fa-4x mb-3"></i>
+            <h3>Scanner Paused</h3>
+            <h4 class="mt-2">QR Detected: <strong>${qrCode}</strong></h4>
+            <p class="mb-0">Processing...</p>
+            <div class="spinner-border mt-3" role="status">
+                <span class="visually-hidden">Processing...</span>
+            </div>
+        `;
+        overlay.style.display = 'block';
+    }
+    
+    // Hide scan pause overlay
+    function hideScanPauseOverlay() {
+        const overlay = document.getElementById('scan-pause-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+    
     // Submit manual entry
     window.submitManualEntry = async function() {
         const input = document.getElementById('manual-qr-input');
@@ -374,21 +429,24 @@ function initializeScanner() {
         const now = Date.now();
         console.log('Bill parent scan detected:', qrCode);
         
-        // Show immediate visual feedback
-        showToast('Processing scan...', 'info', 1000);
+        // AUTO-PAUSE: Scanner pauses automatically after detection
+        showScanPauseOverlay(qrCode);
         
-        // Scanner automatically handles duplicate prevention
+        // Show immediate visual feedback
+        showToast('⏸️ Scanner paused - Processing ' + qrCode, 'warning', 2000);
         
         // Check for duplicate scan
         if (scannedBags.has(qrCode)) {
             console.log('Duplicate scan detected:', qrCode);
             showToast('Already scanned this bag!', 'info', 2000);
-            // Resume scanning instantly after duplicate
+            hideScanPauseOverlay();
+            // Resume scanning after duplicate
             if (scanner && scanner.resumeScanning) {
                 setTimeout(() => {
                     console.log('Resuming scanner after duplicate');
+                    showToast('▶️ Scanner resumed - Ready for next bag', 'info', 1500);
                     scanner.resumeScanning();
-                }, 50); // Near-instant resume for duplicates
+                }, 1500); // Clear 1.5s pause for user feedback
             }
             return;
         }
@@ -438,16 +496,18 @@ function initializeScanner() {
                 scannedBags.add(qrCode);
                 
                 // Success feedback
-                showToast(data.message, 'success', 3000);
+                showToast('✅ ' + data.message, 'success', 2500);
                 addBagToList(data.bag_qr || qrCode);
                 updateProgress();
+                hideScanPauseOverlay();
                 
-                // Resume scanning for next bag instantly
+                // AUTO-RESUME: Resume scanning after clear pause
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after successful scan');
+                        showToast('▶️ Scanner resumed - Ready for next bag', 'info', 1500);
                         scanner.resumeScanning();
-                    }, 100); // Ultra-fast 100ms resume
+                    }, 2000); // 2 second pause for user to see success
                 }
             } else {
                 // Error feedback with appropriate duration
@@ -467,14 +527,16 @@ function initializeScanner() {
                     duration = 2500; // Reduced duration
                 }
                 
-                showToast(data.message, toastType, duration);
+                showToast('⚠️ ' + data.message, toastType, duration);
+                hideScanPauseOverlay();
                 
-                // Resume scanning for retry quickly
+                // Resume scanning for retry
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after error');
+                        showToast('▶️ Scanner resumed - Try again', 'info', 1500);
                         scanner.resumeScanning();
-                    }, 500); // Faster resume after error
+                    }, 2000); // 2 second pause to read error
                 }
             }
         } catch (error) {

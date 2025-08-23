@@ -4086,6 +4086,123 @@ def reopen_bill():
         app.logger.error(f'Reopen bill error: {str(e)}')
         return jsonify({'success': False, 'message': 'Error reopening bill.'})
 
+@app.route('/fast/bill_parent_scan', methods=['POST'])
+@csrf.exempt
+def ultra_fast_bill_parent_scan():
+    """Ultra-fast bill parent bag scanning with auto-pause workflow"""
+    # Quick session check
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({
+            'success': False,
+            'message': 'Please login first',
+            'auth_required': True
+        }), 401
+    
+    # Check role
+    user = User.query.get(user_id)
+    if not user or user.role not in ['admin', 'biller']:
+        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
+    
+    bill_id = request.form.get('bill_id')
+    qr_code = request.form.get('qr_code', '').strip().upper()
+    
+    if not bill_id or not qr_code:
+        return jsonify({'success': False, 'message': 'Missing bill ID or QR code'})
+    
+    # Validate format
+    import re
+    if not re.match(r'^SB\d{5}$', qr_code):
+        return jsonify({
+            'success': False,
+            'message': f'Invalid format! Must be SB##### (e.g., SB12345)',
+            'show_popup': True
+        })
+    
+    try:
+        # Get bill
+        bill = Bill.query.get(int(bill_id))
+        if not bill:
+            return jsonify({'success': False, 'message': 'Bill not found'})
+        
+        # Get parent bag
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == qr_code,
+            Bag.type == 'parent'
+        ).first()
+        
+        if not parent_bag:
+            return jsonify({'success': False, 'message': f'Parent bag {qr_code} not found'})
+        
+        # Check if completed
+        if parent_bag.status != 'completed':
+            child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+            if child_count == 30:
+                # Auto-complete
+                parent_bag.status = 'completed'
+                parent_bag.child_count = 30
+                parent_bag.weight_kg = 30.0
+                db.session.commit()
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': f'Bag {qr_code} incomplete ({child_count}/30 children)',
+                    'show_popup': True
+                })
+        
+        # Check duplicate
+        existing = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
+        if existing:
+            return jsonify({
+                'success': False,
+                'message': f'{qr_code} already linked to this bill'
+            })
+        
+        # Check other bills
+        other = BillBag.query.filter_by(bag_id=parent_bag.id).first()
+        if other and other.bill_id != bill.id:
+            return jsonify({
+                'success': False,
+                'message': f'{qr_code} linked to another bill'
+            })
+        
+        # Link to bill
+        bill_bag = BillBag()
+        bill_bag.bill_id = bill.id
+        bill_bag.bag_id = parent_bag.id
+        
+        # Update weights
+        bill.total_weight_kg = (bill.total_weight_kg or 0) + 30.0
+        bill.total_child_bags = (bill.total_child_bags or 0) + 30
+        
+        # Create scan record
+        scan = Scan()
+        scan.user_id = user_id
+        scan.parent_bag_id = parent_bag.id
+        scan.timestamp = datetime.now()
+        
+        db.session.add(bill_bag)
+        db.session.add(scan)
+        db.session.commit()
+        
+        # Count linked bags
+        linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{qr_code} linked successfully!',
+            'bag_qr': qr_code,
+            'linked_count': linked_count,
+            'expected_count': bill.parent_bag_count,
+            'child_count': 30,
+            'total_weight': bill.total_weight_kg
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Fast bill scan error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error processing scan'})
+
 @app.route('/process_bill_parent_scan', methods=['POST'])
 @csrf.exempt
 @login_required
