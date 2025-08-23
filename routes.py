@@ -4160,9 +4160,9 @@ def api_dashboard_stats():
     from ultra_performance_cache import UltraCache
     cache = UltraCache()
     
-    # Get cached stats
-    cached_stats = cache.get('dashboard_stats')
-    if cached_stats:
+    # Get cached stats - UltraCache.get() returns (value, is_cached)
+    cached_stats, is_cached = cache.get('dashboard_stats')
+    if is_cached and cached_stats:
         return jsonify({
             'success': True,
             'statistics': cached_stats,

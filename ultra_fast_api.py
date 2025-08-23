@@ -242,14 +242,19 @@ def clear_ultra_cache():
 def invalidate_cache_on_data_change():
     """Invalidate cache when data changes - ensures real-time updates"""
     try:
-        # Clear all cached data
+        # Clear all cached data from ultra-fast API cache
         cache.clear()
         
         # Also clear static cache for immediate effect
         cache.static_cache.clear()
         cache._init_static_cache()
         
-        print("🔄 Cache invalidated due to data change")
+        # CRITICAL FIX: Also clear the dashboard_stats cache used by /api/stats endpoint
+        from ultra_performance_cache import UltraCache
+        dashboard_cache = UltraCache()
+        dashboard_cache.delete('dashboard_stats')
+        
+        print("🔄 Cache invalidated due to data change (both ultra-fast and dashboard caches)")
     except Exception as e:
         print(f"Cache invalidation error: {e}")
 
