@@ -498,7 +498,8 @@ def system_health():
         # Database connectivity test
         db_healthy = True
         try:
-            db.session.execute('SELECT 1')
+            from sqlalchemy import text
+            db.session.execute(text('SELECT 1'))
         except Exception:
             db_healthy = False
         

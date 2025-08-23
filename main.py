@@ -52,7 +52,7 @@ try:
     from high_performance_cache import optimize_database_queries, query_engine
     app = optimize_database_queries(app)
     # Inject optimized query engine into routes
-    routes.query_engine = query_engine
+    setattr(routes, 'query_engine', query_engine)
     logger.info("High-performance caching loaded successfully")
 except Exception as e:
     logger.warning(f"High-performance caching not loaded: {e}")

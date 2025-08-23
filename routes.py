@@ -1153,8 +1153,8 @@ def execute_comprehensive_deletion():
         
         # Log failed deletion
         log_audit('comprehensive_delete_failed', 'user', None, {
-            'username': username,
-            'email': email,
+            'username': username if 'username' in locals() else 'unknown',
+            'email': email if 'email' in locals() else 'unknown',
             'error': str(e),
             'deleted_by': current_user.username
         })
@@ -1210,7 +1210,8 @@ def create_user():
         
         # Invalidate cache after creating new user
         try:
-            app.invalidate_cache()
+            from optimized_cache import invalidate_cache
+            invalidate_cache()
         except:
             pass  # Don't fail on cache errors
         
@@ -2082,13 +2083,13 @@ def process_child_scan():
         # Check for common database errors
         if 'duplicate key' in str(e).lower():
             # For duplicate keys, check if it's already linked and return success
-            existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id if 'child_bag' in locals() else None).first()
+            existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id if 'parent_bag' in locals() else None, child_bag_id=child_bag.id if 'child_bag' in locals() else None).first()
             if existing_link:
-                current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                current_count = Link.query.filter_by(parent_bag_id=parent_bag.id if 'parent_bag' in locals() else None).count()
                 return jsonify({
                     'success': True,
-                    'child_qr': qr_code,
-                    'parent_qr': parent_qr,
+                    'child_qr': qr_code if 'qr_code' in locals() else '',
+                    'parent_qr': parent_qr if 'parent_qr' in locals() else '',
                     'message': f'Child bag {qr_code} already linked! ({current_count}/30)',
                     'child_count': current_count
                 })
@@ -2689,13 +2690,14 @@ def child_lookup():
     url_qr_id = request.args.get('qr_id', '').strip()
     
     if form.validate_on_submit():
-        qr_id = sanitize_input(form.qr_id.data).strip()
+        qr_id = sanitize_input(form.qr_id.data.strip() if form.qr_id.data else '')
     elif url_qr_id:
         # If there's a QR ID in the URL, use it for lookup
-        qr_id = sanitize_input(url_qr_id).strip()
+        qr_id = sanitize_input(url_qr_id.strip() if url_qr_id else '')
     elif request.method == 'POST':
         # Handle direct form submission without WTForms validation
-        qr_id = sanitize_input(request.form.get('qr_id', '')).strip()
+        form_qr = request.form.get('qr_id', '')
+        qr_id = sanitize_input(form_qr.strip() if form_qr else '')
         
         # Check if this is an AJAX request from scanner
         is_ajax = request.headers.get('Content-Type', '').startswith('application/json') or request.is_json
@@ -3098,7 +3100,7 @@ def bag_management():
                 'linked_children_count': child_counts.get(bag.id, 0),
                 'linked_parent_id': parent_link_data.get('parent_bag_id'),
                 'linked_parent_qr': parent_link_data.get('parent_qr_id'),
-                'bill_id': bill_links.get(bag.id).bill_id if bag.id in bill_links else None,
+                'bill_id': bill_links[bag.id].bill_id if bag.id in bill_links and bill_links[bag.id] else None,
                 'last_scan_time': last_scans.get(bag.id)
             }
             bags_data.append(bag_data)
@@ -3115,9 +3117,9 @@ def bag_management():
         
         stats_result = stats_query.first()
         
-        total_bags = stats_result.total or 0
-        parent_bags = stats_result.parents or 0
-        child_bags = stats_result.children or 0
+        total_bags = stats_result.total if stats_result and hasattr(stats_result, 'total') else 0
+        parent_bags = stats_result.parents if stats_result and hasattr(stats_result, 'parents') else 0
+        child_bags = stats_result.children if stats_result and hasattr(stats_result, 'children') else 0
         
         stats = {
             'total_bags': total_bags,
@@ -3392,6 +3394,7 @@ def bill_management():
                 bill_ids = [bill.id for bill in summary_bills]
                 
                 # Single query for ALL bill-bag counts
+                from sqlalchemy import func
                 bill_bag_counts = db.session.query(
                     BillBag.bill_id,
                     func.count(BillBag.bag_id).label('parent_count')
@@ -3527,7 +3530,8 @@ def create_bill():
     # Handle POST request
     if request.method == 'POST':
         try:
-            bill_id = sanitize_input(request.form.get('bill_id', '')).strip()
+            form_bill_id = request.form.get('bill_id', '')
+            bill_id = sanitize_input(form_bill_id.strip() if form_bill_id else '')
             parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
             
             if not bill_id:
@@ -3983,7 +3987,7 @@ def process_bill_parent_scan():
         if not bill:
             return jsonify({'success': False, 'message': f'Bill with ID "{bill_id}" not found. Please check the bill exists.'})
         
-        qr_id = sanitize_input(qr_code).strip()
+        qr_id = sanitize_input(qr_code.strip() if qr_code else '')
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
@@ -4092,8 +4096,8 @@ def process_bill_parent_scan():
         db.session.commit()
         
         # Clear relevant caches after successful commit
-        cache.delete_pattern(f'bill_bags:{bill.id}')
-        cache.delete_pattern('api_stats_*')
+        cache.clear_pattern(f'bill_bags:{bill.id}')
+        cache.clear_pattern('api_stats_*')
         
         app.logger.info(f'Database commit successful')
         

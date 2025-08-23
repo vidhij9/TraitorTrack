@@ -52,7 +52,7 @@ class ProductionOptimizer:
                 if self.redis_client:
                     try:
                         cached = self.redis_client.get(cache_hash)
-                        if cached:
+                        if cached and isinstance(cached, str):
                             return json.loads(cached)
                     except:
                         pass

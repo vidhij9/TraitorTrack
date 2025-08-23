@@ -126,29 +126,53 @@ class OptimizedQueryEngine:
     @cached_query(ttl=10, key_prefix='dashboard_stats')
     def get_dashboard_stats_cached():
         """Get dashboard statistics with aggressive caching"""
-        from models import Bag, Scan, BagType
-        from sqlalchemy import func
+        from models import Bag, Scan, Bill, BagType
+        from sqlalchemy import func, text
         from app_clean import db
         
-        # Use subqueries for better performance
-        parent_count = db.session.query(func.count(Bag.id)).filter(
-            Bag.type == BagType.PARENT.value
-        ).scalar() or 0
-        
-        child_count = db.session.query(func.count(Bag.id)).filter(
-            Bag.type == BagType.CHILD.value
-        ).scalar() or 0
-        
-        total_bags = db.session.query(func.count(Bag.id)).scalar() or 0
-        total_scans = db.session.query(func.count(Scan.id)).scalar() or 0
-        
-        return {
-            'parent_count': parent_count,
-            'child_count': child_count,
-            'total_bags': total_bags,
-            'total_scans': total_scans,
-            'unlinked_children': 0  # Cached separately if needed
-        }
+        # Use a single optimized query to get all counts at once
+        # This is much faster than multiple separate queries
+        try:
+            result = db.session.execute(text("""
+                SELECT 
+                    (SELECT COUNT(*) FROM bag WHERE type = 'parent') as parent_count,
+                    (SELECT COUNT(*) FROM bag WHERE type = 'child') as child_count,
+                    (SELECT COUNT(*) FROM bag) as total_bags,
+                    (SELECT COUNT(*) FROM scan) as total_scans,
+                    (SELECT COUNT(*) FROM bill) as total_bills
+            """)).fetchone()
+            
+            return {
+                'parent_count': result.parent_count if result and hasattr(result, 'parent_count') else 0,
+                'child_count': result.child_count if result and hasattr(result, 'child_count') else 0,
+                'total_bags': result.total_bags if result and hasattr(result, 'total_bags') else 0,
+                'total_scans': result.total_scans if result and hasattr(result, 'total_scans') else 0,
+                'total_bills': result.total_bills if result and hasattr(result, 'total_bills') else 0,
+                'unlinked_children': 0  # Cached separately if needed
+            }
+        except Exception as e:
+            logger.error(f"Error in get_dashboard_stats_cached: {e}")
+            # Fallback to individual queries if the optimized query fails
+            parent_count = db.session.query(func.count(Bag.id)).filter(
+                Bag.type == BagType.PARENT.value
+            ).scalar() or 0
+            
+            child_count = db.session.query(func.count(Bag.id)).filter(
+                Bag.type == BagType.CHILD.value
+            ).scalar() or 0
+            
+            total_bags = db.session.query(func.count(Bag.id)).scalar() or 0
+            total_scans = db.session.query(func.count(Scan.id)).scalar() or 0
+            total_bills = db.session.query(func.count(Bill.id)).scalar() or 0
+            
+            return {
+                'parent_count': parent_count,
+                'child_count': child_count,
+                'total_bags': total_bags,
+                'total_scans': total_scans,
+                'total_bills': total_bills,
+                'unlinked_children': 0  # Cached separately if needed
+            }
     
     @staticmethod
     @cached_query(ttl=5, key_prefix='recent_scans')
