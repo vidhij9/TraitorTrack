@@ -3312,20 +3312,119 @@ def bag_management():
 @app.route('/bill_management')  # Alias for compatibility
 @login_required
 def bill_management():
-    """Ultra-fast bill management - optimized for 8+ lakh bags and 50+ concurrent users"""
+    """Ultra-fast bill management with integrated summary generation"""
     if not (current_user.is_admin() or current_user.is_biller()):
         flash('Access restricted to admin and biller users.', 'error')
         return redirect(url_for('index'))
     
     try:
         # Import models locally
-        from models import Bill, Bag, BillBag
+        from models import Bill, Bag, BillBag, User
         
-        # Get search parameters
+        # Get search/filter parameters
         search_bill_id = request.args.get('search_bill_id', '').strip()
         status_filter = request.args.get('status_filter', 'all').strip()
         
-        # Ultra-fast query with minimal data loading
+        # Summary generation parameters
+        generate_summary = request.args.get('generate_summary', '') == 'true'
+        summary_date_from = request.args.get('date_from', '')
+        summary_date_to = request.args.get('date_to', '')
+        summary_user_id = request.args.get('user_id', '')
+        
+        # Initialize summary data
+        summary_data = None
+        summary_stats = None
+        
+        # Generate summary if requested
+        if generate_summary:
+            # Parse dates for summary
+            if summary_date_from:
+                try:
+                    start_date = datetime.strptime(summary_date_from, '%Y-%m-%d')
+                except ValueError:
+                    start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            else:
+                start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            if summary_date_to:
+                try:
+                    end_date = datetime.strptime(summary_date_to, '%Y-%m-%d') + timedelta(days=1)
+                except ValueError:
+                    end_date = start_date + timedelta(days=1)
+            else:
+                end_date = start_date + timedelta(days=1)
+            
+            # Build summary query
+            summary_query = Bill.query.filter(
+                Bill.created_at >= start_date,
+                Bill.created_at < end_date
+            )
+            
+            # Filter by user for billers or specific user for admins
+            if current_user.is_biller() and not current_user.is_admin():
+                summary_query = summary_query.filter(Bill.created_by_id == current_user.id)
+            elif summary_user_id and current_user.is_admin():
+                summary_query = summary_query.filter(Bill.created_by_id == summary_user_id)
+            
+            summary_bills = summary_query.all()
+            
+            # Calculate summary statistics
+            summary_stats = {
+                'total_bills': len(summary_bills),
+                'total_parent_bags': 0,
+                'total_child_bags': 0,
+                'total_weight': 0,
+                'completed_bills': 0,
+                'in_progress_bills': 0,
+                'empty_bills': 0,
+                'date_from': start_date.strftime('%Y-%m-%d'),
+                'date_to': (end_date - timedelta(days=1)).strftime('%Y-%m-%d')
+            }
+            
+            summary_data = []
+            for bill in summary_bills:
+                # Get bag counts
+                bill_bags = BillBag.query.filter_by(bill_id=bill.id).all()
+                parent_count = len(bill_bags)
+                
+                # Calculate child bags
+                child_count = 0
+                for bill_bag in bill_bags:
+                    parent_bag = Bag.query.get(bill_bag.bag_id)
+                    if parent_bag:
+                        child_bags = Bag.query.filter_by(parent_id=parent_bag.id).count()
+                        child_count += child_bags
+                
+                # Determine status
+                if bill.parent_bag_count and parent_count >= bill.parent_bag_count:
+                    status = 'completed'
+                    summary_stats['completed_bills'] += 1
+                elif parent_count > 0:
+                    status = 'in_progress'
+                    summary_stats['in_progress_bills'] += 1
+                else:
+                    status = 'empty'
+                    summary_stats['empty_bills'] += 1
+                
+                # Get creator info
+                creator = User.query.get(bill.created_by_id) if bill.created_by_id else None
+                
+                summary_stats['total_parent_bags'] += parent_count
+                summary_stats['total_child_bags'] += child_count
+                summary_stats['total_weight'] += bill.total_weight_kg or 0
+                
+                summary_data.append({
+                    'bill_id': bill.bill_id,
+                    'created_at': format_datetime_ist(bill.created_at),
+                    'created_by': creator.username if creator else 'Unknown',
+                    'parent_bags': parent_count,
+                    'child_bags': child_count,
+                    'weight_kg': bill.total_weight_kg or 0,
+                    'status': status,
+                    'completion': (parent_count * 100 // bill.parent_bag_count) if bill.parent_bag_count else 0
+                })
+        
+        # Regular bill listing query
         bills_query = Bill.query
         if search_bill_id:
             bills_query = bills_query.filter(Bill.bill_id.ilike(f'%{search_bill_id}%'))
@@ -3367,10 +3466,18 @@ def bill_management():
                     'status': bill_status
                 })
         
+        # Get list of all users for admin filter dropdown
+        all_users = None
+        if current_user.is_admin():
+            all_users = User.query.filter(User.role.in_(['biller', 'admin'])).order_by(User.username).all()
+        
         return render_template('bill_management.html',
                              bill_data=bill_data,
                              search_bill_id=search_bill_id,
-                             status_filter=status_filter)
+                             status_filter=status_filter,
+                             summary_data=summary_data,
+                             summary_stats=summary_stats,
+                             all_users=all_users)
                              
     except Exception as e:
         app.logger.error(f"Bill management error: {str(e)}")
@@ -4939,152 +5046,8 @@ def manual_parent_entry():
         app.logger.error(f'Traceback: {traceback.format_exc()}')
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
-@app.route('/bill_summary')
-@login_required
-def bill_summary():
-    """Display bill summary report - billers see their own, admins see all"""
-    try:
-        # Import models locally to avoid circular imports
-        from models import Bill, User, Bag, BillBag
-        
-        # Get date range parameters (default to today)
-        date_from = request.args.get('date_from', get_ist_now().strftime('%Y-%m-%d'))
-        date_to = request.args.get('date_to', get_ist_now().strftime('%Y-%m-%d'))
-        
-        # Parse dates
-        try:
-            start_date = datetime.strptime(date_from, '%Y-%m-%d')
-            end_date = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)  # Include entire end day
-        except ValueError:
-            start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = start_date + timedelta(days=1)
-        
-        # Base query
-        bills_query = db.session.query(Bill).filter(
-            Bill.created_at >= start_date,
-            Bill.created_at < end_date
-        )
-        
-        # Filter by creator for billers
-        if current_user.is_biller() and not current_user.is_admin():
-            bills_query = bills_query.filter(Bill.created_by_id == current_user.id)
-            summary_title = f"My Bill Summary - {current_user.username}"
-        else:
-            summary_title = "All Bills Summary (Admin View)"
-        
-        bills = bills_query.order_by(desc(Bill.created_at)).all()
-        
-        # Calculate summary statistics
-        summary_data = []
-        total_bills = 0
-        total_parent_bags = 0
-        total_child_bags = 0
-        total_weight_kg = 0
-        completed_bills = 0
-        pending_bills = 0
-        
-        for bill in bills:
-            # Get linked parent bags
-            bill_bags = BillBag.query.filter_by(bill_id=bill.id).all()
-            parent_count = len(bill_bags)
-            
-            # Calculate totals for this bill
-            bill_weight = bill.total_weight_kg or 0
-            bill_child_count = bill.total_child_bags or 0
-            
-            # If not stored, calculate from parent bags
-            if bill_weight == 0 and parent_count > 0:
-                for bb in bill_bags:
-                    parent_bag = Bag.query.get(bb.bag_id)
-                    if parent_bag:
-                        bill_weight += parent_bag.weight_kg or 0
-                        bill_child_count += parent_bag.child_count or 0
-            
-            # Determine bill status
-            if bill.status == 'completed':
-                status = 'Completed'
-                completed_bills += 1
-            elif parent_count >= bill.parent_bag_count:
-                status = 'Full'
-                completed_bills += 1
-            elif parent_count > 0:
-                status = 'In Progress'
-                pending_bills += 1
-            else:
-                status = 'Empty'
-                pending_bills += 1
-            
-            # Get creator name
-            creator = User.query.get(bill.created_by_id) if bill.created_by_id else None
-            creator_name = creator.username if creator else 'Unknown'
-            
-            # Add to summary
-            summary_data.append({
-                'bill_id': bill.bill_id,
-                'created_at': bill.created_at,
-                'created_by': creator_name,
-                'status': status,
-                'parent_bags': parent_count,
-                'expected_bags': bill.parent_bag_count,
-                'child_bags': bill_child_count,
-                'weight_kg': bill_weight,
-                'completion_percent': (parent_count / bill.parent_bag_count * 100) if bill.parent_bag_count > 0 else 0
-            })
-            
-            # Update totals
-            total_bills += 1
-            total_parent_bags += parent_count
-            total_child_bags += bill_child_count
-            total_weight_kg += bill_weight
-        
-        # Overall statistics
-        overall_stats = {
-            'total_bills': total_bills,
-            'completed_bills': completed_bills,
-            'pending_bills': pending_bills,
-            'total_parent_bags': total_parent_bags,
-            'total_child_bags': total_child_bags,
-            'total_weight_kg': total_weight_kg,
-            'average_weight_per_bill': (total_weight_kg / total_bills) if total_bills > 0 else 0,
-            'average_completion': (total_parent_bags / (total_bills * 10)) * 100 if total_bills > 0 else 0
-        }
-        
-        # Get user-wise summary for admins
-        user_summary = []
-        if current_user.is_admin():
-            user_stats = db.session.query(
-                User.username,
-                func.count(Bill.id).label('bill_count'),
-                func.sum(Bill.total_child_bags).label('total_bags'),
-                func.sum(Bill.total_weight_kg).label('total_weight')
-            ).join(
-                Bill, Bill.created_by_id == User.id
-            ).filter(
-                Bill.created_at >= start_date,
-                Bill.created_at < end_date
-            ).group_by(User.id, User.username).all()
-            
-            for stat in user_stats:
-                user_summary.append({
-                    'username': stat.username,
-                    'bill_count': stat.bill_count,
-                    'total_bags': stat.total_bags or 0,
-                    'total_weight': stat.total_weight or 0
-                })
-        
-        return render_template('bill_summary.html',
-                             summary_title=summary_title,
-                             summary_data=summary_data,
-                             overall_stats=overall_stats,
-                             user_summary=user_summary,
-                             date_from=date_from,
-                             date_to=date_to,
-                             is_admin=current_user.is_admin())
-                             
-    except Exception as e:
-        app.logger.error(f'Bill summary error: {str(e)}')
-        flash('Error generating bill summary report.', 'error')
-        return redirect(url_for('index'))
+# Bill summary functionality moved to bill_management route
+# Old route commented out to prevent conflicts - functionality integrated into bill_management
 
 
 @app.route('/api/bill_summary/eod')
