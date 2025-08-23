@@ -78,6 +78,7 @@ def ultra_stats():
             'total_scans': result.scans or 0,
             'total_bills': result.bills or 0,
             'active_users': result.users or 0,
+            'active_dispatchers': result.users or 0,  # Add for compatibility
             'total_products': (result.parents or 0) + (result.children or 0),
             'capacity_info': {
                 'current_bags': (result.parents or 0) + (result.children or 0),
