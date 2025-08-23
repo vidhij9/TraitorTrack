@@ -5,7 +5,6 @@ Optimizes scanning of 30 child bags from 15-20 minutes to under 1 minute
 """
 
 from flask import Blueprint, request, jsonify, session, render_template_string
-from flask_wtf import csrf
 from sqlalchemy import text
 from models import db, Bag, Link, Scan
 import time
@@ -202,7 +201,6 @@ class BatchScanSession:
         }
 
 @batch_scanner.route('/ultra_batch/start', methods=['POST'])
-@csrf.exempt
 def start_batch_session():
     """Start a new ultra-fast batch scanning session"""
     user_id = session.get('user_id')
@@ -260,7 +258,6 @@ def start_batch_session():
         return jsonify({'success': False, 'message': 'Failed to start session'}), 500
 
 @batch_scanner.route('/ultra_batch/scan', methods=['POST'])
-@csrf.exempt
 def scan_child_batch():
     """Add multiple children to batch for processing"""
     session_id = session.get('batch_session_id')
@@ -303,7 +300,6 @@ def scan_child_batch():
     })
 
 @batch_scanner.route('/ultra_batch/process', methods=['POST'])
-@csrf.exempt
 def process_batch():
     """Process all pending children in the batch"""
     session_id = session.get('batch_session_id')
@@ -321,7 +317,6 @@ def process_batch():
     })
 
 @batch_scanner.route('/ultra_batch/complete', methods=['POST'])
-@csrf.exempt
 def complete_batch_session():
     """Complete the batch scanning session"""
     session_id = session.get('batch_session_id')
