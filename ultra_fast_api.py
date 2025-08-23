@@ -239,6 +239,23 @@ def clear_ultra_cache():
             'error': str(e)
         }), 500
 
+def invalidate_cache_on_data_change():
+    """Invalidate cache when data changes - ensures real-time updates"""
+    try:
+        # Clear all cached data
+        cache.clear()
+        
+        # Also clear static cache for immediate effect
+        cache.static_cache.clear()
+        cache._init_static_cache()
+        
+        print("🔄 Cache invalidated due to data change")
+    except Exception as e:
+        print(f"Cache invalidation error: {e}")
+
+# Export the invalidation function for use in other modules
+app.invalidate_cache = invalidate_cache_on_data_change
+
 # Health check endpoint
 @app.route('/api/ultra/health')
 @limiter.exempt

@@ -1207,6 +1207,12 @@ def create_user():
         db.session.add(user)
         db.session.commit()
         
+        # Invalidate cache after creating new user
+        try:
+            app.invalidate_cache()
+        except:
+            pass  # Don't fail on cache errors
+        
         flash(f'User {username} created successfully!', 'success')
         return redirect(url_for('user_management'))
         
@@ -1579,7 +1585,7 @@ def fix_admin_password():
 @limiter.limit("50 per minute")  # Further increased for development testing
 def register():
     """User registration page with form validation"""
-    if is_authenticated():
+    if current_user.is_authenticated:
         return redirect(url_for('index'))
     
     if request.method == 'POST':

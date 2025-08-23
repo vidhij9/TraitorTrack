@@ -153,6 +153,12 @@ def fast_parent_scan():
             
             db.session.commit()
             
+            # Invalidate cache after creating new data
+            try:
+                app.invalidate_cache()
+            except:
+                pass  # Don't fail on cache errors
+            
             # Store in session
             session['current_parent_qr'] = qr_code
             session['current_parent_id'] = new_id
@@ -296,6 +302,12 @@ def fast_child_scan():
         
         db.session.commit()
         
+        # Invalidate cache after creating new data
+        try:
+            app.invalidate_cache()
+        except:
+            pass  # Don't fail on cache errors
+        
         return jsonify({
             'success': True,
             'child_qr': qr_code,
@@ -393,6 +405,12 @@ def fast_bill_parent_scan():
         )
         
         db.session.commit()
+        
+        # Invalidate cache after linking bag to bill
+        try:
+            app.invalidate_cache()
+        except:
+            pass  # Don't fail on cache errors
         
         # Get updated count
         bag_count = db.session.execute(
