@@ -144,11 +144,12 @@ class QueryOptimizer:
     @staticmethod
     @lru_cache(maxsize=1000)
     def get_bag_by_qr(qr_id, bag_type=None):
-        """Cached bag lookup by QR code with optional type filter"""
+        """Cached bag lookup by QR code with optional type filter (case-insensitive)"""
         from models import Bag
-        query = Bag.query.filter_by(qr_id=qr_id)
+        from sqlalchemy import func
+        query = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id))
         if bag_type:
-            query = query.filter_by(type=bag_type)
+            query = query.filter(Bag.type == bag_type)
         return query.first()
     
     @staticmethod

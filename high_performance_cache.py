@@ -115,11 +115,12 @@ class OptimizedQueryEngine:
     @staticmethod
     @cached_query(ttl=60, key_prefix='bag_by_qr')
     def get_bag_by_qr_cached(qr_id, bag_type=None):
-        """Cached bag lookup by QR code"""
+        """Cached bag lookup by QR code (case-insensitive)"""
         from models import Bag
-        query = Bag.query.filter_by(qr_id=qr_id)
+        from sqlalchemy import func
+        query = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id))
         if bag_type:
-            query = query.filter_by(type=bag_type)
+            query = query.filter(Bag.type == bag_type)
         return query.first()
     
     @staticmethod

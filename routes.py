@@ -1469,7 +1469,10 @@ def auth_test():
 def link_to_bill(qr_id):
     """Link parent bag to bill"""
     try:
-        parent_bag = Bag.query.filter_by(qr_id=qr_id, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(qr_id),
+            Bag.type == 'parent'
+        ).first()
         if not parent_bag:
             flash('Parent bag not found', 'error')
             return redirect(url_for('index'))
@@ -1540,8 +1543,8 @@ def log_scan():
             flash('Status is required', 'error')
             return redirect(url_for('scan'))
         
-        # Find the bag by QR ID
-        bag = Bag.query.filter_by(qr_id=qr_id).first()
+        # Find the bag by QR ID (case-insensitive)
+        bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
         if not bag:
             flash(f'Bag with QR ID {qr_id} not found', 'error')
             return redirect(url_for('scan'))
@@ -2372,7 +2375,10 @@ def process_child_scan_fast():
             return jsonify({'success': False, 'message': 'Cannot link to itself'})
         
         # OPTIMIZED: Single query with bulk operations
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
         if not parent_bag:
             return jsonify({'success': False, 'message': 'Parent bag not found'})
         
@@ -2381,8 +2387,8 @@ def process_child_scan_fast():
         if current_count >= 30:
             return jsonify({'success': False, 'message': 'Maximum 30 child bags reached!'})
         
-        # Check/create child bag
-        child_bag = Bag.query.filter_by(qr_id=qr_id).first()
+        # Check/create child bag (case-insensitive)
+        child_bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
         if child_bag:
             if child_bag.type == 'parent':
                 return jsonify({'success': False, 'message': f'DUPLICATE: {qr_id} is already a parent bag'})
@@ -2450,7 +2456,10 @@ def complete_parent_scan():
             return jsonify({'success': False, 'message': 'No parent bag in session'})
         
         # Get parent bag
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
         if not parent_bag:
             return jsonify({'success': False, 'message': 'Parent bag not found'})
         
@@ -2528,10 +2537,13 @@ def scan_child():
                     return jsonify({'success': False, 'message': 'No parent bag selected. Please scan a parent bag first.'})
                 
                 # OPTIMIZED: Get parent bag efficiently - try direct query first
-                parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+                parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
                 if not parent_bag:
                     # Try without type restriction as fallback
-                    parent_bag = Bag.query.filter_by(qr_id=parent_qr).first()
+                    parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(parent_qr)).first()
                     if parent_bag and parent_bag.type != 'parent':
                         app.logger.error(f'Bag {parent_qr} exists but is type {parent_bag.type}, not parent')
                         return jsonify({'success': False, 'message': f'QR {parent_qr} is not a parent bag. Please scan a parent bag first.'})
@@ -2664,11 +2676,14 @@ def scan_child():
         linked_child_bags = []
         if parent_qr:
             # Single optimized query to get parent and children
-            parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+            parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
             
             if not parent_bag:
                 # Try without type restriction
-                parent_bag_any = Bag.query.filter_by(qr_id=parent_qr).first()
+                parent_bag_any = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(parent_qr)).first()
                 if parent_bag_any:
                     app.logger.warning(f'CHILD SCAN PAGE: Bag {parent_qr} exists but is type {parent_bag_any.type}, not parent')
                     # If it exists but not as parent, update its type
@@ -2721,7 +2736,10 @@ def scan_complete():
             return redirect(url_for('index'))
         
         # Get parent bag details
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
         if not parent_bag:
             flash('Parent bag not found.', 'error')
             return redirect(url_for('index'))
@@ -2823,8 +2841,8 @@ def child_lookup():
             start_time = time.time()
             app.logger.info(f'Lookup request for QR ID: {qr_id}')
             
-            # Direct database search - simple and fast
-            bag = Bag.query.filter_by(qr_id=qr_id).first()
+            # Direct database search - simple and fast (case-insensitive)
+            bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
             
             search_time_ms = (time.time() - start_time) * 1000
             
@@ -3068,10 +3086,10 @@ def bag_management():
         
         # Search filter - exact match first, then partial match
         if search_query:
-            # Try exact match first
-            exact_match = Bag.query.filter_by(qr_id=search_query).first()
+            # Try exact match first (case-insensitive)
+            exact_match = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(search_query)).first()
             if exact_match:
-                filters.append(Bag.qr_id == search_query)
+                filters.append(func.upper(Bag.qr_id) == func.upper(search_query))
             else:
                 # Fall back to partial match
                 filters.append(Bag.qr_id.ilike(f'%{search_query}%'))
@@ -3899,7 +3917,10 @@ def remove_bag_from_bill():
             return redirect(url_for('bill_management'))
         
         # Find the parent bag
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
         if not parent_bag:
             flash('Parent bag not found.', 'error')
             return redirect(url_for('scan_bill_parent', bill_id=bill_id))
@@ -4119,7 +4140,10 @@ def process_bill_parent_scan():
             })
         
         # Direct parent bag lookup - no caching to avoid model/dict confusion
-        parent_bag = Bag.query.filter_by(qr_id=qr_id, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(qr_id),
+            Bag.type == 'parent'
+        ).first()
         
         if not parent_bag:
             app.logger.info(f'Parent bag "{qr_id}" not found in database')
@@ -4261,7 +4285,7 @@ def bag_details(qr_id):
     # Log the QR ID for debugging
     app.logger.info(f'Looking up bag with QR ID: {qr_id}')
     
-    bag = Bag.query.filter_by(qr_id=qr_id).first_or_404()
+    bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first_or_404()
     
     # Get related information with optimized queries
     if bag.type == 'parent':
@@ -4597,7 +4621,10 @@ def api_scanned_children():
         # First try current_parent_qr
         parent_qr = session.get('current_parent_qr')
         if parent_qr:
-            parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+            parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
         
         # If not found, try last_scan
         if not parent_bag:
@@ -4680,7 +4707,10 @@ def api_delete_child_scan():
                 'message': 'No active parent bag session'
             })
         
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
         if not parent_bag:
             return jsonify({
                 'success': False,
@@ -4863,7 +4893,10 @@ def edit_parent_children(parent_qr):
         flash('Only administrators can edit parent-child relationships', 'error')
         return redirect(url_for('bag_management'))
     
-    parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first_or_404()
+    parent_bag = Bag.query.filter(
+        func.upper(Bag.qr_id) == func.upper(parent_qr),
+        Bag.type == 'parent'
+    ).first_or_404()
     
     # Get current children
     links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
@@ -4898,7 +4931,10 @@ def api_edit_parent_children():
                 'message': 'Parent QR code is required'
             })
         
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
         if not parent_bag:
             return jsonify({
                 'success': False,
@@ -4983,7 +5019,10 @@ def api_edit_parent_children():
 def api_get_parent_children(parent_qr):
     """Get the list of child QR codes for a parent bag"""
     try:
-        parent_bag = Bag.query.filter_by(qr_id=parent_qr, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
         if not parent_bag:
             return jsonify({
                 'success': False,
@@ -5094,7 +5133,10 @@ def manual_parent_entry():
         
         # Check if parent bag exists
         app.logger.info(f'Checking if parent bag exists: {manual_qr}')
-        parent_bag = Bag.query.filter_by(qr_id=manual_qr, type='parent').first()
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(manual_qr),
+            Bag.type == 'parent'
+        ).first()
         
         if not parent_bag:
             # Create the parent bag if it doesn't exist (for manual entry)

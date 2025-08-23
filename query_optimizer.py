@@ -15,10 +15,10 @@ class QueryOptimizer:
     
     @staticmethod
     def get_bag_by_qr(qr_id, bag_type=None):
-        """Optimized single bag lookup with optional type filter"""
-        query = Bag.query.filter_by(qr_id=qr_id)
+        """Optimized single bag lookup with optional type filter (case-insensitive)"""
+        query = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id))
         if bag_type:
-            query = query.filter_by(type=bag_type)
+            query = query.filter(Bag.type == bag_type)
         return query.first()
     
     @staticmethod
@@ -80,7 +80,7 @@ class QueryOptimizer:
     def create_bag_optimized(qr_id, bag_type, name=None, dispatch_area=None):
         """Optimized bag creation with validation to prevent role conflicts"""
         # CRITICAL: Check if bag with this QR already exists with a different type
-        existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
+        existing_bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
         if existing_bag:
             if existing_bag.type != bag_type:
                 raise ValueError(f"QR code {qr_id} is already registered as a {existing_bag.type} bag. One bag can only have one role - either parent OR child, never both.")
@@ -152,8 +152,8 @@ class QueryOptimizer:
             
             # Prepare all objects in memory first
             for child_qr in child_qr_codes:
-                # Check if child bag already exists
-                existing_child = Bag.query.filter_by(qr_id=child_qr).first()
+                # Check if child bag already exists (case-insensitive)
+                existing_child = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(child_qr)).first()
                 
                 if existing_child:
                     # Check if it's already linked
