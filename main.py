@@ -40,12 +40,12 @@ try:
 except:
     pass
 
-# Import ultra-fast API for <50ms response times
+# Import ultra-optimized API for <50ms response times
 try:
-    import ultra_fast_api
-    logger.info("Ultra-fast API loaded successfully")
+    import ultra_optimized_api
+    logger.info("Ultra-optimized API loaded with circuit breakers and caching")
 except Exception as e:
-    logger.warning(f"Ultra-fast API not loaded: {e}")
+    logger.warning(f"Ultra-optimized API not loaded: {e}")
 
 # Import high-performance caching for query optimization
 try:
@@ -93,14 +93,24 @@ def after_request(response):
     """Skip performance logging for speed"""
     return response
 
+# Import production database optimizer
+try:
+    from production_database_optimizer import initialize as init_db_optimizer
+    with app.app_context():
+        init_db_optimizer()
+    logger.info("Production database optimizer loaded")
+except Exception as e:
+    logger.warning(f"Production database optimizer not loaded: {e}")
+
 # Warm cache on startup
 with app.app_context():
     try:
-        # Database optimizations disabled for stability
-        # optimization_results = database_optimizer.run_full_optimization()
-        logger.info("Database optimizations skipped for stability")
+        # Warm up critical caches
+        from sqlalchemy import text
+        db.session.execute(text("SELECT 1")).scalar()
+        logger.info("Database connection verified")
     except Exception as e:
-        logger.warning(f"Database optimization skipped: {e}")
+        logger.warning(f"Database warmup failed: {e}")
 
 # Emergency navigation route
 @app.route('/nav')

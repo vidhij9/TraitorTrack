@@ -32,11 +32,11 @@ class FinalProductionTest:
         print("\n=== API PERFORMANCE TESTS ===")
         
         endpoints = [
-            ('GET', '/api/fast_stats', None, 'Dashboard Stats'),
-            ('GET', '/api/fast_scans?limit=10', None, 'Recent Scans'),
-            ('POST', '/api/fast_parent_scan', {'qr_code': self.generate_qr_code()}, 'Parent Scan'),
-            ('GET', '/api/fast_search?q=TEST', None, 'Search'),
-            ('GET', '/health', None, 'Health Check'),
+            ('GET', '/api/ultra_stats', None, 'Dashboard Stats'),
+            ('GET', '/api/ultra_scans?limit=10', None, 'Recent Scans'),
+            ('POST', '/api/ultra_parent_scan', {'qr_code': self.generate_qr_code()}, 'Parent Scan'),
+            ('GET', '/api/ultra_search?query=TEST', None, 'Search'),
+            ('GET', '/api/ultra_health', None, 'Health Check'),
         ]
         
         api_results = []
@@ -110,24 +110,24 @@ class FinalProductionTest:
             try:
                 # 1. Health check
                 start = time.perf_counter()
-                response = session.get(f"{self.base_url}/health", timeout=5)
+                response = session.get(f"{self.base_url}/api/ultra_health", timeout=5)
                 times.append((time.perf_counter() - start) * 1000)
                 
                 # 2. Get stats
                 start = time.perf_counter()
-                response = session.get(f"{self.base_url}/api/fast_stats", timeout=5)
+                response = session.get(f"{self.base_url}/api/ultra_stats", timeout=5)
                 times.append((time.perf_counter() - start) * 1000)
                 
                 # 3. Parent scan
                 qr_code = self.generate_qr_code()
                 start = time.perf_counter()
-                response = session.post(f"{self.base_url}/api/fast_parent_scan",
+                response = session.post(f"{self.base_url}/api/ultra_parent_scan",
                                       json={'qr_code': qr_code}, timeout=5)
                 times.append((time.perf_counter() - start) * 1000)
                 
                 # 4. Search
                 start = time.perf_counter()
-                response = session.get(f"{self.base_url}/api/fast_search?q={qr_code[:4]}", timeout=5)
+                response = session.get(f"{self.base_url}/api/ultra_search?query={qr_code[:4]}", timeout=5)
                 times.append((time.perf_counter() - start) * 1000)
                 
                 return {
@@ -205,7 +205,7 @@ class FinalProductionTest:
         print("  Creating test parent bags...")
         for qr in parent_qrs:
             try:
-                self.session.post(f"{self.base_url}/api/fast_parent_scan",
+                self.session.post(f"{self.base_url}/api/ultra_parent_scan",
                                 json={'qr_code': qr}, timeout=5)
             except:
                 pass
@@ -217,7 +217,7 @@ class FinalProductionTest:
         times = []
         for _ in range(5):
             start = time.perf_counter()
-            response = self.session.get(f"{self.base_url}/api/fast_stats", timeout=5)
+            response = self.session.get(f"{self.base_url}/api/ultra_stats", timeout=5)
             elapsed = (time.perf_counter() - start) * 1000
             times.append(elapsed)
         
@@ -228,7 +228,7 @@ class FinalProductionTest:
         times = []
         for _ in range(5):
             start = time.perf_counter()
-            response = self.session.get(f"{self.base_url}/api/fast_search?q=TEST", timeout=5)
+            response = self.session.get(f"{self.base_url}/api/ultra_search?query=TEST", timeout=5)
             elapsed = (time.perf_counter() - start) * 1000
             times.append(elapsed)
         
@@ -250,7 +250,7 @@ class FinalProductionTest:
         
         # Check server
         try:
-            response = requests.get(f"{self.base_url}/health", timeout=5)
+            response = requests.get(f"{self.base_url}/api/ultra_health", timeout=5)
             print(f"✅ Server is running")
         except Exception as e:
             print(f"❌ Cannot connect to server: {e}")
