@@ -66,11 +66,11 @@
 <!-- Compact Actions -->
 <div class="mb-2">
     <div class="d-flex gap-1">
-        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-sm flex-fill py-1">
-            <i class="fas fa-camera"></i> Scan
+        <a href="/scanner" class="btn btn-primary btn-sm flex-fill py-1" style="animation: pulse 2s infinite;">
+            <i class="fas fa-bolt"></i> Scanner
         </a>
-        <a href="/ultra_batch/scanner" class="btn btn-warning btn-sm flex-fill py-1" style="animation: pulse 2s infinite;">
-            <i class="fas fa-bolt"></i> Fast Scan
+        <a href="/scanner" class="btn btn-warning btn-sm flex-fill py-1">
+            <i class="fas fa-camera"></i> Quick Scan
         </a>
         <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success btn-sm flex-fill py-1">
             <i class="fas fa-file-invoice"></i> Bills

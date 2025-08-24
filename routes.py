@@ -1832,15 +1832,29 @@ def process_promotion_request(request_id):
 
 # Scanning workflow routes (simplified without location selection)
 
+@app.route('/scanner')
+@app.route('/unified_scanner') 
+def unified_scanner():
+    """Universal ultra-fast scanner for all operations"""
+    if not is_logged_in():
+        return redirect(url_for('login'))
+    
+    # Get user role for permissions
+    user_role = session.get('user_role', 'viewer')
+    
+    # Get active bills for bill mode if user has permission
+    bills = []
+    if user_role in ['admin', 'biller']:
+        from models import Bill
+        bills = Bill.query.filter_by(status='pending').order_by(Bill.created_at.desc()).limit(10).all()
+    
+    return render_template('unified_scanner.html', user_role=user_role, bills=bills)
+
 @app.route('/scan/parent', methods=['GET', 'POST'])
 @app.route('/scan_parent', methods=['GET', 'POST'])  # Alias for compatibility
 def scan_parent():
-    """Scan parent bag QR code - Fast scanner optimized"""
-    # Manual authentication check that works
-    if not is_logged_in():
-        return redirect(url_for('login'))
-    # Direct template render for fastest response
-    return render_template('scan_parent.html')
+    """Redirect to unified scanner"""
+    return redirect(url_for('unified_scanner'))
 
 @app.route('/api/fast_parent_scan', methods=['POST'])
 def api_fast_parent_scan():
@@ -2495,7 +2509,11 @@ def complete_parent_scan():
 @app.route('/scan/child', methods=['GET', 'POST'])
 @app.route('/scan_child', methods=['GET', 'POST'])  # Alias for compatibility
 def scan_child():
-    """Scan child bag QR code - unified GET/POST handler"""
+    """Redirect to unified scanner in child mode"""
+    return redirect(url_for('unified_scanner') + '?mode=child')
+
+def scan_child_legacy():
+    """Legacy scan child function - kept for reference"""
     # Manual authentication check
     if not is_logged_in():
         if request.method == 'POST':
