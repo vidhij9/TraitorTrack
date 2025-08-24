@@ -4,7 +4,7 @@ Replaces slow endpoints with optimized versions using materialized views and cac
 """
 
 from flask import jsonify, request, session
-from app_clean import app, db
+from app_clean import app, db, csrf
 from models import Bag, Link, Scan, User, Bill
 from sqlalchemy import text, func, and_, or_
 from sqlalchemy.orm import joinedload
@@ -54,6 +54,7 @@ def clean_cache():
         CACHE_TIMESTAMPS.pop(key, None)
 
 @app.route('/api/fast_stats')
+@csrf.exempt
 def fast_stats_api():
     """Ultra-fast stats endpoint using materialized views"""
     start_time = time.perf_counter()
@@ -137,6 +138,7 @@ def fast_stats_api():
     return jsonify(stats)
 
 @app.route('/api/fast_scans')
+@csrf.exempt
 def fast_scans_api():
     """Ultra-fast recent scans using materialized views"""
     start_time = time.perf_counter()
@@ -224,6 +226,7 @@ def fast_scans_api():
     return jsonify(result)
 
 @app.route('/api/fast_parent_scan', methods=['POST'])
+@csrf.exempt
 def fast_parent_scan():
     """Ultra-fast parent bag scanning"""
     start_time = time.perf_counter()
@@ -309,6 +312,7 @@ def fast_parent_scan():
         }), 500
 
 @app.route('/api/fast_child_scan', methods=['POST'])
+@csrf.exempt
 def fast_child_scan():
     """Ultra-fast child bag scanning"""
     start_time = time.perf_counter()
@@ -434,6 +438,7 @@ def fast_child_scan():
         }), 500
 
 @app.route('/api/fast_search')
+@csrf.exempt
 def fast_search():
     """Ultra-fast search endpoint"""
     start_time = time.perf_counter()

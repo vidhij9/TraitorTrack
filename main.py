@@ -73,6 +73,15 @@ try:
 except Exception as e:
     logger.warning(f"Ultra-fast batch scanner not loaded: {e}")
 
+# Import production optimization config for better concurrency
+try:
+    from production_optimization_config import initialize as init_prod_config
+    with app.app_context():
+        init_prod_config()
+    logger.info("Production optimization config loaded - optimized for 100+ concurrent users")
+except Exception as e:
+    logger.warning(f"Production optimization config not loaded: {e}")
+
 # Setup monitoring for all routes
 @app.before_request
 def before_request():

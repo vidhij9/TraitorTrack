@@ -358,7 +358,7 @@ def fast_bill_parent_scan():
                         bb.bill_id as existing_bill
                     FROM bag b
                     LEFT JOIN bag cb ON cb.parent_id = b.id
-                    LEFT JOIN bill_bag bb ON bb.parent_bag_id = b.id
+                    LEFT JOIN bill_bag bb ON bb.bag_id = b.id
                     WHERE UPPER(b.qr_id) = UPPER(:qr_id)
                     GROUP BY b.id, b.type, b.status, bb.bill_id
                 )
@@ -397,7 +397,7 @@ def fast_bill_parent_scan():
         
         # Link to bill
         db.session.execute(
-            text("INSERT INTO bill_bag (bill_id, parent_bag_id) VALUES (:bill_id, :parent_id)"),
+            text("INSERT INTO bill_bag (bill_id, bag_id) VALUES (:bill_id, :parent_id)"),
             {'bill_id': bill_id, 'parent_id': result.id}
         )
         
