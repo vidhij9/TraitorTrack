@@ -69,9 +69,6 @@
         <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-sm flex-fill py-1">
             <i class="fas fa-qrcode"></i> Scan Parent
         </a>
-        <a href="{{ url_for('scan_child', s=request.args.get('s')) }}" class="btn btn-warning btn-sm flex-fill py-1">
-            <i class="fas fa-cubes"></i> Scan Child
-        </a>
         <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success btn-sm flex-fill py-1">
             <i class="fas fa-file-invoice"></i> Bills
         </a>

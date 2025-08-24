@@ -82,8 +82,20 @@
                         </div>
                     </div>
 
+                    <!-- Success Section (hidden by default) -->
+                    <div id="scan-success-section" class="mt-4 text-center" style="display: none;">
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully!</h5>
+                            <p class="mb-2">Parent QR: <strong id="scanned-parent-qr"></strong></p>
+                            <p>You can now scan child bags for this parent.</p>
+                        </div>
+                        <a href="{{ url_for('scan_child') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-cubes me-2"></i>Proceed to Child Scanning
+                        </a>
+                    </div>
+
                     <!-- Actions -->
-                    <div class="mt-4 text-center">
+                    <div id="default-actions" class="mt-4 text-center">
                         <a href="{{ url_for('index') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
                         </a>
@@ -228,10 +240,29 @@ function initializeScanner() {
             })
             .then(data => {
                 if (data && data.success && data.redirect) {
-                    // Successful scan with redirect URL - go to child scanning
-                    console.log('Successful parent scan, redirecting to:', data.redirect);
-                    showToast(`✅ Parent bag ${qrCode} processed! Moving to child scanning...`, 'success');
-                    window.location.href = data.redirect;
+                    // Successful scan - show success section
+                    console.log('Successful parent scan, showing success section');
+                    showToast(`✅ Parent bag ${qrCode} processed successfully!`, 'success');
+                    
+                    // Update the success section with the scanned QR
+                    document.getElementById('scanned-parent-qr').textContent = qrCode;
+                    
+                    // Show success section and hide scanner
+                    document.getElementById('scan-success-section').style.display = 'block';
+                    document.getElementById('default-actions').style.display = 'none';
+                    
+                    // Hide scanner controls
+                    if (scanner) {
+                        scanner.stop();
+                    }
+                    document.querySelector('.scanner-container').style.display = 'none';
+                    document.getElementById('start-camera').style.display = 'none';
+                    document.getElementById('stop-camera').style.display = 'none';
+                    
+                    // Optional: Auto-redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 2000);
                     return;
                 } else if (data && !data.success) {
                     // Show popup for invalid QR format
@@ -331,7 +362,21 @@ function initializeScanner() {
         .then(data => {
             if (data && data.success && data.redirect) {
                 showToast(`✅ Parent bag ${qrCode} processed!`, 'success');
-                window.location.href = data.redirect;
+                
+                // Update success section
+                document.getElementById('scanned-parent-qr').textContent = qrCode;
+                document.getElementById('scan-success-section').style.display = 'block';
+                document.getElementById('default-actions').style.display = 'none';
+                
+                // Hide scanner
+                if (scanner) scanner.stop();
+                document.querySelector('.scanner-container').style.display = 'none';
+                document.getElementById('start-camera').style.display = 'none';
+                document.getElementById('stop-camera').style.display = 'none';
+                
+                setTimeout(() => {
+                    window.location.href = data.redirect;
+                }, 2000);
             } else {
                 showToast(data.message || 'Error processing parent bag', 'danger');
                 isProcessing = false;

@@ -2670,6 +2670,11 @@ def scan_child():
             if last_scan.get('type') == 'parent':
                 parent_qr = last_scan.get('qr_id')
         
+        # If no parent scan in session, redirect to parent scan
+        if not parent_qr:
+            flash('Please scan a parent bag first before scanning child bags.', 'warning')
+            return redirect(url_for('scan_parent'))
+        
         app.logger.info(f'CHILD SCAN PAGE: Parent QR from session: {parent_qr}')
         app.logger.info(f'CHILD SCAN PAGE: Session keys: {list(session.keys())}')
         
