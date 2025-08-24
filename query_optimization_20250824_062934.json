@@ -1,0 +1,44 @@
+{
+  "indexes": true,
+  "materialized_views": true,
+  "settings": true,
+  "performance": [
+    {
+      "query": "Dashboard Stats (from materialized view)",
+      "time_ms": 345.4693470011989,
+      "rows": 1,
+      "status": "\u274c"
+    },
+    {
+      "query": "Recent Scans (from materialized view)",
+      "time_ms": 235.1990039969678,
+      "rows": 10,
+      "status": "\u274c"
+    },
+    {
+      "query": "User Stats (from materialized view)",
+      "error": "relation \"mv_user_stats\" does not exist\nLINE 1: SELECT * FROM mv_user_stats WHERE total_scans > 0 LIMIT 10\n                      ^\n",
+      "status": "\u274c"
+    },
+    {
+      "query": "Dispatch Stats (from materialized view)",
+      "error": "current transaction is aborted, commands ignored until end of transaction block\n",
+      "status": "\u274c"
+    },
+    {
+      "query": "Find bag by QR (using hash index)",
+      "error": "current transaction is aborted, commands ignored until end of transaction block\n",
+      "status": "\u274c"
+    },
+    {
+      "query": "Parent bags with children count",
+      "error": "current transaction is aborted, commands ignored until end of transaction block\n",
+      "status": "\u274c"
+    },
+    {
+      "query": "Active bags summary",
+      "error": "current transaction is aborted, commands ignored until end of transaction block\n",
+      "status": "\u274c"
+    }
+  ]
+}
