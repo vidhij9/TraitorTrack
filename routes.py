@@ -1315,6 +1315,7 @@ def favicon():
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/dashboard', methods=['GET', 'POST'])  # Alias for dashboard
+@login_required
 @limiter.exempt  # Exempt dashboard from rate limiting
 def index():
     """Main dashboard page"""
@@ -4582,6 +4583,7 @@ def edit_profile():
 # API endpoints for dashboard data - Redirect to ultra-fast version
 @app.route('/api/stats')
 @app.route('/api/v2/stats')  # Support v2 endpoint as well
+@login_required
 def api_dashboard_stats():
     """Ultra-fast cached stats endpoint for production performance"""
     # Try to use high-performance cache if available
@@ -5618,3 +5620,79 @@ def schedule_eod_summary():
     except Exception as e:
         app.logger.error(f'Scheduled EOD error: {str(e)}')
         return jsonify({'error': str(e)}), 500
+
+
+# Add missing API endpoints that were causing 404s
+@app.route('/api/bags')
+@login_required
+def api_bags_endpoint():
+    """API endpoint for bags data"""
+    try:
+        from models import Bag
+        bags = Bag.query.limit(100).all()
+        return jsonify({
+            'total': len(bags),
+            'bags': [{'id': b.id, 'qr_id': b.qr_id, 'type': b.type if hasattr(b, 'type') else 'unknown'} for b in bags]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bills')
+@login_required
+def api_bills_endpoint():
+    """API endpoint for bills data"""
+    try:
+        from models import Bill
+        bills = Bill.query.limit(100).all()
+        return jsonify({
+            'total': len(bills),
+            'bills': [{'id': b.id, 'created_by': b.created_by if hasattr(b, 'created_by') else None} for b in bills]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users')
+@login_required
+@admin_required  
+def api_users_endpoint():
+    """API endpoint for users data - admin only"""
+    try:
+        from models import User
+        users = User.query.limit(100).all()
+        return jsonify({
+            'total': len(users),
+            'users': [{'id': u.id, 'username': u.username, 'role': u.role if hasattr(u, 'role') else 'unknown'} for u in users]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/health')
+def api_health_check():
+    """Public API health check"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'Traitor Track',
+        'version': '1.0',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/child_lookup', methods=['GET', 'POST'])
+@login_required
+def child_lookup_page():
+    """Child bag lookup functionality"""
+    if request.method == 'POST':
+        qr_code = request.form.get('qr_code', '').strip()
+        if qr_code:
+            try:
+                from models import Bag, Link
+                bag = Bag.query.filter_by(qr_id=qr_code).first()
+                if bag:
+                    return render_template('child_lookup.html', bag=bag, qr_code=qr_code)
+                else:
+                    flash('Bag not found', 'error')
+            except Exception as e:
+                flash('Error during lookup', 'error')
+        else:
+            flash('QR code is required', 'error')
+    
+    return render_template('child_lookup.html')
