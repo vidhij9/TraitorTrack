@@ -2,7 +2,7 @@ modules = ["python-3.11", "postgresql-16", "python3", "nodejs-20"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["cargo", "freetype", "glibcLocales", "libev", "libiconv", "librsvg", "nodejs", "openssl", "postgresql", "rustc"]
+packages = ["cargo", "cyrus_sasl", "freetype", "glibcLocales", "libev", "libiconv", "libmemcached", "librsvg", "libxcrypt", "memcached", "nodejs", "openssl", "postgresql", "redis", "rustc", "zlib"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -32,6 +32,10 @@ waitForPort = 5000
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 6379
+externalPort = 3000
 
 [agent]
 integrations = ["python_log_in_with_replit==1.0.0"]

@@ -57,6 +57,15 @@ try:
 except Exception as e:
     logger.warning(f"High-performance caching not loaded: {e}")
 
+# Import Redis caching layer for ultra-fast responses
+try:
+    from redis_cache_manager import cache_manager
+    from optimized_routes import register_optimized_routes
+    app = register_optimized_routes(app)
+    logger.info(f"✅ Redis caching layer loaded - Connected: {cache_manager.redis_client is not None}")
+except Exception as e:
+    logger.warning(f"Redis caching layer not loaded: {e}")
+
 # Import ultra performance optimizer for 800,000+ bags scale
 try:
     from ultra_performance_optimizer import apply_ultra_optimizations
