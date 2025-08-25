@@ -1,9 +1,9 @@
 #!/bin/bash
 
-echo "🚀 DEPLOYING TRACETRACK TO AWS"
+echo "🚀 DEPLOYING TRAITOR TRACK TO AWS"
 echo "================================"
 echo ""
-echo "This will deploy your entire TraceTrack application to AWS"
+echo "This will deploy your entire Traitor Track application to AWS"
 echo "using DynamoDB, Lambda, and CloudFront for maximum performance."
 echo ""
 
@@ -40,7 +40,7 @@ python deploy_aws_auto.py
 echo ""
 echo "✅ Deployment script completed!"
 echo ""
-echo "Your TraceTrack application is now running on AWS with:"
+echo "Your Traitor Track application is now running on AWS with:"
 echo "• 63x faster database performance"
 echo "• Auto-scaling for 10,000+ users"
 echo "• Global CDN distribution"

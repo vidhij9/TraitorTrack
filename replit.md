@@ -1,4 +1,4 @@
-# TraceTrack - Supply Chain Traceability Platform
+# Traitor Track - Supply Chain Traceability Platform
 
 ## Overview
 A cutting-edge supply chain traceability platform revolutionizing agricultural bag tracking through advanced QR scanning technologies with enhanced security, performance optimization, and comprehensive user management.

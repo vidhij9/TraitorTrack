@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fully Automated AWS Deployment for TraceTrack
+Fully Automated AWS Deployment for Traitor Track
 Uses Replit Secrets - Zero Manual Configuration Required
 """
 
@@ -65,7 +65,7 @@ def create_dynamodb_tables():
         # Tables to create
         tables = [
             {
-                'TableName': 'tracetrack-bags',
+                'TableName': 'traitortrack-bags',
                 'KeySchema': [{'AttributeName': 'id', 'KeyType': 'HASH'}],
                 'AttributeDefinitions': [
                     {'AttributeName': 'id', 'AttributeType': 'S'},
@@ -87,7 +87,7 @@ def create_dynamodb_tables():
                 ]
             },
             {
-                'TableName': 'tracetrack-scans',
+                'TableName': 'traitortrack-scans',
                 'KeySchema': [{'AttributeName': 'id', 'KeyType': 'HASH'}],
                 'AttributeDefinitions': [
                     {'AttributeName': 'id', 'AttributeType': 'S'},
@@ -103,7 +103,7 @@ def create_dynamodb_tables():
                 ]
             },
             {
-                'TableName': 'tracetrack-users',
+                'TableName': 'traitortrack-users',
                 'KeySchema': [{'AttributeName': 'id', 'KeyType': 'HASH'}],
                 'AttributeDefinitions': [
                     {'AttributeName': 'id', 'AttributeType': 'S'},
@@ -171,7 +171,7 @@ def lambda_handler(event, context):
             'headers': {'Content-Type': 'application/json'},
             'body': json.dumps({
                 'status': 'healthy',
-                'service': 'TraceTrack',
+                'service': 'Traitor Track',
                 'timestamp': context.aws_request_id
             })
         }
@@ -181,8 +181,8 @@ def lambda_handler(event, context):
         dynamodb = boto3.resource('dynamodb')
         
         try:
-            bags_table = dynamodb.Table('tracetrack-bags')
-            scans_table = dynamodb.Table('tracetrack-scans')
+            bags_table = dynamodb.Table('traitortrack-bags')
+            scans_table = dynamodb.Table('traitortrack-scans')
             
             # Get table item counts (approximate)
             bags_count = bags_table.scan(Select='COUNT')['Count']
@@ -222,7 +222,7 @@ def lambda_handler(event, context):
         
         zip_buffer.seek(0)
         
-        function_name = 'tracetrack-api'
+        function_name = 'traitortrack-api'
         
         try:
             # Create Lambda function
@@ -232,7 +232,7 @@ def lambda_handler(event, context):
                 Role=f"arn:aws:iam::{boto3.client('sts').get_caller_identity()['Account']}:role/lambda-execution-role",
                 Handler='lambda_function.lambda_handler',
                 Code={'ZipFile': zip_buffer.getvalue()},
-                Description='TraceTrack Fast API',
+                Description='Traitor Track Fast API',
                 Timeout=30,
                 MemorySize=256
             )
@@ -260,12 +260,12 @@ def create_api_gateway():
         apigw = boto3.client('apigateway', region_name=os.environ.get('AWS_DEFAULT_REGION', 'ap-south-1'))
         
         # Create REST API
-        api_name = 'tracetrack-api'
+        api_name = 'traitortrack-api'
         
         try:
             response = apigw.create_rest_api(
                 name=api_name,
-                description='TraceTrack Production API',
+                description='Traitor Track Production API',
                 endpointConfiguration={'types': ['REGIONAL']}
             )
             api_id = response['id']
@@ -312,10 +312,10 @@ def setup_cloudfront():
         
         # Simple CloudFront distribution config
         distribution_config = {
-            'CallerReference': f"tracetrack-{int(time.time())}",
-            'Comment': 'TraceTrack Global CDN',
+            'CallerReference': f"traitortrack-{int(time.time())}",
+            'Comment': 'Traitor Track Global CDN',
             'DefaultCacheBehavior': {
-                'TargetOriginId': 'tracetrack-origin',
+                'TargetOriginId': 'traitortrack-origin',
                 'ViewerProtocolPolicy': 'redirect-to-https',
                 'MinTTL': 0,
                 'ForwardedValues': {
@@ -328,7 +328,7 @@ def setup_cloudfront():
                 'Quantity': 1,
                 'Items': [
                     {
-                        'Id': 'tracetrack-origin',
+                        'Id': 'traitortrack-origin',
                         'DomainName': 'example.com',  # Will be updated later
                         'CustomOriginConfig': {
                             'HTTPPort': 80,
@@ -379,7 +379,7 @@ def main():
     print("✅ AWS DEPLOYMENT COMPLETE!")
     print("=" * 60)
     print("")
-    print("🎉 Your TraceTrack application is now deployed on AWS!")
+    print("🎉 Your Traitor Track application is now deployed on AWS!")
     print("")
     print("Infrastructure Created:")
     print("• DynamoDB tables with auto-scaling")
