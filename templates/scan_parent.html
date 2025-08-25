@@ -220,7 +220,7 @@ function initializeScanner() {
             
             // Submit via AJAX for better performance - use the fast parent scan endpoint
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for slow servers
             
             fetch('/fast/parent_scan', {
                 method: 'POST',
@@ -330,7 +330,7 @@ function initializeScanner() {
                 console.error('Error:', error);
                 
                 if (error.name === 'AbortError') {
-                    showToast('Request timeout. Server is slow, trying faster endpoint...', 'warning');
+                    showToast('Server is busy. Retrying with backup endpoint...', 'warning');
                     // Retry with process_parent_scan as fallback
                     retryWithFallback(qrCode);
                 } else {
@@ -348,9 +348,14 @@ function initializeScanner() {
         }
     }
     
-    // Fallback retry function
+    // Fallback retry function with longer timeout
     function retryWithFallback(qrCode) {
+        // Use longer timeout for fallback
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for fallback
+        
         fetch('/process_parent_scan', {
+            signal: controller.signal,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -358,7 +363,10 @@ function initializeScanner() {
             },
             body: `qr_code=${encodeURIComponent(qrCode)}`
         })
-        .then(response => response.json())
+        .then(response => {
+            clearTimeout(timeoutId);
+            return response.json();
+        })
         .then(data => {
             if (data && data.success && data.redirect) {
                 showToast(`✅ Parent bag ${qrCode} processed!`, 'success');
@@ -384,8 +392,13 @@ function initializeScanner() {
             }
         })
         .catch(error => {
+            clearTimeout(timeoutId);
             console.error('Fallback error:', error);
-            showToast('Server error. Please try again or contact support.', 'danger');
+            if (error.name === 'AbortError') {
+                showToast('Server is very busy. Please wait a moment and try again.', 'warning');
+            } else {
+                showToast('Connection issue. Please check your network and try again.', 'danger');
+            }
             isProcessing = false;
             if (scanner) scanner.start();
         });
