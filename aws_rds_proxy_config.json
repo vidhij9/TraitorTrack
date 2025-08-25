@@ -1,0 +1,42 @@
+{
+  "DBProxyName": "tracetrack-proxy",
+  "Description": "RDS Proxy for TraceTrack production database",
+  "EngineFamily": "POSTGRESQL",
+  "Auth": [
+    {
+      "AuthScheme": "SECRETS",
+      "SecretArn": "arn:aws:secretsmanager:region:account:secret:rds-db-credentials",
+      "IAMAuth": "DISABLED"
+    }
+  ],
+  "RoleArn": "arn:aws:iam::account:role/rds-proxy-role",
+  "VpcSubnetIds": [
+    "subnet-xxxxx",
+    "subnet-yyyyy"
+  ],
+  "VpcSecurityGroupIds": [
+    "sg-xxxxx"
+  ],
+  "RequireTLS": true,
+  "IdleClientTimeout": 1800,
+  "MaxConnectionsPercent": 100,
+  "MaxIdleConnectionsPercent": 50,
+  "ConnectionBorrowTimeout": 120,
+  "SessionPinningFilters": [
+    "EXCLUDE_VARIABLE_SETS"
+  ],
+  "InitQuery": "",
+  "Target": {
+    "DBInstanceIdentifiers": [
+      "tracetrack-production-db"
+    ]
+  },
+  "Settings": {
+    "MaxConnections": 100,
+    "ConnectionPoolConfig": {
+      "MaxConnectionsPercent": 100,
+      "MaxIdleConnectionsPercent": 50,
+      "ConnectionBorrowTimeout": 120
+    }
+  }
+}

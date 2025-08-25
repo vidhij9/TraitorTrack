@@ -1,0 +1,771 @@
+{% extends "layout.html" %}
+{% block title %}User Management{% endblock %}
+
+{% block extra_css %}
+<style>
+/* User Management responsive styles */
+@media (max-width: 767px) {
+    .container-fluid {
+        padding: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .card-body h2 {
+        font-size: 1.25rem;
+    }
+    
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .table th,
+    .table td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.875rem;
+    }
+    
+    .table th {
+        font-size: 0.75rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .avatar-sm {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+    
+    .modal-body .form-control,
+    .modal-body .form-select {
+        font-size: 0.875rem;
+        padding: 0.5rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .container-fluid {
+        padding: 0.25rem;
+    }
+    
+    .table th,
+    .table td {
+        padding: 0.25rem;
+        font-size: 0.75rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.125rem 0.25rem;
+        font-size: 0.625rem;
+        min-width: 20px;
+    }
+    
+    .avatar-sm {
+        width: 20px;
+        height: 20px;
+        font-size: 0.625rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="card-title mb-0">
+                            <i class="fas fa-users-cog me-2"></i>User Management
+                        </h2>
+                        <div>
+                            <a href="{{ url_for('comprehensive_user_deletion') }}" class="btn btn-danger btn-sm px-2 py-1" title="Comprehensive User Deletion">
+                                <i class="fas fa-user-slash me-1"></i>Advanced Delete
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Role Statistics -->
+    <div class="row mb-3">
+        <div class="col-md-4 mb-2">
+            <div class="card border-warning">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-1">Admins</h6>
+                    <h3 class="mb-0 text-warning">{{ role_counts.admins if role_counts else 0 }}</h3>
+                    <small class="text-muted">Full system access</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card border-info">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-1">Billers</h6>
+                    <h3 class="mb-0 text-info">{{ role_counts.billers if role_counts else 0 }}</h3>
+                    <small class="text-muted">Bill management</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card border-secondary">
+                <div class="card-body text-center py-2">
+                    <h6 class="mb-1">Dispatchers</h6>
+                    <h3 class="mb-0 text-secondary">{{ role_counts.dispatchers if role_counts else 0 }}</h3>
+                    <small class="text-muted">Bag operations</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- User Table with Real-time Updates -->
+    <div class="card">
+        <div class="card-header bg-info bg-opacity-25 text-dark">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>System Users (<span id="userCount">{{ user_data|length }}</span>)
+                        <span class="badge bg-success ms-2" id="liveIndicator">
+                            <i class="fas fa-circle text-white"></i> Live
+                        </span>
+                    </h5>
+                </div>
+                <div class="col-auto">
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control form-control-sm" id="userSearch" placeholder="Search...">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="filterUsers()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm ms-1" type="button" onclick="refreshUserData()" title="Refresh Data">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0" id="usersTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 18%">User</th>
+                            <th style="width: 14%">Email</th>
+                            <th style="width: 10%">Role</th>
+                            <th style="width: 7%">Status</th>
+                            <th style="width: 9%">Joined</th>
+                            <th style="width: 10%">Activity</th>
+                            <th style="width: 8%" class="text-center">Scans</th>
+                            <th style="width: 8%" class="text-center">Bags</th>
+                            <th style="width: 16%" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        {% for data in user_data %}
+                        <tr data-user-id="{{ data.id }}" class="align-middle">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                                        {{ data.username[0].upper() }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold small">{{ data.username }}</div>
+                                        {% if data.id == current_user.id %}
+                                            <span class="badge bg-primary" style="font-size: 0.65rem;">You</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="small text-truncate" style="max-width: 150px;" title="{{ data.email }}">{{ data.email }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if data.role == 'admin' %}bg-warning
+                                    {% elif data.role == 'biller' %}bg-info
+                                    {% else %}bg-secondary{% endif %}" style="font-size: 0.7rem;">
+                                    {{ data.role.title() }}
+                                </span>
+                                {% if data.role == 'dispatcher' and data.dispatch_area %}
+                                    <div class="text-muted" style="font-size: 0.65rem;">{{ data.dispatch_area.replace('_', ' ').title() }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if data.verified %}
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">
+                                        <i class="fas fa-check"></i>
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning" style="font-size: 0.7rem;">
+                                        <i class="fas fa-clock"></i>
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="small">{{ data.created_at.strftime('%m/%d/%y') if data.created_at else 'N/A' }}</td>
+                            <td>
+                                <div class="small">
+                                    {% if data.last_scan %}
+                                        <span class="text-success activity-status" data-timestamp="{{ data.last_scan.isoformat() }}">
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            <span class="time-ago">{{ data.last_scan.strftime('%H:%M') }}</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">Inactive</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-primary scan-count" data-user-id="{{ data.id }}" title="Total scans">{{ data.scan_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info" title="Unique bags scanned">{{ data.unique_bags_scanned or 0 }}</span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('admin_user_profile', user_id=data.id) }}" class="btn btn-outline-info btn-sm py-0 px-1" title="View Profile">
+                                        <i class="fas fa-eye" style="font-size: 0.7rem;"></i>
+                                    </a>
+                                    <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="editUser({{ data.id }})" title="Edit">
+                                        <i class="fas fa-edit" style="font-size: 0.7rem;"></i>
+                                    </button>
+                                    {% if data.id != current_user.id %}
+                                        <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteUser({{ data.id }})" title="Delete">
+                                            <i class="fas fa-trash" style="font-size: 0.7rem;"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer py-1 text-muted small">
+            <i class="fas fa-info-circle"></i> Auto-refreshes every 30 seconds | Last updated: <span id="lastUpdated">Just now</span>
+        </div>
+    </div>
+</div>
+
+
+<!-- Role Change Modal -->
+<div class="modal fade" id="roleChangeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Change User Role</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="roleChangeForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Changing role for: <span id="roleChangeUsername"></span></strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Current Role</label>
+                        <div class="form-control bg-light" id="currentRole"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="new_role" class="form-label">New Role</label>
+                        <select class="form-select" id="new_role" name="new_role" required>
+                            <option value="">Select new role...</option>
+                            <option value="admin">Admin - Full system access</option>
+                            <option value="biller">Biller - Bill management + all dispatcher permissions</option>
+                            <option value="dispatcher">Dispatcher - Bag operations only</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="roleChangeDispatchAreaContainer" style="display: none;">
+                        <label for="role_change_dispatch_area" class="form-label">Dispatch Area (Required for Dispatchers)</label>
+                        <select class="form-select" id="role_change_dispatch_area" name="dispatch_area">
+                            <option value="">Select Area</option>
+                            <option value="lucknow">Lucknow</option>
+                            <option value="indore">Indore</option>
+                            <option value="jaipur">Jaipur</option>
+                            <option value="hisar">Hisar</option>
+                            <option value="sri_ganganagar">Sri Ganganagar</option>
+                            <option value="sangaria">Sangaria</option>
+                            <option value="bathinda">Bathinda</option>
+                            <option value="raipur">Raipur</option>
+                            <option value="ranchi">Ranchi</option>
+                            <option value="akola">Akola</option>
+                        </select>
+                    </div>
+                    
+                    <div class="alert alert-warning mb-0" id="roleChangeWarning" style="display: none;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span id="roleChangeWarningText"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Change Role</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editUserForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="edit_username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit_email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_password" class="form-label">New Password (leave blank to keep current)</label>
+                        <input type="password" class="form-control" id="edit_password" name="password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_role" class="form-label">Role</label>
+                        <select class="form-select" id="edit_role" name="role">
+                            <option value="dispatcher">Dispatcher</option>
+                            <option value="biller">Biller</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="edit-dispatch-area-container">
+                        <label for="edit_dispatch_area" class="form-label">Dispatch Area (for Dispatchers)</label>
+                        <select class="form-select" id="edit_dispatch_area" name="dispatch_area">
+                            <option value="">Select Area</option>
+                            <option value="lucknow">Lucknow</option>
+                            <option value="indore">Indore</option>
+                            <option value="jaipur">Jaipur</option>
+                            <option value="hisar">Hisar</option>
+                            <option value="sri_ganganagar">Sri Ganganagar</option>
+                            <option value="sangaria">Sangaria</option>
+                            <option value="bathinda">Bathinda</option>
+                            <option value="raipur">Raipur</option>
+                            <option value="ranchi">Ranchi</option>
+                            <option value="akola">Akola</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterUsers() {
+    const searchTerm = document.getElementById('userSearch').value.toLowerCase();
+    const table = document.getElementById('usersTable');
+    const rows = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    }
+}
+
+function editUser(userId) {
+    fetch(`/admin/users/${userId}`)
+        .then(response => response.json())
+        .then(user => {
+            document.getElementById('edit_username').value = user.username;
+            document.getElementById('edit_email').value = user.email;
+            document.getElementById('edit_role').value = user.role;
+            document.getElementById('editUserForm').action = `/admin/users/${userId}/edit`;
+            new bootstrap.Modal(document.getElementById('editUserModal')).show();
+        })
+        .catch(error => {
+            alert('Error loading user data');
+            console.error(error);
+        });
+}
+
+function promoteUser(userId) {
+    if (confirm('Are you sure you want to promote this user to admin?')) {
+        fetch(`/admin/users/${userId}/promote`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error promoting user');
+            }
+        })
+        .catch(error => {
+            alert('Error promoting user');
+            console.error(error);
+        });
+    }
+}
+
+function demoteUser(userId) {
+    if (confirm('Are you sure you want to demote this admin to employee?')) {
+        fetch(`/admin/users/${userId}/demote`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error demoting user');
+            }
+        })
+        .catch(error => {
+            alert('Error demoting user');
+            console.error(error);
+        });
+    }
+}
+
+function deleteUser(userId) {
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        // Show loading state
+        const deleteBtn = document.querySelector(`tr[data-user-id="${userId}"] .btn-outline-danger`);
+        if (deleteBtn) {
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        
+        fetch(`/admin/users/${userId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove user row from table instantly
+                const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                if (userRow) {
+                    userRow.style.transition = 'opacity 0.3s ease';
+                    userRow.style.opacity = '0';
+                    setTimeout(() => {
+                        userRow.remove();
+                        // Update user count in header
+                        updateUserCount(-1);
+                        // Update role counts
+                        updateRoleCounts();
+                        // Show success message
+                        showNotification(data.message, 'success');
+                    }, 300);
+                }
+            } else {
+                // Reset button state on error
+                if (deleteBtn) {
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                }
+                showNotification(data.message || 'Error deleting user', 'error');
+            }
+        })
+        .catch(error => {
+            // Reset button state on error
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            }
+            showNotification('Error deleting user', 'error');
+            console.error(error);
+        });
+    }
+}
+
+// Helper functions for real-time UI updates
+function updateUserCount(change) {
+    const userCountElement = document.querySelector('.card-title');
+    if (userCountElement) {
+        const currentText = userCountElement.textContent;
+        const match = currentText.match(/System Users \((\d+)\)/);
+        if (match) {
+            const newCount = parseInt(match[1]) + change;
+            userCountElement.textContent = currentText.replace(/\(\d+\)/, `(${newCount})`);
+        }
+    }
+}
+
+function updateRoleCounts() {
+    // This would require more complex logic to track which role was deleted
+    // For now, we'll rely on the server response or periodic refresh
+}
+
+function showNotification(message, type) {
+    // Create and show notification
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Handle dispatch area visibility based on role selection
+function toggleDispatchArea(selectElement, containerElementId) {
+    const container = document.getElementById(containerElementId);
+    if (selectElement.value === 'dispatcher') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// Add event listeners for role changes
+document.getElementById('role').addEventListener('change', function() {
+    toggleDispatchArea(this, 'dispatch-area-container');
+});
+
+document.getElementById('edit_role').addEventListener('change', function() {
+    toggleDispatchArea(this, 'edit-dispatch-area-container');
+});
+
+// Initialize dispatch area visibility on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleDispatchArea(document.getElementById('role'), 'dispatch-area-container');
+    toggleDispatchArea(document.getElementById('edit_role'), 'edit-dispatch-area-container');
+});
+
+// Live search
+document.getElementById('userSearch').addEventListener('input', filterUsers);
+
+// Role change functionality
+function openRoleChangeModal(userId, username, currentRole, currentArea) {
+    document.getElementById('roleChangeUsername').textContent = username;
+    document.getElementById('currentRole').textContent = currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
+    
+    // Set form action
+    document.getElementById('roleChangeForm').action = `/admin/users/${userId}/change-role`;
+    
+    // Reset form
+    document.getElementById('new_role').value = '';
+    document.getElementById('role_change_dispatch_area').value = currentArea || '';
+    document.getElementById('roleChangeDispatchAreaContainer').style.display = 'none';
+    document.getElementById('roleChangeWarning').style.display = 'none';
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('roleChangeModal')).show();
+}
+
+// Handle new role selection
+document.getElementById('new_role').addEventListener('change', function() {
+    const newRole = this.value;
+    const dispatchContainer = document.getElementById('roleChangeDispatchAreaContainer');
+    const warning = document.getElementById('roleChangeWarning');
+    const warningText = document.getElementById('roleChangeWarningText');
+    
+    // Show/hide dispatch area selector
+    if (newRole === 'dispatcher') {
+        dispatchContainer.style.display = 'block';
+    } else {
+        dispatchContainer.style.display = 'none';
+    }
+    
+    // Show role-specific warnings
+    if (newRole === 'admin') {
+        warningText.textContent = 'Admin users have full system access including user management and all data.';
+        warning.style.display = 'block';
+    } else if (newRole === 'biller') {
+        warningText.textContent = 'Billers can create and manage bills and access all bag data from all areas.';
+        warning.style.display = 'block';
+    } else if (newRole === 'dispatcher') {
+        warningText.textContent = 'Dispatchers can only link bags and view data from their assigned area.';
+        warning.style.display = 'block';
+    } else {
+        warning.style.display = 'none';
+    }
+});
+
+// Handle role change form submission
+document.getElementById('roleChangeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const newRole = document.getElementById('new_role').value;
+    const dispatchArea = document.getElementById('role_change_dispatch_area').value;
+    
+    // Validate dispatcher area requirement
+    if (newRole === 'dispatcher' && !dispatchArea) {
+        alert('Please select a dispatch area for the dispatcher role.');
+        return;
+    }
+    
+    // Confirm the change
+    if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+        return;
+    }
+    
+    // Submit the form
+    fetch(this.action, {
+        method: 'POST',
+        body: new FormData(this),
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Error changing user role');
+            if (data.critical) {
+                // Critical error - close modal
+                bootstrap.Modal.getInstance(document.getElementById('roleChangeModal')).hide();
+            }
+        }
+    })
+    .catch(error => {
+        alert('Error changing user role');
+        console.error(error);
+    });
+});
+
+// Real-time update functions
+let updateInterval;
+let lastUpdateTime = new Date();
+
+function updateTimeAgo() {
+    const activities = document.querySelectorAll('.activity-status');
+    activities.forEach(activity => {
+        const timestamp = activity.dataset.timestamp;
+        if (timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000); // seconds
+            
+            const timeSpan = activity.querySelector('.time-ago');
+            if (diff < 60) {
+                timeSpan.textContent = 'Just now';
+                activity.classList.add('text-success');
+                activity.classList.remove('text-warning', 'text-muted');
+            } else if (diff < 3600) {
+                const mins = Math.floor(diff / 60);
+                timeSpan.textContent = `${mins}m ago`;
+                activity.classList.add('text-success');
+                activity.classList.remove('text-warning', 'text-muted');
+            } else if (diff < 86400) {
+                const hours = Math.floor(diff / 3600);
+                timeSpan.textContent = `${hours}h ago`;
+                activity.classList.add('text-warning');
+                activity.classList.remove('text-success', 'text-muted');
+            } else {
+                const days = Math.floor(diff / 86400);
+                timeSpan.textContent = `${days}d ago`;
+                activity.classList.add('text-muted');
+                activity.classList.remove('text-success', 'text-warning');
+            }
+        }
+    });
+}
+
+async function refreshUserData() {
+    const indicator = document.getElementById('liveIndicator');
+    indicator.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Updating...';
+    indicator.classList.remove('bg-success');
+    indicator.classList.add('bg-warning');
+    
+    try {
+        // Reload page to get fresh data
+        location.reload();
+    } catch (error) {
+        console.error('Error refreshing data:', error);
+        indicator.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
+        indicator.classList.remove('bg-warning', 'bg-success');
+        indicator.classList.add('bg-danger');
+    }
+}
+
+function updateLastUpdatedTime() {
+    const span = document.getElementById('lastUpdated');
+    const now = new Date();
+    const diff = Math.floor((now - lastUpdateTime) / 1000);
+    
+    if (diff < 5) {
+        span.textContent = 'Just now';
+    } else if (diff < 60) {
+        span.textContent = `${diff} seconds ago`;
+    } else {
+        const mins = Math.floor(diff / 60);
+        span.textContent = `${mins} minute${mins > 1 ? 's' : ''} ago`;
+    }
+}
+
+// Initialize real-time updates when document loads
+window.addEventListener('load', function() {
+    updateTimeAgo();
+    updateLastUpdatedTime();
+    
+    // Update time ago every 10 seconds
+    setInterval(updateTimeAgo, 10000);
+    
+    // Update last updated time every second
+    setInterval(updateLastUpdatedTime, 1000);
+    
+    // Auto-refresh data every 30 seconds
+    updateInterval = setInterval(refreshUserData, 30000);
+});
+
+// Add pulse animation style
+const style = document.createElement('style');
+style.textContent = `
+    .pulse-animation {
+        animation: pulse 0.5s ease-in-out;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); background-color: #ffc107 !important; }
+        100% { transform: scale(1); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+# TraceTrack Production Environment Template for AWS
+# Copy this to your secure environment configuration
+# Replace all placeholder values with actual credentials
+
+# Database Configuration - Use RDS Proxy endpoint
+DATABASE_URL=postgresql://username:password@rds-proxy-endpoint:5432/database
+
+# Redis Cache - ElastiCache endpoint  
+REDIS_URL=redis://elasticache-endpoint:6379/0
+
+# Application Settings
+FLASK_ENV=production
+TIMEZONE=Asia/Kolkata
+
+# Performance Cache TTLs (seconds)
+CACHE_TTL_DASHBOARD=60
+CACHE_TTL_BAGS=120
+CACHE_TTL_USER_PROFILE=300
+CACHE_TTL_RECENT_SCANS=30
+
+# SQLAlchemy Optimized Settings
+SQLALCHEMY_POOL_SIZE=10
+SQLALCHEMY_MAX_OVERFLOW=20
+SQLALCHEMY_POOL_TIMEOUT=30
+SQLALCHEMY_POOL_RECYCLE=300

@@ -1,0 +1,254 @@
+{% extends "layout.html" %}
+{% block title %}Bill Summary Report{% endblock %}
+
+{% block extra_css %}
+<style>
+        .summary-card {
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .progress-custom {
+            height: 25px;
+            border-radius: 12px;
+        }
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+        }
+        .status-completed { background-color: #28a745; color: white; }
+        .status-full { background-color: #17a2b8; color: white; }
+        .status-progress { background-color: #ffc107; color: dark; }
+        .status-empty { background-color: #6c757d; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+        <h2 class="mb-4">{{ summary_title }}</h2>
+        
+        <!-- Date Filter -->
+        <div class="card summary-card">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('bill_summary') }}" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="date_from" class="form-label">From Date</label>
+                        <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="date_to" class="form-label">To Date</label>
+                        <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary d-block">Generate Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Overall Statistics -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <div class="stat-number">{{ overall_stats.total_bills }}</div>
+                    <div>Total Bills</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    <div class="stat-number">{{ overall_stats.completed_bills }}</div>
+                    <div>Completed Bills</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                    <div class="stat-number">{{ overall_stats.total_child_bags }}</div>
+                    <div>Total Child Bags</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box" style="background: linear-gradient(135deg, #17a2b8 0%, #007bff 100%);">
+                    <div class="stat-number">{{ "%.1f"|format(overall_stats.total_weight_kg) }} kg</div>
+                    <div>Total Weight</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User-wise Summary (Admin Only) -->
+        {% if is_admin and user_summary %}
+        <div class="card summary-card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">User-wise Summary</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Bills Created</th>
+                            <th>Total Bags</th>
+                            <th>Total Weight (kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user_stat in user_summary %}
+                        <tr>
+                            <td>{{ user_stat.username }}</td>
+                            <td>{{ user_stat.bill_count }}</td>
+                            <td>{{ user_stat.total_bags }}</td>
+                            <td>{{ "%.1f"|format(user_stat.total_weight) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Detailed Bills Table -->
+        <div class="card summary-card mt-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Bill Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Bill ID</th>
+                                <th>Created At</th>
+                                <th>Created By</th>
+                                <th>Status</th>
+                                <th>Parent Bags</th>
+                                <th>Child Bags</th>
+                                <th>Weight (kg)</th>
+                                <th>Completion</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bill in summary_data %}
+                            <tr>
+                                <td><strong>{{ bill.bill_id }}</strong></td>
+                                <td>{{ bill.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ bill.created_by }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ bill.status.lower().replace(' ', '') }}">
+                                        {{ bill.status }}
+                                    </span>
+                                </td>
+                                <td>{{ bill.parent_bags }}/{{ bill.expected_bags }}</td>
+                                <td>{{ bill.child_bags }}</td>
+                                <td>{{ "%.1f"|format(bill.weight_kg) }}</td>
+                                <td>
+                                    <div class="progress progress-custom">
+                                        <div class="progress-bar {% if bill.completion_percent >= 100 %}bg-success{% elif bill.completion_percent >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {{ bill.completion_percent }}%"
+                                             aria-valuenow="{{ bill.completion_percent }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            {{ "%.0f"|format(bill.completion_percent) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not summary_data %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No bills found for the selected date range.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="mt-4 text-end">
+            <button class="btn btn-success" onclick="exportToCSV()">Export to CSV</button>
+            <button class="btn btn-info" onclick="printReport()">Print Report</button>
+            {% if is_admin %}
+            <a href="{{ url_for('eod_bill_summary') }}" class="btn btn-warning">Generate EOD JSON</a>
+            <a href="{{ url_for('eod_summary_preview') }}" class="btn btn-primary">Preview EOD Email</a>
+            <button class="btn btn-danger" onclick="sendEODSummaries()">Send EOD Summaries</button>
+            {% endif %}
+        </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+        function exportToCSV() {
+            // Simple CSV export functionality
+            let csv = 'Bill ID,Created At,Created By,Status,Parent Bags,Child Bags,Weight (kg),Completion %\n';
+            const table = document.querySelector('table tbody');
+            const rows = table.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const rowData = [
+                    cells[0].textContent.trim(),
+                    cells[1].textContent.trim(),
+                    cells[2].textContent.trim(),
+                    cells[3].textContent.trim(),
+                    cells[4].textContent.trim(),
+                    cells[5].textContent.trim(),
+                    cells[6].textContent.trim(),
+                    cells[7].textContent.trim().replace('%', '')
+                ];
+                csv += rowData.join(',') + '\n';
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bill_summary_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+        
+        function printReport() {
+            window.print();
+        }
+        
+        function sendEODSummaries() {
+            if (confirm('Send EOD bill summaries to all billers and admins now?\n\nBillers will receive their own summaries.\nAdmins will receive all user summaries.')) {
+                fetch('/api/bill_summary/send_eod', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('EOD summaries sent successfully!\n\n' + 
+                              'Billers sent: ' + data.results.billers_sent.length + '\n' +
+                              'Admins sent: ' + data.results.admins_sent.length);
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to send summaries'));
+                    }
+                })
+                .catch(error => {
+                    alert('Error sending EOD summaries: ' + error);
+                });
+            }
+        }
+</script>
+{% endblock %}

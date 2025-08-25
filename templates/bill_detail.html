@@ -1,0 +1,103 @@
+{% extends "layout.html" %}
+
+{% block title %} - Bill Details{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Bill: {{ bill_id }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2 class="mb-4">
+            <i class="fas fa-file-invoice me-2"></i>Bill Details
+        </h2>
+    </div>
+    <div class="col-md-4 text-md-end">
+        {% if current_user.is_authenticated %}
+        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#searchBillModal">
+            <i class="fas fa-search me-2"></i>Search Another Bill
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card bg-light mb-4">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-receipt me-2"></i>Bill Information</h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="display-1 text-primary">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <h3>{{ bill_id }}</h3>
+                    <div class="badge bg-primary mb-3">Bill ID</div>
+                </div>
+                
+                <dl class="row">
+                    <dt class="col-sm-6">Linked Bags:</dt>
+                    <dd class="col-sm-6">{{ parent_bags|length }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card bg-light">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-box me-2"></i>Linked Parent Bags</h4>
+            </div>
+            <div class="card-body">
+                {% if parent_bags %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>QR ID</th>
+                                <th>Name</th>
+                                <th>Child Bags</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for parent in parent_bags %}
+                            <tr>
+                                <td><code>{{ parent.qr_id }}</code></td>
+                                <td>{{ parent.name or "Parent Bag" }}</td>
+                                <td>{{ parent.child_count }}</td>
+                                <td>{{ parent.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>
+                                    <a href="{{ url_for('bag_details', qr_id=parent.qr_id|urlencode) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="display-1 text-muted mb-3">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h4 class="text-muted">No parent bags linked to this bill</h4>
+                    <p class="mb-4">There are no parent bags linked to Bill ID: {{ bill_id }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

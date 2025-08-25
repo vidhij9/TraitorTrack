@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit Bill - traitor track{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>Edit Bill: {{ bill.bill_id }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="mb-3">
+                            <label for="bill_id" class="form-label">Bill ID</label>
+                            <input type="text" class="form-control" id="bill_id" value="{{ bill.bill_id }}" readonly>
+                            <small class="form-text text-muted">Bill ID cannot be changed after creation.</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="Enter bill description">{{ bill.description or '' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="parent_bag_count" class="form-label">Expected Parent Bags</label>
+                            <input type="number" class="form-control" id="parent_bag_count" name="parent_bag_count" value="{{ bill.parent_bag_count or 1 }}" min="1">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Current Status</label>
+                            <p class="form-control-plaintext">
+                                <span class="badge bg-{{ 'success' if bill.status == 'completed' else 'warning' }}">
+                                    {{ bill.status.title() }}
+                                </span>
+                            </p>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

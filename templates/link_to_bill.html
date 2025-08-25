@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block title %} - Link to Bill{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}">Parent Bag: {{ parent_bag.qr_id }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Link to Bill</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card bg-light">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-link me-2"></i>Link Parent Bag to Bill
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="display-1 text-primary">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                </div>
+                
+                <p class="lead text-center mb-4">
+                    {% if link %}
+                    Update bill information for parent bag <code>{{ parent_bag.qr_id }}</code>
+                    {% else %}
+                    Link parent bag <code>{{ parent_bag.qr_id }}</code> to a bill
+                    {% endif %}
+                </p>
+                
+                <form method="post" action="">
+                    <div class="mb-4">
+                        <label for="bill_id" class="form-label">Bill ID</label>
+                        <input type="text" class="form-control" id="bill_id" name="bill_id" 
+                            placeholder="Enter bill ID" {% if link %}value="{{ link.bill_id }}"{% endif %} required>
+                        <div class="form-text">Enter the bill ID to link this parent bag to</div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-link me-2"></i>{{ link and 'Update' or 'Link' }} to Bill
+                        </button>
+                        <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Bag
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

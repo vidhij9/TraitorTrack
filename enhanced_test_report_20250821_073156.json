@@ -1,0 +1,182 @@
+{
+  "timestamp": "2025-08-21T07:31:56.651721",
+  "configuration": {
+    "concurrent_users": 55,
+    "test_duration": 120
+  },
+  "summary": {
+    "test_duration": 124.78837704658508,
+    "total_requests": 2745,
+    "successful_requests": 1637,
+    "failed_requests": 1108,
+    "error_rate": 40.36429872495446,
+    "requests_per_second": 21.997240968806388,
+    "bags_created": 0,
+    "bills_created": 180,
+    "scans_completed": 0,
+    "avg_response_time": 1.1763736464287071,
+    "p50_response_time": 0.8430397964156835,
+    "p95_response_time": 0.984129677252336,
+    "p99_response_time": 25.49393801178251,
+    "endpoint_metrics": {
+      "/login": {
+        "count": 56,
+        "success": 48,
+        "errors": 8,
+        "total_time": 1427.6605286598206,
+        "min_time": 1.0200176239013672,
+        "max_time": 45.06348967552185,
+        "status_codes": {
+          "200": 48,
+          "0": 8
+        }
+      },
+      "/api/stats": {
+        "count": 247,
+        "success": 247,
+        "errors": 0,
+        "total_time": 28.335383415222168,
+        "min_time": 0.0020530223846435547,
+        "max_time": 17.0996572971344,
+        "status_codes": {
+          "200": 247
+        }
+      },
+      "/bags?page=1&limit=100": {
+        "count": 1,
+        "success": 1,
+        "errors": 0,
+        "total_time": 0.0066258907318115234,
+        "min_time": 0.0066258907318115234,
+        "max_time": 0.0066258907318115234,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/bills?status=completed": {
+        "count": 1,
+        "success": 1,
+        "errors": 0,
+        "total_time": 0.0072481632232666016,
+        "min_time": 0.0072481632232666016,
+        "max_time": 0.0072481632232666016,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/scans?limit=1000": {
+        "count": 1,
+        "success": 1,
+        "errors": 0,
+        "total_time": 0.007605552673339844,
+        "min_time": 0.007605552673339844,
+        "max_time": 0.007605552673339844,
+        "status_codes": {
+          "200": 1
+        }
+      },
+      "/scan/parent": {
+        "count": 1100,
+        "success": 0,
+        "errors": 1100,
+        "total_time": 1082.5426449775696,
+        "min_time": 0.001955270767211914,
+        "max_time": 45.37719798088074,
+        "status_codes": {
+          "0": 6,
+          "400": 1094
+        }
+      },
+      "/api/scans": {
+        "count": 241,
+        "success": 241,
+        "errors": 0,
+        "total_time": 37.70199251174927,
+        "min_time": 0.0017666816711425781,
+        "max_time": 19.920557975769043,
+        "status_codes": {
+          "200": 241
+        }
+      },
+      "/bags": {
+        "count": 233,
+        "success": 233,
+        "errors": 0,
+        "total_time": 162.57927107810974,
+        "min_time": 0.004667043685913086,
+        "max_time": 35.04946255683899,
+        "status_codes": {
+          "200": 233
+        }
+      },
+      "/bills": {
+        "count": 227,
+        "success": 227,
+        "errors": 0,
+        "total_time": 103.91770839691162,
+        "min_time": 0.004492282867431641,
+        "max_time": 34.109482765197754,
+        "status_codes": {
+          "200": 227
+        }
+      },
+      "/scans": {
+        "count": 226,
+        "success": 226,
+        "errors": 0,
+        "total_time": 190.52699398994446,
+        "min_time": 0.004640817642211914,
+        "max_time": 33.17008638381958,
+        "status_codes": {
+          "200": 226
+        }
+      },
+      "/bill/create": {
+        "count": 180,
+        "success": 180,
+        "errors": 0,
+        "total_time": 173.78286051750183,
+        "min_time": 0.005048036575317383,
+        "max_time": 19.96906018257141,
+        "status_codes": {
+          "200": 180
+        }
+      },
+      "/dashboard": {
+        "count": 232,
+        "success": 232,
+        "errors": 0,
+        "total_time": 22.076796293258667,
+        "min_time": 0.0024225711822509766,
+        "max_time": 3.296546697616577,
+        "status_codes": {
+          "200": 232
+        }
+      }
+    }
+  },
+  "resources": {
+    "initial": {
+      "cpu_percent": 27.8,
+      "memory_percent": 73.5,
+      "memory_available_gb": 16.662063598632812,
+      "disk_percent": 68.9,
+      "network_sent_mb": 21.25397491455078,
+      "network_recv_mb": 14.261561393737793
+    },
+    "final": {
+      "cpu_percent": 31.6,
+      "memory_percent": 71.3,
+      "memory_available_gb": 18.046161651611328,
+      "disk_percent": 68.9,
+      "network_sent_mb": 41.10385227203369,
+      "network_recv_mb": 34.110140800476074
+    }
+  },
+  "verdict": "\u274c NEEDS IMPROVEMENT: Critical optimizations required",
+  "capacity_assessment": {
+    "bags_per_second": 0.0,
+    "time_for_800k_hours": Infinity,
+    "ready_for_production": false
+  }
+}

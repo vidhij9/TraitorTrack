@@ -1,0 +1,406 @@
+{% extends "layout.html" %}
+
+{% block title %}Admin User Profile - {{ profile_user.username }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-user-circle text-primary"></i>
+                        {{ profile_user.username }} Profile
+                        <span class="badge bg-success ms-2" style="font-size: 0.5rem;" id="liveIndicator">
+                            <i class="fas fa-circle"></i> Live Data
+                        </span>
+                    </h2>
+                    <p class="text-muted mb-0">
+                        <span class="badge badge-{{ 'success' if profile_user.role == 'admin' else 'primary' if profile_user.role == 'biller' else 'info' }}">
+                            {{ profile_user.role.title() }}
+                        </span>
+                        {% if profile_user.dispatch_area %}
+                        | Dispatch Area: {{ profile_user.dispatch_area.replace('_', ' ').title() }}
+                        {% endif %}
+                        <span class="ms-2 small text-muted">| Last updated: <span id="lastUpdated">Just now</span></span>
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ url_for('user_management') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to User Management
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Cards - Compact -->
+    <div class="row mb-3">
+        <div class="col-md-3 col-6 mb-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center py-2">
+                    <h4 class="mb-0">{{ metrics.total_scans }}</h4>
+                    <small>Total Scans</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center py-2">
+                    <h4 class="mb-0">{{ metrics.scans_today }}</h4>
+                    <small>Today</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center py-2">
+                    <h4 class="mb-0">{{ metrics.unique_bags_scanned }}</h4>
+                    <small>Unique Bags</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center py-2">
+                    <h4 class="mb-0">{{ metrics.days_active }}</h4>
+                    <small>Days Active</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics - Compressed View -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-chart-line"></i> Performance</h6>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row small">
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Avg/Day:</span>
+                                <strong>{{ "%.1f"|format(metrics.avg_scans_per_day) }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Peak:</span>
+                                <strong>{{ metrics.peak_day_scans }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Active Hr:</span>
+                                <strong>{{ metrics.most_active_hour }}:00</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Accuracy:</span>
+                                <strong class="text-{{ 'success' if metrics.scan_accuracy > 95 else 'warning' }}">
+                                    {{ "%.1f"|format(metrics.scan_accuracy) }}%
+                                </strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Errors:</span>
+                                <strong class="text-{{ 'success' if metrics.error_rate < 5 else 'warning' }}">
+                                    {{ "%.1f"|format(metrics.error_rate) }}%
+                                </strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Time:</span>
+                                <strong>{{ metrics.estimated_hours }}h</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-clock"></i> Activity Timeline</h6>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row small">
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Created:</span>
+                                <strong>{{ profile_user.created_at.strftime('%m/%d/%y') if profile_user.created_at else 'N/A' }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Last Login:</span>
+                                <strong>{{ metrics.last_login.strftime('%m/%d %H:%M') if metrics.last_login else 'Never' }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Last Scan:</span>
+                                <strong>{{ metrics.last_scan.strftime('%m/%d %H:%M') if metrics.last_scan else 'Never' }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Status:</span>
+                                <span class="badge badge-{{ 'success' if profile_user.verified else 'warning' }}" style="font-size: 0.7rem;">
+                                    {{ 'Verified' if profile_user.verified else 'Pending' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanning Activity Data - Clean Display -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Scanning Activity</h5>
+                </div>
+                <div class="card-body py-3">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <div class="p-3 bg-primary text-white rounded">
+                                <h4 class="mb-1">{{ metrics.today_scans }}</h4>
+                                <small>Today</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3 bg-success text-white rounded">
+                                <h4 class="mb-1">{{ metrics.week_scans }}</h4>
+                                <small>This Week</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3 bg-warning text-white rounded">
+                                <h4 class="mb-1">{{ metrics.quarter_scans }}</h4>
+                                <small>This Quarter</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3 bg-info text-white rounded">
+                                <h4 class="mb-1">{{ metrics.year_scans }}</h4>
+                                <small>This Year</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Only (Errors section removed for cleaner view) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
+                </div>
+                <div class="card-body py-2" style="max-height: 200px; overflow-y: auto;">
+                    {% if metrics.recent_activity %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%">Time</th>
+                                    <th style="width: 25%">Action</th>
+                                    <th style="width: 50%">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in metrics.recent_activity[:10] %}
+                                <tr>
+                                    <td class="text-nowrap small">{{ activity.timestamp.strftime('%m-%d %H:%M') }}</td>
+                                    <td class="small font-weight-bold">{{ activity.action[:20] }}</td>
+                                    <td class="text-truncate small" style="max-width: 250px;" title="{{ activity.details }}">
+                                        {{ activity.details }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0 small">No recent activity recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanning Patterns with Comprehensive Details -->
+    <div class="row mb-4">
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h5 class="mb-0"><i class="fas fa-qrcode"></i> Recent Scans (Detailed View)</h5>
+                </div>
+                <div class="card-body py-2" style="max-height: 250px; overflow-y: auto;">
+                    {% if metrics.recent_scans %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="sticky-top bg-white">
+                                <tr>
+                                    <th style="width: 25%">Date/Time</th>
+                                    <th style="width: 15%">Type</th>
+                                    <th style="width: 25%">Bag QR</th>
+                                    <th style="width: 20%">Location</th>
+                                    <th style="width: 15%">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scan in metrics.recent_scans[:10] %}
+                                <tr>
+                                    <td class="text-nowrap small">
+                                        {{ scan.timestamp.strftime('%m/%d %H:%M') }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'primary' if scan.parent_bag_id else 'secondary' }} text-white" style="font-size: 0.8rem; font-weight: bold;">
+                                            {{ 'Parent' if scan.parent_bag_id else 'Child' }}
+                                        </span>
+                                    </td>
+                                    <td class="font-monospace small">{{ scan.qr_code[:10] if scan.qr_code else 'N/A' }}</td>
+                                    <td class="small">
+                                        {{ scan.dispatch_area.replace('_', ' ').title() if scan.dispatch_area else 'Unknown' }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success text-white" style="font-size: 0.75rem;">
+                                            Valid
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0 small">No scans recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card" style="max-height: 120px;">
+                <div class="card-body text-center p-2">
+                    <h6 class="mb-1" style="font-size: 0.75rem;"><i class="fas fa-chart-pie"></i> Scan Distribution</h6>
+                    <div style="position: relative; height: 60px;">
+                        <canvas id="scanTypeChart" height="60" width="60" style="max-height: 60px; max-width: 60px; margin: 0 auto;"></canvas>
+                    </div>
+                    <div class="mt-1">
+                        <div style="font-size: 0.65rem; line-height: 1.2;">
+                            <div class="d-flex justify-content-between">
+                                <span><span class="text-primary">●</span> P:</span>
+                                <strong>{{ metrics.parent_scans }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span><span class="text-secondary">●</span> C:</span>
+                                <strong>{{ metrics.child_scans }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Scan Type Distribution Chart - Tiny Version
+const scanTypeCtx = document.getElementById('scanTypeChart').getContext('2d');
+new Chart(scanTypeCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Parent', 'Child'],
+        datasets: [{
+            data: [{{ metrics.parent_scans }}, {{ metrics.child_scans }}],
+            backgroundColor: ['#007bff', '#6c757d'],
+            borderWidth: 1,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                enabled: true,
+                bodyFont: {
+                    size: 10
+                }
+            }
+        },
+        cutout: '40%',
+        elements: {
+            arc: {
+                borderWidth: 1
+            }
+        }
+    }
+});
+
+// Real-time update functionality
+let lastUpdateTime = new Date();
+
+function updateLastUpdatedTime() {
+    const span = document.getElementById('lastUpdated');
+    const now = new Date();
+    const diff = Math.floor((now - lastUpdateTime) / 1000);
+    
+    if (diff < 5) {
+        span.textContent = 'Just now';
+    } else if (diff < 60) {
+        span.textContent = `${diff} seconds ago`;
+    } else if (diff < 3600) {
+        const mins = Math.floor(diff / 60);
+        span.textContent = `${mins} minute${mins > 1 ? 's' : ''} ago`;
+    } else {
+        span.textContent = 'Over an hour ago';
+    }
+}
+
+// Auto-refresh page every 60 seconds for real-time data
+function refreshPageData() {
+    const indicator = document.getElementById('liveIndicator');
+    indicator.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Updating...';
+    indicator.classList.remove('bg-success');
+    indicator.classList.add('bg-warning');
+    
+    // Reload page to get fresh data
+    setTimeout(() => {
+        location.reload();
+    }, 500);
+}
+
+// Initialize real-time updates
+document.addEventListener('DOMContentLoaded', function() {
+    // Update time display every second
+    setInterval(updateLastUpdatedTime, 1000);
+    
+    // Auto-refresh data every 90 seconds for better performance
+    setInterval(refreshPageData, 90000);
+    
+    // Add pulse animation to live indicator
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        #liveIndicator i {
+            animation: pulse 2s infinite;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

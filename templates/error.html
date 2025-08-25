@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ error_title }} - traitor track{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card bg-light border-danger">
+                <div class="card-header bg-danger bg-opacity-25 text-center">
+                    <h1 class="display-1 mb-0">{{ error_code }}</h1>
+                    <h3 class="mb-0">{{ error_title }}</h3>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-exclamation-triangle fa-4x text-warning"></i>
+                    </div>
+                    <p class="lead">{{ error_message }}</p>
+                    
+                    {% if error_code == 404 %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The page you're looking for might have been moved or doesn't exist.
+                    </div>
+                    {% elif error_code == 403 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-lock me-2"></i>
+                        You need appropriate permissions to access this resource.
+                    </div>
+                    {% elif error_code == 500 %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-bug me-2"></i>
+                        A technical issue occurred. Our team has been automatically notified.
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <button onclick="history.back()" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Go Back
+                        </button>
+                        <a href="/" class="btn btn-primary">
+                            <i class="fas fa-home me-2"></i>Return to Dashboard
+                        </a>
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('child_lookup') }}" class="btn btn-outline-info">
+                            <i class="fas fa-search me-2"></i>Search Bags
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>If this problem persists, please contact system administrator.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh for server errors after 30 seconds
+    {% if error_code is defined and error_code >= 500 %}
+    setTimeout(function() {
+        if (confirm('Would you like to try refreshing the page?')) {
+            window.location.reload();
+        }
+    }, 30000);
+    {% endif %}
+});
+</script>
+{% endblock %}

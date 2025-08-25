@@ -1,0 +1,146 @@
+{% extends "layout.html" %}
+
+{% block title %}Scanner Performance Test{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header with status -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">
+                    <i class="fas fa-qrcode me-2"></i>Scanner Performance Test
+                </h4>
+                <span id="scanner-status" class="badge bg-info">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Initializing
+                </span>
+            </div>
+            
+            <!-- Simple Status -->
+            <div class="alert alert-info text-center mb-3">
+                <i class="fas fa-info-circle me-2"></i>
+                Ultra-fast QR scanner testing page - Point camera at any QR code for instant detection
+            </div>
+            
+            <!-- Scanner Container -->
+            <div id="scanner-container" class="mb-3"></div>
+            
+            <!-- Results -->
+            <div id="scan-results" class="alert alert-info" style="display: none;">
+                <h6>Last Scanned QR Code:</h6>
+                <p id="last-qr" class="mb-0 font-monospace"></p>
+            </div>
+            
+            <!-- Test Controls -->
+            <div class="d-flex gap-2 justify-content-center">
+                <button class="btn btn-success" onclick="generateTestQR()">
+                    <i class="fas fa-qrcode"></i> Generate Test QR
+                </button>
+            </div>
+            
+            <!-- Test QR Display -->
+            <div id="test-qr-container" class="mt-3 text-center" style="display: none;">
+                <h6>Test QR Code (Point camera here):</h6>
+                <canvas id="test-qr-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- QR Libraries -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+<!-- QR Code Generator -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<script>
+    let scanner = null;
+    let scanCount = 0;
+    let lastScanTime = null;
+    
+    function initScanner() {
+        // Check if jsQR is available
+        if (typeof jsQR === 'undefined') {
+            console.error('jsQR library not loaded');
+            document.getElementById('scanner-status').className = 'badge bg-danger';
+            document.getElementById('scanner-status').innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>jsQR Missing';
+            return;
+        }
+        
+        console.log('Initializing InstantDetectionScanner...');
+        
+        // Initialize Instant Detection Scanner
+        scanner = new InstantDetectionScanner('scanner-container');
+        
+        // Set up scan callback
+        scanner.onScan = function(data) {
+            console.log('QR Code Detected:', data);
+            
+            // Update UI
+            document.getElementById('last-qr').textContent = data;
+            document.getElementById('scan-results').style.display = 'block';
+            
+            // Update status
+            document.getElementById('scanner-status').className = 'badge bg-success';
+            document.getElementById('scanner-status').innerHTML = '<i class="fas fa-check-circle me-1"></i>Detected!';
+            
+            // Reset status after 2 seconds
+            setTimeout(() => {
+                document.getElementById('scanner-status').className = 'badge bg-primary';
+                document.getElementById('scanner-status').innerHTML = '<i class="fas fa-video me-1"></i>Scanning';
+            }, 2000);
+        };
+        
+        // Simple status monitoring
+        setInterval(() => {
+            if (scanner && scanner.scanActive) {
+                document.getElementById('scanner-status').className = 'badge bg-success';
+                document.getElementById('scanner-status').innerHTML = '<i class="fas fa-video me-1"></i>Scanning';
+            }
+        }, 1000);
+        
+        // Add debug logging
+        console.log('Scanner initialized, waiting for camera...');
+    }
+    
+
+    
+    function generateTestQR() {
+        const container = document.getElementById('test-qr-container');
+        const canvas = document.getElementById('test-qr-canvas');
+        
+        // Generate random test data
+        const testData = `TEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Generate QR code
+        QRCode.toCanvas(canvas, testData, {
+            width: 256,
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+            }
+        }, function (error) {
+            if (error) {
+                console.error(error);
+                return;
+            }
+            container.style.display = 'block';
+            console.log('Test QR generated:', testData);
+        });
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initScanner();
+    });
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (scanner) {
+            scanner.stop();
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{
+  "CacheClusterId": "tracetrack-redis-cache",
+  "Engine": "redis",
+  "EngineVersion": "7.0",
+  "CacheNodeType": "cache.t3.micro",
+  "NumCacheNodes": 1,
+  "Port": 6379,
+  "PreferredMaintenanceWindow": "sun:03:00-sun:04:00",
+  "PreferredAvailabilityZone": "us-east-1a",
+  "CacheSubnetGroupName": "tracetrack-cache-subnet",
+  "VpcSecurityGroupIds": [
+    "sg-xxxxx"
+  ],
+  "AutoMinorVersionUpgrade": true,
+  "SnapshotRetentionLimit": 7,
+  "SnapshotWindow": "02:00-03:00",
+  "NotificationTopicArn": "arn:aws:sns:region:account:tracetrack-cache-alerts",
+  "ParameterGroup": {
+    "CacheParameterGroupFamily": "redis7",
+    "Description": "Custom Redis configuration for TraceTrack",
+    "Parameters": {
+      "maxmemory-policy": "allkeys-lru",
+      "timeout": "300",
+      "tcp-keepalive": "60",
+      "tcp-backlog": "511",
+      "databases": "16",
+      "save": "",
+      "stop-writes-on-bgsave-error": "no",
+      "rdbcompression": "yes",
+      "rdbchecksum": "yes"
+    }
+  },
+  "Tags": [
+    {
+      "Key": "Application",
+      "Value": "TraceTrack"
+    },
+    {
+      "Key": "Environment",
+      "Value": "Production"
+    },
+    {
+      "Key": "Purpose",
+      "Value": "Caching"
+    }
+  ]
+}

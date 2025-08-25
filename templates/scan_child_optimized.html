@@ -1,0 +1,548 @@
+{% extends "layout.html" %}
+{% block title %}Scan Child Bags - TraceTrack{% endblock %}
+
+{% block head %}
+<style>
+/* Enhanced Scanner Container - matching parent scan style */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .scanner-container {
+        height: 300px;
+    }
+}
+
+/* Toast styles */
+.toast {
+    min-width: 300px;
+}
+
+.toast.bg-success {
+    background-color: #198754 !important;
+    color: white;
+}
+
+.toast.bg-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.toast.bg-warning {
+    background-color: #ffc107 !important;
+    color: black;
+}
+
+/* Completion section styling */
+.completion-section {
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    background-color: #d4edda;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Parent Bag Info -->
+            {% if parent_qr %}
+            <div class="alert alert-primary d-flex justify-content-between align-items-center mb-3">
+                <span><strong>Parent Bag:</strong> {{ parent_qr }}</span>
+                <span class="badge bg-primary">{{ scanned_child_count }}/30 linked</span>
+            </div>
+            {% else %}
+            <div class="alert alert-warning mb-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>No parent bag selected.</strong> Please <a href="{{ url_for('scan_parent') }}">scan a parent bag</a> first.
+            </div>
+            {% endif %}
+
+            <!-- Main Scanner Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-qrcode me-2"></i>Scan Child Bags
+                        <small class="text-muted ms-2">({{ 30 - scanned_child_count }} remaining)</small>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Camera Scanner -->
+                    <div id="child-scanner-container" class="scanner-container mb-3"></div>
+                    
+                    <!-- Scanner Controls -->
+                    <div class="text-center mb-3">
+                        <button id="start-camera" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i>Start Scanner
+                        </button>
+                        <button id="stop-camera" class="btn btn-secondary" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop Scanner
+                        </button>
+                    </div>
+
+                    <!-- Manual Entry Section -->
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h6>Manual Entry</h6>
+                            <form id="manual-form">
+                                {{ form.hidden_tag() }}
+                                <div class="input-group">
+                                    <input type="text" 
+                                           id="manual-qr-input"
+                                           name="qr_code" 
+                                           class="form-control" 
+                                           placeholder="Enter child bag QR code manually"
+                                           autocomplete="off">
+                                    <button class="btn btn-primary" type="submit">
+                                        <i class="fas fa-plus me-2"></i>Add Child
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Completion Section (Hidden initially via inline style) -->
+                    <div id="completion-section" class="completion-section mt-4 p-3" style="display: none;">
+                        <div class="text-center">
+                            <h5 class="text-success">
+                                <i class="fas fa-check-circle me-2"></i>All 30 Child Bags Linked!
+                            </h5>
+                            <p class="mb-3">Parent bag <strong>{{ parent_qr }}</strong> is now complete with 30 child bags.</p>
+                            <button id="complete-parent-btn" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>Complete & Continue to Next Parent
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="mt-4 text-center">
+                        <a href="{{ url_for('scan_parent') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Parent Scan
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scanned Bags List -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Scanned Child Bags ({{ scanned_child_count }}/30)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul id="scanned-list" class="list-group">
+                        {% if linked_child_bags %}
+                            {% for child in linked_child_bags %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <span class="badge bg-success me-2">{{ loop.index }}</span>
+                                    <code>{{ child.qr_id }}</code>
+                        </span>
+                        <span class="text-muted small">Linked</span>
+                    </li>
+                    {% endfor %}
+                {% else %}
+                <li id="empty-message" class="list-group-item text-center text-muted">
+                    No child bags scanned yet
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress mt-3" style="height: 30px;">
+        <div class="progress-bar bg-success" 
+             role="progressbar" 
+             style="width: {{ (scanned_child_count / 30 * 100) }}%;"
+             aria-valuenow="{{ scanned_child_count }}" 
+             aria-valuemin="0" 
+             aria-valuemax="30">
+            {{ scanned_child_count }}/30 bags
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="scan-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-body" id="toast-message">
+            <!-- Message will be inserted here -->
+        </div>
+    </div>
+</div>
+
+<!-- Toast notifications -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="scan-toast" class="toast align-items-center text-white bg-success border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                <i class="fas fa-check-circle me-2"></i>QR Code detected!
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Using the same scanner as parent scan -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+<script>
+// Global variables
+let scanner = null;
+let isProcessing = false;
+let scannedCount = {{ scanned_child_count }};
+const maxBags = 30;
+const parentQr = '{{ parent_qr }}';
+
+// ULTRA FAST request with optimized endpoint and count sync
+async function sendRequest(qrCode) {
+    try {
+        const response = await fetch('/process_child_scan_fast', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ qr_code: qrCode })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // FIXED: Update count from server response for consistency
+        if (result.success) {
+            scannedCount = result.child_count || (scannedCount + 1);
+            updateCounters();
+            addChildToList(qrCode);
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('Request failed:', error);
+        return { success: false, message: 'Network error. Please try manual entry.' };
+    }
+}
+
+// Update counters in real-time
+function updateCounters() {
+    // Update parent info badge
+    const parentBadge = document.querySelector('.badge.bg-primary');
+    if (parentBadge) parentBadge.textContent = `${scannedCount}/30 linked`;
+    
+    // Update scanner header remaining count
+    const remainingText = document.querySelector('.text-muted');
+    if (remainingText) remainingText.textContent = `(${30 - scannedCount} remaining)`;
+    
+    // Update scanned bags list header
+    const listHeader = document.querySelector('.card-header.bg-info h6');
+    if (listHeader) {
+        listHeader.innerHTML = `<i class="fas fa-list me-2"></i>Scanned Child Bags (${scannedCount}/30)`;
+    }
+}
+
+// Add child to list in real-time (with duplicate prevention)
+function addChildToList(qrCode) {
+    const list = document.getElementById('scanned-list');
+    const emptyMessage = document.getElementById('empty-message');
+    
+    // Check if QR code already exists in the list
+    const existingItems = Array.from(list.querySelectorAll('code')).map(el => el.textContent);
+    if (existingItems.includes(qrCode)) {
+        console.log(`Duplicate prevented: ${qrCode} already in list`);
+        return; // Don't add duplicates
+    }
+    
+    // Remove empty message if it exists
+    if (emptyMessage) {
+        emptyMessage.remove();
+    }
+    
+    // Create new list item
+    const newItem = document.createElement('li');
+    newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+    newItem.innerHTML = `
+        <span>
+            <span class="badge bg-success me-2">${scannedCount}</span>
+            <code>${qrCode}</code>
+        </span>
+        <span class="text-muted small">Just now</span>
+    `;
+    
+    // Add to top of list
+    list.insertBefore(newItem, list.firstChild);
+}
+
+// Enhanced Toast notification with better error handling
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('scan-toast');
+    const toastMessage = document.getElementById('toast-message');
+    
+    // Set styling based on type
+    toast.className = 'toast show';
+    toast.style.display = 'block';
+    
+    if (type === 'danger' || type === 'error') {
+        toast.classList.add('bg-danger', 'text-white');
+    } else if (type === 'warning') {
+        toast.classList.add('bg-warning', 'text-dark');
+    } else if (type === 'info') {
+        toast.classList.add('bg-info', 'text-white');
+    } else {
+        toast.classList.add('bg-success', 'text-white');
+    }
+    
+    toastMessage.textContent = message;
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.style.display = 'none';
+            toast.className = 'toast';
+        }, 150);
+    }, 3000);
+}
+
+// Handle QR code detection
+async function onScanSuccess(qrCode) {
+    if (isProcessing || scannedCount >= maxBags) {
+        if (scannedCount >= maxBags) {
+            showToast('Maximum 30 child bags reached!', 'warning');
+        }
+        return;
+    }
+    
+    isProcessing = true;
+    
+    // Pause scanner immediately after detection
+    if (scanner && scanner.pause) {
+        scanner.pause();
+    }
+    
+    showToast('Processing child bag...', 'info');
+    
+    const data = await sendRequest(qrCode);
+    
+    if (data.success) {        
+        showToast(`✓ Child bag ${qrCode} added successfully! (${scannedCount}/30)`, 'success');
+        
+        // Check if complete - EXACTLY 30 bags
+        if (scannedCount === 30) {
+            showToast('✓ All 30 child bags linked! Scanning complete.', 'success');
+            document.getElementById('stop-camera').click();
+            showCompletionSection();
+        } else {
+            // Resume scanning after 2 seconds for successful scan
+            setTimeout(() => {
+                isProcessing = false;
+                if (scanner && scanner.resume) {
+                    scanner.resume();
+                }
+            }, 2000);
+        }
+    } else {
+        // Show specific error messages with better detection
+        if (data.message.includes('DUPLICATE') || data.message.includes('already linked')) {
+            showToast(`❌ DUPLICATE: ${qrCode} already scanned!`, 'warning');
+        } else if (data.message.includes('duplicate') || data.message.includes('already')) {
+            showToast(`⚠️ Duplicate: ${qrCode} already exists!`, 'warning');
+        } else if (data.message.includes('maximum') || data.message.includes('30') || data.message.includes('full')) {
+            showToast('⚠️ Maximum 30 child bags reached!', 'warning');
+        } else {
+            showToast(data.message || 'Error processing child bag', 'error');
+        }
+        
+        // Resume scanning after 3 seconds for error
+        setTimeout(() => {
+            isProcessing = false;
+            if (scanner && scanner.resume) {
+                scanner.resume();
+            }
+        }, 3000);
+    }
+}
+
+// Update UI after successful scan
+function updateUI(qrCode, count) {
+    // Remove empty message if exists
+    const emptyMsg = document.getElementById('empty-message');
+    if (emptyMsg) emptyMsg.remove();
+    
+    // Add to list if not already there
+    const scannedList = document.getElementById('scanned-list');
+    const existingItems = Array.from(scannedList.querySelectorAll('code')).map(el => el.textContent);
+    
+    if (!existingItems.includes(qrCode)) {
+        const newItem = document.createElement('li');
+        newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+        newItem.innerHTML = `
+            <span>
+                <span class="badge bg-success me-2">${count}</span>
+                <code>${qrCode}</code>
+            </span>
+            <span class="text-muted small">Just now</span>
+        `;
+        scannedList.insertBefore(newItem, scannedList.firstChild);
+    }
+    
+    // Update progress bar
+    const progressBar = document.querySelector('.progress-bar');
+    progressBar.style.width = `${(count / 30) * 100}%`;
+    progressBar.textContent = `${count}/30 bags`;
+    
+    // Update badges
+    document.querySelectorAll('.badge').forEach(badge => {
+        if (badge.textContent.includes('/30')) {
+            badge.textContent = `${count}/30`;
+        }
+        if (badge.textContent.includes('remaining')) {
+            badge.textContent = `${30 - count} remaining`;
+        }
+    });
+}
+
+// Show completion section when 30 bags are linked
+function showCompletionSection() {
+    const completionSection = document.getElementById('completion-section');
+    if (completionSection) {
+        completionSection.style.display = 'block';
+        completionSection.scrollIntoView({ behavior: 'smooth' });
+        
+        // Also disable scanner controls
+        const startBtn = document.getElementById('start-camera');
+        const stopBtn = document.getElementById('stop-camera');
+        const manualInput = document.getElementById('manual-qr-input');
+        
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.textContent = '✓ Complete';
+            startBtn.className = 'btn btn-success';
+        }
+        if (stopBtn) {
+            stopBtn.disabled = true;
+            stopBtn.style.display = 'none';
+        }
+        if (manualInput) {
+            manualInput.disabled = true;
+            manualInput.placeholder = 'Parent bag complete - 30/30 child bags linked';
+        }
+    }
+}
+
+// Complete scanning and go to next parent
+function completeScanning() {
+    showToast('✅ Parent bag complete! 30 child bags linked.', 'success');
+    if (scanner) scanner.stop();
+    
+    setTimeout(() => {
+        window.location.href = '/scan/parent';
+    }, 1500);
+}
+
+// Initialize scanner with proper InstantDetectionScanner
+document.getElementById('start-camera').addEventListener('click', function() {
+    // Prevent starting if already complete
+    if (scannedCount === 30) {
+        showToast('Parent bag already complete with 30/30 child bags', 'info');
+        return;
+    }
+    
+    if (scanner) scanner.stop();
+    
+    scanner = new InstantDetectionScanner('child-scanner-container', onScanSuccess);
+    scanner.start();
+    
+    this.disabled = true;
+    document.getElementById('stop-camera').disabled = false;
+    showToast('Scanner started', 'success');
+});
+
+// Stop scanner
+document.getElementById('stop-camera').addEventListener('click', function() {
+    if (scanner) scanner.stop();
+    
+    this.disabled = true;
+    document.getElementById('start-camera').disabled = false;
+    showToast('Scanner stopped', 'info');
+});
+
+// Manual form submission
+document.getElementById('manual-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const input = document.getElementById('manual-qr-input');
+    const qrCode = input.value.trim();
+    
+    if (!qrCode) {
+        showToast('Please enter a QR code', 'warning');
+        return;
+    }
+    
+    if (isProcessing) return;
+    
+    isProcessing = true;
+    const data = await sendRequest(qrCode);
+    
+    if (data.success) {
+        scannedCount = data.child_count || scannedCount + 1;
+        updateUI(data.child_qr, scannedCount);
+        showToast(`✓ Added ${data.child_qr} (${scannedCount}/30)`, 'success');
+        input.value = '';
+        
+        if (scannedCount === 30) {
+            showCompletionSection();
+        }
+    } else {
+        showToast(data.message || 'Error occurred', 'danger');
+    }
+    
+    isProcessing = false;
+});
+
+// Auto-start scanner on page load
+window.addEventListener('load', function() {
+    // CRITICAL FIX: Check if bag is already complete (exactly 30/30)
+    console.log('Current scanned count:', scannedCount, 'Type:', typeof scannedCount);
+    
+    // ONLY show completion if actually at 30 bags - not 0!
+    if (scannedCount === 30) {
+        console.log('COMPLETION: Showing completion section - bag has exactly 30 child bags');
+        showCompletionSection();
+        showToast('✅ This parent bag is already complete with 30/30 child bags', 'success');
+    } else if (scannedCount > 0 && scannedCount < 30) {
+        // Auto-start scanner for incomplete bags that have some children
+        console.log(`SCANNING: Starting scanner - bag has ${scannedCount}/30 child bags`);
+        setTimeout(() => {
+            document.getElementById('start-camera').click();
+        }, 500);
+    } else if (scannedCount === 0) {
+        // Auto-start scanner for empty bags
+        console.log('SCANNING: Starting scanner - bag has 0/30 child bags');
+        setTimeout(() => {
+            document.getElementById('start-camera').click();
+        }, 500);
+    } else {
+        console.log('ERROR: Invalid scannedCount value:', scannedCount);
+    }
+    
+    // Add completion button event listener
+    const completeBtn = document.getElementById('complete-parent-btn');
+    if (completeBtn) {
+        completeBtn.addEventListener('click', completeScanning);
+    }
+});
+</script>
+{% endblock %}

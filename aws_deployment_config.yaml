@@ -1,0 +1,203 @@
+# AWS Deployment Configuration for TraceTrack
+# Optimized for 500+ concurrent users with <50ms response times
+
+version: '1.0'
+application: tracetrack
+
+# Environment Configuration
+environment:
+  name: production
+  region: ap-south-1  # Mumbai region for India
+  availability_zones:
+    - ap-south-1a
+    - ap-south-1b
+
+# RDS Configuration
+database:
+  engine: postgres
+  version: '15.4'
+  instance_class: db.r6g.large  # 2 vCPU, 16 GB RAM
+  allocated_storage: 100  # GB
+  storage_type: gp3
+  iops: 3000
+  multi_az: true
+  backup_retention_period: 7
+  preferred_backup_window: "03:00-04:00"
+  preferred_maintenance_window: "sun:04:00-sun:05:00"
+  
+  # Read Replicas
+  read_replicas:
+    - name: tracetrack-read-replica-1
+      instance_class: db.t4g.medium
+      availability_zone: ap-south-1b
+    - name: tracetrack-read-replica-2
+      instance_class: db.t4g.medium
+      availability_zone: ap-south-1c
+
+  # RDS Proxy
+  proxy:
+    enabled: true
+    max_connections: 100
+    connection_borrow_timeout: 120
+    idle_client_timeout: 1800
+
+# ElastiCache Redis Configuration
+cache:
+  engine: redis
+  node_type: cache.t3.micro
+  num_nodes: 1
+  parameter_group: default.redis7
+  port: 6379
+  
+  # Cache TTL Settings (seconds)
+  ttl_settings:
+    dashboard_stats: 60
+    bag_count: 120
+    user_profile: 300
+    recent_scans: 30
+    bag_management: 60
+    bill_summary: 180
+    analytics: 300
+
+# EC2/ECS Configuration
+compute:
+  type: ecs_fargate
+  cpu: 1024  # 1 vCPU
+  memory: 2048  # 2 GB
+  desired_count: 3
+  min_count: 2
+  max_count: 10
+  
+  # Auto Scaling
+  autoscaling:
+    target_cpu_utilization: 70
+    target_memory_utilization: 80
+    scale_in_cooldown: 300
+    scale_out_cooldown: 60
+
+# Application Load Balancer
+load_balancer:
+  type: application
+  scheme: internet-facing
+  idle_timeout: 60
+  
+  # Health Check
+  health_check:
+    path: /health
+    interval: 30
+    timeout: 5
+    healthy_threshold: 2
+    unhealthy_threshold: 3
+
+# CloudFront CDN
+cdn:
+  enabled: true
+  price_class: PriceClass_100  # Use only India edge locations
+  
+  # Cache Behaviors
+  cache_behaviors:
+    - path_pattern: "/static/*"
+      ttl: 86400  # 24 hours
+      compress: true
+    - path_pattern: "/api/dashboard-stats"
+      ttl: 60  # 1 minute
+      compress: true
+    - path_pattern: "/api/bag-count"
+      ttl: 120  # 2 minutes
+      compress: true
+
+# Application Configuration
+application:
+  # Gunicorn Settings
+  gunicorn:
+    workers: 4
+    worker_class: gevent
+    worker_connections: 1000
+    timeout: 30
+    keepalive: 5
+    max_requests: 1000
+    max_requests_jitter: 50
+  
+  # Flask Settings
+  flask:
+    environment: production
+    debug: false
+    testing: false
+  
+  # SQLAlchemy Settings
+  sqlalchemy:
+    pool_size: 10
+    max_overflow: 20
+    pool_timeout: 30
+    pool_recycle: 300
+    pool_pre_ping: true
+
+# Monitoring & Logging
+monitoring:
+  cloudwatch:
+    enabled: true
+    log_retention_days: 30
+    
+  metrics:
+    - name: ResponseTime
+      namespace: TraceTrack
+      statistic: Average
+    - name: ErrorRate
+      namespace: TraceTrack
+      statistic: Sum
+    - name: CacheHitRate
+      namespace: TraceTrack
+      statistic: Average
+    - name: DatabaseConnections
+      namespace: TraceTrack
+      statistic: Average
+  
+  alarms:
+    - name: HighResponseTime
+      metric: ResponseTime
+      threshold: 100  # ms
+      comparison: GreaterThanThreshold
+    - name: HighErrorRate
+      metric: ErrorRate
+      threshold: 10  # errors per minute
+      comparison: GreaterThanThreshold
+
+# Security
+security:
+  ssl_certificate: arn:aws:acm:ap-south-1:account:certificate/xxxxx
+  waf_enabled: true
+  vpc:
+    cidr: 10.0.0.0/16
+    public_subnets:
+      - 10.0.1.0/24
+      - 10.0.2.0/24
+    private_subnets:
+      - 10.0.10.0/24
+      - 10.0.11.0/24
+    database_subnets:
+      - 10.0.20.0/24
+      - 10.0.21.0/24
+
+# Cost Optimization
+cost_optimization:
+  use_spot_instances: false  # For production stability
+  use_reserved_instances: true
+  use_savings_plans: true
+  
+# Deployment Strategy
+deployment:
+  strategy: blue_green
+  health_check_grace_period: 300
+  deregistration_delay: 30
+  
+# Backup & Disaster Recovery
+backup:
+  database:
+    automated_backups: true
+    retention_period: 7
+    cross_region_backup: true
+    backup_region: ap-southeast-1  # Singapore
+  
+  application:
+    snapshot_frequency: daily
+    retention_period: 7

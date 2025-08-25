@@ -1,0 +1,128 @@
+{% extends "layout.html" %}
+
+{% block title %}Scan Details - traitor track{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Scan Details</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-qrcode me-2"></i>Scan Information
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Scan Details</h6>
+                            <table class="table table-borderless text-dark">
+                                <tr>
+                                    <td><strong>Scan ID:</strong></td>
+                                    <td>{{ scan.id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Timestamp:</strong></td>
+                                    <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') if scan.timestamp else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Scanned By:</strong></td>
+                                    <td>{{ scan.scanned_by.username if scan.scanned_by else 'Unknown' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Type:</strong></td>
+                                    <td>
+                                        {% if scan.parent_bag_id %}
+                                            <span class="badge bg-primary">Parent Bag</span>
+                                        {% elif scan.child_bag_id %}
+                                            <span class="badge bg-info">Child Bag</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                        {% if bag %}
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Bag Information</h6>
+                            <table class="table table-borderless text-dark">
+                                <tr>
+                                    <td><strong>QR Code:</strong></td>
+                                    <td><code>{{ bag.qr_id }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ bag.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Type:</strong></td>
+                                    <td>{{ bag.type.title() if bag.type else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Created:</strong></td>
+                                    <td>{{ bag.created_at.strftime('%Y-%m-%d') if bag.created_at else 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if bag %}
+                            <a href="{{ url_for('bag_details', qr_id=bag.qr_id|urlencode) }}" class="btn btn-primary">
+                                <i class="fas fa-eye me-2"></i>View Bag Details
+                            </a>
+                        {% endif %}
+                        
+                        <a href="/" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% if bag and bag.type == 'parent' %}
+            <div class="card bg-light mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Quick Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary">{{ bag.child_links.count() if bag.child_links else 0 }}</h4>
+                            <small class="text-muted">Child Bags</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">{{ bag.scans.count() if bag.scans else 0 }}</h4>
+                            <small class="text-muted">Total Scans</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

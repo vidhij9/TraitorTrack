@@ -1,0 +1,63 @@
+{
+  "timestamp": "2025-08-22T17:14:38.701010",
+  "summary": {
+    "passed": 12,
+    "failed": 11,
+    "warnings": 4,
+    "pass_rate": 52.17391304347826
+  },
+  "details": {
+    "passed": [
+      "Bag count integrity verified: 93 total",
+      "Scan integrity verified: 75 unique bags scanned",
+      "No orphaned scans",
+      "No orphaned links",
+      "No invalid bill bags",
+      "Parent bag creation workflow: 1453.66ms",
+      "Child bag linking workflow: 1904.96ms",
+      "Scan recording workflow: 1669.70ms",
+      "User authentication workflow: 948.55ms",
+      "Duplicate QR constraint properly enforced",
+      "Foreign key constraints properly enforced",
+      "SQL injection protection working"
+    ],
+    "failed": [
+      "Index check failed: (psycopg2.errors.UndefinedColumn) column \"tablename\" does not exist\nLINE 3:                 tablename, \n                        ^\n\n[SQL: \n            SELECT \n                tablename, \n                indexname, \n                idx_scan as index_scans,\n                idx_tup_read as tuples_read\n            FROM pg_stat_user_indexes\n            WHERE schemaname = 'public'\n            ORDER BY idx_scan DESC\n        ]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+      "Slow queries: Bag lookup by QR: 527.88ms, Parent bags count: 248.05ms, Child bags count: 238.53ms, Recent scans: 258.24ms, User by username: 249.53ms, Links for parent: 248.26ms, Dashboard stats: 251.58ms",
+      "Concurrent operation failed: (psycopg2.OperationalError) connection to server at \"ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech\" (3.143.47.40), port 5432 failed: ERROR:  Too many connections attempts\n\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "Concurrent operation failed: (psycopg2.OperationalError) connection to server at \"ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech\" (3.131.64.200), port 5432 failed: ERROR:  Too many connections attempts\n\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "Concurrent operation failed: (psycopg2.OperationalError) connection to server at \"ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech\" (3.131.64.200), port 5432 failed: ERROR:  Too many connections attempts\n\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "Concurrent operation failed: (psycopg2.OperationalError) connection to server at \"ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech\" (3.131.64.200), port 5432 failed: ERROR:  Too many connections attempts\n\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "Concurrent operation failed: (psycopg2.OperationalError) connection to server at \"ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech\" (3.143.47.40), port 5432 failed: ERROR:  Too many connections attempts\n\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "Concurrent operation failed: (psycopg2.OperationalError) connection to server at \"ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech\" (3.23.186.13), port 5432 failed: ERROR:  Too many connections attempts\n\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "Concurrent operation failed: (psycopg2.OperationalError) connection to server at \"ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech\" (3.23.186.13), port 5432 failed: ERROR:  Too many connections attempts\n\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "Concurrent operation failed: (psycopg2.OperationalError) connection to server at \"ep-yellow-truth-a5j5ivuq.us-east-2.aws.neon.tech\" (3.23.186.13), port 5432 failed: ERROR:  Too many connections attempts\n\n(Background on this error at: https://sqlalche.me/e/20/e3q8)",
+      "Bill management: (psycopg2.errors.NotNullViolation) null value in column \"bill_id\" of relation \"bill\" violates not-null constraint\nDETAIL:  Failing row contains (33, null, null, null, null, 2025-08-22 17:14:32.732555, null, 0, 0, null).\n\n[SQL: INSERT INTO bill (created_at) VALUES (NOW()) RETURNING id]\n(Background on this error at: https://sqlalche.me/e/20/gkpj)"
+    ],
+    "warnings": [
+      "Concurrent count_bags: max=490.66ms",
+      "Concurrent recent_scans: max=244.75ms",
+      "Concurrent bag_lookup: max=248.01ms",
+      "Large dataset count slow: 236.33ms"
+    ],
+    "metrics": {
+      "query_Bag lookup by QR": 527.8801918029785,
+      "query_Parent bags count": 248.05402755737305,
+      "query_Child bags count": 238.53087425231934,
+      "query_Recent scans": 258.24451446533203,
+      "query_User by username": 249.52936172485352,
+      "query_Links for parent": 248.2585906982422,
+      "query_Dashboard stats": 251.58047676086426,
+      "concurrent_count_bags_avg": 475.52839914957684,
+      "concurrent_count_bags_max": 490.65709114074707,
+      "concurrent_recent_scans_avg": 237.6492874962943,
+      "concurrent_recent_scans_max": 244.7490692138672,
+      "concurrent_bag_lookup_avg": 238.08655852363222,
+      "concurrent_bag_lookup_max": 248.0149269104004,
+      "workflow_Parent bag creation": 1453.6595344543457,
+      "workflow_Child bag linking": 1904.9639701843262,
+      "workflow_Scan recording": 1669.6972846984863,
+      "workflow_User authentication": 948.5507011413574
+    }
+  }
+}

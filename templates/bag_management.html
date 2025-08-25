@@ -1,0 +1,958 @@
+{% extends "layout.html" %}
+
+{% block title %} - Bag Management{% endblock %}
+
+{% block head %}
+<!-- Extreme QR Scanning Library -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<style>
+/* Scanner Modal Styles */
+.scanner-modal {
+    z-index: 9999;
+}
+
+.scanner-main {
+    position: relative;
+    width: 100%;
+    min-height: 450px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Scanner responsiveness */
+@media (max-width: 768px) {
+    .scanner-main {
+        min-height: 350px;
+    }
+}
+
+.scanner-status {
+    display: flex;
+    align-items: center;
+}
+
+.scanner-info {
+    font-size: 0.85rem;
+}
+
+/* Success animation */
+@keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.scan-success {
+    animation: successPulse 0.5s ease-in-out;
+}
+</style>
+
+{% endblock %}
+
+{% block content %}
+
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="d-flex align-items-center">
+            <h1 class="h4 mb-0 me-3"><i class="fas fa-boxes me-1"></i>Bags</h1>
+            <small class="text-muted">
+                <strong>{{ stats.total_bags }}</strong> total • 
+                <span class="text-info"><strong>{{ stats.parent_bags }}</strong> parent</span> • 
+                <span class="text-success"><strong>{{ stats.child_bags }}</strong> child</span>
+            </small>
+        </div>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ url_for('scan_parent') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i><span class="d-none d-lg-inline ms-1">New</span>
+            </a>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+                <i class="fas fa-refresh"></i><span class="d-none d-lg-inline ms-1">Clear</span>
+            </button>
+        </div>
+    </div>
+
+
+
+    <!-- Compact Collapsible Filters -->
+    <div class="card bg-light border mb-1">
+        <div class="card-header py-1 px-2" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" style="cursor: pointer;">
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="mb-0"><i class="fas fa-filter me-1"></i>Filters</small>
+                <i class="fas fa-chevron-down small"></i>
+            </div>
+        </div>
+        <div class="collapse" id="filtersCollapse">
+            <div class="card-body p-2">
+            <form method="GET" action="{{ url_for('bag_management') }}" id="filterForm">
+                <div class="row g-2">
+                    <!-- Bag Type Filter -->
+                    <div class="col-6 col-md-2">
+                        <label for="type" class="form-label">Type</label>
+                        <select class="form-select form-select-sm" id="type" name="type">
+                            <option value="all" {% if filters.type == 'all' %}selected{% endif %}>All</option>
+                            <option value="parent" {% if filters.type == 'parent' %}selected{% endif %}>Parent</option>
+                            <option value="child" {% if filters.type == 'child' %}selected{% endif %}>Child</option>
+                        </select>
+                    </div>
+
+                    <!-- Date Range Filters -->
+                    <div class="col-6 col-md-2">
+                        <label for="date_from" class="form-label">From</label>
+                        <input type="date" class="form-control form-control-sm" id="date_from" name="date_from" value="{{ filters.date_from }}">
+                    </div>
+                    
+                    <div class="col-6 col-md-2">
+                        <label for="date_to" class="form-label">To</label>
+                        <input type="date" class="form-control form-control-sm" id="date_to" name="date_to" value="{{ filters.date_to }}">
+                    </div>
+
+                    <!-- Linked Status Filter -->
+                    <div class="col-6 col-md-2">
+                        <label for="linked_status" class="form-label">Status</label>
+                        <select class="form-select form-select-sm" id="linked_status" name="linked_status">
+                            <option value="all" {% if filters.linked_status == 'all' %}selected{% endif %}>All</option>
+                            <option value="linked" {% if filters.linked_status == 'linked' %}selected{% endif %}>Linked</option>
+                            <option value="unlinked" {% if filters.linked_status == 'unlinked' %}selected{% endif %}>Unlinked</option>
+                        </select>
+                    </div>
+
+                    <!-- Bill Status Filter -->
+                    <div class="col-6 col-md-2 mobile-hide-sm">
+                        <label for="bill_status" class="form-label">Bill</label>
+                        <select class="form-select form-select-sm" id="bill_status" name="bill_status">
+                            <option value="all" {% if filters.bill_status == 'all' %}selected{% endif %}>All</option>
+                            <option value="billed" {% if filters.bill_status == 'billed' %}selected{% endif %}>Has Bill</option>
+                            <option value="unbilled" {% if filters.bill_status == 'unbilled' %}selected{% endif %}>No Bill</option>
+                        </select>
+                    </div>
+
+                    <!-- User Filter -->
+                    <div class="col-6 col-md-2">
+                        <label for="user_filter" class="form-label">Scanned By</label>
+                        <select class="form-select form-select-sm" id="user_filter" name="user_filter">
+                            <option value="all" {% if filters.user_filter == 'all' %}selected{% endif %}>All Bags ({{ stats.total_bags }})</option>
+                            <option value="unscanned" {% if filters.user_filter == 'unscanned' %}selected{% endif %}>Unscanned (0)</option>
+                            {% for user in users_with_scans %}
+                                <option value="{{ user.id }}" {% if filters.user_filter == user.id|string %}selected{% endif %}>
+                                    {{ user.username }} ({{ user.parent_bags }}, {{ user.child_bags }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Search Filter with QR Scanner -->
+                    <div class="col-md-6">
+                        <label for="search" class="form-label">Search QR Code</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search" name="search" value="{{ filters.search }}" placeholder="Enter QR code to search...">
+                            <button type="button" class="btn btn-outline-primary" id="start-qr-search" title="Scan QR Code" data-bs-toggle="modal" data-bs-target="#qrScannerModal">
+                                <i class="fas fa-qrcode"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filter Buttons -->
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-search me-2"></i>Apply Filters
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                            <i class="fas fa-times me-2"></i>Clear
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Date validation error display -->
+                {% if date_error %}
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <div class="alert alert-danger alert-sm py-2" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>{{ date_error }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                </div>
+            </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bags Table -->
+    <div class="card bg-light border">
+        <div class="card-header d-flex justify-content-between align-items-center bg-light">
+            <h5 class="mb-0 text-dark">
+                <i class="fas fa-list me-2"></i>Bags 
+                <span class="badge bg-secondary ms-2">{{ stats.filtered_count }} found</span>
+            </h5>
+
+        </div>
+        <div class="card-body p-0">
+            {% if bags and bags.total > 0 %}
+            <div class="table-responsive">
+                <table class="table table-light table-striped table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="25%">QR Code</th>
+                            <th width="15%" class="d-none d-md-table-cell">Date</th>
+                            <th width="20%">Status</th>
+                            <th width="15%" class="mobile-hide-sm">Bill</th>
+                            <th width="15%" class="d-none d-lg-table-cell">Last Scan</th>
+                            <th width="10%">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bag in bags.items %}
+                        <tr>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <div class="d-flex align-items-center">
+                                        <strong class="me-2">{{ bag.qr_id }}</strong>
+                                        {% if bag.type == 'parent' %}
+                                            <span class="badge bg-info">Parent</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Child</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="d-md-none text-muted mt-1">{{ bag.created_at.strftime('%m/%d') if bag.created_at else 'N/A' }}</small>
+                                    {% if bag.notes is defined and bag.notes %}
+                                    <small class="text-muted mt-1">{{ bag.notes[:30] }}{% if bag.notes|length > 30 %}...{% endif %}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                <small>{{ bag.created_at.strftime('%Y-%m-%d') if bag.created_at else 'N/A' }}</small>
+                            </td>
+                            <td>
+                                {% if bag.type == 'parent' %}
+                                    {% set children_count = bag.child_links.count() %}
+                                    {% if children_count > 0 %}
+                                        <span class="badge bg-success">Linked</span>
+                                        <br><small class="text-muted">{{ children_count }} child{{ 'ren' if children_count > 1 else '' }}</small>
+                                    {% else %}
+                                        <span class="badge bg-danger">Unlinked</span>
+                                        <br><small class="text-muted">0 children</small>
+                                    {% endif %}
+                                {% else %}
+                                    {% set parent_link = bag.parent_links.first() %}
+                                    {% if parent_link %}
+                                        <span class="badge bg-success">Linked</span>
+                                        <br class="d-none d-sm-block"><small class="text-muted d-none d-sm-inline">to {{ parent_link.parent_bag.qr_id }}</small>
+                                    {% else %}
+                                        <span class="badge bg-danger">Unlinked</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="mobile-hide-sm">
+                                {% if bag.type == 'parent' %}
+                                    {% set bill_link = bag.bill_links.first() %}
+                                    {% if bill_link %}
+                                        <span class="badge bg-primary">{{ bill_link.bill.bill_id }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No Bill</span>
+                                    {% endif %}
+                                {% else %}
+                                    {% set parent_link = bag.parent_links.first() %}
+                                    {% if parent_link and parent_link.parent_bag.bill_links.first() %}
+                                        {% set parent_bill = parent_link.parent_bag.bill_links.first() %}
+                                        <span class="badge bg-primary">{{ parent_bill.bill.bill_id }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No Bill</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-lg-table-cell">
+                                {% set last_scan = bag.last_scan %}
+                                {% if last_scan %}
+                                    <small>{{ last_scan.timestamp.strftime('%m/%d %H:%M') if last_scan and last_scan.timestamp else 'Never' }}</small>
+                                {% else %}
+                                    <span class="text-muted">No scans</span>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle">
+                                <div class="btn-group btn-group-sm d-flex flex-wrap justify-content-center" role="group">
+                                    <a href="{{ url_for('bag_details', qr_id=bag.qr_id|urlencode) }}" class="btn btn-outline-primary btn-sm me-1 mb-1" title="View">
+                                        <i class="fas fa-eye"></i><span class="d-none d-lg-inline ms-1">View</span>
+                                    </a>
+                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn me-1 mb-1" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete">
+                                        <i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No bags found</h5>
+                <p class="text-muted">Try adjusting your filters or scanning new bags.</p>
+                <a href="{{ url_for('scan_parent') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Scan New Bags
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- QR Scanner Modal -->
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-qrcode me-2"></i>Scan QR Code
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="bag-scanner-container" class="scanner-container mb-3">
+                    <!-- Scanner will be initialized here -->
+                </div>
+                <div id="scan-result-display" class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Position QR code in the scanning area
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="use-scanned-code" disabled>Use This Code</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+function clearFilters() {
+    const form = document.getElementById('filterForm');
+    form.reset();
+    // Set all selects to "all"
+    document.getElementById('type').value = 'all';
+    document.getElementById('linked_status').value = 'all';
+    document.getElementById('bill_status').value = 'all';
+    document.getElementById('user_filter').value = 'all';
+    // Remove location if it exists (it's not in the current form)
+    const locationElement = document.getElementById('location');
+    if (locationElement) {
+        locationElement.value = 'all';
+    }
+    form.submit();
+}
+
+function exportData(format) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', format);
+    window.open(`{{ url_for('bag_management') }}?${params.toString()}`);
+}
+
+// Manual filter submission for better performance
+document.addEventListener('DOMContentLoaded', function() {
+    // Track if page needs refresh
+    let lastUpdateTime = Date.now();
+    let isPageHidden = false;
+    
+    // Listen for page visibility changes
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            isPageHidden = true;
+        } else if (isPageHidden) {
+            // Page became visible after being hidden
+            isPageHidden = false;
+            const timeSinceUpdate = Date.now() - lastUpdateTime;
+            
+            // If more than 30 seconds have passed, check for updates
+            if (timeSinceUpdate > 30000) {
+                checkForUpdates();
+            }
+        }
+    });
+    
+    // Check for updates when returning to the page
+    async function checkForUpdates() {
+        try {
+            const response = await fetch('/api/v2/stats');
+            const data = await response.json();
+            
+            if (data.success) {
+                // Compare current stats with page stats
+                const currentStatsElement = document.querySelector('.text-muted small');
+                if (currentStatsElement) {
+                    const currentText = currentStatsElement.textContent;
+                    const newText = `${data.stats.total_bags} total • ${data.stats.parent_bags} parent • ${data.stats.child_bags} child`;
+                    
+                    // If stats have changed, show notification
+                    if (!currentText.includes(data.stats.total_bags.toString())) {
+                        showAlert('info', 'Page data has been updated. The statistics have been refreshed.');
+                        await updateBagStats();
+                    }
+                }
+                
+                lastUpdateTime = Date.now();
+            }
+        } catch (error) {
+            console.error('Error checking for updates:', error);
+        }
+    }
+    
+    const dateFromInput = document.getElementById('date_from');
+    const dateToInput = document.getElementById('date_to');
+    
+    // Date validation function
+    function validateDateRange() {
+        const fromDate = dateFromInput.value;
+        const toDate = dateToInput.value;
+        
+        if (fromDate && toDate) {
+            if (new Date(toDate) < new Date(fromDate)) {
+                dateToInput.setCustomValidity('To date must be after From date');
+                return false;
+            } else {
+                dateToInput.setCustomValidity('');
+                return true;
+            }
+        }
+        dateToInput.setCustomValidity('');
+        return true;
+    }
+    
+    // Set minimum date for "To" field when "From" date changes
+    dateFromInput.addEventListener('change', function() {
+        if (this.value) {
+            dateToInput.min = this.value;
+        } else {
+            dateToInput.removeAttribute('min');
+        }
+        validateDateRange();
+    });
+    
+    // Validate when "To" date changes
+    dateToInput.addEventListener('change', function() {
+        validateDateRange();
+    });
+    
+    // Initialize min attribute if from date is already set
+    if (dateFromInput.value) {
+        dateToInput.min = dateFromInput.value;
+    }
+    
+    // Add Enter key support for search input
+    document.getElementById('search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('filterForm').submit();
+        }
+    });
+    
+    // Show loading indicator when filters are applied
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+        if (!validateDateRange()) {
+            e.preventDefault();
+            return false;
+        }
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Applying...';
+        submitBtn.disabled = true;
+    });
+    
+    // Function to update stats after bag changes
+    async function updateBagStats() {
+        try {
+            const response = await fetch('/api/v2/stats');
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update top stats
+                const statsContainer = document.querySelector('.text-muted small');
+                if (statsContainer) {
+                    statsContainer.innerHTML = `
+                        <strong>${data.stats.total_bags}</strong> total • 
+                        <span class="text-info"><strong>${data.stats.parent_bags}</strong> parent</span> • 
+                        <span class="text-success"><strong>${data.stats.child_bags}</strong> child</span>
+                    `;
+                }
+                
+                // Update filtered count badge
+                const filteredBadge = document.querySelector('.badge.bg-secondary.ms-2');
+                if (filteredBadge) {
+                    // Count visible rows in the table
+                    const visibleRows = document.querySelectorAll('tbody tr').length;
+                    filteredBadge.textContent = `${visibleRows} found`;
+                }
+            }
+        } catch (error) {
+            console.error('Error updating stats:', error);
+        }
+    }
+
+    // Handle delete bag button clicks
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-bag-btn') || e.target.parentElement.classList.contains('delete-bag-btn')) {
+            const button = e.target.classList.contains('delete-bag-btn') ? e.target : e.target.parentElement;
+            const qrCode = button.dataset.qr;
+            const bagType = button.dataset.type;
+            
+            let confirmMessage = `Are you sure you want to delete ${bagType} bag ${qrCode}?`;
+            if (bagType === 'parent') {
+                confirmMessage += '\n\nThis will also delete ALL linked child bags!';
+            }
+            
+            if (confirm(confirmMessage)) {
+                // Disable button to prevent double-click
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                // Send delete request (fixed route)
+                fetch('/api/delete_bag', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `qr_code=${encodeURIComponent(qrCode)}`
+                })
+                .then(response => response.json())
+                .then(async data => {
+                    if (data.success) {
+                        // Remove the row from table with animation
+                        const row = button.closest('tr');
+                        row.style.transition = 'opacity 0.3s';
+                        row.style.opacity = '0';
+                        
+                        setTimeout(() => {
+                            row.remove();
+                            
+                            // Check if table is now empty
+                            const remainingRows = document.querySelectorAll('tbody tr').length;
+                            if (remainingRows === 0) {
+                                // Show empty state
+                                const tableContainer = document.querySelector('.table-responsive') || document.querySelector('table').parentElement;
+                                tableContainer.innerHTML = `
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No bags found</h5>
+                                        <p class="text-muted">Try adjusting your filters or scanning new bags.</p>
+                                        <a href="{{ url_for('scan_parent') }}" class="btn btn-primary">
+                                            <i class="fas fa-plus me-2"></i>Scan New Bags
+                                        </a>
+                                    </div>
+                                `;
+                            }
+                        }, 300);
+                        
+                        // Update statistics
+                        await updateBagStats();
+                        
+                        // Show success message
+                        showAlert('success', data.message);
+                    } else {
+                        // Re-enable button on error
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>';
+                        showAlert('danger', data.message);
+                    }
+                })
+                .catch(error => {
+                    // Re-enable button on error
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>';
+                    showAlert('danger', 'Error deleting bag');
+                });
+            }
+        }
+        
+        // Handle edit parent button clicks
+        if (e.target.classList.contains('edit-parent-btn') || e.target.parentElement.classList.contains('edit-parent-btn')) {
+            const button = e.target.classList.contains('edit-parent-btn') ? e.target : e.target.parentElement;
+            const qrCode = button.dataset.qr;
+            openEditModal(qrCode);
+        }
+    });
+
+    // QR Scanner functionality
+    let bagScanner = null;
+    let scannedQRCode = null;
+
+    document.getElementById('start-qr-search').addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('qrScannerModal'));
+        modal.show();
+        
+        // Initialize scanner when modal is shown
+        document.getElementById('qrScannerModal').addEventListener('shown.bs.modal', function() {
+            initBagScanner();
+        }, { once: true });
+    });
+
+    document.getElementById('use-scanned-code').addEventListener('click', function() {
+        if (scannedQRCode) {
+            document.getElementById('search').value = scannedQRCode;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('qrScannerModal'));
+            modal.hide();
+            document.getElementById('filterForm').submit();
+        }
+    });
+
+    // Clean up scanner when modal is closed
+    document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', function() {
+        if (bagScanner) {
+            bagScanner.stop();
+            bagScanner = null;
+        }
+        scannedQRCode = null;
+        document.getElementById('use-scanned-code').disabled = true;
+        document.getElementById('scan-result-display').className = 'alert alert-info';
+        document.getElementById('scan-result-display').innerHTML = '<i class="fas fa-info-circle me-2"></i>Position QR code in the scanning area';
+    });
+
+    async function initBagScanner() {
+        try {
+            if (!bagScanner) {
+                console.log('Creating bag scanner...');
+                bagScanner = new InstantDetectionScanner('bag-scanner-container', function(qrCode) {
+                    // Success callback - auto submit the search
+                    scannedQRCode = qrCode;
+                    document.getElementById('scan-result-display').className = 'alert alert-success';
+                    document.getElementById('scan-result-display').innerHTML = 
+                        `<i class="fas fa-check-circle me-2"></i>QR Code detected: <strong>${qrCode}</strong>`;
+                    document.getElementById('use-scanned-code').disabled = false;
+                    
+                    // Auto-submit after successful scan
+                    setTimeout(() => {
+                        document.getElementById('search').value = qrCode;
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('qrScannerModal'));
+                        if (modal) modal.hide();
+                        document.getElementById('filterForm').submit();
+                    }, 500);
+                });
+                console.log('Bag scanner created successfully');
+            }
+        } catch (error) {
+            console.error('Scanner initialization failed:', error);
+            document.getElementById('scan-result-display').className = 'alert alert-danger';
+            document.getElementById('scan-result-display').innerHTML = 
+                '<i class="fas fa-exclamation-circle me-2"></i>Scanner initialization failed. Please refresh the page.';
+        }
+    }
+});
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+function openEditModal(parentQr) {
+    // Fetch current child bags for this parent
+    fetch(`/api/parent-children/${parentQr}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showEditModal(parentQr, data.children);
+            } else {
+                showAlert('danger', 'Error loading parent bag children');
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Error loading data');
+        });
+}
+
+function showEditModal(parentQr, children) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'editModal';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Child Bags for ${parentQr}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editChildrenForm">
+                        <input type="hidden" name="parent_qr" value="${parentQr}">
+                        <div class="mb-3">
+                            <label class="form-label">Child Bag QR Codes (one per line):</label>
+                            <textarea class="form-control" name="child_qrs" rows="10" placeholder="Enter child bag QR codes, one per line">${children.join('\n')}</textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveChildrenChanges()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    // Clean up when modal is hidden
+    modal.addEventListener('hidden.bs.modal', function() {
+        modal.remove();
+    });
+}
+
+function saveChildrenChanges() {
+    const form = document.getElementById('editChildrenForm');
+    const formData = new FormData(form);
+    
+    // Convert textarea content to array
+    const childQrs = formData.get('child_qrs').split('\n').filter(qr => qr.trim());
+    const parentQr = formData.get('parent_qr');
+    
+    // Prepare data for submission
+    const submitData = new URLSearchParams();
+    submitData.append('parent_qr', parentQr);
+    submitData.append('csrf_token', '{{ csrf_token() }}');
+    childQrs.forEach(qr => {
+        submitData.append('child_qrs[]', qr.trim());
+    });
+    
+    fetch('/api/edit-parent-children', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: submitData
+    })
+    .then(response => response.json())
+    .then(async data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+            
+            // Update the specific row for this parent bag
+            updateParentBagRow(parentQr, childQrs.length);
+            
+            // Update statistics
+            await updateBagStats();
+        } else {
+            showAlert('danger', data.message);
+        }
+    })
+    .catch(error => {
+        showAlert('danger', 'Error updating children');
+    });
+}
+
+function updateParentBagRow(parentQr, childCount) {
+    // Find the row for this parent bag
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const qrCell = row.querySelector('td:first-child strong');
+        if (qrCell && qrCell.textContent === parentQr) {
+            // Update the status column (3rd column)
+            const statusCell = row.querySelectorAll('td')[2];
+            if (statusCell) {
+                if (childCount > 0) {
+                    statusCell.innerHTML = `
+                        <span class="badge bg-success">Linked</span>
+                        <br><small class="text-muted">${childCount} child${childCount > 1 ? 'ren' : ''}</small>
+                    `;
+                } else {
+                    statusCell.innerHTML = `
+                        <span class="badge bg-danger">Unlinked</span>
+                        <br><small class="text-muted">0 children</small>
+                    `;
+                }
+                
+                // Add a highlight effect to show the row was updated
+                row.style.transition = 'background-color 0.3s';
+                row.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    row.style.backgroundColor = '';
+                }, 1500);
+            }
+        }
+    });
+}
+
+function updateParentBagRow(parentQr, childCount) {
+    // Find the row for this parent bag
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const qrCell = row.querySelector('td:first-child strong');
+        if (qrCell && qrCell.textContent === parentQr) {
+            // Update the status column (3rd column)
+            const statusCell = row.querySelectorAll('td')[2];
+            if (statusCell) {
+                if (childCount > 0) {
+                    statusCell.innerHTML = `
+                        <span class="badge bg-success">Linked</span>
+                        <br><small class="text-muted">${childCount} child${childCount > 1 ? 'ren' : ''}</small>
+                    `;
+                } else {
+                    statusCell.innerHTML = `
+                        <span class="badge bg-danger">Unlinked</span>
+                        <br><small class="text-muted">0 children</small>
+                    `;
+                }
+                
+                // Add a highlight effect to show the row was updated
+                row.style.transition = 'background-color 0.3s';
+                row.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    row.style.backgroundColor = '';
+                }, 1500);
+            }
+        }
+    });
+}
+
+
+</script>
+
+<!-- QR Scanner Modal -->
+<div class="modal fade scanner-modal" id="qrScannerModal" tabindex="-1" aria-labelledby="qrScannerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qrScannerModalLabel">
+                    <i class="fas fa-qrcode me-2"></i>Scan QR Code
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="bag-scanner-container" class="scanner-main">
+                    <!-- Scanner loads here -->
+                </div>
+                
+                <!-- Scanner Status -->
+                <div class="p-3" style="background: #f8f9fa;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="scanner-status">
+                            <span id="bag-scanner-status" class="badge bg-info">
+                                <i class="fas fa-spinner fa-spin me-1"></i>Starting...
+                            </span>
+                        </div>
+                        <div class="scanner-info">
+                            <small class="text-muted">Point at QR code to search</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let bagScanner = null;
+    
+    // QR Scanner Modal for Bag Search
+    const qrScannerModal = document.getElementById('qrScannerModal');
+    const searchInput = document.getElementById('search');
+    
+    // Initialize scanner when modal opens
+    qrScannerModal.addEventListener('shown.bs.modal', function() {
+        initializeBagScanner();
+    });
+    
+    // Cleanup scanner when modal closes
+    qrScannerModal.addEventListener('hidden.bs.modal', function() {
+        if (bagScanner && bagScanner.stop) {
+            bagScanner.stop();
+            bagScanner = null;
+        }
+    });
+    
+    // Initialize Bag Scanner
+    async function initializeBagScanner() {
+        try {
+            updateScannerStatus('Starting...', 'info');
+            
+            // Check if jsQR is loaded
+            if (typeof jsQR === 'undefined') {
+                throw new Error('QR scanning library not loaded');
+            }
+            
+            // Request camera permissions
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch (permError) {
+                throw new Error('Camera access denied. Please allow camera access and try again.');
+            }
+            
+            // Stop any existing scanner
+            if (bagScanner && bagScanner.stop) {
+                bagScanner.stop();
+            }
+            
+            // Use Instant Detection Scanner with callback
+            bagScanner = new InstantDetectionScanner('bag-scanner-container', handleBagScanSuccess);
+            
+            // Monitor scanner status
+            setTimeout(() => {
+                updateScannerStatus('Ready', 'success');
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Bag scanner initialization error:', error);
+            updateScannerStatus('Error', 'danger');
+        }
+    }
+    
+    // Update scanner status badge
+    function updateScannerStatus(text, type) {
+        const statusBadge = document.getElementById('bag-scanner-status');
+        statusBadge.className = `badge bg-${type}`;
+        
+        let icon = '';
+        switch(type) {
+            case 'success':
+                icon = '<i class="fas fa-check-circle me-1"></i>';
+                break;
+            case 'danger':
+                icon = '<i class="fas fa-exclamation-circle me-1"></i>';
+                break;
+            case 'info':
+                icon = '<i class="fas fa-spinner fa-spin me-1"></i>';
+                break;
+        }
+        
+        statusBadge.innerHTML = icon + text;
+    }
+    
+    // Handle successful scan
+    function handleBagScanSuccess(qrCode) {
+        console.log('Bag QR scanned:', qrCode);
+        
+        // Haptic feedback
+        if (navigator.vibrate) {
+            navigator.vibrate(200);
+        }
+        
+        // Fill search input
+        searchInput.value = qrCode;
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(qrScannerModal);
+        modal.hide();
+        
+        // Auto-submit form
+        document.getElementById('filterForm').submit();
+    }
+});
+</script>
+{% endblock %}

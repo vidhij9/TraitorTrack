@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+
+{% block title %}Create Bill - traitor track{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h2 class="card-title mb-3">
+                        <i class="fas fa-file-invoice me-2"></i>Create New Bill
+                    </h2>
+                    
+                    <div class="progress-container">
+                        <div class="progress-indicator">
+                            <div class="progress-step active">
+                                <div class="progress-step-circle">1</div>
+                                <div class="progress-step-label">Create Bill</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">2</div>
+                                <div class="progress-step-label">Scan Parent Bags</div>
+                            </div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">
+                                <div class="progress-step-circle">3</div>
+                                <div class="progress-step-label">Complete</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="card-text">Enter the bill ID to create a new bill and start scanning parent bags.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header bg-primary bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Bill Information</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('create_bill') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        
+                        <div class="mb-4">
+                            <label for="bill_id" class="form-label">Bill ID</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-hashtag"></i>
+                                </span>
+                                <input type="text" class="form-control" id="bill_id" name="bill_id" 
+                                       value="{{ request.form.get('bill_id', '') }}" required autofocus>
+                            </div>
+                            <div class="form-text">Enter a unique identifier for this bill.</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="parent_bag_count" class="form-label">Number of Parent Bags</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-boxes"></i>
+                                </span>
+                                <input type="number" class="form-control" id="parent_bag_count" name="parent_bag_count" min="1" max="50" value="{{ request.form.get('parent_bag_count', '5') }}" required>
+                            </div>
+                            <div class="form-text">How many parent bags should be linked to this bill?</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-arrow-right me-2"></i>Continue to Scan Parent Bags
+                            </button>
+                            <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

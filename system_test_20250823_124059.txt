@@ -1,0 +1,72 @@
+
+======================================================================
+COMPREHENSIVE SYSTEM TEST REPORT
+======================================================================
+Test Duration: 24.61 seconds
+Timestamp: 2025-08-23T12:40:59.224520
+
+TEST SUMMARY:
+--------------------------------------------------
+Total Tests: 14
+✅ Passed: 9
+⚠️  Warnings: 4
+❌ Failed: 1
+
+❌ FAILED TESTS (Must Fix):
+--------------------------------------------------
+  • Database test failed: (psycopg2.errors.UndefinedColumn) column "created_at" does not exist
+LINE 1: SELECT * FROM scan ORDER BY created_at DESC LIMIT 10
+                                    ^
+
+[SQL: SELECT * FROM scan ORDER BY created_at DESC LIMIT 10]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+⚠️  WARNINGS (Review):
+--------------------------------------------------
+  • /production-health: Slow (2.619s > 0.5s)
+  • Bag lookup by QR: 239.59ms (slow)
+  • Parent bag count: 235.93ms (slow)
+  • Index idx_scan_created_at: missing
+
+✅ PASSED TESTS:
+--------------------------------------------------
+  • /health: 0.005s
+  • /api/stats: 2.259s
+  • /ultra_cache_stats: 0.006s
+  • Database indexes: 90 (optimized)
+  • Concurrent users test: 10 users handled successfully
+  • Concurrent users test: 50 users handled successfully
+  • Index idx_bag_qr_upper: exists
+  • Index idx_bag_type_created: exists
+  • Index idx_link_parent_child: exists
+
+📊 PERFORMANCE METRICS:
+--------------------------------------------------
+  concurrent_users: 50
+  avg_response: 136.37ms
+  max_response: 329.92ms
+  error_rate: 0/150
+  current_bags: 1146
+  current_links: 813
+  current_scans: 403
+  current_users: 26
+  scale_factor: 698x
+  projected_db_size: 4508MB
+
+🔧 FEATURE STATUS:
+--------------------------------------------------
+  ✅ login_page: OK
+  ✅ dashboard: OK
+  ✅ /scan_parent: OK
+  ✅ /scan_child: OK
+  ⚠️ /ultra_batch/scanner: Status 404
+  ✅ /api/stats: OK
+  ✅ /api/bags/search?qr_id=TEST: OK
+  ✅ /api/v2/stats: OK
+
+🚀 PRODUCTION READINESS:
+--------------------------------------------------
+❌ NOT PRODUCTION READY
+   Critical issues must be resolved
+
+======================================================================

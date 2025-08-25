@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-08-25T11:56:08.027474",
+  "tests": {
+    "health_check": {
+      "avg_ms": 6.2,
+      "p95_ms": 5.5,
+      "passed": true
+    },
+    "cache": {
+      "hit_rate": 80.0,
+      "hits": 4,
+      "misses": 1,
+      "passed": false
+    },
+    "load_test": {
+      "concurrent_users": 50,
+      "total_requests": 1500,
+      "successful": 1500,
+      "success_rate": 100.0,
+      "avg_ms": 444.6,
+      "p95_ms": 1378.7,
+      "p99_ms": 1545.8,
+      "passed": false
+    },
+    "connection_pool": {
+      "avg_ms": 10.2,
+      "error_rate": 0.0,
+      "passed": true
+    },
+    "security": {
+      "headers_present": true,
+      "csrf_enabled": true,
+      "passed": true
+    }
+  },
+  "metrics": {},
+  "passed": 3,
+  "failed": 1,
+  "score": 75.0,
+  "production_ready": false
+}

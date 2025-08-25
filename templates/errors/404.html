@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block title %} - Page Not Found{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="error-container mb-5">
+                <div class="error-code">
+                    <span class="display-1 fw-bold text-success">404</span>
+                </div>
+                <div class="error-icon my-4">
+                    <div class="d-inline-block position-relative">
+                        <i class="fas fa-seedling fa-5x text-success opacity-25"></i>
+                        <i class="fas fa-search position-absolute top-50 start-50 translate-middle text-success"></i>
+                    </div>
+                </div>
+                <h1 class="mb-4">Page Not Found</h1>
+                <p class="lead text-muted mb-5">
+                    We couldn't find the page you were looking for. 
+                    It might have been removed, had its name changed, or is temporarily unavailable.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="/" class="btn btn-success">
+                        <i class="fas fa-home me-2"></i>Return to Dashboard
+                    </a>
+                    <button onclick="window.history.back()" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Go Back
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card bg-dark border-success">
+                <div class="card-body">
+                    <h5 class="card-title">Looking for something?</h5>
+                    <p class="card-text text-muted mb-3">
+                        Try one of these popular destinations:
+                    </p>
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <a href="{{ url_for('parent_bags') }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-boxes me-1"></i>Parent Bags
+                        </a>
+                        <a href="{{ url_for('child_bags') }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-box me-1"></i>Child Bags
+                        </a>
+                        <a href="{{ url_for('scan_parent') }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-qrcode me-1"></i>Scan Bags
+                        </a>
+                        <a href="{{ url_for('locations') }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-map-marker-alt me-1"></i>Locations
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

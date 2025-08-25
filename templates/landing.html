@@ -1,0 +1,411 @@
+{% extends "layout.html" %}
+
+{% block title %}Welcome to traitor track{% endblock %}
+
+{% block body_class %}landing-page{% endblock %}
+
+{% block extra_css %}
+<style>
+/* LANDING PAGE HIGH CONTRAST OVERRIDE - Maximum specificity */
+body.landing-page {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    min-height: 100vh !important;
+    color: #212529 !important;
+}
+
+/* Force override all existing styles with ultra-high specificity */
+body.landing-page *,
+body.landing-page h1,
+body.landing-page h2,
+body.landing-page h3,
+body.landing-page h4,
+body.landing-page h5,
+body.landing-page h6,
+body.landing-page p,
+body.landing-page span,
+body.landing-page div:not(.feature-showcase):not(.feature-mini-card),
+body.landing-page .card-title,
+body.landing-page .card-text {
+    color: #212529 !important;
+    font-weight: inherit !important;
+}
+
+/* Container styling */
+.container-fluid {
+    background: transparent !important;
+}
+
+/* All text elements with maximum specificity */
+body .container-fluid h1,
+body .container-fluid h2,
+body .container-fluid h3,
+body .container-fluid h4,
+body .container-fluid h5,
+body .container-fluid h6,
+body .container-fluid p,
+body .container-fluid span,
+body .container-fluid div:not(.feature-showcase):not(.feature-mini-card),
+body .container-fluid .lead {
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+/* Specific text styling classes */
+.landing-text-primary {
+    color: #212529 !important;
+    font-weight: 700 !important;
+}
+
+.landing-text-secondary {
+    color: #495057 !important;
+    font-weight: 600 !important;
+}
+
+.landing-text-muted {
+    color: #6c757d !important;
+    font-weight: 500 !important;
+}
+
+/* Lead text override */
+body .lead {
+    color: #495057 !important;
+    font-weight: 600 !important;
+    font-size: 1.25rem !important;
+}
+
+/* Feature cards with strong contrast */
+.feature-card {
+    background: #ffffff !important;
+    border: 2px solid #dee2e6 !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+    transition: all 0.3s ease !important;
+}
+
+.feature-card:hover {
+    border-color: #28a745 !important;
+    box-shadow: 0 8px 15px rgba(40,167,69,0.2) !important;
+    transform: translateY(-2px) !important;
+}
+
+.feature-card .card-title {
+    color: #212529 !important;
+    font-weight: 700 !important;
+}
+
+.feature-card .card-text {
+    color: #495057 !important;
+    font-weight: 500 !important;
+}
+
+/* Version badge */
+.version-badge {
+    color: #28a745 !important;
+    font-weight: 700 !important;
+    background: #ffffff !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 50px !important;
+    border: 2px solid #28a745 !important;
+    display: inline-block !important;
+}
+
+/* Feature icons */
+.feature-icon {
+    color: #28a745 !important;
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.1)) !important;
+}
+
+/* Button styling */
+.btn-primary {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 4px rgba(40,167,69,0.3) !important;
+}
+
+.btn-primary:hover {
+    background-color: #218838 !important;
+    border-color: #218838 !important;
+    box-shadow: 0 4px 8px rgba(40,167,69,0.4) !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-outline-primary {
+    border-color: #28a745 !important;
+    color: #28a745 !important;
+    font-weight: 600 !important;
+    background: #ffffff !important;
+    border-width: 2px !important;
+}
+
+.btn-outline-primary:hover {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Hero section */
+.hero-section {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 15px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+}
+
+.hero-section * {
+    color: #212529 !important;
+}
+
+.hero-section .landing-text-secondary {
+    color: #495057 !important;
+}
+
+.hero-section .landing-text-muted {
+    color: #6c757d !important;
+}
+
+/* Feature showcase - keep white text on green background */
+.feature-showcase {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%) !important;
+    border-radius: 15px !important;
+    box-shadow: 0 10px 30px rgba(40,167,69,0.3) !important;
+}
+
+.feature-showcase *,
+.feature-showcase h3,
+.feature-showcase h6,
+.feature-showcase p {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+.feature-mini-card {
+    background: rgba(255,255,255,0.15) !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+.feature-mini-card * {
+    color: #ffffff !important;
+}
+
+/* Call to action section */
+.cta-section {
+    background: #ffffff !important;
+    border: 2px solid #e9ecef !important;
+    border-radius: 15px !important;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08) !important;
+}
+
+.cta-section * {
+    color: #212529 !important;
+}
+
+.cta-section p {
+    color: #6c757d !important;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .hero-section {
+        margin: 10px !important;
+        padding: 20px !important;
+    }
+    
+    .feature-showcase {
+        margin: 10px !important;
+    }
+}
+
+/* Logo visibility - Force display */
+img[alt="Traitor Track"] {
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.1)) !important;
+    opacity: 1 !important;
+    display: block !important;
+    visibility: visible !important;
+    max-width: 300px !important;
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Ensure logo container is visible */
+.mb-4.d-flex.align-items-center.flex-wrap {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Hero Section -->
+    <div class="row min-vh-100 align-items-center">
+        <div class="col-lg-6 order-lg-1 order-2">
+            <div class="hero-section px-4 py-5 m-2">
+                <div class="mb-4 d-flex align-items-center flex-wrap">
+                    <img src="{{ url_for('static', filename='img/traitor-track-logo.svg') }}" alt="Traitor Track" style="max-width: 300px; width: 100%; height: auto;">
+                    <span class="version-badge ms-3">2.0</span>
+                </div>
+                <p class="lead landing-text-secondary mb-4">
+                    Advanced supply chain traceability platform that empowers agricultural stakeholders with comprehensive tracking and management capabilities.
+                </p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-qrcode feature-icon fa-2x"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="landing-text-primary mb-1">QR Code Scanning</h5>
+                                <p class="landing-text-muted mb-0">Fast and accurate product tracking</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-chart-line feature-icon fa-2x"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="landing-text-primary mb-1">Real-time Analytics</h5>
+                                <p class="landing-text-muted mb-0">Comprehensive reporting and insights</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-link feature-icon fa-2x"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="landing-text-primary mb-1">Supply Chain Linking</h5>
+                                <p class="landing-text-muted mb-0">Connect products throughout the supply chain</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-shield-alt feature-icon fa-2x"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="landing-text-primary mb-1">Secure & Reliable</h5>
+                                <p class="landing-text-muted mb-0">Enterprise-grade security and reliability</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex flex-wrap gap-3">
+                    <a href="/login" class="btn btn-primary btn-lg px-4">
+                        <i class="fas fa-sign-in-alt me-2"></i>LOGIN
+                    </a>
+                    <a href="/register" class="btn btn-outline-primary btn-lg px-4">
+                        <i class="fas fa-user-plus me-2"></i>REGISTER
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 order-lg-2 order-1">
+            <div class="text-center p-4">
+                <div class="position-relative">
+                    <!-- Feature showcase illustration -->
+                    <div class="feature-showcase p-5 m-2">
+                        <div class="row g-4">
+                            <div class="col-12 text-center">
+                                <i class="fas fa-boxes text-white fa-5x mb-3"></i>
+                                <h3 class="text-white mb-3">Supply Chain Management</h3>
+                                <p class="text-white mb-4">Track products from origin to destination with complete visibility</p>
+                            </div>
+                            
+                            <div class="col-6 text-center">
+                                <div class="feature-mini-card rounded-3 p-3">
+                                    <i class="fas fa-search text-white fa-2x mb-2"></i>
+                                    <h6 class="text-white mb-0">Quick Search</h6>
+                                </div>
+                            </div>
+                            
+                            <div class="col-6 text-center">
+                                <div class="feature-mini-card rounded-3 p-3">
+                                    <i class="fas fa-mobile-alt text-white fa-2x mb-2"></i>
+                                    <h6 class="text-white mb-0">Mobile Ready</h6>
+                                </div>
+                            </div>
+                            
+                            <div class="col-6 text-center">
+                                <div class="feature-mini-card rounded-3 p-3">
+                                    <i class="fas fa-users text-white fa-2x mb-2"></i>
+                                    <h6 class="text-white mb-0">Team Management</h6>
+                                </div>
+                            </div>
+                            
+                            <div class="col-6 text-center">
+                                <div class="feature-mini-card rounded-3 p-3">
+                                    <i class="fas fa-download text-white fa-2x mb-2"></i>
+                                    <h6 class="text-white mb-0">Export Data</h6>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Features Section -->
+    <div class="row py-5">
+        <div class="col-12">
+            <h2 class="text-center landing-text-primary mb-5">Platform Features</h2>
+            
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="feature-card h-100">
+                        <div class="card-body text-center p-4">
+                            <i class="fas fa-qrcode feature-icon fa-3x mb-3"></i>
+                            <h5 class="card-title">QR Code Management</h5>
+                            <p class="card-text">Generate, scan, and manage QR codes for complete product traceability throughout the supply chain.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="feature-card h-100">
+                        <div class="card-body text-center p-4">
+                            <i class="fas fa-chart-bar feature-icon fa-3x mb-3"></i>
+                            <h5 class="card-title">Advanced Analytics</h5>
+                            <p class="card-text">Gain insights with comprehensive analytics, reporting, and data visualization tools.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="feature-card h-100">
+                        <div class="card-body text-center p-4">
+                            <i class="fas fa-users-cog feature-icon fa-3x mb-3"></i>
+                            <h5 class="card-title">User Management</h5>
+                            <p class="card-text">Manage team members, roles, and permissions with enterprise-grade security controls.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Call to Action -->
+    <div class="row py-5">
+        <div class="col-12 text-center">
+            <div class="cta-section p-5 m-2">
+                <h3 class="mb-4">Ready to get started?</h3>
+                <p class="mb-4">Join thousands of organizations using TraceTrack for supply chain management.</p>
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-5">
+                    <i class="fas fa-rocket me-2"></i>Get Started Today
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

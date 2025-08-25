@@ -1,0 +1,238 @@
+{% extends "layout.html" %}
+
+{% block title %}System Integrity Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2 mb-0"><i class="fas fa-shield-alt me-2"></i>System Integrity Report</h1>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+            
+            <!-- Integrity Score Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-chart-line me-2"></i>System Health Overview</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="card bg-{% if report.integrity_score >= 95 %}success{% elif report.integrity_score >= 80 %}warning{% else %}danger{% endif %} text-white">
+                                <div class="card-body">
+                                    <h2 class="display-6 fw-bold">{{ report.integrity_score }}%</h2>
+                                    <p class="mb-0">Integrity Score</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <h2 class="display-6 fw-bold">{{ report.summary.total_bags }}</h2>
+                                    <p class="mb-0">Total Bags</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <h2 class="display-6 fw-bold">{{ report.summary.total_bills }}</h2>
+                                    <p class="mb-0">Total Bills</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-{% if report.summary.has_duplicates %}danger{% else %}success{% endif %} text-white">
+                                <div class="card-body">
+                                    <h2 class="display-6 fw-bold">
+                                        {% if report.summary.has_duplicates %}<i class="fas fa-exclamation-triangle"></i>{% else %}<i class="fas fa-check"></i>{% endif %}
+                                    </h2>
+                                    <p class="mb-0">{% if report.summary.has_duplicates %}Issues Found{% else %}No Issues{% endif %}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Bag Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <p><strong>Total Bags:</strong> {{ report.summary.total_bags }}</p>
+                                    <p><strong>Unique QR Codes:</strong> {{ report.summary.unique_bag_qr_codes }}</p>
+                                </div>
+                                <div class="col-6">
+                                    <p><strong>Parent Bags:</strong> {{ report.summary.total_bags - report.summary.total_bills if report.summary.total_bags > 0 else 0 }}</p>
+                                    <p><strong>Child Bags:</strong> {{ report.summary.total_bags - (report.summary.total_bags - report.summary.total_bills) if report.summary.total_bags > 0 else 0 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Bill Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <p><strong>Total Bills:</strong> {{ report.summary.total_bills }}</p>
+                                    <p><strong>Unique Bill IDs:</strong> {{ report.summary.unique_bill_ids }}</p>
+                                </div>
+                                <div class="col-6">
+                                    <p><strong>Status:</strong> 
+                                        {% if report.summary.total_bills == report.summary.unique_bill_ids %}
+                                            <span class="badge bg-success">All Unique</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Duplicates Found</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicate Issues -->
+            {% if report.summary.has_duplicates %}
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Duplicate Issues Detected</h4>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Bag Duplicates -->
+                    {% if report.duplicates.bag_duplicates %}
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-copy me-2"></i>Duplicate Bag QR Codes</h5>
+                        {% for duplicate in report.duplicates.bag_duplicates %}
+                        <div class="mb-3">
+                            <strong>QR Code: {{ duplicate.qr_id }}</strong> ({{ duplicate.count }} instances)
+                            <ul class="mt-2">
+                                {% for bag in duplicate.bags %}
+                                <li>ID: {{ bag.id }}, Type: {{ bag.type }}, Name: {{ bag.name }}, Created: {{ bag.created_at.strftime('%Y-%m-%d %H:%M') }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Cross Duplicates (Bag QR = Bill ID) -->
+                    {% if report.duplicates.cross_duplicates %}
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exchange-alt me-2"></i>Cross-System Duplicates (Bag QR = Bill ID)</h5>
+                        {% for duplicate in report.duplicates.cross_duplicates %}
+                        <div class="mb-3">
+                            <strong>ID/QR Code: {{ duplicate.qr_id }}</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <strong>Used as Bags:</strong>
+                                    <ul>
+                                        {% for bag in duplicate.bags %}
+                                        <li>{{ bag.type }} bag (ID: {{ bag.id }})</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Used as Bills:</strong>
+                                    <ul>
+                                        {% for bill in duplicate.bills %}
+                                        <li>Bill (ID: {{ bill.id }})</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Bill Duplicates -->
+                    {% if report.duplicates.bill_duplicates %}
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-file-copy me-2"></i>Duplicate Bill IDs</h5>
+                        {% for duplicate in report.duplicates.bill_duplicates %}
+                        <div class="mb-3">
+                            <strong>Bill ID: {{ duplicate.bill_id }}</strong> ({{ duplicate.count }} instances)
+                            <ul class="mt-2">
+                                {% for bill in duplicate.bills %}
+                                <li>ID: {{ bill.id }}, Description: {{ bill.description }}, Created: {{ bill.created_at.strftime('%Y-%m-%d %H:%M') }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-4">
+                        <h6><i class="fas fa-tools me-2"></i>Recommended Actions:</h6>
+                        <ul>
+                            <li>Contact system administrator to resolve duplicate QR codes</li>
+                            <li>Review data entry procedures to prevent future duplicates</li>
+                            <li>Consider implementing stricter validation rules</li>
+                            {% if report.duplicates.cross_duplicates %}
+                            <li><strong>Critical:</strong> Resolve cross-system duplicates immediately as they can cause data corruption</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>No Duplicate Issues</h4>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">All QR codes and bill IDs are unique. The system integrity is maintained.</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Prevention Status -->
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-shield-check me-2"></i>Duplicate Prevention Status</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-check-circle text-success me-2"></i>Active Protections</h6>
+                            <ul>
+                                <li>QR code uniqueness validation for all new bags</li>
+                                <li>Bill ID uniqueness validation for all new bills</li>
+                                <li>Cross-system duplicate prevention (bag QR ≠ bill ID)</li>
+                                <li>Parent/child bag type enforcement</li>
+                                <li>Real-time duplicate attempt logging</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cogs text-info me-2"></i>System Features</h6>
+                            <ul>
+                                <li>Database-level unique constraints</li>
+                                <li>Application-level validation layers</li>
+                                <li>Comprehensive error messaging</li>
+                                <li>Audit trail for duplicate attempts</li>
+                                <li>Real-time integrity monitoring</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

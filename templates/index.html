@@ -1,0 +1,105 @@
+{% extends "layout.html" %}
+
+{% block title %}Home - traitor track{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% if current_user.is_authenticated %}
+        <!-- Ultra-Compact Header -->
+        <div class="d-flex justify-content-between align-items-center bg-light text-white rounded px-2 py-1 mb-1" style="font-size: 13px;">
+            <span>📊 Dashboard</span>
+            <span class="badge {% if is_admin %}bg-danger{% else %}bg-secondary{% endif %}">{{ current_user.username[:1].upper() }}</span>
+        </div>
+        
+        <!-- Ultra-Compact Statistics Table -->
+        <div class="row g-1 mb-1">
+            <div class="col-12">
+                <div class="bg-white rounded border p-2">
+                    <table class="table table-sm mb-0" style="font-size: 11px;">
+                        <tr>
+                            <td class="text-center p-1"><strong>{{ stats.parent_bags }}</strong><br><small class="text-muted">Parents</small></td>
+                            <td class="text-center p-1"><strong>{{ stats.child_bags }}</strong><br><small class="text-muted">Children</small></td>
+                            <td class="text-center p-1"><strong>{{ stats.bills }}</strong><br><small class="text-muted">Bills</small></td>
+                            <td class="text-center p-1"><strong>{{ stats.total_scans }}</strong><br><small class="text-muted">Scans</small></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Horizontal Compact Actions -->
+        <div class="row g-1 mb-1">
+            <div class="col-12">
+                <div class="d-flex gap-1">
+                    <a href="{{ url_for('scan_parent') }}" class="btn btn-primary btn-sm flex-fill py-1" style="font-size: 10px; min-height: 32px;">
+                        📷<br><small>Scan</small>
+                    </a>
+                    <a href="{{ url_for('bill_management') }}" class="btn btn-success btn-sm flex-fill py-1" style="font-size: 10px; min-height: 32px;">
+                        📋<br><small>Bills</small>
+                    </a>
+                    <a href="{{ url_for('child_lookup') }}" class="btn btn-info btn-sm flex-fill py-1" style="font-size: 10px; min-height: 32px;">
+                        🔍<br><small>Search</small>
+                    </a>
+                    <a href="{{ url_for('bag_management') }}" class="btn btn-warning btn-sm flex-fill py-1" style="font-size: 10px; min-height: 32px;">
+                        📦<br><small>Bags</small>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Status Summary -->
+        {% if recent_scans %}
+            <div class="row g-1 mb-1">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center bg-light rounded px-2 py-1" style="font-size: 11px;">
+                        <span class="text-muted">Last scan: {{ recent_scans[0].timestamp.strftime('%H:%M') }}</span>
+                        <span class="text-muted">{{ recent_scans|length }} recent</span>
+                        <a href="#" class="text-primary text-decoration-none">View all</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <!-- Landing page for guests -->
+        <div class="row mb-5">
+            <div class="col-lg-6 mb-4 mb-lg-0">
+                <h1 class="display-4 mb-4">Advanced Traceability System</h1>
+                <p class="lead">Track and monitor your supply chain with cutting-edge QR technology.</p>
+                <p class="mb-4">Our system provides real-time visibility, comprehensive tracking, and powerful analytics to optimize your operations.</p>
+                <div class="d-grid gap-2 d-md-flex">
+                    <a href="/login" class="btn btn-primary btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Log In
+                    </a>
+                    <a href="/register" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Register
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card bg-light border-0">
+                    <div class="card-body p-4">
+                        <h3 class="mb-3">Key Features</h3>
+                        <ul class="list-group list-group-flush mb-3">
+                            <li class="list-group-item bg-light border-secondary">
+                                <i class="fas fa-qrcode text-primary me-2"></i>QR-based parent-child bag tracking
+                            </li>
+                            <li class="list-group-item bg-light border-secondary">
+                                <i class="fas fa-chart-line text-success me-2"></i>Real-time performance analytics
+                            </li>
+                            <li class="list-group-item bg-light border-secondary">
+                                <i class="fas fa-mobile-alt text-warning me-2"></i>Mobile application support
+                            </li>
+                            <li class="list-group-item bg-light border-secondary">
+                                <i class="fas fa-shield-alt text-info me-2"></i>Advanced security and authentication
+                            </li>
+                            <li class="list-group-item bg-light border-secondary">
+                                <i class="fas fa-tachometer-alt text-danger me-2"></i>High performance for 100+ concurrent users
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

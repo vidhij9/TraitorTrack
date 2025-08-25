@@ -1,0 +1,288 @@
+{% extends "layout.html" %}
+
+{% block title %}Scan Child Bags{% endblock %}
+
+{% block head %}
+<style>
+/* Enhanced Scanner Container - matching bill_management.html style */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    height: 350px;
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .scanner-container {
+        height: 300px;
+    }
+}
+
+/* Toast styles */
+.toast {
+    min-width: 300px;
+}
+
+.toast.bg-success {
+    background-color: #198754 !important;
+    color: white;
+}
+
+.toast.bg-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.toast.bg-info {
+    background-color: #0dcaf0 !important;
+    color: black;
+}
+
+/* List item animations */
+.list-group-item {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 py-2">
+    <!-- Parent Bag Info Header -->
+    {% if parent_bag %}
+    <div class="card mb-3 border-success">
+        <div class="card-body py-2">
+            <h6 class="card-title mb-1 text-success">
+                <i class="fas fa-cube me-2"></i>Parent Bag Selected
+            </h6>
+            <p class="mb-0">
+                <code class="text-primary">{{ parent_bag.qr_code }}</code>
+                <small class="text-muted ms-2">#{{ parent_bag.id }}</small>
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Scanner Section - Same style as parent scanner -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-qrcode me-2"></i>Child Bag Scanner
+                <span class="badge bg-primary ms-2" id="progress-text">{{ scanned_child_count }}</span>
+                <small class="text-muted ms-1">scanned</small>
+            </h5>
+        </div>
+        <div class="card-body text-center">
+            <!-- InstantDetectionScanner Container - same as parent -->
+            <div id="child-scanner-container" style="position: relative; max-width: 600px; margin: 0 auto;"></div>
+            
+            <!-- Manual Entry Section - Same as parent scanner -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6>Manual Entry</h6>
+                    <form method="POST" action="{{ url_for('process_child_scan') }}" id="manual-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="input-group">
+                            <input type="text" name="qr_code" class="form-control" 
+                                   placeholder="Enter child bag QR code manually" id="manual-qr-input">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-arrow-right me-2"></i>Add Child
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanned Bags List -->
+    <div class="card mb-3">
+        <div class="card-header py-2">
+            <h6 class="mb-0">
+                <i class="fas fa-list me-2"></i>Scanned Child Bags
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            <div id="scanned-list" class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                {% if scanned_children %}
+                    {% for child in scanned_children %}
+                    <div class="list-group-item">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        {{ child.qr_code }}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3 text-muted" id="empty-list-placeholder">
+                        No child bags scanned yet
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-6">
+            <button onclick="changeParent()" class="btn btn-outline-primary btn-sm w-100">
+                <i class="fas fa-exchange-alt me-1"></i>Change Parent
+            </button>
+        </div>
+        <div class="col-6">
+            <button onclick="completeScan()" class="btn btn-success btn-sm w-100">
+                <i class="fas fa-check me-1"></i>Complete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for automatic submission - Same as parent scanner -->
+<form method="POST" action="{{ url_for('process_child_scan') }}" id="auto-submit-form" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="qr_code" id="qr-input">
+</form>
+
+<!-- Toast notifications -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="scan-toast" class="toast align-items-center border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                Message
+            </div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- InstantDetectionScanner - same as parent scanner -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
+
+<script>
+// Initialize scanner when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Child scanner page loaded');
+    
+    // Check if InstantDetectionScanner is available
+    if (typeof InstantDetectionScanner === 'undefined') {
+        console.error('InstantDetectionScanner not loaded');
+        showToast('Scanner not available. Please refresh the page.', 'danger');
+        return;
+    }
+    
+    initializeChildScanner();
+});
+
+function initializeChildScanner() {
+    console.log('Initializing child scanner...');
+    
+    // Global variables - Same as parent scanner
+    let scanner = null;
+    let isProcessing = false;
+    let scannedCount = {{ scanned_child_count }};
+    const hasParentBag = {{ 'true' if parent_bag else 'false' }};
+    
+    // UI Elements - Same structure as parent
+    const progressText = document.getElementById('progress-text');
+    const scannedList = document.getElementById('scanned-list');
+    const submitForm = document.getElementById('auto-submit-form');
+    const qrInput = document.getElementById('qr-input');
+    
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('scan-toast');
+        const toastMessage = document.getElementById('toast-message');
+        
+        // Update toast style based on type
+        toast.className = `toast align-items-center border-0`;
+        if (type === 'danger' || type === 'error') {
+            toast.classList.add('bg-danger', 'text-white');
+        } else if (type === 'warning') {
+            toast.classList.add('bg-warning');
+        } else if (type === 'info') {
+            toast.classList.add('bg-info');
+        } else {
+            toast.classList.add('bg-success', 'text-white');
+        }
+        
+        let icon = 'check-circle';
+        if (type === 'danger' || type === 'error') icon = 'exclamation-circle';
+        else if (type === 'warning') icon = 'exclamation-triangle';
+        else if (type === 'info') icon = 'info-circle';
+        
+        toastMessage.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+        
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+    }
+    
+    // InstantDetectionScanner callback - Identical to parent scanner
+    function onScanSuccess(qrCode) {
+        // Prevent multiple submissions
+        if (isProcessing) {
+            console.log('Already processing, skipping QR code:', qrCode);
+            return;
+        }
+        
+        if (!hasParentBag) {
+            showToast('Please scan a parent bag first!', 'warning');
+            return;
+        }
+        
+        console.log('Child QR code detected:', qrCode);
+        isProcessing = true;
+        
+        // Fill the hidden form
+        qrInput.value = qrCode;
+        
+        // Show processing message
+        showToast(`Processing child bag: ${qrCode}...`, 'info');
+        
+        // Submit form after brief delay - same as parent scanner
+        setTimeout(() => {
+            console.log('Submitting child form with data:', {
+                formAction: submitForm.action,
+                formMethod: submitForm.method,
+                qrValue: qrInput.value,
+                csrfToken: submitForm.querySelector('[name="csrf_token"]')?.value?.substring(0, 10) + '...'
+            });
+            submitForm.submit();
+        }, 1000);
+    }
+    
+    // Create scanner on page load - Identical to parent scanner
+    console.log('Creating InstantDetectionScanner for child scanner...');
+    scanner = new InstantDetectionScanner('child-scanner-container', onScanSuccess);
+    
+    // Show appropriate message based on parent bag status
+    if (hasParentBag) {
+        showToast('Child bag scanner ready. Point camera at QR codes.', 'success');
+    } else {
+        showToast('Please scan a parent bag first!', 'warning');
+    }
+}
+
+// Helper functions for actions
+function changeParent() {
+    window.location.href = '/scan/parent';
+}
+
+function completeScan() {
+    if (confirm('Are you sure you want to complete this scanning session?')) {
+        window.location.href = '/scan_complete';
+    }
+}
+</script>
+{% endblock %}
