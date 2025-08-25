@@ -334,47 +334,57 @@ function initializeScanner() {
         }
     }
     
-    // Show scan pause overlay when QR is detected
+    // Show scan pause status when QR is detected
     function showScanPauseOverlay(qrCode) {
-        // Create overlay if it doesn't exist
-        let overlay = document.getElementById('scan-pause-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'scan-pause-overlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(76, 175, 80, 0.95);
-                color: white;
-                padding: 30px;
-                border-radius: 15px;
-                z-index: 10000;
-                text-align: center;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                animation: fadeIn 0.3s ease;
-            `;
-            document.body.appendChild(overlay);
+        // Update status to show paused state
+        const statusEl = document.getElementById('scanner-status');
+        if (statusEl) {
+            statusEl.innerHTML = `<span class="text-warning"><i class="fas fa-pause-circle me-1"></i>Paused - Processing ${qrCode}...</span>`;
         }
         
-        overlay.innerHTML = `
-            <i class="fas fa-pause-circle fa-4x mb-3"></i>
-            <h3>Scanner Paused</h3>
-            <h4 class="mt-2">QR Detected: <strong>${qrCode}</strong></h4>
-            <p class="mb-0">Processing...</p>
-            <div class="spinner-border mt-3" role="status">
-                <span class="visually-hidden">Processing...</span>
-            </div>
-        `;
-        overlay.style.display = 'block';
+        // Add a simple pause indicator on the camera feed
+        const scannerContainer = document.getElementById('bill-scanner-container');
+        if (scannerContainer) {
+            let pauseIndicator = document.getElementById('pause-indicator');
+            if (!pauseIndicator) {
+                pauseIndicator = document.createElement('div');
+                pauseIndicator.id = 'pause-indicator';
+                pauseIndicator.style.cssText = `
+                    position: absolute;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0, 0, 0, 0.7);
+                    color: #ffc107;
+                    padding: 8px 20px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    z-index: 1000;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                `;
+                scannerContainer.style.position = 'relative';
+                scannerContainer.appendChild(pauseIndicator);
+            }
+            pauseIndicator.innerHTML = `<span style="display: inline-block; width: 8px; height: 8px; background: #ffc107; border-radius: 50%;"></span> Paused`;
+            pauseIndicator.style.display = 'flex';
+        }
     }
     
-    // Hide scan pause overlay
+    // Hide scan pause indicator
     function hideScanPauseOverlay() {
-        const overlay = document.getElementById('scan-pause-overlay');
-        if (overlay) {
-            overlay.style.display = 'none';
+        // Update status back to scanning
+        const statusEl = document.getElementById('scanner-status');
+        if (statusEl) {
+            statusEl.innerHTML = '<i class="fas fa-camera me-2"></i>Scanning...';
+        }
+        
+        // Hide the pause indicator
+        const pauseIndicator = document.getElementById('pause-indicator');
+        if (pauseIndicator) {
+            pauseIndicator.style.display = 'none';
         }
     }
     
@@ -437,7 +447,7 @@ function initializeScanner() {
         showScanPauseOverlay(qrCode);
         
         // Show immediate visual feedback
-        showToast('⏸️ Scanner paused - Processing ' + qrCode, 'warning', 2000);
+        showToast('Processing ' + qrCode, 'info', 2000);
         
         // Check for duplicate scan
         if (scannedBags.has(qrCode)) {
@@ -448,7 +458,7 @@ function initializeScanner() {
             if (scanner && scanner.resumeScanning) {
                 setTimeout(() => {
                     console.log('Resuming scanner after duplicate');
-                    showToast('▶️ Scanner resumed - Ready for next bag', 'info', 1500);
+                    showToast('Ready for next bag', 'info', 1500);
                     scanner.resumeScanning();
                 }, 1500); // Clear 1.5s pause for user feedback
             }
@@ -509,7 +519,7 @@ function initializeScanner() {
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after successful scan');
-                        showToast('▶️ Scanner resumed - Ready for next bag', 'info', 1500);
+                        showToast('Ready for next bag', 'info', 1500);
                         scanner.resumeScanning();
                     }, 2000); // 2 second pause for user to see success
                 }
@@ -641,7 +651,7 @@ function initializeScanner() {
             stopBtn.style.display = 'inline-block';
             const statusEl = document.getElementById('scanner-status');
             if (statusEl) {
-                statusEl.textContent = 'Camera ready - Point at QR code';
+                statusEl.innerHTML = '<i class="fas fa-camera me-2"></i>Scanning...';
                 statusEl.parentElement.className = 'alert alert-success py-2';
             }
             showToast('📷 Camera ready! Start scanning parent bags', 'success', 3000);
@@ -662,7 +672,7 @@ function initializeScanner() {
             stopBtn.style.display = 'none';
             const statusEl = document.getElementById('scanner-status');
             if (statusEl) {
-                statusEl.textContent = 'Camera error - Check permissions';
+                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle me-2 text-danger"></i>Camera error - Check permissions';
                 statusEl.parentElement.className = 'alert alert-danger py-2';
             }
         }
