@@ -4004,8 +4004,8 @@ def scan_bill_parent(bill_id):
     # Check if bill is completed
     is_completed = bill.status == 'completed'
     
-    # Use the ultra scanner template with LiveQRScanner
-    return render_template('scan_bill_parent_ultra.html', bill=bill, linked_bags=linked_bags, is_completed=is_completed)
+    # Use the continuous scanner template (similar to child scanning workflow)
+    return render_template('scan_bill_parent_continuous.html', bill=bill, linked_bags=linked_bags, is_completed=is_completed)
 
 
 # Removed redundant save_bill function - bills are automatically saved when parent bags are linked

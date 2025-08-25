@@ -1,0 +1,725 @@
+{% extends "layout.html" %}
+{% block title %}Scan Parent Bags - Bill #{{ bill.bill_id }}{% endblock %}
+
+{% block head %}
+<!-- Load QR Scanner Library -->
+<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
+
+<style>
+/* Scanner Styles - matching child scanner */
+.scanner-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#video {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+    display: block;
+}
+
+#canvas {
+    display: none;
+}
+
+.scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.scanner-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    height: 250px;
+    border: 3px solid #28a745 !important;
+    border-radius: 12px;
+    z-index: 11;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.scanner-corners {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    height: 250px;
+    z-index: 12;
+}
+
+.corner {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #28a745 !important;
+}
+
+.corner-tl {
+    top: -2px;
+    left: -2px;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-radius: 12px 0 0 0;
+}
+
+.corner-tr {
+    top: -2px;
+    right: -2px;
+    border-left: none !important;
+    border-bottom: none !important;
+    border-radius: 0 12px 0 0;
+}
+
+.corner-bl {
+    bottom: -2px;
+    left: -2px;
+    border-right: none !important;
+    border-top: none !important;
+    border-radius: 0 0 0 12px;
+}
+
+.corner-br {
+    bottom: -2px;
+    right: -2px;
+    border-left: none !important;
+    border-top: none !important;
+    border-radius: 0 0 12px 0;
+}
+
+@keyframes scan {
+    0% { 
+        transform: translate(-50%, -50%) scale(1);
+        border-color: #28a745;
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.05);
+        border-color: #5cb85c;
+    }
+    100% { 
+        transform: translate(-50%, -50%) scale(1);
+        border-color: #28a745;
+    }
+}
+
+.scanner-frame.scanning {
+    animation: scan 2s ease-in-out infinite;
+}
+
+.scanned-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.scanned-bag-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e9ecef;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.scanned-bag-item:hover {
+    background-color: #f8f9fa;
+}
+
+.bag-counter {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #28a745;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #e8f5e9;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.progress {
+    height: 25px;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Notification styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+    padding: 15px;
+    border-radius: 8px;
+    animation: slideInRight 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.notification.success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.notification.error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.notification.warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="fas fa-qrcode me-2"></i>Scan Parent Bags for Bill #{{ bill.bill_id }}
+                        </h3>
+                        <div>
+                            <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-eye me-1"></i>View Bill
+                            </a>
+                            <a href="{{ url_for('bill_management') }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Bills
+                            </a>
+                        </div>
+                    </div>
+                    {% if bill.description %}
+                    <small class="text-muted">{{ bill.description }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Progress</span>
+                        <span id="progress-text"><strong>{{ linked_bags|length }} / {{ bill.parent_bag_count }}</strong> parent bags</span>
+                    </div>
+                    <div class="progress">
+                        <div id="progress-bar" class="progress-bar bg-success" 
+                             role="progressbar" 
+                             style="width: {{ (linked_bags|length / bill.parent_bag_count * 100) if bill.parent_bag_count > 0 else 0 }}%"
+                             aria-valuenow="{{ linked_bags|length }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="{{ bill.parent_bag_count }}">
+                            {{ ((linked_bags|length / bill.parent_bag_count * 100) if bill.parent_bag_count > 0 else 0)|round|int }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Scanner Column -->
+        <div class="col-lg-6 mb-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h5>
+                </div>
+                <div class="card-body p-2">
+                    <div class="scanner-container">
+                        <video id="video" autoplay playsinline muted></video>
+                        <canvas id="canvas"></canvas>
+                        <div class="scanner-overlay">
+                            <div class="scanner-frame scanning"></div>
+                            <div class="scanner-corners">
+                                <div class="corner corner-tl"></div>
+                                <div class="corner corner-tr"></div>
+                                <div class="corner corner-bl"></div>
+                                <div class="corner corner-br"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <span id="scanner-status" class="badge bg-info">
+                            <i class="fas fa-spinner fa-spin me-1"></i>Starting camera...
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scanned Bags Column -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body p-2">
+                    <h5 class="mb-2"><i class="fas fa-boxes me-2"></i>Linked Parent Bags</h5>
+                    
+                    <div class="bag-counter">
+                        <i class="fas fa-box-open me-2"></i>
+                        Total Linked: <span id="bag-count">{{ linked_bags|length }}</span> / {{ bill.parent_bag_count }}
+                    </div>
+                    
+                    <div id="scanned-list" class="scanned-list">
+                        {% for bag in linked_bags %}
+                        <div class="scanned-bag-item" data-qr="{{ bag.qr_id }}">
+                            <span><i class="fas fa-box me-2"></i>{{ bag.qr_id }}</span>
+                            <span class="text-success"><i class="fas fa-check-circle"></i></span>
+                        </div>
+                        {% endfor %}
+                        {% if not linked_bags %}
+                        <p class="text-muted text-center mt-3" id="empty-message">No parent bags linked yet. Start scanning!</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mt-3 d-grid gap-2">
+                        <button id="manual-entry-btn" class="btn btn-outline-secondary">
+                            <i class="fas fa-keyboard me-2"></i>Manual Entry
+                        </button>
+                        {% if not is_completed %}
+                        <button id="complete-btn" class="btn btn-success">
+                            <i class="fas fa-check-circle me-2"></i>Complete Bill
+                        </button>
+                        {% else %}
+                        <button id="reopen-btn" class="btn btn-warning">
+                            <i class="fas fa-edit me-2"></i>Reopen for Editing
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Entry Modal -->
+<div class="modal fade" id="manualEntryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-keyboard me-2"></i>Manual Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="manual-qr-input">Parent Bag QR Code:</label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="manual-qr-input" 
+                           placeholder="Enter SB##### (e.g., SB12345)"
+                           pattern="[sS][bB]\d{5}"
+                           maxlength="7">
+                    <small class="text-muted">Format: SB followed by 5 digits</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submit-manual-btn">Add Parent Bag</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Continuous Parent Scanner Implementation (like child scanner)
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const scannerStatus = document.getElementById('scanner-status');
+    const bagCount = document.getElementById('bag-count');
+    const scannedList = document.getElementById('scanned-list');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const billId = {{ bill.id }};
+    const targetCount = {{ bill.parent_bag_count }};
+    
+    let scanning = false;
+    let lastScan = '';
+    let lastScanTime = 0;
+    let isProcessing = false;
+    let scannedBags = new Set();
+    let linkedCount = {{ linked_bags|length }};
+    
+    // Initialize with existing bags
+    {% for bag in linked_bags %}
+    scannedBags.add('{{ bag.qr_id }}');
+    {% endfor %}
+    
+    // Show notification
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'exclamation-triangle'} me-2"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+    
+    // Initialize camera
+    async function initCamera() {
+        try {
+            console.log('Requesting camera access...');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+            
+            console.log('Camera access granted');
+            video.srcObject = stream;
+            
+            video.addEventListener('loadedmetadata', () => {
+                console.log('Video metadata loaded');
+                video.play();
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                scanning = true;
+                scannerStatus.innerHTML = '<i class="fas fa-camera me-1"></i>Scanning for parent bags...';
+                scannerStatus.className = 'badge bg-success';
+                console.log('Starting scan loop');
+                scan();
+            });
+            
+        } catch (err) {
+            console.error('Camera error:', err);
+            scannerStatus.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Camera Error';
+            scannerStatus.className = 'badge bg-danger';
+            showNotification('Camera access denied or not available', 'error');
+        }
+    }
+    
+    // Scan for QR codes
+    function scan() {
+        if (!scanning) return;
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // Try to detect QR code
+            let code = null;
+            if (typeof jsQR !== 'undefined') {
+                code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth"
+                });
+                
+                if (!code) {
+                    code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "dontInvert"
+                    });
+                }
+                
+                if (!code) {
+                    code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "onlyInvert"
+                    });
+                }
+            }
+            
+            if (code && code.data) {
+                handleQRCode(code.data);
+            }
+        }
+        
+        requestAnimationFrame(scan);
+    }
+    
+    // Update progress
+    function updateProgress() {
+        const percentage = Math.round((linkedCount / targetCount) * 100);
+        progressBar.style.width = percentage + '%';
+        progressBar.textContent = percentage + '%';
+        progressBar.setAttribute('aria-valuenow', linkedCount);
+        progressText.innerHTML = `<strong>${linkedCount} / ${targetCount}</strong> parent bags`;
+        bagCount.textContent = linkedCount;
+    }
+    
+    // Add bag to list
+    function addBagToList(qrCode, status = 'success') {
+        // Remove empty message if exists
+        const emptyMsg = document.getElementById('empty-message');
+        if (emptyMsg) {
+            emptyMsg.remove();
+        }
+        
+        // Check if already in list
+        if (document.querySelector(`[data-qr="${qrCode}"]`)) {
+            return;
+        }
+        
+        const item = document.createElement('div');
+        item.className = 'scanned-bag-item';
+        item.setAttribute('data-qr', qrCode);
+        
+        const statusIcon = status === 'success' ? 'check-circle' : 'exclamation-triangle';
+        const statusColor = status === 'success' ? 'text-success' : 'text-warning';
+        
+        item.innerHTML = `
+            <span><i class="fas fa-box me-2"></i>${qrCode}</span>
+            <span class="${statusColor}"><i class="fas fa-${statusIcon}"></i></span>
+        `;
+        
+        scannedList.insertBefore(item, scannedList.firstChild);
+        
+        // Keep only last 20 items visible
+        while (scannedList.children.length > 20) {
+            scannedList.removeChild(scannedList.lastChild);
+        }
+    }
+    
+    // Handle detected QR code
+    async function handleQRCode(qrData) {
+        const now = Date.now();
+        
+        // Prevent duplicate processing within 2 seconds
+        if (qrData === lastScan && (now - lastScanTime) < 2000) {
+            return;
+        }
+        
+        if (isProcessing || scannedBags.has(qrData)) {
+            if (scannedBags.has(qrData)) {
+                console.log('Bag already linked:', qrData);
+                showNotification(`${qrData} already linked to this bill`, 'warning');
+            }
+            return;
+        }
+        
+        lastScan = qrData;
+        lastScanTime = now;
+        isProcessing = true;
+        
+        console.log('Parent QR Code detected:', qrData);
+        
+        // Visual feedback
+        scannerStatus.innerHTML = '<i class="fas fa-check-circle me-1"></i>Parent Bag Detected!';
+        scannerStatus.className = 'badge bg-success';
+        
+        try {
+            const response = await fetch('/fast/bill_parent_scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'bill_id': billId,
+                    'qr_code': qrData
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                scannedBags.add(qrData);
+                linkedCount++;
+                addBagToList(qrData, 'success');
+                updateProgress();
+                showNotification(data.message, 'success');
+                
+                // Check if bill is complete
+                if (linkedCount >= targetCount) {
+                    showNotification('Bill capacity reached! You can complete the bill now.', 'success');
+                }
+            } else {
+                showNotification(data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error processing scan:', error);
+            showNotification('Error processing scan. Please try again.', 'error');
+        } finally {
+            isProcessing = false;
+            
+            // Reset scanner status after 2 seconds
+            setTimeout(() => {
+                scannerStatus.innerHTML = '<i class="fas fa-camera me-1"></i>Scanning for parent bags...';
+                scannerStatus.className = 'badge bg-success';
+            }, 2000);
+        }
+    }
+    
+    // Manual entry
+    document.getElementById('manual-entry-btn').addEventListener('click', () => {
+        const modal = new bootstrap.Modal(document.getElementById('manualEntryModal'));
+        modal.show();
+        document.getElementById('manual-qr-input').focus();
+    });
+    
+    document.getElementById('submit-manual-btn').addEventListener('click', async () => {
+        const input = document.getElementById('manual-qr-input');
+        const qrCode = input.value.trim().toUpperCase();
+        
+        if (!qrCode) {
+            showNotification('Please enter a QR code', 'warning');
+            return;
+        }
+        
+        if (!/^SB\d{5}$/.test(qrCode)) {
+            showNotification('Invalid format! Must be SB##### (e.g., SB12345)', 'error');
+            return;
+        }
+        
+        if (scannedBags.has(qrCode)) {
+            showNotification(`${qrCode} already linked to this bill`, 'warning');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/bill/manual_parent_entry', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'bill_id': billId,
+                    'manual_qr': qrCode
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                scannedBags.add(qrCode);
+                linkedCount++;
+                addBagToList(qrCode, 'success');
+                updateProgress();
+                showNotification(data.message, 'success');
+                input.value = '';
+                bootstrap.Modal.getInstance(document.getElementById('manualEntryModal')).hide();
+            } else {
+                showNotification(data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Manual entry error:', error);
+            showNotification('Error adding parent bag', 'error');
+        }
+    });
+    
+    // Complete bill
+    document.getElementById('complete-btn')?.addEventListener('click', async () => {
+        if (confirm(`Complete bill with ${linkedCount} parent bags?`)) {
+            try {
+                const response = await fetch('/complete_bill', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'bill_id': billId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    setTimeout(() => {
+                        window.location.href = `/bill/${billId}`;
+                    }, 2000);
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Complete bill error:', error);
+                showNotification('Error completing bill', 'error');
+            }
+        }
+    });
+    
+    // Reopen bill
+    document.getElementById('reopen-btn')?.addEventListener('click', async () => {
+        if (confirm('Reopen this bill for editing?')) {
+            try {
+                const response = await fetch('/reopen_bill', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'bill_id': billId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Reopen bill error:', error);
+                showNotification('Error reopening bill', 'error');
+            }
+        }
+    });
+    
+    // Allow Enter key in manual entry
+    document.getElementById('manual-qr-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('submit-manual-btn').click();
+        }
+    });
+    
+    // Initialize camera on load
+    initCamera();
+});
+</script>
+{% endblock %}

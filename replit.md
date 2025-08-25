@@ -3,6 +3,19 @@
 ## Overview
 A cutting-edge supply chain traceability platform revolutionizing agricultural bag tracking through advanced QR scanning technologies with enhanced security, performance optimization, and comprehensive user management.
 
+## Recent Changes (August 25, 2025)
+### Parent Bag Scanning Workflow Improvement
+- **Continuous Scanning**: Modified bill parent bag scanning to match child bag workflow
+  - Removed auto-pause behavior after each scan
+  - Implemented continuous scanning without interruptions
+  - Scanner no longer pauses with overlay after detection
+  - Matches the user-friendly workflow of child bag scanning
+- **New Template**: Created `scan_bill_parent_continuous.html` 
+  - Provides seamless scanning experience
+  - Visual feedback without interrupting scanning flow
+  - Manual entry modal for direct QR code input
+  - Real-time progress tracking and bag counter
+
 ## Recent Changes (August 23, 2025)
 ### EOD Bill Summary Sharing Feature
 - **Automated EOD Summaries**: Implemented comprehensive end-of-day bill summary generation and sharing system
