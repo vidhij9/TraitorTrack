@@ -946,34 +946,27 @@ def comprehensive_user_deletion():
 @login_required
 @limiter.exempt
 def preview_user_deletion():
-    """Preview what would be deleted for a specific user"""
+    """Preview what data would be deleted for a specific user"""
     if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
     try:
         username = request.form.get('username', '').strip()
-        email = request.form.get('email', '').strip()
+        role = request.form.get('role', '').strip()
         
-        if not username or not email:
-            return jsonify({'success': False, 'message': 'Both username and email are required'})
+        if not username or not role:
+            return jsonify({'success': False, 'message': 'Both username and role are required'})
         
-        # Find the user by username AND email for safety
-        user = User.query.filter_by(username=username, email=email).first()
+        # Find the user by username AND role for safety
+        user = User.query.filter_by(username=username, role=role).first()
         
         if not user:
-            return jsonify({'success': False, 'message': f'No user found with username "{username}" and email "{email}"'})
+            return jsonify({'success': False, 'message': f'No user found with username "{username}" and role "{role}"'})
         
         if user.id == current_user.id:
-            return jsonify({'success': False, 'message': 'You cannot delete your own account'})
+            return jsonify({'success': False, 'message': 'You cannot delete your own data'})
         
-        # Check if this is the last admin
-        if user.role == 'admin':
-            admin_count = User.query.filter_by(role='admin').count()
-            if admin_count <= 1:
-                return jsonify({
-                    'success': False, 
-                    'message': 'Cannot delete the last admin account. Promote another user to admin first.'
-                })
+        # No need to check for last admin since we're not deleting the account
         
         # Get all scans by this user
         user_scans = Scan.query.filter_by(user_id=user.id).all()
@@ -1050,13 +1043,13 @@ def preview_user_deletion():
 @login_required
 @limiter.exempt
 def execute_comprehensive_deletion():
-    """Execute comprehensive deletion of user and all their scan data"""
+    """Execute deletion of all user data (keeps user account)"""
     if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
     try:
         username = request.form.get('username', '').strip()
-        email = request.form.get('email', '').strip()
+        role = request.form.get('role', '').strip()
         confirmation = request.form.get('confirmation', '').strip()
         
         # Verify confirmation text
@@ -1068,27 +1061,20 @@ def execute_comprehensive_deletion():
             })
         
         # Find the user
-        user = User.query.filter_by(username=username, email=email).first()
+        user = User.query.filter_by(username=username, role=role).first()
         
         if not user:
-            return jsonify({'success': False, 'message': f'No user found with username "{username}" and email "{email}"'})
+            return jsonify({'success': False, 'message': f'No user found with username "{username}" and role "{role}"'})
         
         if user.id == current_user.id:
-            return jsonify({'success': False, 'message': 'You cannot delete your own account'})
+            return jsonify({'success': False, 'message': 'You cannot delete your own data'})
         
-        # Check if this is the last admin
-        if user.role == 'admin':
-            admin_count = User.query.filter_by(role='admin').count()
-            if admin_count <= 1:
-                return jsonify({
-                    'success': False, 
-                    'message': 'Cannot delete the last admin account.'
-                })
+        # No need to check for last admin since we're not deleting the account
         
-        # Log the comprehensive deletion attempt
-        log_audit('comprehensive_delete_attempt', 'user', user.id, {
+        # Log the data deletion attempt
+        log_audit('comprehensive_data_delete_attempt', 'user', user.id, {
             'username': username,
-            'email': email,
+            'email': user.email,
             'role': user.role,
             'deleted_by': current_user.username
         })
@@ -1123,16 +1109,21 @@ def execute_comprehensive_deletion():
         else:
             bags_deleted = 0
         
-        # Step 7: Delete the user
-        db.session.delete(user)
+        # Step 7: User account remains intact - we've deleted all their data
+        # No need to delete the user
+        
+        # Store user info before committing
+        user_id = user.id
+        user_role = user.role
+        user_email = user.email
         
         # Commit all changes
         db.session.commit()
         
-        # Log successful deletion
-        log_audit('comprehensive_delete_success', 'user', user.id, {
+        # Log successful data deletion
+        log_audit('comprehensive_data_delete_success', 'user', user_id, {
             'username': username,
-            'email': email,
+            'email': user_email,
             'scans_deleted': scan_count,
             'bags_deleted': bags_deleted,
             'deleted_by': current_user.username
@@ -1140,7 +1131,7 @@ def execute_comprehensive_deletion():
         
         return jsonify({
             'success': True,
-            'message': f'Successfully deleted user {username} and all associated data',
+            'message': f'All data for user {username} has been permanently deleted. The user account remains intact.',
             'stats': {
                 'scans_deleted': scan_count,
                 'bags_deleted': bags_deleted
@@ -1152,9 +1143,9 @@ def execute_comprehensive_deletion():
         app.logger.error(f"Error in comprehensive deletion: {str(e)}")
         
         # Log failed deletion
-        log_audit('comprehensive_delete_failed', 'user', None, {
+        log_audit('comprehensive_data_delete_failed', 'user', None, {
             'username': username if 'username' in locals() else 'unknown',
-            'email': email if 'email' in locals() else 'unknown',
+            'role': role if 'role' in locals() else 'unknown',
             'error': str(e),
             'deleted_by': current_user.username
         })
