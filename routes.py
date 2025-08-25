@@ -3034,7 +3034,6 @@ def delete_bag(bag_id):
 @app.route('/bags')
 @app.route('/bag_management')  # Alias for compatibility
 @login_required
-@cached_route(seconds=CACHE_TTL['bag_management'])
 def bag_management():
     """Ultra-fast bag management with caching and optimized filtering"""
     import time
@@ -3121,18 +3120,19 @@ def bag_management():
             filters.append(Bag.dispatch_area == dispatch_area)
         
         # User filter - filter bags by who scanned them
-        if user_filter and user_filter != 'all':
-            try:
-                user_id = int(user_filter)
-                # Get bag IDs that were scanned by this user
-                scanned_bag_ids = db.session.query(
-                    func.coalesce(Scan.parent_bag_id, Scan.child_bag_id)
-                ).filter(
-                    Scan.user_id == user_id
-                ).distinct().subquery()
-                filters.append(Bag.id.in_(scanned_bag_ids))
-            except (ValueError, TypeError):
-                pass  # Invalid user_id, ignore filter
+        # Temporarily disabled to avoid Scan model import issues
+        # if user_filter and user_filter != 'all':
+        #     try:
+        #         user_id = int(user_filter)
+        #         # Get bag IDs that were scanned by this user
+        #         scanned_bag_ids = db.session.query(
+        #             func.coalesce(Scan.parent_bag_id, Scan.child_bag_id)
+        #         ).filter(
+        #             Scan.user_id == user_id
+        #         ).distinct().subquery()
+        #         filters.append(Bag.id.in_(scanned_bag_ids))
+        #     except (ValueError, TypeError):
+        #         pass  # Invalid user_id, ignore filter
         
         # Apply all filters
         if filters:
@@ -3178,6 +3178,10 @@ def bag_management():
         bags_result = query.limit(per_page).offset(offset).all()
         bag_ids = [bag.id for bag in bags_result]
         
+        # Debug logging
+        app.logger.info(f"Bag management query returned {len(bags_result)} bags")
+        app.logger.info(f"Total filtered count: {total_filtered}")
+        
         # Batch fetch all relationships in 3 queries instead of N queries
         child_counts = {}
         parent_links = {}
@@ -3212,12 +3216,8 @@ def bag_management():
                 bill_links[bill_link.bag_id] = bill_link
             
             # Get last scans for all bags more efficiently
-            last_scan_results = db.session.query(
-                Scan.parent_bag_id,
-                func.max(Scan.timestamp).label('last_scan')
-            ).filter(Scan.parent_bag_id.in_(bag_ids))\
-             .group_by(Scan.parent_bag_id).all()
-            last_scans = {r.parent_bag_id: r.last_scan for r in last_scan_results if r.parent_bag_id}
+            # Skip scan data to avoid import issues
+            last_scans = {}
         
         # Create optimized bag data using batch-fetched relationships
         bags_data = []
@@ -3342,6 +3342,9 @@ def bag_management():
         
         bag_objects = [TemplateBag(bag_dict) for bag_dict in bags_data]
         
+        # Debug logging
+        app.logger.info(f"Created {len(bag_objects)} bag objects from {len(bags_data)} bags_data")
+        
         # Create pagination object manually
         class SimplePagination:
             def __init__(self, items, page, per_page, total):
@@ -3354,6 +3357,10 @@ def bag_management():
                 self.has_next = page < self.pages
                 self.prev_num = page - 1 if self.has_prev else None
                 self.next_num = page + 1 if self.has_next else None
+            
+            def __bool__(self):
+                """Return True if there are items"""
+                return len(self.items) > 0
             
             def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
                 last = 0
@@ -3368,6 +3375,9 @@ def bag_management():
         
         bags = SimplePagination(bag_objects, page, 20, total_filtered)
         
+        # Debug logging
+        app.logger.info(f"SimplePagination created with {len(bags.items)} items, bool={bool(bags)}")
+        
         # Update filtered count in stats
         stats['filtered_count'] = total_filtered
         
@@ -3376,6 +3386,8 @@ def bag_management():
         
     except Exception as e:
         app.logger.error(f"Optimized bag query failed, falling back to standard query: {str(e)}")
+        import traceback
+        app.logger.error(f"Full traceback: {traceback.format_exc()}")
         
         # Fallback to original query if optimization fails
         # Import models locally
@@ -3434,6 +3446,12 @@ def bag_management():
         'bill_status': bill_status,
         'user_filter': user_filter
     }
+    
+    # Debug check
+    if hasattr(bags, 'items'):
+        app.logger.info(f"Passing bags to template with {len(bags.items)} items")
+    else:
+        app.logger.error(f"Bags object has no items attribute: {type(bags)}")
     
     return render_template('bag_management.html', 
                          bags=bags, 
