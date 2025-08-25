@@ -2,14 +2,23 @@
 Redis Cache Manager - Ultra-fast caching with sub-millisecond response times
 """
 
-import redis
 import json
 import pickle
 import hashlib
 import time
+import os
 from functools import wraps
 from typing import Any, Optional, Callable
 import logging
+
+# Conditionally import redis only if not disabled
+if os.environ.get('DISABLE_REDIS', 'true').lower() != 'true':
+    try:
+        import redis
+    except ImportError:
+        redis = None
+else:
+    redis = None
 
 logger = logging.getLogger(__name__)
 
@@ -18,32 +27,43 @@ class RedisCacheManager:
     
     def __init__(self):
         self.redis_client = None
-        self.memory_cache = {}  # Fallback in-memory cache
+        self.memory_cache = {}  # Primary in-memory cache (Redis not available in Replit)
         self.stats = {
             'hits': 0,
             'misses': 0,
             'errors': 0
         }
-        self.connect()
+        # Skip Redis connection in Replit - not available
+        if os.environ.get('DISABLE_REDIS', 'true').lower() == 'true':
+            logger.info("✅ Using optimized in-memory cache (Redis disabled)")
+        else:
+            self.connect()
     
     def connect(self):
         """Connect to Redis with optimal settings"""
+        # Skip connection attempt if Redis is disabled
+        if os.environ.get('DISABLE_REDIS', 'true').lower() == 'true':
+            self.redis_client = None
+            return False
+            
         try:
+            if not redis:
+                return False
             pool = redis.ConnectionPool(
-                host='0.0.0.0',  # Use 0.0.0.0 for binding
+                host='localhost',  # Changed from 0.0.0.0
                 port=6379,
                 db=0,
                 max_connections=100,
-                socket_connect_timeout=2,
-                socket_timeout=2,
+                socket_connect_timeout=1,  # Reduced from 2
+                socket_timeout=1,  # Reduced from 2
                 decode_responses=False  # Use binary for speed
             )
-            self.redis_client = redis.Redis(connection_pool=pool)
+            self.redis_client = redis.Redis(connection_pool=pool) if redis else None
             self.redis_client.ping()
             logger.info("✅ Redis connected successfully")
             return True
         except Exception as e:
-            logger.warning(f"❌ Redis connection failed: {e}")
+            logger.debug(f"Redis not available (expected in Replit): {e}")
             self.redis_client = None
             return False
     
@@ -61,10 +81,11 @@ class RedisCacheManager:
                     self.stats['hits'] += 1
                     return pickle.loads(value)
             else:
-                # Fallback to memory cache
+                # Use optimized memory cache (primary in Replit)
                 if key in self.memory_cache:
                     cached_time, cached_value = self.memory_cache[key]
-                    if time.time() - cached_time < 300:  # 5 min expiry
+                    # Shorter expiry for better memory management
+                    if time.time() - cached_time < 60:  # 1 min expiry for faster updates
                         self.stats['hits'] += 1
                         return cached_value
                     else:
@@ -82,7 +103,7 @@ class RedisCacheManager:
         """Set value in cache with TTL"""
         try:
             if self.redis_client:
-                self.redis_client.setex(key, ttl, pickle.dumps(value))
+                self.redis_client.set(key, pickle.dumps(value), ex=ttl)
                 return True
             else:
                 # Fallback to memory cache
