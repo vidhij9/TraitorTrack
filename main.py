@@ -163,6 +163,14 @@ def after_request(response):
     """Skip performance logging for speed"""
     return response
 
+# Import production scale optimizer for 600k+ bags and 100+ users
+try:
+    from production_scale_optimizer import init_scale_optimizations
+    init_scale_optimizations(app)
+    logger.info("✅ Production scale optimizer loaded - 600k+ bags, 100+ users")
+except Exception as e:
+    logger.warning(f"Production scale optimizer not loaded: {e}")
+
 # Import production database optimizer
 try:
     from production_database_optimizer import initialize as init_db_optimizer
