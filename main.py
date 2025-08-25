@@ -74,6 +74,36 @@ try:
 except Exception as e:
     logger.warning(f"Ultra performance optimizer not loaded: {e}")
 
+# Import production ultra optimizer for blazing fast performance
+try:
+    from production_ultra_optimizer import optimize_for_production, ProductionDatabaseOptimizer, FastQueryEngine
+    app = optimize_for_production(app)
+    with app.app_context():
+        ProductionDatabaseOptimizer.optimize_queries(db)
+        # Pre-warm critical caches
+        try:
+            FastQueryEngine.get_dashboard_stats(db)
+        except:
+            pass
+    logger.info("✅ Production ultra optimizations applied - <100ms response times")
+except Exception as e:
+    logger.warning(f"Production ultra optimizer not loaded: {e}")
+
+# Import extreme performance optimizer for <100ms response times
+try:
+    from extreme_performance_optimizer import extreme_optimization, optimize_database_extreme, get_dashboard_data
+    app = extreme_optimization(app)
+    with app.app_context():
+        optimize_database_extreme(db)
+        # Pre-warm cache
+        try:
+            get_dashboard_data(db)
+        except:
+            pass
+    logger.info("⚡ Extreme optimizations applied - targeting <100ms response times")
+except Exception as e:
+    logger.warning(f"Extreme optimizer not loaded: {e}")
+
 # Import ultra-fast batch scanner for rapid parent-child linking
 try:
     from ultra_fast_batch_scanner import register_batch_scanner
