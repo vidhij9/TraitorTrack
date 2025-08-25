@@ -3110,20 +3110,26 @@ def bag_management():
         if dispatch_area:
             filters.append(Bag.dispatch_area == dispatch_area)
         
-        # User filter - filter bags by who scanned them
-        # Temporarily disabled to avoid Scan model import issues
-        # if user_filter and user_filter != 'all':
-        #     try:
-        #         user_id = int(user_filter)
-        #         # Get bag IDs that were scanned by this user
-        #         scanned_bag_ids = db.session.query(
-        #             func.coalesce(Scan.parent_bag_id, Scan.child_bag_id)
-        #         ).filter(
-        #             Scan.user_id == user_id
-        #         ).distinct().subquery()
-        #         filters.append(Bag.id.in_(scanned_bag_ids))
-        #     except (ValueError, TypeError):
-        #         pass  # Invalid user_id, ignore filter
+        # User filter - filter bags by who scanned them or show unscanned bags
+        if user_filter and user_filter != 'all':
+            if user_filter == 'unscanned':
+                # Show bags that have never been scanned
+                scanned_parent_ids = db.session.query(Scan.parent_bag_id).filter(Scan.parent_bag_id.isnot(None)).distinct()
+                scanned_child_ids = db.session.query(Scan.child_bag_id).filter(Scan.child_bag_id.isnot(None)).distinct()
+                filters.append(~Bag.id.in_(scanned_parent_ids.union(scanned_child_ids)))
+            else:
+                try:
+                    user_id = int(user_filter)
+                    # Get bag IDs that were scanned by this user
+                    scanned_bag_ids = db.session.query(
+                        func.coalesce(Scan.parent_bag_id, Scan.child_bag_id)
+                    ).filter(
+                        Scan.user_id == user_id,
+                        func.coalesce(Scan.parent_bag_id, Scan.child_bag_id).isnot(None)
+                    ).distinct().subquery()
+                    filters.append(Bag.id.in_(scanned_bag_ids))
+                except (ValueError, TypeError):
+                    pass  # Invalid user_id, ignore filter
         
         # Apply all filters
         if filters:
