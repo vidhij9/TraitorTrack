@@ -3418,14 +3418,30 @@ def bag_management():
         }
     
     # Get list of users who have scanned bags for the filter dropdown
-    # Use raw SQL to avoid import issues
+    # Count actual UNIQUE bags (parent and child), not scan events
     users_with_scans_sql = """
-    SELECT u.id, u.username, COUNT(s.id) as scan_count
-    FROM "user" u
-    JOIN scan s ON u.id = s.user_id
-    GROUP BY u.id, u.username
-    HAVING COUNT(s.id) > 0
-    ORDER BY u.username
+    WITH user_bags AS (
+        -- Count unique parent bags scanned by each user
+        SELECT u.id, u.username, COUNT(DISTINCT s.parent_bag_id) as bag_count
+        FROM "user" u
+        LEFT JOIN scan s ON s.user_id = u.id
+        WHERE s.parent_bag_id IS NOT NULL
+        GROUP BY u.id, u.username
+        
+        UNION ALL
+        
+        -- Count unique child bags scanned by each user  
+        SELECT u.id, u.username, COUNT(DISTINCT s.child_bag_id) as bag_count
+        FROM "user" u
+        LEFT JOIN scan s ON s.user_id = u.id
+        WHERE s.child_bag_id IS NOT NULL
+        GROUP BY u.id, u.username
+    )
+    SELECT id, username, SUM(bag_count) as scan_count
+    FROM user_bags
+    GROUP BY id, username
+    HAVING SUM(bag_count) > 0
+    ORDER BY username
     """
     users_with_scans = db.session.execute(db.text(users_with_scans_sql)).fetchall()
     
