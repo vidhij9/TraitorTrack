@@ -17,6 +17,20 @@ try:
 except ImportError as e:
     logging.warning(f"Production optimizer not loaded: {e}")
 
+# Import NEW production ready optimizer with Phase 1 & 2 improvements
+try:
+    from production_ready_optimizer import (
+        apply_production_optimizations,
+        add_performance_middleware,
+        ultra_cache,
+        performance_monitor as prod_monitor
+    )
+    app = apply_production_optimizations(app)
+    app = add_performance_middleware(app)
+    logging.info("✅ Production Ready Optimizer loaded - Phase 1 & 2 active")
+except ImportError as e:
+    logging.warning(f"Production ready optimizer not loaded: {e}")
+
 # Setup logging for production - suppress warnings
 import warnings
 warnings.filterwarnings("ignore", module="flask_limiter")
