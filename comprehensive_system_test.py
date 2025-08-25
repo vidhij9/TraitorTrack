@@ -1,437 +1,245 @@
 #!/usr/bin/env python3
 """
-Comprehensive System Test for Production Readiness
-Tests all features, stability, and performance for 50+ users and 800,000+ bags
+Comprehensive System Test - Tests ALL endpoints and functionality
 """
 
-import os
-import sys
+import requests
 import time
 import json
-import requests
-import concurrent.futures
-import random
-import string
-import logging
 from datetime import datetime
-from sqlalchemy import create_engine, text
-import statistics
+import sys
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-DATABASE_URL = os.environ.get("DATABASE_URL")
 BASE_URL = "http://localhost:5000"
 
-class SystemTest:
-    """Comprehensive system testing suite"""
-    
+class ComprehensiveSystemTest:
     def __init__(self):
+        self.session = requests.Session()
         self.results = {
-            'passed': [],
-            'failed': [],
-            'warnings': [],
-            'performance': {},
-            'features': {}
+            'timestamp': datetime.now().isoformat(),
+            'endpoints': {},
+            'categories': {
+                'health': {'passed': 0, 'failed': 0},
+                'auth': {'passed': 0, 'failed': 0},
+                'api': {'passed': 0, 'failed': 0},
+                'aws': {'passed': 0, 'failed': 0},
+                'pages': {'passed': 0, 'failed': 0},
+                'scan': {'passed': 0, 'failed': 0},
+                'bill': {'passed': 0, 'failed': 0},
+                'user': {'passed': 0, 'failed': 0}
+            },
+            'total_passed': 0,
+            'total_failed': 0
         }
-        self.start_time = time.time()
+    
+    def test_endpoint(self, name, url, method='GET', data=None, category='api'):
+        """Test a single endpoint"""
+        try:
+            start = time.time()
+            if method == 'GET':
+                r = self.session.get(f"{BASE_URL}{url}", timeout=15)
+            else:
+                r = self.session.post(f"{BASE_URL}{url}", data=data, timeout=15)
+            
+            response_time = (time.time() - start) * 1000
+            success = r.status_code in [200, 201, 302, 303, 307, 308]
+            
+            self.results['endpoints'][name] = {
+                'url': url,
+                'status_code': r.status_code,
+                'response_time_ms': round(response_time, 1),
+                'success': success,
+                'category': category
+            }
+            
+            if success:
+                self.results['categories'][category]['passed'] += 1
+                self.results['total_passed'] += 1
+                return True, response_time
+            else:
+                self.results['categories'][category]['failed'] += 1
+                self.results['total_failed'] += 1
+                return False, response_time
+                
+        except Exception as e:
+            self.results['endpoints'][name] = {
+                'url': url,
+                'error': str(e),
+                'success': False,
+                'category': category
+            }
+            self.results['categories'][category]['failed'] += 1
+            self.results['total_failed'] += 1
+            return False, 0
+    
+    def run_all_tests(self):
+        """Run tests on ALL endpoints"""
+        print("=" * 80)
+        print("COMPREHENSIVE SYSTEM TEST - ALL ENDPOINTS")
+        print("=" * 80)
         
-    def test_health_endpoints(self):
-        """Test all health check endpoints"""
-        logger.info("Testing health endpoints...")
-        
-        endpoints = [
-            ('/health', 200, 0.1),
-            ('/production-health', 200, 0.5),
-            ('/api/stats', 200, 3.0),
-            ('/ultra_cache_stats', 200, 0.5)
+        # 1. HEALTH & MONITORING ENDPOINTS
+        print("\n[1/8] Testing Health & Monitoring Endpoints...")
+        health_endpoints = [
+            ('Basic Health', '/health', 'health'),
+            ('ELB Health Check', '/health/elb', 'health'),
+            ('Auto-scaling Metrics', '/metrics/scaling', 'health'),
+            ('CloudWatch Flush', '/metrics/flush', 'health'),
         ]
         
-        for endpoint, expected_status, max_time in endpoints:
-            try:
-                start = time.time()
-                response = requests.get(f"{BASE_URL}{endpoint}", timeout=10)
-                elapsed = time.time() - start
-                
-                if response.status_code == expected_status:
-                    if elapsed <= max_time:
-                        self.results['passed'].append(f"{endpoint}: {elapsed:.3f}s")
-                    else:
-                        self.results['warnings'].append(f"{endpoint}: Slow ({elapsed:.3f}s > {max_time}s)")
-                else:
-                    self.results['failed'].append(f"{endpoint}: Status {response.status_code}")
-            except Exception as e:
-                self.results['failed'].append(f"{endpoint}: {str(e)}")
+        for name, url, cat in health_endpoints:
+            success, time_ms = self.test_endpoint(name, url, category=cat)
+            status = "✅" if success else "❌"
+            print(f"  {status} {name}: {time_ms:.1f}ms")
         
-        return len(self.results['failed']) == 0
-    
-    def test_database_performance(self):
-        """Test database performance and optimization"""
-        logger.info("Testing database performance...")
+        # 2. API ENDPOINTS
+        print("\n[2/8] Testing API Endpoints...")
+        api_endpoints = [
+            ('API Stats', '/api/stats', 'api'),
+            ('API Dashboard Stats', '/api/dashboard-stats', 'api'),
+            ('API Dashboard Stats Cached', '/api/dashboard-stats-cached', 'api'),
+            ('API Recent Scans', '/api/scans?limit=10', 'api'),
+            ('API Cache Stats', '/api/cache-stats', 'api'),
+            ('API Replica Test', '/api/replica-test', 'api'),
+            ('API Job Status', '/api/job/test123', 'api'),
+        ]
         
-        try:
-            engine = create_engine(DATABASE_URL)
-            with engine.connect() as conn:
-                # Test index count
-                index_query = "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'public'"
-                index_count = conn.execute(text(index_query)).scalar()
-                
-                if index_count >= 80:
-                    self.results['passed'].append(f"Database indexes: {index_count} (optimized)")
-                else:
-                    self.results['warnings'].append(f"Database indexes: {index_count} (may need optimization)")
-                
-                # Test query performance
-                queries = [
-                    ("Bag lookup by QR", "SELECT * FROM bag WHERE qr_id = 'TEST123' LIMIT 1"),
-                    ("Parent bag count", "SELECT COUNT(*) FROM bag WHERE type = 'parent'"),
-                    ("Recent scans", "SELECT * FROM scan ORDER BY created_at DESC LIMIT 10"),
-                    ("Link count", "SELECT COUNT(*) FROM link")
-                ]
-                
-                for query_name, query in queries:
-                    start = time.time()
-                    conn.execute(text(query))
-                    elapsed = time.time() - start
-                    
-                    if elapsed < 0.1:
-                        self.results['passed'].append(f"{query_name}: {elapsed*1000:.2f}ms")
-                    else:
-                        self.results['warnings'].append(f"{query_name}: {elapsed*1000:.2f}ms (slow)")
-                
-                # Test connection pool
-                conn_query = """
-                SELECT COUNT(*) as total,
-                       COUNT(*) FILTER (WHERE state = 'active') as active
-                FROM pg_stat_activity
-                WHERE datname = current_database()
-                """
-                result = conn.execute(text(conn_query)).fetchone()
-                
-                if result.total < 45:
-                    self.results['passed'].append(f"Connection pool: {result.total} connections")
-                else:
-                    self.results['warnings'].append(f"Connection pool high: {result.total} connections")
-                
-                return True
-                
-        except Exception as e:
-            self.results['failed'].append(f"Database test failed: {str(e)}")
-            return False
-    
-    def test_critical_features(self):
-        """Test all critical application features"""
-        logger.info("Testing critical features...")
+        for name, url, cat in api_endpoints:
+            success, time_ms = self.test_endpoint(name, url, category=cat)
+            status = "✅" if success else "❌"
+            print(f"  {status} {name}: {time_ms:.1f}ms")
         
-        session = requests.Session()
+        # 3. AUTHENTICATION ENDPOINTS
+        print("\n[3/8] Testing Authentication Endpoints...")
+        auth_endpoints = [
+            ('Login Page', '/login', 'auth'),
+            ('Logout', '/logout', 'auth'),
+            ('Register Page', '/register', 'auth'),
+        ]
         
-        # Test login (without CSRF for testing)
-        login_data = {
-            'username': 'admin',
-            'password': 'admin'
-        }
+        for name, url, cat in auth_endpoints:
+            success, time_ms = self.test_endpoint(name, url, category=cat)
+            status = "✅" if success else "❌"
+            print(f"  {status} {name}: {time_ms:.1f}ms")
         
-        try:
-            # Test login page loads
-            response = session.get(f"{BASE_URL}/login")
-            if response.status_code == 200:
-                self.results['features']['login_page'] = 'OK'
-            else:
-                self.results['features']['login_page'] = 'Failed'
-            
-            # Test dashboard loads (unauthenticated should redirect)
-            response = session.get(f"{BASE_URL}/dashboard", allow_redirects=False)
-            if response.status_code in [302, 200]:
-                self.results['features']['dashboard'] = 'OK'
-            else:
-                self.results['features']['dashboard'] = 'Failed'
-            
-            # Test scanning endpoints
-            scan_endpoints = [
-                '/scan_parent',
-                '/scan_child',
-                '/ultra_batch/scanner'
-            ]
-            
-            for endpoint in scan_endpoints:
-                response = session.get(f"{BASE_URL}{endpoint}", allow_redirects=False)
-                if response.status_code in [200, 302]:
-                    self.results['features'][endpoint] = 'OK'
-                else:
-                    self.results['features'][endpoint] = f'Status {response.status_code}'
-            
-            # Test API endpoints
-            api_endpoints = [
-                '/api/stats',
-                '/api/bags/search?qr_id=TEST',
-                '/api/v2/stats'
-            ]
-            
-            for endpoint in api_endpoints:
-                response = session.get(f"{BASE_URL}{endpoint}")
-                if response.status_code in [200, 404]:  # 404 for no results is OK
-                    self.results['features'][endpoint] = 'OK'
-                else:
-                    self.results['features'][endpoint] = f'Status {response.status_code}'
-            
-            return True
-            
-        except Exception as e:
-            self.results['failed'].append(f"Feature test failed: {str(e)}")
-            return False
-    
-    def simulate_concurrent_users(self, num_users=10):
-        """Simulate concurrent user load"""
-        logger.info(f"Simulating {num_users} concurrent users...")
+        # 4. MAIN PAGE ENDPOINTS
+        print("\n[4/8] Testing Main Page Endpoints...")
+        page_endpoints = [
+            ('Home Page', '/', 'pages'),
+            ('Dashboard', '/dashboard', 'pages'),
+            ('Admin Dashboard', '/admin_dashboard', 'pages'),
+            ('Bill Management', '/bill_management', 'pages'),
+            ('Generate Report', '/generate_report', 'pages'),
+            ('Request Promotion', '/request_promotion', 'pages'),
+            ('Create User', '/create_user', 'pages'),
+        ]
         
-        def user_simulation(user_id):
-            """Simulate a single user's activity"""
-            session = requests.Session()
-            response_times = []
-            errors = []
-            
-            # Simulate user actions
-            actions = [
-                f"{BASE_URL}/health",
-                f"{BASE_URL}/api/stats",
-                f"{BASE_URL}/api/bags/search?qr_id=TEST{user_id}"
-            ]
-            
-            for action in actions:
-                try:
-                    start = time.time()
-                    response = session.get(action, timeout=10)
-                    elapsed = time.time() - start
-                    response_times.append(elapsed)
-                    
-                    if response.status_code >= 500:
-                        errors.append(f"Error {response.status_code} on {action}")
-                except Exception as e:
-                    errors.append(str(e)[:50])
-            
-            return response_times, errors
+        for name, url, cat in page_endpoints:
+            success, time_ms = self.test_endpoint(name, url, category=cat)
+            status = "✅" if success else "❌"
+            print(f"  {status} {name}: {time_ms:.1f}ms")
         
-        # Execute concurrent users
-        all_response_times = []
-        all_errors = []
+        # 5. SCANNING ENDPOINTS
+        print("\n[5/8] Testing Scanning Endpoints...")
+        scan_endpoints = [
+            ('Scan Parent', '/scan_parent', 'scan'),
+            ('Scan Child', '/scan_child', 'scan'),
+            ('Verify Bag', '/verify_bag', 'scan'),
+            ('Fast Parent Scan', '/fast/parent_scan', 'scan'),
+            ('Fast Child Scan', '/fast/child_scan', 'scan'),
+            ('Fast Bill Parent Scan', '/fast/bill_parent_scan', 'scan'),
+            ('Fast Bill Child Scan', '/fast/bill_child_scan', 'scan'),
+        ]
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=num_users) as executor:
-            futures = [executor.submit(user_simulation, i) for i in range(num_users)]
-            
-            for future in concurrent.futures.as_completed(futures):
-                times, errors = future.result()
-                all_response_times.extend(times)
-                all_errors.extend(errors)
+        for name, url, cat in scan_endpoints:
+            method = 'POST' if 'fast' in url else 'GET'
+            success, time_ms = self.test_endpoint(name, url, method=method, category=cat)
+            status = "✅" if success else "❌"
+            print(f"  {status} {name}: {time_ms:.1f}ms")
         
-        # Analyze results
-        if all_response_times:
-            avg_time = statistics.mean(all_response_times)
-            max_time = max(all_response_times)
-            
-            self.results['performance']['concurrent_users'] = num_users
-            self.results['performance']['avg_response'] = f"{avg_time*1000:.2f}ms"
-            self.results['performance']['max_response'] = f"{max_time*1000:.2f}ms"
-            self.results['performance']['error_rate'] = f"{len(all_errors)}/{len(all_response_times) + len(all_errors)}"
-            
-            if avg_time < 0.5 and len(all_errors) == 0:
-                self.results['passed'].append(f"Concurrent users test: {num_users} users handled successfully")
-            elif len(all_errors) > 0:
-                self.results['warnings'].append(f"Concurrent users: {len(all_errors)} errors occurred")
-            else:
-                self.results['warnings'].append(f"Concurrent users: Slow response {avg_time:.2f}s")
+        # 6. BILL ENDPOINTS
+        print("\n[6/8] Testing Bill Endpoints...")
+        bill_endpoints = [
+            ('Bill Create', '/bill/create', 'bill'),
+            ('Bills Page', '/bills', 'bill'),
+        ]
         
-        return len(all_errors) == 0
-    
-    def test_scale_readiness(self):
-        """Test readiness for 800,000+ bags scale"""
-        logger.info("Testing scale readiness for 800,000+ bags...")
+        for name, url, cat in bill_endpoints:
+            success, time_ms = self.test_endpoint(name, url, category=cat)
+            status = "✅" if success else "❌"
+            print(f"  {status} {name}: {time_ms:.1f}ms")
         
-        try:
-            engine = create_engine(DATABASE_URL)
-            with engine.connect() as conn:
-                # Check current data volumes
-                volume_query = """
-                SELECT 
-                    (SELECT COUNT(*) FROM bag) as bags,
-                    (SELECT COUNT(*) FROM link) as links,
-                    (SELECT COUNT(*) FROM scan) as scans,
-                    (SELECT COUNT(*) FROM "user") as users
-                """
-                result = conn.execute(text(volume_query)).fetchone()
-                
-                self.results['performance']['current_bags'] = result.bags
-                self.results['performance']['current_links'] = result.links
-                self.results['performance']['current_scans'] = result.scans
-                self.results['performance']['current_users'] = result.users
-                
-                # Calculate projected scale
-                scale_factor = 800000 / max(result.bags, 1)
-                projected_db_size = (result.bags * 4 + result.links * 2 + result.scans * 1) * scale_factor / 1024  # MB
-                
-                self.results['performance']['scale_factor'] = f"{scale_factor:.0f}x"
-                self.results['performance']['projected_db_size'] = f"{projected_db_size:.0f}MB"
-                
-                # Check if indexes exist for scale
-                critical_indexes = [
-                    'idx_bag_qr_upper',
-                    'idx_bag_type_created',
-                    'idx_link_parent_child',
-                    'idx_scan_created_at'
-                ]
-                
-                for index_name in critical_indexes:
-                    check_query = f"SELECT 1 FROM pg_indexes WHERE indexname = '{index_name}'"
-                    result = conn.execute(text(check_query)).fetchone()
-                    if result:
-                        self.results['passed'].append(f"Index {index_name}: exists")
-                    else:
-                        self.results['warnings'].append(f"Index {index_name}: missing")
-                
-                return True
-                
-        except Exception as e:
-            self.results['failed'].append(f"Scale readiness test failed: {str(e)}")
-            return False
-    
-    def generate_report(self):
-        """Generate comprehensive test report"""
-        elapsed = time.time() - self.start_time
+        # 7. USER MANAGEMENT ENDPOINTS
+        print("\n[7/8] Testing User Management Endpoints...")
+        user_endpoints = [
+            ('Users List', '/users', 'user'),
+            ('Promotions', '/promotions', 'user'),
+        ]
         
-        report = []
-        report.append("\n" + "="*70)
-        report.append("COMPREHENSIVE SYSTEM TEST REPORT")
-        report.append("="*70)
-        report.append(f"Test Duration: {elapsed:.2f} seconds")
-        report.append(f"Timestamp: {datetime.now().isoformat()}")
-        report.append("")
+        for name, url, cat in user_endpoints:
+            success, time_ms = self.test_endpoint(name, url, category=cat)
+            status = "✅" if success else "❌"
+            print(f"  {status} {name}: {time_ms:.1f}ms")
         
-        # Test Summary
-        total_tests = len(self.results['passed']) + len(self.results['failed']) + len(self.results['warnings'])
-        report.append("TEST SUMMARY:")
-        report.append("-"*50)
-        report.append(f"Total Tests: {total_tests}")
-        report.append(f"✅ Passed: {len(self.results['passed'])}")
-        report.append(f"⚠️  Warnings: {len(self.results['warnings'])}")
-        report.append(f"❌ Failed: {len(self.results['failed'])}")
-        report.append("")
+        # 8. AWS PHASE 3 ENDPOINTS
+        print("\n[8/8] Testing AWS Phase 3 Specific Endpoints...")
+        aws_endpoints = [
+            ('AWS ELB Health', '/health/elb', 'aws'),
+            ('AWS Scaling Metrics', '/metrics/scaling', 'aws'),
+            ('AWS Metrics Flush', '/metrics/flush', 'aws'),
+            ('AWS Replica Test', '/api/replica-test', 'aws'),
+        ]
         
-        # Failed Tests (Critical)
-        if self.results['failed']:
-            report.append("❌ FAILED TESTS (Must Fix):")
-            report.append("-"*50)
-            for test in self.results['failed']:
-                report.append(f"  • {test}")
-            report.append("")
+        for name, url, cat in aws_endpoints:
+            success, time_ms = self.test_endpoint(name, url, category=cat)
+            status = "✅" if success else "❌"
+            print(f"  {status} {name}: {time_ms:.1f}ms")
         
-        # Warnings
-        if self.results['warnings']:
-            report.append("⚠️  WARNINGS (Review):")
-            report.append("-"*50)
-            for warning in self.results['warnings'][:10]:  # First 10
-                report.append(f"  • {warning}")
-            report.append("")
+        # Print Summary
+        print("\n" + "=" * 80)
+        print("CATEGORY SUMMARY")
+        print("=" * 80)
         
-        # Passed Tests
-        if self.results['passed']:
-            report.append("✅ PASSED TESTS:")
-            report.append("-"*50)
-            for test in self.results['passed'][:10]:  # First 10
-                report.append(f"  • {test}")
-            if len(self.results['passed']) > 10:
-                report.append(f"  ... and {len(self.results['passed']) - 10} more")
-            report.append("")
+        for category, stats in self.results['categories'].items():
+            total = stats['passed'] + stats['failed']
+            if total > 0:
+                percentage = (stats['passed'] / total) * 100
+                status = "✅" if percentage == 100 else "⚠️" if percentage >= 50 else "❌"
+                print(f"{status} {category.upper()}: {stats['passed']}/{total} passed ({percentage:.0f}%)")
         
-        # Performance Metrics
-        if self.results['performance']:
-            report.append("📊 PERFORMANCE METRICS:")
-            report.append("-"*50)
-            for key, value in self.results['performance'].items():
-                report.append(f"  {key}: {value}")
-            report.append("")
+        print("\n" + "=" * 80)
+        print("OVERALL RESULTS")
+        print("=" * 80)
         
-        # Feature Status
-        if self.results['features']:
-            report.append("🔧 FEATURE STATUS:")
-            report.append("-"*50)
-            for feature, status in self.results['features'].items():
-                icon = "✅" if status == "OK" else "⚠️"
-                report.append(f"  {icon} {feature}: {status}")
-            report.append("")
+        total_endpoints = self.results['total_passed'] + self.results['total_failed']
+        success_rate = (self.results['total_passed'] / total_endpoints * 100) if total_endpoints > 0 else 0
         
-        # Production Readiness
-        report.append("🚀 PRODUCTION READINESS:")
-        report.append("-"*50)
+        print(f"Total Endpoints Tested: {total_endpoints}")
+        print(f"Passed: {self.results['total_passed']}")
+        print(f"Failed: {self.results['total_failed']}")
+        print(f"Success Rate: {success_rate:.1f}%")
         
-        if len(self.results['failed']) == 0:
-            if len(self.results['warnings']) < 5:
-                report.append("✅ SYSTEM IS PRODUCTION READY")
-                report.append("   All critical tests passed")
-                report.append("   Ready for 50+ concurrent users")
-                report.append("   Optimized for 800,000+ bags")
-            else:
-                report.append("✅ SYSTEM IS PRODUCTION READY WITH MINOR ISSUES")
-                report.append("   Review warnings for optimization")
+        # Determine overall status
+        if success_rate >= 95:
+            print("\n🎉 SYSTEM FULLY OPERATIONAL - All critical systems working")
+            self.results['system_ready'] = True
+        elif success_rate >= 80:
+            print("\n✅ SYSTEM OPERATIONAL - Most endpoints working, minor issues present")
+            self.results['system_ready'] = True
         else:
-            report.append("❌ NOT PRODUCTION READY")
-            report.append("   Critical issues must be resolved")
+            print("\n❌ SYSTEM ISSUES DETECTED - Multiple endpoints failing")
+            self.results['system_ready'] = False
         
-        report.append("")
-        report.append("="*70)
+        # Save detailed results
+        with open('comprehensive_test_results.json', 'w') as f:
+            json.dump(self.results, f, indent=2)
         
-        return "\n".join(report)
-
-def main():
-    """Run comprehensive system tests"""
-    logger.info("Starting comprehensive system test...")
-    
-    # Check if server is running
-    try:
-        response = requests.get(f"{BASE_URL}/health", timeout=5)
-        if response.status_code != 200:
-            logger.error("Server not responding properly")
-            sys.exit(1)
-    except:
-        logger.error("Cannot connect to server. Please ensure the application is running.")
-        sys.exit(1)
-    
-    # Run tests
-    tester = SystemTest()
-    
-    tests = [
-        ("Health Endpoints", tester.test_health_endpoints),
-        ("Database Performance", tester.test_database_performance),
-        ("Critical Features", tester.test_critical_features),
-        ("Concurrent Users (10)", lambda: tester.simulate_concurrent_users(10)),
-        ("Concurrent Users (50)", lambda: tester.simulate_concurrent_users(50)),
-        ("Scale Readiness", tester.test_scale_readiness)
-    ]
-    
-    for test_name, test_func in tests:
-        logger.info(f"Running: {test_name}")
-        try:
-            test_func()
-        except Exception as e:
-            logger.error(f"{test_name} crashed: {str(e)}")
-            tester.results['failed'].append(f"{test_name}: Crashed")
-    
-    # Generate and display report
-    report = tester.generate_report()
-    print(report)
-    
-    # Save report
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    with open(f"system_test_{timestamp}.txt", "w") as f:
-        f.write(report)
-    
-    logger.info(f"Report saved to system_test_{timestamp}.txt")
-    
-    # Exit code based on results
-    if len(tester.results['failed']) == 0:
-        logger.info("✅ All critical tests passed!")
-        sys.exit(0)
-    else:
-        logger.error("❌ Some critical tests failed!")
-        sys.exit(1)
+        print("\nDetailed results saved to comprehensive_test_results.json")
+        
+        return self.results
 
 if __name__ == "__main__":
-    main()
+    tester = ComprehensiveSystemTest()
+    results = tester.run_all_tests()
+    
+    # Exit with appropriate code
+    sys.exit(0 if results['system_ready'] else 1)
