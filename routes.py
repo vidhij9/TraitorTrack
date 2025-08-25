@@ -1094,17 +1094,25 @@ def execute_comprehensive_deletion():
         # Step 3: Delete all scans by this user
         Scan.query.filter_by(user_id=user.id).delete()
         
-        # Step 4: Delete links associated with these bags
+        # Step 4: Delete ALL scans that reference these bags (not just user's scans)
+        # This prevents foreign key constraint violations
         if bags_to_delete_ids:
+            # Delete scans that reference these bags as parent or child
+            Scan.query.filter(
+                (Scan.parent_bag_id.in_(bags_to_delete_ids)) | 
+                (Scan.child_bag_id.in_(bags_to_delete_ids))
+            ).delete(synchronize_session=False)
+            
+            # Step 5: Delete links associated with these bags
             Link.query.filter(
                 (Link.parent_bag_id.in_(bags_to_delete_ids)) | 
                 (Link.child_bag_id.in_(bags_to_delete_ids))
             ).delete(synchronize_session=False)
             
-            # Step 5: Delete bill associations
+            # Step 6: Delete bill associations
             BillBag.query.filter(BillBag.bag_id.in_(bags_to_delete_ids)).delete(synchronize_session=False)
             
-            # Step 6: Delete the bags themselves
+            # Step 7: Now safe to delete the bags themselves
             bags_deleted = Bag.query.filter(Bag.id.in_(bags_to_delete_ids)).delete(synchronize_session=False)
         else:
             bags_deleted = 0

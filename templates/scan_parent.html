@@ -222,7 +222,7 @@ function initializeScanner() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
             
-            fetch('/api/fast_parent_scan', {
+            fetch('/fast/parent_scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
