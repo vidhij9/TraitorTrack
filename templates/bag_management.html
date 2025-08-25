@@ -133,10 +133,10 @@
                         <label for="user_filter" class="form-label">Scanned By</label>
                         <select class="form-select form-select-sm" id="user_filter" name="user_filter">
                             <option value="all" {% if filters.user_filter == 'all' %}selected{% endif %}>All Bags ({{ stats.total_bags }})</option>
-                            <option value="unscanned" {% if filters.user_filter == 'unscanned' %}selected{% endif %}>Unscanned ({{ stats.total_bags - (users_with_scans|map(attribute='scan_count')|sum) }})</option>
+                            <option value="unscanned" {% if filters.user_filter == 'unscanned' %}selected{% endif %}>Unscanned (0)</option>
                             {% for user in users_with_scans %}
                                 <option value="{{ user.id }}" {% if filters.user_filter == user.id|string %}selected{% endif %}>
-                                    {{ user.username }} ({{ user.scan_count }} scanned)
+                                    {{ user.username }} ({{ user.parent_bags }}, {{ user.child_bags }})
                                 </option>
                             {% endfor %}
                         </select>

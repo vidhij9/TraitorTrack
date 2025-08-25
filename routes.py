@@ -1985,8 +1985,8 @@ def process_parent_scan():
             flash(error_msg, 'error')
             return redirect(url_for('scan_parent'))
         
-        # Use query_optimizer for better performance
-        parent_bag = query_optimizer.get_bag_by_qr(qr_code, 'parent')
+        # Use direct query to avoid session issues
+        parent_bag = Bag.query.filter_by(qr_id=qr_code).first()
         
         if not parent_bag:
             # Validate QR code length before creating
@@ -3424,30 +3424,20 @@ def bag_management():
         }
     
     # Get list of users who have scanned bags for the filter dropdown
-    # Count actual UNIQUE bags (parent and child), not scan events
+    # Count actual UNIQUE bags (parent and child separately), not scan events
     users_with_scans_sql = """
-    WITH user_bags AS (
-        -- Count unique parent bags scanned by each user
-        SELECT u.id, u.username, COUNT(DISTINCT s.parent_bag_id) as bag_count
-        FROM "user" u
-        LEFT JOIN scan s ON s.user_id = u.id
-        WHERE s.parent_bag_id IS NOT NULL
-        GROUP BY u.id, u.username
-        
-        UNION ALL
-        
-        -- Count unique child bags scanned by each user  
-        SELECT u.id, u.username, COUNT(DISTINCT s.child_bag_id) as bag_count
-        FROM "user" u
-        LEFT JOIN scan s ON s.user_id = u.id
-        WHERE s.child_bag_id IS NOT NULL
-        GROUP BY u.id, u.username
-    )
-    SELECT id, username, SUM(bag_count) as scan_count
-    FROM user_bags
-    GROUP BY id, username
-    HAVING SUM(bag_count) > 0
-    ORDER BY username
+    SELECT 
+        u.id,
+        u.username,
+        COUNT(DISTINCT s.parent_bag_id) as parent_bags,
+        COUNT(DISTINCT s.child_bag_id) as child_bags,
+        COUNT(DISTINCT s.parent_bag_id) + COUNT(DISTINCT s.child_bag_id) as scan_count
+    FROM "user" u
+    LEFT JOIN scan s ON s.user_id = u.id
+    WHERE u.role != 'admin'
+    GROUP BY u.id, u.username
+    HAVING COUNT(DISTINCT s.parent_bag_id) + COUNT(DISTINCT s.child_bag_id) > 0
+    ORDER BY scan_count DESC, u.username
     """
     users_with_scans = db.session.execute(db.text(users_with_scans_sql)).fetchall()
     
