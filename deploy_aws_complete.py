@@ -337,7 +337,19 @@ class AWSDeployer:
                 logger.error("❌ Failed to create ECS service")
                 return False
             
-            # Step 9: Get service URL
+            # Step 9: Migrate RDS data (if AWS_DATABASE_URL is provided)
+            if os.environ.get('AWS_DATABASE_URL'):
+                logger.info("🗄️ Migrating existing RDS data to new schema...")
+                try:
+                    import subprocess
+                    result = subprocess.run([sys.executable, 'migrate_rds_simple.py'], 
+                                          capture_output=True, text=True, check=True)
+                    logger.info("✅ RDS data migration completed successfully")
+                except subprocess.CalledProcessError as e:
+                    logger.warning(f"⚠️ RDS migration failed: {e.stderr}")
+                    logger.info("Continuing with deployment...")
+            
+            # Step 10: Get service URL
             service_url = self.get_service_url()
             if service_url:
                 logger.info(f"🌐 Application deployed successfully!")
