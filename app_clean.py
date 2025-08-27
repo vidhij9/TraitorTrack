@@ -101,47 +101,62 @@ def get_database_url():
         else:
             raise ValueError("AWS_DATABASE_URL or PRODUCTION_DATABASE_URL must be set for production deployment")
     else:
-        # Development: use Replit's public DATABASE_URL
+        # Development: use Replit's public DATABASE_URL or fallback to SQLite
         dev_url = os.environ.get('DATABASE_URL')
         if dev_url:
-            logging.info("DEVELOPMENT: Using Replit public database")
+            logging.info("DEVELOPMENT: Using provided database")
             return dev_url
         else:
-            raise ValueError("DATABASE_URL not available in development environment")
+            # Fallback to SQLite for local development
+            logging.info("DEVELOPMENT: Using SQLite database")
+            return "sqlite:///tracetrack.db"
 
 # Configure database with environment-specific settings
 flask_env = os.environ.get('FLASK_ENV', 'development')
-app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
+database_url = get_database_url()
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Import high-performance configuration
-try:
-    from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
-    # Apply high-performance configuration
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
-    HighPerformanceConfig.apply_to_app(app)
-    logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
-except ImportError:
-    # Fallback to inline optimized configuration
+# Configure database engine options based on database type
+if database_url.startswith('sqlite'):
+    # SQLite configuration - simpler settings
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 300,
-        "max_overflow": 500,
-        "pool_recycle": 300,
+        "pool_size": 10,
+        "max_overflow": 20,
         "pool_pre_ping": True,
-        "pool_timeout": 30,
         "echo": False,
-        "echo_pool": False,
-        "pool_use_lifo": True,
-        "connect_args": {
-            "keepalives": 1,
-            "keepalives_idle": 10,
-            "keepalives_interval": 5,
-            "keepalives_count": 5,
-            "connect_timeout": 10,
-            "application_name": "TraceTrack_Optimized"
-        }
+        "echo_pool": False
     }
-    logger.info("Using optimized database configuration for high concurrency")
+    logger.info("Using SQLite configuration for development")
+else:
+    # PostgreSQL configuration for production
+    try:
+        from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
+        # Apply high-performance configuration
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
+        HighPerformanceConfig.apply_to_app(app)
+        logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
+    except ImportError:
+        # Fallback to inline optimized configuration
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": 300,
+            "max_overflow": 500,
+            "pool_recycle": 300,
+            "pool_pre_ping": True,
+            "pool_timeout": 30,
+            "echo": False,
+            "echo_pool": False,
+            "pool_use_lifo": True,
+            "connect_args": {
+                "keepalives": 1,
+                "keepalives_idle": 10,
+                "keepalives_interval": 5,
+                "keepalives_count": 5,
+                "connect_timeout": 10,
+                "application_name": "TraceTrack_Optimized"
+            }
+        }
+        logger.info("Using optimized database configuration for high concurrency")
 
 # Disable SQL logging to reduce noise
 app.config["SQLALCHEMY_ECHO"] = False
