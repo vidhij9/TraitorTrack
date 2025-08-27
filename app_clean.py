@@ -86,7 +86,7 @@ def get_current_environment():
     
     # Check if we're on the production domain
     replit_domains = os.environ.get('REPLIT_DOMAINS', '')
-    if 'traitortrack.replit.app' in replit_domains:
+    if 'traitor-track.replit.app' in replit_domains:
         return 'production'
     
     # Default to development (Replit preview and local dev)
