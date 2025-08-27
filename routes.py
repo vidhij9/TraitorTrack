@@ -3628,40 +3628,48 @@ def bill_management():
                         'completion': (parent_count * 100 // bill.parent_bag_count) if bill.parent_bag_count else 0
                     })
         
-        # Import enhancement features for enhanced bill listing
-        # from enhancement_features import enhance_bill_creator_tracking  # Disabled to prevent route registration errors
+        # Enhancement features disabled to prevent route registration errors
+        # Standard bill listing without enhanced tracking
         
-        # Get bills with creator details
-        bill_tracker = enhance_bill_creator_tracking()
-        filters = {}
+        # Get bills directly from database
+        bills_query = Bill.query.order_by(Bill.created_at.desc())
+        
         if search_bill_id:
-            # Note: Enhanced bill listing will handle search differently
-            pass
+            bills_query = bills_query.filter(Bill.bill_id.ilike(f'%{search_bill_id}%'))
         
-        bills_data = bill_tracker['get_bills_with_creator_details'](filters)
+        if status_filter != 'all':
+            bills_query = bills_query.filter(Bill.status == status_filter)
+        
+        bills_data = bills_query.limit(50).all()
         
         # Convert to the expected format for the template
         bill_data = []
-        for bill_info in bills_data:
-            # Apply status filter
-            if status_filter == 'all' or status_filter == bill_info['status']:
-                bill_data.append({
-                    'bill': {
-                        'id': bill_info['db_id'],
-                        'bill_id': bill_info['bill_id'],
-                        'description': bill_info['description'],
-                        'parent_bag_count': bill_info['parent_bag_count'],
-                        'total_weight_kg': bill_info['total_weight_kg'],
-                        'status': bill_info['status'],
-                        'created_at': bill_info['created_at'],
-                        'created_by_id': None  # Will be handled by creator info
-                    },
-                    'parent_bags': [],  # Don't load bags in list view
-                    'parent_count': bill_info['statistics']['parent_bags_linked'],
-                    'status': bill_info['status'],
-                    'creator_info': bill_info['creator'],
-                    'statistics': bill_info['statistics']
-                })
+        for bill in bills_data:
+            # Count linked parent bags for this bill
+            parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
+            
+            # Get creator information if available
+            creator_info = None
+            if bill.created_by_id:
+                creator_user = User.query.get(bill.created_by_id)
+                if creator_user:
+                    creator_info = {
+                        'username': creator_user.username,
+                        'role': creator_user.role
+                    }
+            
+            bill_data.append({
+                'bill': bill,
+                'parent_bags': [],  # Don't load bags in list view
+                'parent_count': parent_count,
+                'status': bill.status or 'pending',
+                'creator_info': creator_info,
+                'statistics': {
+                    'parent_bags_linked': parent_count,
+                    'total_child_bags': bill.total_child_bags or 0,
+                    'total_weight_kg': bill.total_weight_kg or 0
+                }
+            })
         
         # Get list of all users for admin filter dropdown
         all_users = None
