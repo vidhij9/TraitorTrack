@@ -35,3 +35,8 @@ python-dotenv>=1.1.1
 aws-sam-cli>=1.139.0
 boto3>=1.39.11
 botocore>=1.39.11
+email_validator
+flask
+flask-sqlalchemy
+gunicorn
+psycopg2-binary
