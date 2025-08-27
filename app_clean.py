@@ -75,14 +75,18 @@ app.config.update(
 
 def get_current_environment():
     """Detect current environment - simplified logic"""
-    # Check if we're on the production domain
-    replit_domains = os.environ.get('REPLIT_DOMAINS', '')
-    if 'traitortrack.replit.app' in replit_domains:
+    # Check if PRODUCTION_DATABASE_URL is set - if so, use production
+    if os.environ.get('PRODUCTION_DATABASE_URL'):
         return 'production'
     
     # Check explicit environment variable
     env = os.environ.get('ENVIRONMENT', '').lower()
     if env == 'production':
+        return 'production'
+    
+    # Check if we're on the production domain
+    replit_domains = os.environ.get('REPLIT_DOMAINS', '')
+    if 'traitortrack.replit.app' in replit_domains:
         return 'production'
     
     # Default to development (Replit preview and local dev)
