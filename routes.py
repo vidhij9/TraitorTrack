@@ -3666,8 +3666,8 @@ def bill_management():
                 'creator_info': creator_info,
                 'statistics': {
                     'parent_bags_linked': parent_count,
-                    'total_child_bags': bill.total_child_bags or 0,
-                    'total_weight_kg': bill.total_weight_kg or 0
+                    'total_child_bags': getattr(bill, 'total_child_bags', 0) or 0,
+                    'total_weight_kg': getattr(bill, 'total_weight_kg', 0) or 0
                 }
             })
         
@@ -4219,7 +4219,9 @@ def ultra_fast_bill_parent_scan():
         
         # Update weights
         bill.total_weight_kg = (bill.total_weight_kg or 0) + 30.0
-        bill.total_child_bags = (bill.total_child_bags or 0) + 30
+        # Only update total_child_bags if the column exists
+        if hasattr(bill, 'total_child_bags'):
+            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + 30
         
         # Create scan record
         scan = Scan()
@@ -4380,7 +4382,9 @@ def process_bill_parent_scan():
             
             # Standard weight update (enhancement disabled)
             bill.total_weight_kg = (bill.total_weight_kg or 0) + (parent_bag.weight_kg or 30.0)
-            bill.total_child_bags = (bill.total_child_bags or 0) + (parent_bag.child_count or 30)
+            # Only update total_child_bags if the column exists
+            if hasattr(bill, 'total_child_bags'):
+                bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + (parent_bag.child_count or 30)
             
             # Create scan record
             scan = Scan()
@@ -4390,7 +4394,7 @@ def process_bill_parent_scan():
             
             # Add audit log entry
             app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
-            app.logger.info(f'Bill weight updated: {bill.total_weight_kg}kg, Total child bags: {bill.total_child_bags}')
+            app.logger.info(f'Bill weight updated: {getattr(bill, "total_weight_kg", 0)}kg, Total child bags: {getattr(bill, "total_child_bags", 0)}')
             
             db.session.add(bill_bag)
             db.session.add(scan)
@@ -4417,7 +4421,7 @@ def process_bill_parent_scan():
             'expected_count': bill.parent_bag_count or 10,
             'remaining_bags': (bill.parent_bag_count or 10) - updated_bag_count,
             'total_weight': bill.total_weight_kg,
-            'total_child_bags': bill.total_child_bags
+            'total_child_bags': getattr(bill, 'total_child_bags', 0)
         }
         
         app.logger.info(f'Sending response: {response_data}')
@@ -5363,7 +5367,9 @@ def manual_parent_entry():
         # Update bill weights
         app.logger.info(f'Updating bill weights - current: {bill.total_weight_kg}kg, adding: {parent_bag.weight_kg}kg')
         bill.total_weight_kg = (bill.total_weight_kg or 0) + parent_bag.weight_kg
-        bill.total_child_bags = (bill.total_child_bags or 0) + (parent_bag.child_count or 0)
+        # Only update total_child_bags if the column exists
+        if hasattr(bill, 'total_child_bags'):
+            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + (parent_bag.child_count or 0)
         
         db.session.add(bill_bag)
         db.session.commit()
@@ -5443,7 +5449,7 @@ def eod_bill_summary():
             
             # Update totals
             eod_data['total_parent_bags'] += parent_count
-            eod_data['total_child_bags'] += bill.total_child_bags or 0
+            eod_data['total_child_bags'] += getattr(bill, 'total_child_bags', 0) or 0
             eod_data['total_weight_kg'] += bill.total_weight_kg or 0
             
             # Count by status
@@ -5461,7 +5467,7 @@ def eod_bill_summary():
                 'status': status,
                 'parent_bags': parent_count,
                 'expected_bags': bill.parent_bag_count,
-                'child_bags': bill.total_child_bags or 0,
+                'child_bags': getattr(bill, 'total_child_bags', 0) or 0,
                 'weight_kg': bill.total_weight_kg or 0
             })
         
