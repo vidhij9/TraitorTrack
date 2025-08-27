@@ -31,20 +31,12 @@ try:
 except ImportError as e:
     logging.warning(f"Production ready optimizer not loaded: {e}")
 
-# Import AWS Phase 3 optimizations for full production readiness
+# AWS Phase 3 optimizations disabled to prevent route registration errors
+# These modules register routes after app startup causing Flask setup errors
 try:
-    from aws_phase3_optimizer import (
-        apply_aws_phase3_optimizations,
-        cloudwatch,
-        xray,
-        replica_router,
-        elb_health,
-        job_queue,
-        auto_scaling,
-        rds_optimizer
-    )
-    app = apply_aws_phase3_optimizations(app)
-    logging.info("🚀 AWS Phase 3 Optimizer loaded - Full AWS production readiness")
+    # from aws_phase3_optimizer import apply_aws_phase3_optimizations
+    # app = apply_aws_phase3_optimizations(app)
+    logging.info("AWS Phase 3 Optimizer disabled - prevents route registration errors")
 except ImportError as e:
     logging.warning(f"AWS Phase 3 optimizer not loaded: {e}")
 
@@ -88,11 +80,12 @@ try:
 except Exception as e:
     logger.warning(f"High-performance caching not loaded: {e}")
 
-# Import Redis caching layer for ultra-fast responses
+# Redis caching layer disabled to prevent route registration errors
+# This was causing Flask setup errors with route registration after app startup
 try:
     from redis_cache_manager import cache_manager
-    from optimized_routes import register_optimized_routes
-    app = register_optimized_routes(app)
+    # from optimized_routes import register_optimized_routes
+    # app = register_optimized_routes(app)
     logger.info(f"✅ Redis caching layer loaded - Connected: {cache_manager.redis_client is not None}")
 except Exception as e:
     logger.warning(f"Redis caching layer not loaded: {e}")
