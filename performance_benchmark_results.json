@@ -1,0 +1,14 @@
+{
+  "Basic Request": {
+    "average": 0.00016901493072509765,
+    "min": 0.0001361370086669922,
+    "max": 0.0003437995910644531,
+    "success_rate": 1.0
+  },
+  "Database Query": {
+    "average": 1.0,
+    "min": 1.0,
+    "max": 1.0,
+    "success_rate": 0.0
+  }
+}
