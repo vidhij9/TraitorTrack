@@ -7,7 +7,7 @@ packages = ["cargo", "cyrus_sasl", "freetype", "glibcLocales", "libev", "libicon
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+run = ["sh", "-c", "python main.py"]
 
 [workflows]
 runButton = "Project"
@@ -39,4 +39,4 @@ localPort = 6379
 externalPort = 3000
 
 [agent]
-integrations = ["python_log_in_with_replit==1.0.0"]
+integrations = ["python_database==1.0.0", "python_log_in_with_replit==1.0.0"]
