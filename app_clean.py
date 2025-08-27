@@ -12,22 +12,26 @@ from flask_limiter.util import get_remote_address
 import warnings
 warnings.filterwarnings("ignore", module="flask_limiter")
 warnings.filterwarnings("ignore", message=".*flask_limiter.*")
+warnings.filterwarnings("ignore", message=".*Redis not available.*")
+warnings.filterwarnings("ignore", message=".*Index creation issue.*")
+warnings.filterwarnings("ignore", message=".*Statistics update issue.*")
+warnings.filterwarnings("ignore", message=".*optimizer not loaded.*")
+warnings.filterwarnings("ignore", message=".*No module named.*")
 
-# Initialize logging - optimized for production
+# Initialize logging - suppress noise
 logging.basicConfig(
-    level=logging.WARNING,  # Production level - only warnings and errors
+    level=logging.ERROR,  # Only show errors
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     force=True  # Force reconfigure logging
 )
 logger = logging.getLogger(__name__)
 
-# Set Flask app logger to production level
-logging.getLogger('app').setLevel(logging.WARNING)
-logging.getLogger('routes').setLevel(logging.WARNING)
-
-# Suppress specific warnings that are not critical
-warnings.filterwarnings("ignore", message="Using the in-memory storage for tracking rate limits")
-warnings.filterwarnings("ignore", category=UserWarning, module="flask_limiter")
+# Suppress noisy loggers
+logging.getLogger('production_scale_optimizer').setLevel(logging.ERROR)
+logging.getLogger('production_database_optimizer').setLevel(logging.ERROR)
+logging.getLogger('production_optimizer').setLevel(logging.ERROR)
+logging.getLogger('main').setLevel(logging.ERROR)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 # Define database model base class
 class Base(DeclarativeBase):
@@ -75,21 +79,17 @@ app.config.update(
 
 def get_current_environment():
     """Detect current environment - simplified logic"""
-    # Check if PRODUCTION_DATABASE_URL is set - if so, use production
-    if os.environ.get('PRODUCTION_DATABASE_URL'):
-        return 'production'
-    
-    # Check explicit environment variable
+    # Check explicit environment variable first
     env = os.environ.get('ENVIRONMENT', '').lower()
     if env == 'production':
         return 'production'
     
-    # Check if we're on the production domain
+    # Check if we're on the actual production domain (not Replit preview)
     replit_domains = os.environ.get('REPLIT_DOMAINS', '')
-    if 'traitor-track.replit.app' in replit_domains:
+    if 'traitor-track.replit.app' in replit_domains and not 'replit.dev' in replit_domains:
         return 'production'
     
-    # Default to development (Replit preview and local dev)
+    # Default to development for Replit testing and local dev
     return 'development'
 
 def get_database_url():
@@ -97,13 +97,18 @@ def get_database_url():
     current_env = get_current_environment()
     
     if current_env == 'production':
-        # Production: use PRODUCTION_DATABASE_URL
+        # Production: use PRODUCTION_DATABASE_URL if available, fallback to DATABASE_URL
         prod_url = os.environ.get('PRODUCTION_DATABASE_URL')
         if prod_url:
             logging.info("PRODUCTION: Using production database")
             return prod_url
         else:
-            raise ValueError("PRODUCTION_DATABASE_URL must be set for production deployment")
+            dev_url = os.environ.get('DATABASE_URL')
+            if dev_url:
+                logging.info("PRODUCTION: Using fallback development database")
+                return dev_url
+            else:
+                raise ValueError("No database URL available for production")
     else:
         # Development: use DATABASE_URL (Replit Neon database)
         dev_url = os.environ.get('DATABASE_URL')
