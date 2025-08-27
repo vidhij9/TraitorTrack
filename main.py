@@ -266,6 +266,12 @@ def production_health():
     except Exception as e:
         return {'status': 'unhealthy', 'error': str(e)}, 500
 
+# Simple health check endpoint for Docker
+@app.route('/health')
+def health():
+    """Simple health check for Docker and load balancers"""
+    return {'status': 'healthy'}, 200
+
 # Expose app for gunicorn
 application = app
 
