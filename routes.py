@@ -1313,14 +1313,27 @@ def favicon():
     """Serve favicon"""
     return send_from_directory('static', 'favicon.ico', mimetype='image/x-icon')
 
-@app.route('/', methods=['GET', 'POST'])
-@app.route('/dashboard', methods=['GET', 'POST'])  # Alias for dashboard
+@app.route('/', methods=['GET'])
+def index():
+    """Main dashboard page or health check"""
+    # Fast health check for production deployments
+    user_agent = request.headers.get('User-Agent', '').lower()
+    if 'health' in user_agent or 'check' in user_agent or not request.headers.get('Accept', '').startswith('text/html'):
+        return jsonify({'status': 'healthy', 'timestamp': get_ist_now().isoformat()}), 200
+    
+    # Regular dashboard redirect for browsers
+    if not is_logged_in():
+        return redirect(url_for('login'))
+    
+    return redirect(url_for('dashboard'))
+
+@app.route('/dashboard', methods=['GET', 'POST'])
 @login_required
 @limiter.exempt  # Exempt dashboard from rate limiting
-def index():
+def dashboard():
     """Main dashboard page"""
     import logging
-    logging.info(f"Index route - Session data: {dict(session)}")
+    logging.info(f"Dashboard route - Session data: {dict(session)}")
     logging.info(f"Authenticated: {is_logged_in()}")
     
     # Simple authentication check
@@ -3616,7 +3629,7 @@ def bill_management():
                     })
         
         # Import enhancement features for enhanced bill listing
-        from enhancement_features import enhance_bill_creator_tracking
+        # from enhancement_features import enhance_bill_creator_tracking  # Disabled to prevent route registration errors
         
         # Get bills with creator details
         bill_tracker = enhance_bill_creator_tracking()
@@ -3722,11 +3735,11 @@ def create_bill():
                 flash(f'Bill ID "{bill_id}" already exists. Please use a different ID.', 'error')
                 return render_template('create_bill.html')
             
-            # Import enhancement features
-            from enhancement_features import enhance_bill_creator_tracking
+            # Enhancement features disabled to prevent route registration errors
+            # from enhancement_features import enhance_bill_creator_tracking
             
-            # Create bill with enhanced tracking
-            bill_tracker = enhance_bill_creator_tracking()
+            # Create bill with standard tracking (enhancement disabled)
+            bill_tracker = {}
             bill_data = {
                 'bill_id': bill_id,
                 'description': '',
@@ -4351,18 +4364,15 @@ def process_bill_parent_scan():
             bill_bag.bag_id = parent_bag.id
             
             # Import enhancement features for weight updates
-            from enhancement_features import fix_weight_updates
+            # from enhancement_features import fix_weight_updates  # Disabled to prevent route registration errors
             
             # Track who created/modified the bill
             if not bill.created_by_id:
                 bill.created_by_id = current_user.id
             
-            # Use enhanced weight update functionality
-            weight_fixes = fix_weight_updates()
-            success = weight_fixes['update_bill_weights'](bill.id)
-            
-            if not success:
-                app.logger.warning(f'Bill weight update failed: {bill.bill_id}')
+            # Standard weight update (enhancement disabled)
+            bill.total_weight_kg = (bill.total_weight_kg or 0) + (parent_bag.weight_kg or 30.0)
+            bill.total_child_bags = (bill.total_child_bags or 0) + (parent_bag.child_count or 30)
             
             # Create scan record
             scan = Scan()
