@@ -69,8 +69,8 @@ QUERIES = {
     """,
     
     'record_scan': """
-        INSERT INTO scan (parent_bag_id, child_bag_id, user_id, timestamp, scan_type)
-        VALUES (:parent_id, :child_id, :user_id, NOW(), :scan_type)
+        INSERT INTO scan (parent_bag_id, child_bag_id, user_id, timestamp)
+        VALUES (:parent_id, :child_id, :user_id, NOW())
     """
 }
 
