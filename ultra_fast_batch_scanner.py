@@ -63,14 +63,12 @@ BATCH_QUERIES = {
     'batch_record_scans': """
         INSERT INTO scan (
             parent_bag_id, child_bag_id, user_id, 
-            scan_type, scan_duration_ms, created_at
+            timestamp
         )
         SELECT 
             :parent_id, 
             unnest(:child_ids), 
             :user_id,
-            'batch_link',
-            :duration_ms,
             NOW()
     """,
     
