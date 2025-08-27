@@ -3615,46 +3615,39 @@ def bill_management():
                         'completion': (parent_count * 100 // bill.parent_bag_count) if bill.parent_bag_count else 0
                     })
         
-        # Regular bill listing query
-        bills_query = Bill.query
+        # Import enhancement features for enhanced bill listing
+        from enhancement_features import enhance_bill_creator_tracking
+        
+        # Get bills with creator details
+        bill_tracker = enhance_bill_creator_tracking()
+        filters = {}
         if search_bill_id:
-            bills_query = bills_query.filter(Bill.bill_id.ilike(f'%{search_bill_id}%'))
+            # Note: Enhanced bill listing will handle search differently
+            pass
         
-        # Get only essential columns for speed
-        bills = bills_query.order_by(desc(Bill.created_at)).limit(100).all()
+        bills_data = bill_tracker['get_bills_with_creator_details'](filters)
         
-        # Single optimized query to get all counts at once
-        from sqlalchemy import func
-        bill_counts = db.session.query(
-            BillBag.bill_id,
-            func.count(BillBag.bag_id).label('count')
-        ).filter(
-            BillBag.bill_id.in_([b.id for b in bills])
-        ).group_by(BillBag.bill_id).all()
-        
-        # Convert to dict for O(1) lookup
-        count_dict = {bc.bill_id: bc.count for bc in bill_counts}
-        
-        # Build bill data with minimal processing
+        # Convert to the expected format for the template
         bill_data = []
-        for bill in bills:
-            parent_count = count_dict.get(bill.id, 0)
-            
-            # Fast status determination
-            if bill.parent_bag_count and parent_count >= bill.parent_bag_count:
-                bill_status = 'completed'
-            elif parent_count > 0:
-                bill_status = 'in_progress'
-            else:
-                bill_status = 'empty'
-            
-            # Apply filter
-            if status_filter == 'all' or status_filter == bill_status:
+        for bill_info in bills_data:
+            # Apply status filter
+            if status_filter == 'all' or status_filter == bill_info['status']:
                 bill_data.append({
-                    'bill': bill,
+                    'bill': {
+                        'id': bill_info['db_id'],
+                        'bill_id': bill_info['bill_id'],
+                        'description': bill_info['description'],
+                        'parent_bag_count': bill_info['parent_bag_count'],
+                        'total_weight_kg': bill_info['total_weight_kg'],
+                        'status': bill_info['status'],
+                        'created_at': bill_info['created_at'],
+                        'created_by_id': None  # Will be handled by creator info
+                    },
                     'parent_bags': [],  # Don't load bags in list view
-                    'parent_count': parent_count,
-                    'status': bill_status
+                    'parent_count': bill_info['statistics']['parent_bags_linked'],
+                    'status': bill_info['status'],
+                    'creator_info': bill_info['creator'],
+                    'statistics': bill_info['statistics']
                 })
         
         # Get list of all users for admin filter dropdown
@@ -3729,21 +3722,18 @@ def create_bill():
                 flash(f'Bill ID "{bill_id}" already exists. Please use a different ID.', 'error')
                 return render_template('create_bill.html')
             
-            # Create new bill with optimized insertion
-            bill = Bill()
-            bill.bill_id = bill_id
-            bill.description = ''
-            bill.parent_bag_count = parent_bag_count
-            bill.status = 'new'
-            bill.created_by_id = current_user.id
-            bill.total_weight_kg = 0.0
-            bill.total_child_bags = 0
+            # Import enhancement features
+            from enhancement_features import enhance_bill_creator_tracking
             
-            # FIX: Add audit log
-            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) created bill {bill_id} with capacity {parent_bag_count}')
+            # Create bill with enhanced tracking
+            bill_tracker = enhance_bill_creator_tracking()
+            bill_data = {
+                'bill_id': bill_id,
+                'description': '',
+                'parent_bag_count': parent_bag_count
+            }
             
-            db.session.add(bill)
-            db.session.commit()
+            bill = bill_tracker['create_bill_with_tracking'](bill_data, current_user.id)
             
             app.logger.info(f'Bill created successfully: {bill_id} with {parent_bag_count} parent bags')
             
@@ -4360,18 +4350,19 @@ def process_bill_parent_scan():
             bill_bag.bill_id = bill.id
             bill_bag.bag_id = parent_bag.id
             
-            # Update bill weight calculations
-            # Each completed parent bag = 30kg (30 children x 1kg each)
-            # Use actual weight from parent_bag which is set when completed
-            weight_to_add = parent_bag.weight_kg if parent_bag.weight_kg > 0 else 30.0
-            child_count_to_add = parent_bag.child_count if parent_bag.child_count > 0 else 30
-            
-            bill.total_weight_kg = (bill.total_weight_kg or 0) + weight_to_add
-            bill.total_child_bags = (bill.total_child_bags or 0) + child_count_to_add
+            # Import enhancement features for weight updates
+            from enhancement_features import fix_weight_updates
             
             # Track who created/modified the bill
             if not bill.created_by_id:
                 bill.created_by_id = current_user.id
+            
+            # Use enhanced weight update functionality
+            weight_fixes = fix_weight_updates()
+            success = weight_fixes['update_bill_weights'](bill.id)
+            
+            if not success:
+                app.logger.warning(f'Bill weight update failed: {bill.bill_id}')
             
             # Create scan record
             scan = Scan()
