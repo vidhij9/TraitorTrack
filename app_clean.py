@@ -133,11 +133,11 @@ try:
 except ImportError:
     # Fallback to inline optimized configuration
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 300,
-        "max_overflow": 500,
+        "pool_size": 20,  # Optimized for 20 concurrent scanning users
+        "max_overflow": 30,  # Additional connections for peaks
         "pool_recycle": 300,
         "pool_pre_ping": True,
-        "pool_timeout": 30,
+        "pool_timeout": 10,  # Faster timeout for better concurrency
         "echo": False,
         "echo_pool": False,
         "pool_use_lifo": True,
@@ -147,7 +147,7 @@ except ImportError:
             "keepalives_interval": 5,
             "keepalives_count": 5,
             "connect_timeout": 10,
-            "application_name": "TraceTrack_Optimized"
+            "application_name": "TraceTrack_Scanner"
         }
     }
     logger.info("Using optimized database configuration for high concurrency")
