@@ -4450,49 +4450,91 @@ def bag_details(qr_id):
     # Log the QR ID for debugging
     app.logger.info(f'Looking up bag with QR ID: {qr_id}')
     
-    bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first_or_404()
-    
-    # Get related information with optimized queries
-    if bag.type == 'parent':
-        # Get child bags efficiently in one query
-        child_bags = db.session.query(Bag).join(
-            Link, Link.child_bag_id == Bag.id
-        ).filter(
-            Link.parent_bag_id == bag.id
-        ).limit(100).all()  # Limit for performance
+    try:
+        bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first_or_404()
         
-        parent_bag = None
-        bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == bag.id).all()
-        
-        # Get scans with user relationship eagerly loaded
-        scans = db.session.query(Scan).options(
-            db.joinedload(Scan.user)
-        ).filter(
-            Scan.parent_bag_id == bag.id
-        ).order_by(desc(Scan.timestamp)).limit(50).all()
-    else:
+        # Initialize variables to avoid template errors
         child_bags = []
-        link = Link.query.filter_by(child_bag_id=bag.id).first()
-        parent_bag = Bag.query.get(link.parent_bag_id) if link and link.parent_bag_id else None
+        parent_bag = None
         bills = []
-        if parent_bag:
-            bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == parent_bag.id).all()
+        scans = []
+        link = None
         
-        # Get scans with user relationship eagerly loaded
-        scans = db.session.query(Scan).options(
-            db.joinedload(Scan.user)
-        ).filter(
-            Scan.child_bag_id == bag.id
-        ).order_by(desc(Scan.timestamp)).limit(50).all()
-    
-    return render_template('bag_detail.html',
-                         bag=bag,
-                         child_bags=child_bags,
-                         parent_bag=parent_bag,
-                         bills=bills,
-                         scans=scans,
-                         is_parent=bag.type == 'parent',
-                         link=bills[0] if bills else None)
+        # Get related information with optimized queries
+        if bag.type == 'parent':
+            # Get child bags efficiently - handle potential join issues
+            try:
+                child_bags = db.session.query(Bag).join(
+                    Link, Link.child_bag_id == Bag.id
+                ).filter(
+                    Link.parent_bag_id == bag.id
+                ).limit(100).all()  # Limit for performance
+            except Exception as e:
+                app.logger.warning(f"Error loading child bags for {qr_id}: {e}")
+                child_bags = []
+            
+            # Get bills - handle potential join issues
+            try:
+                bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == bag.id).all()
+                # Set link only if bills exist and have valid data
+                if bills and len(bills) > 0:
+                    # Create a simple object to pass bill_id and created_at to template
+                    link = {
+                        'bill_id': bills[0].bill_id,
+                        'created_at': bills[0].created_at
+                    }
+            except Exception as e:
+                app.logger.warning(f"Error loading bills for {qr_id}: {e}")
+                bills = []
+                link = None
+            
+            # Get scans with user relationship eagerly loaded - handle potential issues
+            try:
+                scans = db.session.query(Scan).options(
+                    db.joinedload(Scan.user)
+                ).filter(
+                    Scan.parent_bag_id == bag.id
+                ).order_by(desc(Scan.timestamp)).limit(50).all()
+            except Exception as e:
+                app.logger.warning(f"Error loading scans for {qr_id}: {e}")
+                scans = []
+        else:
+            # Handle child bag type
+            try:
+                link_obj = Link.query.filter_by(child_bag_id=bag.id).first()
+                parent_bag = Bag.query.get(link_obj.parent_bag_id) if link_obj and link_obj.parent_bag_id else None
+                
+                if parent_bag:
+                    bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == parent_bag.id).all()
+            except Exception as e:
+                app.logger.warning(f"Error loading parent/bills for child bag {qr_id}: {e}")
+                parent_bag = None
+                bills = []
+            
+            # Get scans for child bag
+            try:
+                scans = db.session.query(Scan).options(
+                    db.joinedload(Scan.user)
+                ).filter(
+                    Scan.child_bag_id == bag.id
+                ).order_by(desc(Scan.timestamp)).limit(50).all()
+            except Exception as e:
+                app.logger.warning(f"Error loading scans for child bag {qr_id}: {e}")
+                scans = []
+        
+        return render_template('bag_detail.html',
+                             bag=bag,
+                             child_bags=child_bags,
+                             parent_bag=parent_bag,
+                             bills=bills,
+                             scans=scans,
+                             is_parent=bag.type == 'parent',
+                             link=link)
+                             
+    except Exception as e:
+        app.logger.error(f"Error in bag_details for {qr_id}: {str(e)}")
+        flash(f'Error loading bag details: {str(e)}', 'error')
+        return redirect(url_for('child_lookup', qr_id=qr_id))
 
 # User Profile Management
 @app.route('/profile')
