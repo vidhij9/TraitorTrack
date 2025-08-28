@@ -5768,3 +5768,171 @@ def child_lookup_page():
             flash('QR code is required', 'error')
     
     return render_template('child_lookup.html')
+
+@app.route('/excel_upload', methods=['GET', 'POST'])
+@login_required
+def excel_upload():
+    """Excel file upload for bulk bag linking"""
+    if request.method == 'POST':
+        try:
+            # Check if file was uploaded
+            if 'excel_file' not in request.files:
+                flash('No file uploaded', 'error')
+                return redirect(request.url)
+            
+            file = request.files['excel_file']
+            
+            # Check if file was selected
+            if file.filename == '':
+                flash('No file selected', 'error')
+                return redirect(request.url)
+            
+            # Check file extension
+            if not file.filename.lower().endswith('.xlsx'):
+                flash('Please upload an Excel file (.xlsx)', 'error')
+                return redirect(request.url)
+            
+            # Process the Excel file
+            import openpyxl
+            from io import BytesIO
+            
+            # Read file content
+            file_content = file.read()
+            workbook = openpyxl.load_workbook(BytesIO(file_content))
+            sheet = workbook.active
+            
+            # Statistics for feedback
+            stats = {
+                'total_rows': 0,
+                'successful_links': 0,
+                'parent_bags_created': 0,
+                'child_bags_created': 0,
+                'existing_links': 0,
+                'errors': []
+            }
+            
+            # Process each row (skip header if exists)
+            for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                stats['total_rows'] += 1
+                
+                # Extract data from columns
+                serial_number = row[0] if len(row) > 0 else None
+                parent_qr = str(row[1]).strip().upper() if len(row) > 1 and row[1] else None
+                child_qr = str(row[2]).strip() if len(row) > 2 and row[2] else None
+                
+                # Skip empty rows
+                if not parent_qr or not child_qr:
+                    continue
+                
+                try:
+                    # Get or create parent bag
+                    parent_bag = Bag.query.filter_by(qr_id=parent_qr).first()
+                    if not parent_bag:
+                        # Create parent bag
+                        parent_bag = Bag()
+                        parent_bag.qr_id = parent_qr
+                        parent_bag.type = BagType.PARENT.value
+                        parent_bag.status = 'pending'
+                        parent_bag.user_id = current_user.id
+                        parent_bag.dispatch_area = session.get('dispatch_area', 'Default')
+                        parent_bag.created_at = datetime.utcnow()
+                        db.session.add(parent_bag)
+                        db.session.flush()
+                        stats['parent_bags_created'] += 1
+                        
+                        # Log audit
+                        log_audit('create_bag', 'bag', parent_bag.id, 
+                                {'qr_id': parent_qr, 'type': 'parent', 'source': 'excel_upload'})
+                    
+                    # Get or create child bag
+                    child_bag = Bag.query.filter_by(qr_id=child_qr).first()
+                    if not child_bag:
+                        # Create child bag
+                        child_bag = Bag()
+                        child_bag.qr_id = child_qr
+                        child_bag.type = BagType.CHILD.value
+                        child_bag.status = 'pending'
+                        child_bag.user_id = current_user.id
+                        child_bag.dispatch_area = session.get('dispatch_area', 'Default')
+                        child_bag.created_at = datetime.utcnow()
+                        db.session.add(child_bag)
+                        db.session.flush()
+                        stats['child_bags_created'] += 1
+                        
+                        # Log audit
+                        log_audit('create_bag', 'bag', child_bag.id, 
+                                {'qr_id': child_qr, 'type': 'child', 'source': 'excel_upload'})
+                    
+                    # Check if link already exists
+                    existing_link = Link.query.filter_by(
+                        parent_bag_id=parent_bag.id,
+                        child_bag_id=child_bag.id
+                    ).first()
+                    
+                    if existing_link:
+                        stats['existing_links'] += 1
+                    else:
+                        # Create link
+                        link = Link()
+                        link.parent_bag_id = parent_bag.id
+                        link.child_bag_id = child_bag.id
+                        link.created_at = datetime.utcnow()
+                        db.session.add(link)
+                        stats['successful_links'] += 1
+                        
+                        # Log audit
+                        log_audit('link_bags', 'link', link.id,
+                                {'parent_qr': parent_qr, 'child_qr': child_qr, 'source': 'excel_upload'})
+                        
+                        # Update parent bag child count
+                        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count() + 1
+                        parent_bag.child_count = child_count
+                        parent_bag.weight_kg = child_count
+                        
+                        # Mark parent as completed if it has 30 children
+                        if child_count >= 30:
+                            parent_bag.status = 'completed'
+                            parent_bag.weight_kg = 30.0
+                    
+                    # Create scan record
+                    scan = Scan()
+                    scan.parent_bag_id = parent_bag.id
+                    scan.child_bag_id = child_bag.id
+                    scan.user_id = current_user.id
+                    scan.timestamp = datetime.utcnow()
+                    db.session.add(scan)
+                    
+                except Exception as e:
+                    stats['errors'].append(f"Row {row_num}: {str(e)}")
+                    app.logger.error(f"Excel upload error on row {row_num}: {str(e)}")
+            
+            # Commit all changes
+            db.session.commit()
+            
+            # Clear caches
+            clear_cache()
+            
+            # Show results
+            if stats['successful_links'] > 0:
+                flash(f"Successfully processed {stats['total_rows']} rows: "
+                      f"{stats['successful_links']} new links created, "
+                      f"{stats['parent_bags_created']} parent bags created, "
+                      f"{stats['child_bags_created']} child bags created, "
+                      f"{stats['existing_links']} existing links skipped", 'success')
+            else:
+                flash(f"No new links created. {stats['existing_links']} existing links found.", 'warning')
+            
+            if stats['errors']:
+                for error in stats['errors'][:5]:  # Show first 5 errors
+                    flash(error, 'error')
+            
+            return render_template('excel_upload.html', stats=stats)
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Excel upload error: {str(e)}")
+            flash(f"Error processing file: {str(e)}", 'error')
+            return redirect(request.url)
+    
+    # GET request - show upload form
+    return render_template('excel_upload.html')
