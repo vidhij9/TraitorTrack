@@ -1,0 +1,1 @@
+web: gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 --worker-class gthread --timeout 60 --keepalive 5 --max-requests 2000 --max-requests-jitter 200 --reuse-port --access-logfile - --error-logfile - --log-level info main:app
