@@ -15,7 +15,7 @@ exec gunicorn \
   --threads 2 \
   --worker-class gthread \
   --timeout 60 \
-  --keepalive 5 \
+  --keep-alive 5 \
   --max-requests 2000 \
   --max-requests-jitter 200 \
   --reuse-port \
