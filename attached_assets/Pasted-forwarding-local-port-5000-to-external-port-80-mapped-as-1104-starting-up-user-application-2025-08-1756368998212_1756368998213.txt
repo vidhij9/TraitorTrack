@@ -1,0 +1,24 @@
+forwarding local port 5000 to external port 80 (mapped as 1104)
+starting up user application
+2025-08-28 08:14:33,115 - high_performance_cache - INFO - Cache initialized - Ready for high-performance queries
+2025-08-28 08:14:33,115 - __main__ - INFO - High-performance caching loaded successfully
+2025-08-28 08:14:33,104 - __main__ - INFO - Ultra-optimized API loaded with circuit breakers and caching
+2025-08-28 08:14:33,132 - __main__ - INFO - ✅ Redis caching layer loaded - Connected: False
+2025-08-28 08:14:33,132 - redis_cache_manager - INFO - ✅ Using optimized in-memory cache (Redis disabled)
+2025-08-28 08:14:33,140 - __main__ - WARNING - Production ultra optimizer not loaded: No module named 'production_ultra_optimizer'
+2025-08-28 08:14:33,140 - __main__ - WARNING - Ultra performance optimizer not loaded: expected 'except' or 'finally' block (ultra_performance_optimizer.py, line 274)
+2025-08-28 08:14:33,156 - __main__ - INFO - Ultra-fast batch scanner loaded - reduces 30 bag scanning from 20min to <1min
+2025-08-28 08:14:33,141 - __main__ - WARNING - Extreme optimizer not loaded: No module named 'extreme_performance_optimizer'
+2025-08-28 08:14:33,156 - ultra_fast_batch_scanner - INFO - Ultra-fast batch scanner registered
+2025-08-28 08:14:33,157 - __main__ - WARNING - Production optimization config not loaded: No module named 'production_optimization_config'
+2025-08-28 08:15:01,401 - __main__ - INFO - ✅ Production scale optimizer loaded - 600k+ bags, 100+ users
+2025-08-28 08:15:15,449 - app_clean - INFO - Request: GET http://127.0.0.1:1104/ - IP: 127.0.0.1
+ * Serving Flask app 'app_clean'
+2025-08-28 08:15:13,750 - __main__ - INFO - Database connection verified
+✅ Patched werkzeug password functions for speed
+2025-08-28 08:15:12,981 - __main__ - INFO - Production database optimizer loaded
+✅ Ultra-optimized API loaded with circuit breakers and caching
+Production database optimizer loaded
+ * Debug mode: off
+2025-08-28T08:15:20Z info: Waiting for service to be ready
+2025-08-28T08:15:23Z info: Deployment successful
