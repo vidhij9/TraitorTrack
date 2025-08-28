@@ -10,8 +10,19 @@ from sqlalchemy import func, or_, desc, text
 from app_clean import app, db, limiter
 from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
-from optimized_cache import cached, invalidate_cache, cache
-from query_optimizer import query_optimizer
+# from optimized_cache import cached, invalidate_cache, cache
+# from query_optimizer import query_optimizer
+
+# Simple placeholder decorators
+def cached(ttl=60, prefix=''):
+    def decorator(f):
+        return f
+    return decorator
+
+def invalidate_cache():
+    pass
+
+cache = None
 
 logger = logging.getLogger(__name__)
 
@@ -207,9 +218,15 @@ def get_all_parent_bags():
         per_page = min(request.args.get('per_page', 50, type=int), 100)
         search = request.args.get('search', '').strip()
         
-        # Use optimized query
-        pagination = query_optimizer.get_parent_bags_paginated(
-            page=page, per_page=per_page, search=search
+        # Use direct query
+        query = Bag.query.filter_by(type=BagType.PARENT.value)
+        if search:
+            query = query.filter(or_(
+                Bag.qr_id.ilike(f'%{search}%'),
+                Bag.name.ilike(f'%{search}%')
+            ))
+        pagination = query.order_by(desc(Bag.created_at)).paginate(
+            page=page, per_page=per_page, error_out=False
         )
         
         bag_data = []
@@ -252,8 +269,11 @@ def get_all_parent_bags():
 def get_bag_children(bag_id):
     """Get all child bags for a specific parent bag"""
     try:
-        # Use optimized query
-        children = query_optimizer.get_child_bags_for_parent(bag_id)
+        # Use direct query  
+        children = Bag.query.join(Link, Link.child_bag_id == Bag.id).filter(
+            Link.parent_bag_id == bag_id,
+            Bag.type == BagType.CHILD.value
+        ).all()
         
         children_data = []
         for child in children:
@@ -287,10 +307,15 @@ def get_dashboard_statistics():
     """Single optimized endpoint for all dashboard data"""
     try:
         # Get comprehensive stats in one query
-        stats = query_optimizer.get_dashboard_stats()
+        stats = {
+            'total_bags': Bag.query.count(),
+            'total_scans': Scan.query.count(),
+            'total_bills': Bill.query.count(),
+            'active_users': db.session.query(func.count(func.distinct(Scan.user_id))).scalar() or 0
+        }
         
         # Get recent activity
-        recent_scans = query_optimizer.get_recent_scans(limit=10)
+        recent_scans = Scan.query.order_by(desc(Scan.timestamp)).limit(10).all()
         recent_activity = []
         
         for scan in recent_scans:
