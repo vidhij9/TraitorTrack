@@ -5773,7 +5773,7 @@ def child_lookup_page():
 @login_required
 @csrf.exempt
 def excel_upload():
-    """Excel file upload for bulk bag linking"""
+    """Excel file upload for bulk bag linking - OPTIMIZED VERSION"""
     if request.method == 'POST':
         try:
             # Check if file was uploaded
@@ -5796,10 +5796,11 @@ def excel_upload():
             # Process the Excel file
             import openpyxl
             from io import BytesIO
+            from collections import defaultdict
             
             # Read file content
             file_content = file.read()
-            workbook = openpyxl.load_workbook(BytesIO(file_content))
+            workbook = openpyxl.load_workbook(BytesIO(file_content), read_only=True, data_only=True)
             sheet = workbook.active
             
             # Statistics for feedback
@@ -5809,103 +5810,183 @@ def excel_upload():
                 'parent_bags_created': 0,
                 'child_bags_created': 0,
                 'existing_links': 0,
+                'skipped_full_parents': 0,
+                'duplicate_children': 0,
                 'errors': []
             }
             
-            # Process each row (skip header if exists)
+            # OPTIMIZATION: Collect all QR codes first for batch processing
+            parent_qrs = set()
+            child_qrs = set()
+            parent_child_pairs = []
+            
+            # First pass: Collect all unique QR codes
             for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
-                stats['total_rows'] += 1
+                if row and len(row) >= 3:
+                    parent_qr = str(row[1]).strip().upper() if row[1] else None
+                    child_qr = str(row[2]).strip().upper() if row[2] else None
+                    
+                    if parent_qr and child_qr:
+                        # Validate parent bag format (should start with SB)
+                        if not parent_qr.startswith('SB'):
+                            stats['errors'].append(f"Row {row_num}: Parent bag '{parent_qr}' should start with 'SB'")
+                            continue
+                        
+                        parent_qrs.add(parent_qr)
+                        child_qrs.add(child_qr)
+                        parent_child_pairs.append((row_num, parent_qr, child_qr))
+                        stats['total_rows'] += 1
+            
+            if not parent_child_pairs:
+                flash('No valid data found in the Excel file', 'warning')
+                return redirect(request.url)
+            
+            # OPTIMIZATION: Batch load all existing bags
+            existing_parent_bags = {bag.qr_id: bag for bag in 
+                                   Bag.query.filter(Bag.qr_id.in_(list(parent_qrs))).all()}
+            existing_child_bags = {bag.qr_id: bag for bag in 
+                                  Bag.query.filter(Bag.qr_id.in_(list(child_qrs))).all()}
+            
+            # OPTIMIZATION: Load all existing links for these bags
+            existing_bag_ids = set([bag.id for bag in existing_parent_bags.values()] + 
+                                  [bag.id for bag in existing_child_bags.values()])
+            
+            existing_links = set()
+            links = []
+            if existing_bag_ids:
+                links = Link.query.filter(
+                    Link.parent_bag_id.in_(list(existing_bag_ids)),
+                    Link.child_bag_id.in_(list(existing_bag_ids))
+                ).all()
+                existing_links = {(link.parent_bag_id, link.child_bag_id) for link in links}
+            
+            # Count children per parent for validation
+            children_per_parent = defaultdict(set)
+            for link in links:
+                children_per_parent[link.parent_bag_id].add(link.child_bag_id)
+            
+            # Track which children are already linked to any parent
+            linked_children = set()
+            for link in links:
+                linked_children.add(link.child_bag_id)
+            
+            # OPTIMIZATION: Batch create new bags
+            bags_to_create = []
+            
+            # Create parent bags that don't exist
+            for parent_qr in parent_qrs:
+                if parent_qr not in existing_parent_bags:
+                    parent_bag = Bag()
+                    parent_bag.qr_id = parent_qr
+                    parent_bag.type = BagType.PARENT.value
+                    parent_bag.status = 'pending'
+                    parent_bag.user_id = current_user.id
+                    parent_bag.dispatch_area = session.get('dispatch_area', 'Default')
+                    parent_bag.created_at = datetime.utcnow()
+                    parent_bag.child_count = 0
+                    parent_bag.weight_kg = 0
+                    bags_to_create.append(parent_bag)
+                    stats['parent_bags_created'] += 1
+            
+            # Create child bags that don't exist
+            for child_qr in child_qrs:
+                if child_qr not in existing_child_bags:
+                    child_bag = Bag()
+                    child_bag.qr_id = child_qr
+                    child_bag.type = BagType.CHILD.value
+                    child_bag.status = 'pending'
+                    child_bag.user_id = current_user.id
+                    child_bag.dispatch_area = session.get('dispatch_area', 'Default')
+                    child_bag.created_at = datetime.utcnow()
+                    bags_to_create.append(child_bag)
+                    stats['child_bags_created'] += 1
+            
+            # Batch insert all new bags
+            if bags_to_create:
+                db.session.bulk_save_objects(bags_to_create, return_defaults=True)
+                db.session.flush()
                 
-                # Extract data from columns
-                serial_number = row[0] if len(row) > 0 else None
-                parent_qr = str(row[1]).strip().upper() if len(row) > 1 and row[1] else None
-                child_qr = str(row[2]).strip() if len(row) > 2 and row[2] else None
+                # Reload bags with IDs
+                all_parent_bags = {bag.qr_id: bag for bag in 
+                                  Bag.query.filter(Bag.qr_id.in_(list(parent_qrs))).all()}
+                all_child_bags = {bag.qr_id: bag for bag in 
+                                 Bag.query.filter(Bag.qr_id.in_(list(child_qrs))).all()}
+            else:
+                all_parent_bags = existing_parent_bags
+                all_child_bags = existing_child_bags
+            
+            # Process links
+            links_to_create = []
+            scans_to_create = []
+            parent_updates = defaultdict(lambda: {'count': 0, 'bag': None})
+            
+            for row_num, parent_qr, child_qr in parent_child_pairs:
+                parent_bag = all_parent_bags.get(parent_qr)
+                child_bag = all_child_bags.get(child_qr)
                 
-                # Skip empty rows
-                if not parent_qr or not child_qr:
+                if not parent_bag or not child_bag:
+                    stats['errors'].append(f"Row {row_num}: Bag creation failed")
                     continue
                 
-                try:
-                    # Get or create parent bag
-                    parent_bag = Bag.query.filter_by(qr_id=parent_qr).first()
-                    if not parent_bag:
-                        # Create parent bag
-                        parent_bag = Bag()
-                        parent_bag.qr_id = parent_qr
-                        parent_bag.type = BagType.PARENT.value
-                        parent_bag.status = 'pending'
-                        parent_bag.user_id = current_user.id
-                        parent_bag.dispatch_area = session.get('dispatch_area', 'Default')
-                        parent_bag.created_at = datetime.utcnow()
-                        db.session.add(parent_bag)
-                        db.session.flush()
-                        stats['parent_bags_created'] += 1
-                        
-                        # Log audit
-                        log_audit('create_bag', 'bag', parent_bag.id, 
-                                {'qr_id': parent_qr, 'type': 'parent', 'source': 'excel_upload'})
+                # Check if parent already has 30 children
+                current_children = children_per_parent.get(parent_bag.id, set())
+                if len(current_children) >= 30:
+                    stats['skipped_full_parents'] += 1
+                    continue
+                
+                # Check if child is already linked to another parent
+                if child_bag.id in linked_children and (parent_bag.id, child_bag.id) not in existing_links:
+                    stats['duplicate_children'] += 1
+                    stats['errors'].append(f"Row {row_num}: Child bag {child_qr} is already linked to another parent")
+                    continue
+                
+                # Check if link already exists
+                if (parent_bag.id, child_bag.id) in existing_links:
+                    stats['existing_links'] += 1
+                else:
+                    # Create new link
+                    link = Link()
+                    link.parent_bag_id = parent_bag.id
+                    link.child_bag_id = child_bag.id
+                    link.created_at = datetime.utcnow()
+                    links_to_create.append(link)
                     
-                    # Get or create child bag
-                    child_bag = Bag.query.filter_by(qr_id=child_qr).first()
-                    if not child_bag:
-                        # Create child bag
-                        child_bag = Bag()
-                        child_bag.qr_id = child_qr
-                        child_bag.type = BagType.CHILD.value
-                        child_bag.status = 'pending'
-                        child_bag.user_id = current_user.id
-                        child_bag.dispatch_area = session.get('dispatch_area', 'Default')
-                        child_bag.created_at = datetime.utcnow()
-                        db.session.add(child_bag)
-                        db.session.flush()
-                        stats['child_bags_created'] += 1
-                        
-                        # Log audit
-                        log_audit('create_bag', 'bag', child_bag.id, 
-                                {'qr_id': child_qr, 'type': 'child', 'source': 'excel_upload'})
+                    # Track for parent updates
+                    parent_updates[parent_bag.id]['count'] += 1
+                    parent_updates[parent_bag.id]['bag'] = parent_bag
                     
-                    # Check if link already exists
-                    existing_link = Link.query.filter_by(
-                        parent_bag_id=parent_bag.id,
-                        child_bag_id=child_bag.id
-                    ).first()
+                    # Add to tracking sets
+                    children_per_parent[parent_bag.id].add(child_bag.id)
+                    linked_children.add(child_bag.id)
                     
-                    if existing_link:
-                        stats['existing_links'] += 1
-                    else:
-                        # Create link
-                        link = Link()
-                        link.parent_bag_id = parent_bag.id
-                        link.child_bag_id = child_bag.id
-                        link.created_at = datetime.utcnow()
-                        db.session.add(link)
-                        stats['successful_links'] += 1
-                        
-                        # Log audit
-                        log_audit('link_bags', 'link', link.id,
-                                {'parent_qr': parent_qr, 'child_qr': child_qr, 'source': 'excel_upload'})
-                        
-                        # Update parent bag child count
-                        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count() + 1
-                        parent_bag.child_count = child_count
-                        parent_bag.weight_kg = child_count
-                        
-                        # Mark parent as completed if it has 30 children
-                        if child_count >= 30:
-                            parent_bag.status = 'completed'
-                            parent_bag.weight_kg = 30.0
-                    
-                    # Create scan record
-                    scan = Scan()
-                    scan.parent_bag_id = parent_bag.id
-                    scan.child_bag_id = child_bag.id
-                    scan.user_id = current_user.id
-                    scan.timestamp = datetime.utcnow()
-                    db.session.add(scan)
-                    
-                except Exception as e:
-                    stats['errors'].append(f"Row {row_num}: {str(e)}")
-                    app.logger.error(f"Excel upload error on row {row_num}: {str(e)}")
+                    stats['successful_links'] += 1
+                
+                # Create scan record
+                scan = Scan()
+                scan.parent_bag_id = parent_bag.id
+                scan.child_bag_id = child_bag.id
+                scan.user_id = current_user.id
+                scan.timestamp = datetime.utcnow()
+                scans_to_create.append(scan)
+            
+            # Batch insert links and scans
+            if links_to_create:
+                db.session.bulk_save_objects(links_to_create)
+            
+            if scans_to_create:
+                db.session.bulk_save_objects(scans_to_create)
+            
+            # Update parent bag counts
+            for parent_id, update_info in parent_updates.items():
+                parent_bag = update_info['bag']
+                total_children = len(children_per_parent[parent_id])
+                parent_bag.child_count = total_children
+                parent_bag.weight_kg = min(total_children, 30)
+                
+                # Mark as completed if has 30 children
+                if total_children >= 30:
+                    parent_bag.status = 'completed'
+                    parent_bag.weight_kg = 30.0
             
             # Commit all changes
             db.session.commit()
@@ -5915,17 +5996,25 @@ def excel_upload():
             
             # Show results
             if stats['successful_links'] > 0:
-                flash(f"Successfully processed {stats['total_rows']} rows: "
-                      f"{stats['successful_links']} new links created, "
+                flash(f"✓ Processed {stats['total_rows']} rows: "
+                      f"{stats['successful_links']} new links, "
                       f"{stats['parent_bags_created']} parent bags created, "
-                      f"{stats['child_bags_created']} child bags created, "
-                      f"{stats['existing_links']} existing links skipped", 'success')
-            else:
-                flash(f"No new links created. {stats['existing_links']} existing links found.", 'warning')
+                      f"{stats['child_bags_created']} child bags created", 'success')
+            
+            if stats['existing_links'] > 0:
+                flash(f"ℹ {stats['existing_links']} links already existed", 'info')
+            
+            if stats['skipped_full_parents'] > 0:
+                flash(f"⚠ Skipped {stats['skipped_full_parents']} links (parent bags already have 30 children)", 'warning')
+            
+            if stats['duplicate_children'] > 0:
+                flash(f"⚠ Skipped {stats['duplicate_children']} duplicate child bags", 'warning')
             
             if stats['errors']:
-                for error in stats['errors'][:5]:  # Show first 5 errors
+                for error in stats['errors'][:3]:  # Show first 3 errors
                     flash(error, 'error')
+                if len(stats['errors']) > 3:
+                    flash(f"... and {len(stats['errors']) - 3} more errors", 'error')
             
             return render_template('excel_upload.html', stats=stats)
             
