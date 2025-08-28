@@ -5771,6 +5771,7 @@ def child_lookup_page():
 
 @app.route('/excel_upload', methods=['GET', 'POST'])
 @login_required
+@csrf.exempt
 def excel_upload():
     """Excel file upload for bulk bag linking"""
     if request.method == 'POST':
