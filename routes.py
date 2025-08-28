@@ -1414,9 +1414,9 @@ def login():
                 return render_template('login.html')
             
             # SUCCESS - Use simple authentication system
-            create_session(user)
-            # Ensure user_role is saved
-            session['user_role'] = user.role
+            create_session(user.id, user.username, user.role, user.dispatch_area if hasattr(user, 'dispatch_area') else None)
+            # Ensure user_role is saved (already done in create_session)
+            # session['user_role'] = user.role  # This is redundant now
             
             app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
             app.logger.info(f"Session after login: user_id={session.get('user_id')}, keys={list(session.keys())}")
