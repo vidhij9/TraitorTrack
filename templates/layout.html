@@ -180,11 +180,13 @@
                                         <i class="fas fa-list me-2"></i>View All Bags
                                     </a>
                                 </li>
+                                {% if current_user.role == 'admin' %}
                                 <li>
                                     <a class="dropdown-item" href="{{ url_for('excel_upload', s=request.args.get('s')) }}">
                                         <i class="fas fa-file-excel me-2"></i>Excel Upload
                                     </a>
                                 </li>
+                                {% endif %}
                             </ul>
                         </li>
                         

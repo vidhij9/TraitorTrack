@@ -5773,7 +5773,11 @@ def child_lookup_page():
 @login_required
 @csrf.exempt
 def excel_upload():
-    """Excel file upload for bulk bag linking - OPTIMIZED VERSION"""
+    """Excel file upload for bulk bag linking - ADMIN ONLY"""
+    # Check if user is admin
+    if current_user.role != 'admin':
+        flash('Access denied. This feature is only available to administrators.', 'error')
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         try:
             # Check if file was uploaded
