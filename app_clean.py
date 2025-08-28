@@ -123,34 +123,42 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Import high-performance configuration
+# Import production-ready configuration
 try:
-    from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
-    # Apply high-performance configuration
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
-    HighPerformanceConfig.apply_to_app(app)
-    logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
+    from production_config import ProductionConfig
+    # Apply production configuration
+    ProductionConfig.apply_to_app(app)
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ProductionConfig.DATABASE_CONFIG
+    logger.info("Using PRODUCTION configuration for 20+ concurrent users with heavy operations")
 except ImportError:
-    # Fallback to inline optimized configuration
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 20,  # Optimized for 20 concurrent scanning users
-        "max_overflow": 30,  # Additional connections for peaks
-        "pool_recycle": 300,
-        "pool_pre_ping": True,
-        "pool_timeout": 10,  # Faster timeout for better concurrency
-        "echo": False,
-        "echo_pool": False,
-        "pool_use_lifo": True,
-        "connect_args": {
-            "keepalives": 1,
-            "keepalives_idle": 10,
-            "keepalives_interval": 5,
-            "keepalives_count": 5,
-            "connect_timeout": 10,
-            "application_name": "TraceTrack_Scanner"
+    try:
+        from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
+        # Apply high-performance configuration
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
+        HighPerformanceConfig.apply_to_app(app)
+        logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
+    except ImportError:
+        # Fallback to inline optimized configuration
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": 30,  # Increased for heavy operations
+            "max_overflow": 20,  # Additional connections for peaks
+            "pool_recycle": 300,
+            "pool_pre_ping": True,
+            "pool_timeout": 20,  # Increased timeout for heavy queries
+            "echo": False,
+            "echo_pool": False,
+            "pool_use_lifo": True,
+            "connect_args": {
+                "keepalives": 1,
+                "keepalives_idle": 10,
+                "keepalives_interval": 5,
+                "keepalives_count": 5,
+                "connect_timeout": 10,
+                "application_name": "TraceTrack_Production",
+                "options": "-c statement_timeout=30000"  # 30 second query timeout
+            }
         }
-    }
-    logger.info("Using optimized database configuration for high concurrency")
+        logger.info("Using optimized database configuration for high concurrency")
 
 # Disable SQL logging to reduce noise
 app.config["SQLALCHEMY_ECHO"] = False
