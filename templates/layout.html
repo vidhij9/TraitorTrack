@@ -170,17 +170,10 @@
                             </a>
                         </li>
                         
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle{% if '/bags' in request.path or '/excel_upload' in request.path %} active{% endif %}" href="#" id="bagsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <li class="nav-item">
+                            <a class="nav-link{% if '/bag' in request.path or '/excel_upload' in request.path %} active{% endif %}" href="{{ url_for('bag_management', s=request.args.get('s')) }}">
                                 <i class="fas fa-boxes"></i> Bags
                             </a>
-                            <ul class="dropdown-menu" aria-labelledby="bagsDropdown">
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('bag_management', s=request.args.get('s')) }}">
-                                        <i class="fas fa-list me-2"></i>View All Bags
-                                    </a>
-                                </li>
-                            </ul>
                         </li>
                         
                         {% if current_user.is_admin() or current_user.can_edit_bills() %}
