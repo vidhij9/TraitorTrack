@@ -239,46 +239,46 @@ class UltraPerformanceOptimizer:
         
         try:
             config = {
-            'bind': '0.0.0.0:5000',
-            'workers': 16,  # Increased for high concurrency
-            'worker_class': 'gevent',
-            'worker_connections': 5000,  # Increased for ultra-scale
-            'threads': 8,  # Increased threads per worker
-            'backlog': 4096,  # Increased backlog
-            'keepalive': 10,
-            'timeout': 120,  # Increased timeout for complex operations
-            'graceful_timeout': 60,
-            'max_requests': 50000,  # Increased for stability
-            'max_requests_jitter': 5000,
-            'preload_app': True,
-            'accesslog': '-',
-            'errorlog': '-',
-            'loglevel': 'info',
-            'access_log_format': '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s',
-            'proc_name': 'tracetrack-ultra-performance',
-            'limit_request_line': 8192,
-            'limit_request_fields': 200,
-            'limit_request_field_size': 16384,
-            'enable_stdio_inheritance': True,
-            'capture_output': True,
-            'reload': False,
-            'daemon': False,
-            'pidfile': '/tmp/tracetrack-ultra.pid',
-            'user': 'www-data',
-            'group': 'www-data',
-            'tmp_upload_dir': '/tmp/tracetrack-uploads',
-            'check_config': True
-        }
+                'bind': '0.0.0.0:5000',
+                'workers': 16,  # Increased for high concurrency
+                'worker_class': 'gevent',
+                'worker_connections': 5000,  # Increased for ultra-scale
+                'threads': 8,  # Increased threads per worker
+                'backlog': 4096,  # Increased backlog
+                'keepalive': 10,
+                'timeout': 120,  # Increased timeout for complex operations
+                'graceful_timeout': 60,
+                'max_requests': 50000,  # Increased for stability
+                'max_requests_jitter': 5000,
+                'preload_app': True,
+                'accesslog': '-',
+                'errorlog': '-',
+                'loglevel': 'info',
+                'access_log_format': '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s',
+                'proc_name': 'tracetrack-ultra-performance',
+                'limit_request_line': 8192,
+                'limit_request_fields': 200,
+                'limit_request_field_size': 16384,
+                'enable_stdio_inheritance': True,
+                'capture_output': True,
+                'reload': False,
+                'daemon': False,
+                'pidfile': '/tmp/tracetrack-ultra.pid',
+                'user': 'www-data',
+                'group': 'www-data',
+                'tmp_upload_dir': '/tmp/tracetrack-uploads',
+                'check_config': True
+            }
         
-        # Write ultra-performance config
-        with open('gunicorn_ultra_performance.py', 'w') as f:
-            f.write("#!/usr/bin/env python3\n")
-            f.write('"""Ultra-Performance Gunicorn Configuration"""\n\n')
-            for key, value in config.items():
-                f.write(f"{key} = {repr(value)}\n")
-        
-        # Create ultra-performance Nginx config
-        nginx_config = """
+            # Write ultra-performance config
+            with open('gunicorn_ultra_performance.py', 'w') as f:
+                f.write("#!/usr/bin/env python3\n")
+                f.write('"""Ultra-Performance Gunicorn Configuration"""\n\n')
+                for key, value in config.items():
+                    f.write(f"{key} = {repr(value)}\n")
+            
+            # Create ultra-performance Nginx config
+            nginx_config = """
 upstream tracetrack_ultra {
     server 127.0.0.1:5000;
     keepalive 64;
@@ -355,16 +355,16 @@ server {
     }
 }
 """
-        
-        with open('nginx_ultra_performance.conf', 'w') as f:
-            f.write(nginx_config)
-        
-        logger.info("✅ Ultra-performance configuration created")
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ Ultra-performance configuration failed: {e}")
-        return False
+            
+            with open('nginx_ultra_performance.conf', 'w') as f:
+                f.write(nginx_config)
+            
+            logger.info("✅ Ultra-performance configuration created")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Ultra-performance configuration failed: {e}")
+            return False
 
     def generate_test_data(self, num_bags=600000, num_users=100):
         """Generate test data for ultra-scale testing"""
