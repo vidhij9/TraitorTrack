@@ -181,7 +181,7 @@
                     <strong>Size:</strong> <span id="fileSize"></span>
                 </div>
                 
-                <button type="submit" class="btn btn-success mt-3" id="uploadBtn" disabled>
+                <button type="submit" class="btn btn-success mt-3" id="uploadBtn">
                     <i class="fas fa-upload me-2"></i>Upload and Process
                 </button>
                 
@@ -281,7 +281,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!file.name.toLowerCase().endsWith('.xlsx')) {
                 alert('Please select an Excel file (.xlsx)');
                 this.value = '';
-                uploadBtn.disabled = true;
                 fileInfo.classList.remove('active');
                 return;
             }
@@ -290,10 +289,8 @@ document.addEventListener('DOMContentLoaded', function() {
             fileName.textContent = file.name;
             fileSize.textContent = formatFileSize(file.size);
             fileInfo.classList.add('active');
-            uploadBtn.disabled = false;
         } else {
             fileInfo.classList.remove('active');
-            uploadBtn.disabled = true;
         }
     });
     
