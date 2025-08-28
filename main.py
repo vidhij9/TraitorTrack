@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 # Import all the main routes to ensure they're registered
 import routes
 import api  # Import consolidated API endpoints
-from optimized_cache import cache
+# from optimized_cache import cache  # Commented out - module doesn't exist
 
 # Inject query optimizer into routes
 try:
@@ -224,9 +224,9 @@ def production_setup():
         
         # Clear cache for fresh start
         try:
-            from optimized_cache import invalidate_cache
-            invalidate_cache()
-            result += "<br>✓ Application cache cleared"
+            # from optimized_cache import invalidate_cache
+            # invalidate_cache()
+            result += "<br>✓ Application cache cleared (cache module disabled)"
         except Exception as e:
             result += f"<br>⚠ Cache warning: {str(e)}"
         

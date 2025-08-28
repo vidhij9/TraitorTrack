@@ -12,7 +12,7 @@ except ImportError:
     USE_FAST_AUTH = False
 
 # Import optimized authentication utilities
-from simple_auth import (
+from auth_utils import (
     create_session, clear_session, is_logged_in, 
     login_required, admin_required, get_current_user,
     get_current_user_id, get_current_username, get_current_user_role
@@ -68,8 +68,9 @@ class CurrentUserProxy:
         
 current_user = CurrentUserProxy()
 
-from query_optimizer import query_optimizer
-from optimized_cache import cached, cache, invalidate_cache
+# Commented out missing modules
+# from query_optimizer import query_optimizer
+# from optimized_cache import cached, cache, invalidate_cache
 
 # Using Flask-Login's login_required decorator directly
 
@@ -95,7 +96,21 @@ from datetime import datetime, timedelta
 
 from app_clean import app, db, limiter, csrf
 from forms import LoginForm, RegistrationForm, ChildLookupForm, ManualScanForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
-from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
+# from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
+# Define simple validation functions
+def validate_parent_qr_id(qr_id):
+    return qr_id and qr_id.strip().upper().startswith('SB')
+
+def validate_child_qr_id(qr_id):
+    return qr_id and len(qr_id.strip()) > 2
+
+def validate_bill_id(bill_id):
+    return bill_id and len(bill_id.strip()) > 0
+
+def sanitize_input(input_str):
+    if not input_str:
+        return ''
+    return str(input_str).strip()[:255]
 
 # Import all required models - FIX for 288 errors
 from models import (

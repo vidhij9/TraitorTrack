@@ -7,6 +7,45 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Aliases for compatibility
+def is_logged_in():
+    """Alias for is_authenticated"""
+    return is_authenticated()
+
+def create_session(user_id, username, role, dispatch_area=None):
+    """Create a new user session"""
+    session['user_id'] = user_id
+    session['username'] = username
+    session['user_role'] = role
+    session['dispatch_area'] = dispatch_area
+    session['logged_in'] = True
+    session['authenticated'] = True
+    session.permanent = True
+
+def clear_session():
+    """Clear the current session"""
+    session.clear()
+
+def get_current_user():
+    """Get current user object"""
+    return CurrentUser()
+
+def get_current_user_id():
+    """Get current user ID"""
+    return get_user_id()
+
+def get_current_username():
+    """Get current username"""
+    return get_username()
+
+def get_current_user_role():
+    """Get current user role"""
+    return get_user_role()
+
+def login_required(f):
+    """Alias for require_auth decorator"""
+    return require_auth(f)
+
 def is_authenticated():
     """Unified authentication check - single source of truth"""
     return (
