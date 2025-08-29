@@ -43,3 +43,4 @@ psycopg2-binary
 openpyxl
 aiohttp
 asyncio
+beautifulsoup4

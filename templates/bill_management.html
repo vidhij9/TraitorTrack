@@ -476,6 +476,17 @@ body.modal-open .modal * {
 function setupDelete(billId, billName) {
     document.getElementById('modalBillName').textContent = billName;
     document.getElementById('deleteForm').action = '/bill/' + billId + '/delete';
+    
+    // Ensure CSRF token is present
+    const csrfInput = document.querySelector('#deleteForm input[name="csrf_token"]');
+    if (!csrfInput) {
+        // Create CSRF token input if missing
+        const newCsrfInput = document.createElement('input');
+        newCsrfInput.type = 'hidden';
+        newCsrfInput.name = 'csrf_token';
+        newCsrfInput.value = '{{ csrf_token() }}';
+        document.getElementById('deleteForm').appendChild(newCsrfInput);
+    }
 }
 
 // Enhanced modal stability and flickering prevention
