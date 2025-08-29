@@ -5822,7 +5822,10 @@ def excel_upload():
             child_qrs = set()
             parent_child_pairs = []
             
-            # First pass: Collect all unique QR codes
+            # Track unique parent-child combinations to remove duplicates
+            unique_parent_child = {}  # Key: (parent_qr, child_qr), Value: first row number
+            
+            # First pass: Collect all unique QR codes and remove duplicates
             for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
                 if row and len(row) >= 3:
                     parent_qr = str(row[1]).strip().upper() if row[1] else None
@@ -5834,6 +5837,14 @@ def excel_upload():
                             stats['errors'].append(f"Row {row_num}: Parent bag '{parent_qr}' should start with 'SB'")
                             continue
                         
+                        # Check for duplicate parent-child combination
+                        pair_key = (parent_qr, child_qr)
+                        if pair_key in unique_parent_child:
+                            stats['duplicate_children'] += 1
+                            app.logger.info(f"Row {row_num}: Skipping duplicate entry for parent {parent_qr} and child {child_qr} (first seen in row {unique_parent_child[pair_key]})")
+                            continue
+                        
+                        unique_parent_child[pair_key] = row_num
                         parent_qrs.add(parent_qr)
                         child_qrs.add(child_qr)
                         parent_child_pairs.append((row_num, parent_qr, child_qr))
@@ -5930,17 +5941,11 @@ def excel_upload():
                     stats['errors'].append(f"Row {row_num}: Bag creation failed")
                     continue
                 
-                # Check if parent already has 30 children
+                # Get current children for this parent (no limit check - store all children)
                 current_children = children_per_parent.get(parent_bag.id, set())
-                if len(current_children) >= 30:
-                    stats['skipped_full_parents'] += 1
-                    continue
                 
-                # Check if child is already linked to another parent
-                if child_bag.id in linked_children and (parent_bag.id, child_bag.id) not in existing_links:
-                    stats['duplicate_children'] += 1
-                    stats['errors'].append(f"Row {row_num}: Child bag {child_qr} is already linked to another parent")
-                    continue
+                # No need to check if child is linked to another parent - we allow it
+                # Just check if this specific parent-child link already exists
                 
                 # Check if link already exists
                 if (parent_bag.id, child_bag.id) in existing_links:
@@ -5983,10 +5988,11 @@ def excel_upload():
                 parent_bag = update_info['bag']
                 total_children = len(children_per_parent[parent_id])
                 parent_bag.child_count = total_children
-                parent_bag.weight_kg = min(total_children, 30)
+                # Set weight based on actual child count (no max limit)
+                parent_bag.weight_kg = float(total_children)
                 
-                # Mark as completed if has 30 children
-                if total_children >= 30:
+                # Mark as completed if has exactly 30 children
+                if total_children == 30:
                     parent_bag.status = 'completed'
                     parent_bag.weight_kg = 30.0
             
@@ -6006,11 +6012,10 @@ def excel_upload():
             if stats['existing_links'] > 0:
                 flash(f"ℹ {stats['existing_links']} links already existed", 'info')
             
-            if stats['skipped_full_parents'] > 0:
-                flash(f"⚠ Skipped {stats['skipped_full_parents']} links (parent bags already have 30 children)", 'warning')
+            # Removed skipped_full_parents warning as we now store all children
             
             if stats['duplicate_children'] > 0:
-                flash(f"⚠ Skipped {stats['duplicate_children']} duplicate child bags", 'warning')
+                flash(f"⚠ Removed {stats['duplicate_children']} duplicate entries (kept each child once per parent)", 'info')
             
             if stats['errors']:
                 for error in stats['errors'][:3]:  # Show first 3 errors
