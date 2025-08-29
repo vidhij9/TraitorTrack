@@ -472,11 +472,15 @@ function initializeScanner() {
             return;
         }
         
+        // Set processing flag immediately to prevent duplicates
+        isProcessing = true;
+        lastScanTime = now;
+        
         // AUTO-PAUSE: Scanner pauses automatically after detection
         showScanPauseOverlay(qrCode);
         
         // Show immediate visual feedback with processing message
-        showToast('📦 Processing ' + qrCode + '...', 'info', 2000);
+        showToast('📦 Processing ' + qrCode + '...', 'info', 3000);
         
         // Also update the scanner status to show processing
         const statusEl = document.getElementById('scanner-status');
@@ -487,9 +491,10 @@ function initializeScanner() {
         // Check for duplicate scan
         if (scannedBags.has(qrCode)) {
             console.log('Duplicate scan detected:', qrCode);
-            showToast('Already scanned this bag!', 'info', 2000);
+            showToast('✅ Already linked to this bill!', 'info', 2000);
             hideScanPauseOverlay();
-            // Resume scanning after duplicate
+            // Reset processing flag and resume scanning after duplicate
+            isProcessing = false;
             if (scanner && scanner.resumeScanning) {
                 setTimeout(() => {
                     console.log('Resuming scanner after duplicate');
@@ -499,22 +504,6 @@ function initializeScanner() {
             }
             return;
         }
-        
-        // Check cooldown
-        if (now - lastScanTime < SCAN_COOLDOWN) {
-            console.log('Scan cooldown active');
-            // Resume scanning after cooldown
-            if (scanner && scanner.resumeScanning) {
-                setTimeout(() => {
-                    scanner.resumeScanning();
-                }, SCAN_COOLDOWN - (now - lastScanTime));
-            }
-            return;
-        }
-        
-        // Set processing flag to prevent duplicates
-        isProcessing = true;
-        lastScanTime = now;
         
         // Process the scan
         try {
@@ -542,6 +531,7 @@ function initializeScanner() {
                 // Resume scanning after error
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
+                        showToast('Ready for next bag', 'info', 1500);
                         scanner.resumeScanning();
                     }, 2000);
                 }
@@ -553,17 +543,17 @@ function initializeScanner() {
                 scannedBags.add(qrCode);
                 
                 // Success feedback
-                showToast('✅ ' + data.message, 'success', 2500);
+                showToast('✅ ' + data.message, 'success', 3000);
                 addBagToList(data.bag_qr || qrCode);
                 updateProgress();
                 hideScanPauseOverlay();
                 
-                // AUTO-RESUME: Resume scanning after clear pause
+                // Reset processing flag and resume scanning
+                isProcessing = false;
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after successful scan');
                         showToast('Ready for next bag', 'info', 1500);
-                        isProcessing = false; // Reset processing flag
                         scanner.resumeScanning();
                     }, 2000); // 2 second pause for user to see success
                 }
