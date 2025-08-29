@@ -4204,7 +4204,7 @@ def scan_bill_parent(bill_id):
 @csrf.exempt
 @login_required
 def complete_bill():
-    """Complete a bill regardless of capacity - admin and biller access"""
+    """Complete a bill - must meet capacity requirements - admin and biller access"""
     if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
         return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
@@ -4221,11 +4221,19 @@ def complete_bill():
         # Get the bill
         bill = Bill.query.get_or_404(bill_id)
         
-        # Update bill status to completed
-        bill.status = 'completed'
-        
         # Count current linked bags
         linked_count = bill.bag_links.count()
+        
+        # Check if capacity is satisfied (like child-parent linking requirement)
+        if linked_count < bill.parent_bag_count:
+            return jsonify({
+                'success': False,
+                'message': f'Cannot complete bill. Need {bill.parent_bag_count - linked_count} more bags ({linked_count}/{bill.parent_bag_count} linked).',
+                'show_popup': True
+            })
+        
+        # Update bill status to completed
+        bill.status = 'completed'
         
         db.session.commit()
         
@@ -4329,21 +4337,16 @@ def ultra_fast_bill_parent_scan():
         if not parent_bag:
             return jsonify({'success': False, 'message': f'Parent bag {qr_code} not found'})
         
-        # Check if completed
-        if parent_bag.status != 'completed':
-            child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-            if child_count == 30:
-                # Auto-complete
-                parent_bag.status = 'completed'
-                parent_bag.child_count = 30
-                parent_bag.weight_kg = 30.0
-                db.session.commit()
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': f'Bag {qr_code} incomplete ({child_count}/30 children)',
-                    'show_popup': True
-                })
+        # Get actual child count for weight calculation
+        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        
+        # Update parent bag status and counts
+        parent_bag.child_count = child_count
+        parent_bag.weight_kg = float(child_count)  # 1kg per child
+        if child_count >= 30:
+            parent_bag.status = 'completed'
+        else:
+            parent_bag.status = 'in_progress'
         
         # Check duplicate
         existing = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
@@ -4353,12 +4356,23 @@ def ultra_fast_bill_parent_scan():
                 'message': f'{qr_code} already linked to this bill'
             })
         
-        # Check other bills
+        # Check other bills and get bill name
         other = BillBag.query.filter_by(bag_id=parent_bag.id).first()
         if other and other.bill_id != bill.id:
+            other_bill = Bill.query.get(other.bill_id)
+            bill_name = other_bill.bill_id if other_bill else f'Bill #{other.bill_id}'
             return jsonify({
                 'success': False,
-                'message': f'{qr_code} linked to another bill'
+                'message': f'{qr_code} already linked to {bill_name}'
+            })
+        
+        # Check capacity before linking
+        current_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        if current_count >= bill.parent_bag_count:
+            return jsonify({
+                'success': False,
+                'message': f'Bill capacity reached ({current_count}/{bill.parent_bag_count}). Cannot add more bags.',
+                'show_popup': True
             })
         
         # Link to bill
@@ -4366,13 +4380,17 @@ def ultra_fast_bill_parent_scan():
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
-        # Update weights
-        bill.total_weight_kg = (bill.total_weight_kg or 0) + 30.0
-        # Only update total_child_bags if the column exists
+        # Update weights - actual weight based on real child count
+        actual_weight = float(child_count)  # 1kg per child
+        bill.total_weight_kg = (bill.total_weight_kg or 0) + actual_weight
+        
+        # Update expected weight (30kg per parent bag for billing)
+        if hasattr(bill, 'expected_weight_kg'):
+            bill.expected_weight_kg = (getattr(bill, 'expected_weight_kg', 0) or 0) + 30.0
+        
+        # Update total child bags if column exists
         if hasattr(bill, 'total_child_bags'):
-            # Calculate actual child count from Link table
-            actual_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + actual_child_count
+            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + child_count
         
         # Create scan record
         scan = Scan()
@@ -4389,12 +4407,13 @@ def ultra_fast_bill_parent_scan():
         
         return jsonify({
             'success': True,
-            'message': f'{qr_code} linked successfully!',
+            'message': f'{qr_code} linked successfully ({child_count} children)!',
             'bag_qr': qr_code,
             'linked_count': linked_count,
             'expected_count': bill.parent_bag_count,
-            'child_count': 30,
-            'total_weight': bill.total_weight_kg
+            'child_count': child_count,
+            'actual_weight': bill.total_weight_kg,
+            'expected_weight': getattr(bill, 'expected_weight_kg', linked_count * 30.0)
         })
         
     except Exception as e:
