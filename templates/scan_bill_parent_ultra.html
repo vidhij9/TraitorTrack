@@ -456,10 +456,19 @@ function initializeScanner() {
         }
     }
     
+    // Add processing flag to prevent duplicate requests
+    let isProcessing = false;
+    
     // Process QR code scan with pause/resume
     async function onScanSuccess(qrCode) {
         const now = Date.now();
         console.log('Bill parent scan detected:', qrCode);
+        
+        // Prevent concurrent processing of the same or different QR codes
+        if (isProcessing) {
+            console.log('Already processing a scan, ignoring:', qrCode);
+            return;
+        }
         
         // AUTO-PAUSE: Scanner pauses automatically after detection
         showScanPauseOverlay(qrCode);
@@ -495,6 +504,8 @@ function initializeScanner() {
             return;
         }
         
+        // Set processing flag to prevent duplicates
+        isProcessing = true;
         lastScanTime = now;
         
         // Process the scan
@@ -538,6 +549,7 @@ function initializeScanner() {
                     setTimeout(() => {
                         console.log('Resuming scanner after successful scan');
                         showToast('Ready for next bag', 'info', 1500);
+                        isProcessing = false; // Reset processing flag
                         scanner.resumeScanning();
                     }, 2000); // 2 second pause for user to see success
                 }
@@ -567,6 +579,7 @@ function initializeScanner() {
                     setTimeout(() => {
                         console.log('Resuming scanner after error');
                         showToast('▶️ Scanner resumed - Try again', 'info', 1500);
+                        isProcessing = false; // Reset processing flag
                         scanner.resumeScanning();
                     }, 2000); // 2 second pause to read error
                 }
@@ -579,6 +592,7 @@ function initializeScanner() {
             if (scanner && scanner.resumeScanning) {
                 setTimeout(() => {
                     console.log('Resuming scanner after network error');
+                    isProcessing = false; // Reset processing flag
                     scanner.resumeScanning();
                 }, 500); // Faster resume after network error
             }
@@ -675,9 +689,8 @@ function initializeScanner() {
             if (!scanner) {
                 console.log('Creating InstantDetectionScanner for bill parent scanning...');
                 scanner = new InstantDetectionScanner('bill-scanner-container');
-                scanner.onScan = onScanSuccess;
-                scanner.onSuccess = onScanSuccess; // Set both for compatibility
-                console.log('Bill InstantDetectionScanner initialized with callbacks');
+                scanner.onScan = onScanSuccess; // Use only onScan to prevent duplicates
+                console.log('Bill InstantDetectionScanner initialized with onScan callback');
             }
             
             // InstantDetectionScanner starts automatically
