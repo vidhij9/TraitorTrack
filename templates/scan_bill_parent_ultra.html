@@ -219,13 +219,13 @@
                             <div class="col-6">
                                 <div class="text-center p-2 border rounded">
                                     <small class="text-muted d-block">Actual Weight</small>
-                                    <strong class="text-primary" id="actual-weight">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</strong>
+                                    <strong class="text-primary" id="actual-weight">0.0 kg</strong>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="text-center p-2 border rounded">
                                     <small class="text-muted d-block">Expected Weight</small>
-                                    <strong class="text-info" id="expected-weight">{{ "%.1f"|format(bill.expected_weight_kg or 0) }} kg</strong>
+                                    <strong class="text-info" id="expected-weight">0.0 kg</strong>
                                 </div>
                             </div>
                         </div>
@@ -462,7 +462,9 @@ function initializeScanner() {
     // Process QR code scan with pause/resume
     async function onScanSuccess(qrCode) {
         const now = Date.now();
-        console.log('Bill parent scan detected:', qrCode);
+        console.log('✅ onScanSuccess CALLED with QR:', qrCode);
+        console.log('Processing flag:', isProcessing);
+        console.log('Time since last scan:', now - lastScanTime);
         
         // Prevent concurrent processing of the same or different QR codes
         if (isProcessing) {
@@ -474,7 +476,7 @@ function initializeScanner() {
         showScanPauseOverlay(qrCode);
         
         // Show immediate visual feedback
-        showToast('Processing ' + qrCode, 'info', 2000);
+        showToast('📦 Processing ' + qrCode + '...', 'info', 2000);
         
         // Check for duplicate scan
         if (scannedBags.has(qrCode)) {
@@ -669,6 +671,27 @@ function initializeScanner() {
         bagCount.textContent = currentCount;
     }
     
+    // Update weights function - separate for better control
+    async function updateWeights() {
+        try {
+            const response = await fetch(`/api/bill/{{ bill.id }}/weights`);
+            if (response.ok) {
+                const data = await response.json();
+                const actualWeightEl = document.getElementById('actual-weight');
+                const expectedWeightEl = document.getElementById('expected-weight');
+                if (actualWeightEl) {
+                    actualWeightEl.textContent = `${data.actual_weight.toFixed(1)} kg`;
+                }
+                if (expectedWeightEl) {
+                    expectedWeightEl.textContent = `${data.expected_weight.toFixed(1)} kg`;
+                }
+                console.log('Weights updated - Actual:', data.actual_weight, 'Expected:', data.expected_weight);
+            }
+        } catch (error) {
+            console.error('Error fetching weights:', error);
+        }
+    }
+    
     // Update progress bar and complete button
     async function updateProgress() {
         const current = parseInt(bagCount.textContent);
@@ -694,36 +717,34 @@ function initializeScanner() {
             completeBtnText.textContent = `Complete Bill (${current}/${max} bags)`;
         }
         
-        // Update weight displays
-        try {
-            const response = await fetch(`/api/bill/{{ bill.id }}/weights`);
-            if (response.ok) {
-                const data = await response.json();
-                const actualWeightEl = document.getElementById('actual-weight');
-                const expectedWeightEl = document.getElementById('expected-weight');
-                if (actualWeightEl) {
-                    actualWeightEl.textContent = `${data.actual_weight.toFixed(1)} kg`;
-                }
-                if (expectedWeightEl) {
-                    expectedWeightEl.textContent = `${data.expected_weight.toFixed(1)} kg`;
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching weights:', error);
-        }
+        // Always update weights when progress changes
+        await updateWeights();
     }
     
     // Initialize Scanner with InstantDetectionScanner
     async function initScanner() {
+        console.log('🎬 initScanner called');
         try {
             if (!scanner) {
                 console.log('Creating InstantDetectionScanner for bill parent scanning...');
+                
+                // Ensure onScanSuccess is defined
+                if (typeof onScanSuccess !== 'function') {
+                    console.error('❌ onScanSuccess is not a function!');
+                    showToast('Scanner initialization error', 'danger');
+                    return;
+                }
+                
                 scanner = new InstantDetectionScanner('bill-scanner-container', onScanSuccess);
                 console.log('Bill InstantDetectionScanner initialized with callback via constructor');
+                console.log('Scanner object:', scanner);
                 
                 // Also set onScan as backup to ensure callback is registered
                 scanner.onScan = onScanSuccess;
-                console.log('onScan callback also set as backup');
+                console.log('onScan callback set, value:', scanner.onScan);
+                console.log('onSuccess callback value:', scanner.onSuccess);
+            } else {
+                console.log('Scanner already exists, reusing');
             }
             
             // InstantDetectionScanner starts automatically
@@ -916,6 +937,10 @@ function initializeScanner() {
     // AUTO-START SCANNER ON PAGE LOAD
     console.log('Auto-starting scanner on page load...');
     initScanner();
+    
+    // Update weights on page load
+    console.log('Loading initial weights...');
+    updateWeights();
     
     // Save bill button removed - bills auto-save when parent bags are linked
     
