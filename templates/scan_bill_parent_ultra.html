@@ -458,6 +458,7 @@ function initializeScanner() {
     
     // Add processing flag to prevent duplicate requests
     let isProcessing = false;
+    let processingTimeout = null; // Track timeout for auto-reset
     
     // Process QR code scan with pause/resume
     async function onScanSuccess(qrCode) {
@@ -466,19 +467,7 @@ function initializeScanner() {
         console.log('Processing flag:', isProcessing);
         console.log('Time since last scan:', now - lastScanTime);
         
-        // Prevent concurrent processing of the same or different QR codes
-        if (isProcessing) {
-            console.log('Already processing a scan, ignoring:', qrCode);
-            return;
-        }
-        
-        // Set processing flag immediately to prevent duplicates
-        isProcessing = true;
-        lastScanTime = now;
-        
-        // AUTO-PAUSE: Scanner pauses automatically after detection
-        showScanPauseOverlay(qrCode);
-        
+        // ALWAYS show processing message first, even if we'll skip processing
         // Show immediate visual feedback with processing message
         showToast('📦 Processing ' + qrCode + '...', 'info', 3000);
         
@@ -488,13 +477,56 @@ function initializeScanner() {
             statusEl.innerHTML = `<span class="text-primary"><i class="fas fa-spinner fa-pulse me-1"></i>Processing ${qrCode}...</span>`;
         }
         
+        // AUTO-PAUSE: Scanner pauses automatically after detection
+        showScanPauseOverlay(qrCode);
+        
+        // Prevent concurrent processing of the same or different QR codes
+        if (isProcessing) {
+            console.log('Already processing a scan, ignoring:', qrCode);
+            // Still show feedback that we detected but are busy
+            setTimeout(() => {
+                showToast('⏳ Still processing previous scan, please wait...', 'warning', 2000);
+                hideScanPauseOverlay();
+            }, 500);
+            return;
+        }
+        
+        // Set processing flag immediately to prevent duplicates
+        isProcessing = true;
+        lastScanTime = now;
+        
+        // Clear any existing timeout
+        if (processingTimeout) {
+            clearTimeout(processingTimeout);
+        }
+        
+        // Set auto-reset timeout as failsafe (3 seconds)
+        processingTimeout = setTimeout(() => {
+            if (isProcessing) {
+                console.warn('Auto-resetting stuck processing flag after 3 seconds');
+                isProcessing = false;
+                hideScanPauseOverlay();
+                // Try to resume scanner
+                if (scanner && scanner.resumeScanning) {
+                    scanner.resumeScanning();
+                }
+            }
+        }, 3000);
+        
         // Check for duplicate scan
         if (scannedBags.has(qrCode)) {
             console.log('Duplicate scan detected:', qrCode);
             showToast('✅ Already linked to this bill!', 'info', 2000);
             hideScanPauseOverlay();
-            // Reset processing flag and resume scanning after duplicate
+            
+            // Clear timeout and reset processing flag for duplicate
+            if (processingTimeout) {
+                clearTimeout(processingTimeout);
+                processingTimeout = null;
+            }
             isProcessing = false;
+            
+            // Resume scanning after duplicate
             if (scanner && scanner.resumeScanning) {
                 setTimeout(() => {
                     console.log('Resuming scanner after duplicate');
@@ -548,8 +580,14 @@ function initializeScanner() {
                 updateProgress();
                 hideScanPauseOverlay();
                 
-                // Reset processing flag and resume scanning
+                // Clear timeout and reset processing flag
+                if (processingTimeout) {
+                    clearTimeout(processingTimeout);
+                    processingTimeout = null;
+                }
                 isProcessing = false;
+                
+                // Resume scanning
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after successful scan');
@@ -635,12 +673,18 @@ function initializeScanner() {
                 showToast(data.message, toastType, duration);
                 hideScanPauseOverlay();
                 
+                // CRITICAL FIX: Clear timeout and reset processing flag IMMEDIATELY for error cases
+                if (processingTimeout) {
+                    clearTimeout(processingTimeout);
+                    processingTimeout = null;
+                }
+                isProcessing = false;
+                
                 // Resume scanning for retry
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after error');
                         showToast('▶️ Scanner ready - Try next bag', 'info', 1500);
-                        isProcessing = false; // Reset processing flag
                         scanner.resumeScanning();
                     }, resumeDelay);
                 }
@@ -648,12 +692,19 @@ function initializeScanner() {
         } catch (error) {
             console.error('Error processing scan:', error);
             showToast(`Error: ${error.message || 'Network error'}`, 'danger', 3000);
+            hideScanPauseOverlay();
+            
+            // CRITICAL FIX: Clear timeout and reset processing flag IMMEDIATELY on error
+            if (processingTimeout) {
+                clearTimeout(processingTimeout);
+                processingTimeout = null;
+            }
+            isProcessing = false;
             
             // Resume scanning for retry quickly
             if (scanner && scanner.resumeScanning) {
                 setTimeout(() => {
                     console.log('Resuming scanner after network error');
-                    isProcessing = false; // Reset processing flag
                     scanner.resumeScanning();
                 }, 500); // Faster resume after network error
             }
