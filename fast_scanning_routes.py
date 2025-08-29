@@ -42,7 +42,7 @@ QUERIES = {
     """,
     
     'get_child_count': """
-        SELECT COUNT(*) as count
+        SELECT COUNT(DISTINCT child_bag_id) as count
         FROM link
         WHERE parent_bag_id = :parent_id
     """,
@@ -132,22 +132,18 @@ def fast_parent_scan():
                     'time_ms': round((time.time() - start) * 1000, 2)
                 })
             
-            # Get child count with retry logic
+            # Get child count with optimized query
             count = 0
-            for attempt in range(3):
-                try:
-                    count = db.session.execute(
-                        text(QUERIES['get_child_count']),
-                        {'parent_id': result.id}
-                    ).scalar() or 0
-                    break
-                except Exception as e:
-                    if attempt < 2:
-                        time.sleep(0.5)
-                        db.session.rollback()
-                    else:
-                        app.logger.error(f'Failed to get child count: {str(e)}')
-                        count = 0
+            try:
+                count = db.session.execute(
+                    text(QUERIES['get_child_count']),
+                    {'parent_id': result.id}
+                ).scalar() or 0
+                app.logger.info(f'Parent {qr_code} (ID: {result.id}) has {count} children')
+            except Exception as e:
+                app.logger.error(f'Failed to get child count for parent {qr_code}: {str(e)}')
+                db.session.rollback()
+                count = 0
             
             # Store in session
             session['current_parent_qr'] = qr_code
