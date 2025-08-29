@@ -42,25 +42,29 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
-# Configure limiter with Redis backend for distributed rate limiting
+# Configure limiter with graceful Redis fallback
 try:
-    import os
-    redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-    limiter = Limiter(
-        key_func=get_remote_address,
-        default_limits=["2000000 per day", "200000 per hour", "20000 per minute"],  # Ultra-high limits for 50+ concurrent users
-        storage_uri=redis_url if 'REDIS_URL' in os.environ else "memory://",
-        strategy="fixed-window",  # Use fixed window strategy for better performance
-        headers_enabled=True,  # Enable rate limit headers
-        swallow_errors=True  # Don't fail on Redis errors
-    )
+    # Try Redis if available
+    redis_url = os.environ.get('REDIS_URL')
+    if redis_url:
+        limiter = Limiter(
+            key_func=get_remote_address,
+            default_limits=["2000000 per day", "200000 per hour", "20000 per minute"],
+            storage_uri=redis_url,
+            strategy="fixed-window",
+            headers_enabled=True,
+            swallow_errors=True  # Don't fail on Redis errors
+        )
+    else:
+        raise ImportError("Redis not configured")
 except:
-    # Fallback to memory storage
+    # Always fallback to memory storage for deployment reliability
     limiter = Limiter(
         key_func=get_remote_address,
-        default_limits=["2000000 per day", "200000 per hour", "20000 per minute"],  # Ultra-high limits
+        default_limits=["2000000 per day", "200000 per hour", "20000 per minute"],
         storage_uri="memory://",
-        strategy="fixed-window"
+        strategy="fixed-window",
+        swallow_errors=True
     )
 
 # Create Flask application
@@ -72,7 +76,7 @@ try:
     from optimized_query_cache import apply_query_optimizations
     logger.info("Loading optimized query cache for <50ms performance...")
 except ImportError:
-    logger.warning("Optimized query cache not available")
+    # Gracefully handle missing optimization modules
     apply_query_optimizations = None
 
 # Simple and reliable session configuration
@@ -217,6 +221,9 @@ try:
     from performance_monitor import apply_performance_monitoring
     apply_performance_monitoring(app)
     logging.info("✅ Performance monitoring activated")
+except ImportError:
+    # Gracefully handle missing performance monitoring
+    pass
 except Exception as e:
     logging.warning(f"Performance monitoring not applied: {e}")
 
@@ -225,6 +232,9 @@ try:
     from ultra_circuit_breaker import apply_circuit_breakers
     apply_circuit_breakers(app)
     logging.info("✅ Circuit breakers activated for fault tolerance")
+except ImportError:
+    # Gracefully handle missing circuit breakers
+    pass
 except Exception as e:
     logging.warning(f"Circuit breakers not applied: {e}")
 

@@ -1369,11 +1369,16 @@ def favicon():
 
 @app.route('/', methods=['GET'])
 def index():
-    """Main dashboard page or health check"""
-    # Fast health check for production deployments
+    """Main dashboard page or fast health check"""
+    # Ultra-fast health check for deployment health checks
     user_agent = request.headers.get('User-Agent', '').lower()
-    if 'health' in user_agent or 'check' in user_agent or not request.headers.get('Accept', '').startswith('text/html'):
-        return jsonify({'status': 'healthy', 'timestamp': get_ist_now().isoformat()}), 200
+    accept_header = request.headers.get('Accept', '').lower()
+    
+    # Detect health check requests (deployment bots, load balancers)
+    if ('health' in user_agent or 'check' in user_agent or 'bot' in user_agent or 
+        'curl' in user_agent or 'wget' in user_agent or 
+        not accept_header.startswith('text/html')):
+        return jsonify({'status': 'ok'}), 200
     
     # Regular dashboard redirect for browsers
     if not is_logged_in():
