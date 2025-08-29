@@ -58,6 +58,14 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: API endpoint protection against abuse
 - **SQL Injection Prevention**: Parameterized queries throughout
 
+## Recent Changes (August 29, 2025)
+
+### Business Logic Update - Parent Bag Linking
+- **Removed 30 Child Bag Requirement**: Parent bags can now be linked to bills regardless of how many child bags they contain
+- **Flexible Bag Linking**: Any registered parent bag can be immediately linked to a bill (0 children, 10 children, 30+ children all allowed)
+- **Weight Calculation**: Bag weight is dynamically calculated based on actual child count (1kg per child)
+- **Status Updates**: Parent bag status reflects actual state rather than enforcing completion at 30 children
+
 ## Recent Performance Optimizations (August 29, 2025)
 
 ### Critical Bug Fixes - Parent Scanner (Latest Fix)

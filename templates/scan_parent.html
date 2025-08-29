@@ -251,7 +251,7 @@ function initializeScanner() {
                     // Show clear success message with accurate child count
                     const childCount = data.child_count || 0;
                     if (childCount > 0) {
-                        showToast(`✅ Parent ${qrCode} ready! Has ${childCount}/30 children.`, 'success', 5000);
+                        showToast(`✅ Parent ${qrCode} ready! Has ${childCount} children.`, 'success', 5000);
                     } else {
                         showToast(`✅ Parent ${qrCode} ready! Start scanning child bags.`, 'success', 5000);
                     }
