@@ -3594,13 +3594,13 @@ def bill_management():
                 ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
                 parent_count_dict = {bc.bill_id: bc.parent_count for bc in bill_bag_counts}
                 
-                # Single query for ALL child bag counts - simplified approach
+                # Single query for ALL child bag counts - using Link table correctly
                 from sqlalchemy import text
                 child_bag_counts = db.session.execute(text("""
-                    SELECT bb.bill_id, COUNT(DISTINCT cb.id) as child_count
+                    SELECT bb.bill_id, COUNT(DISTINCT l.child_bag_id) as child_count
                     FROM bill_bag bb 
                     JOIN bag pb ON bb.bag_id = pb.id 
-                    LEFT JOIN bag cb ON cb.parent_id = pb.id 
+                    LEFT JOIN link l ON l.parent_bag_id = pb.id 
                     WHERE bb.bill_id = ANY(:bill_ids)
                     GROUP BY bb.bill_id
                 """), {'bill_ids': bill_ids}).fetchall()
@@ -3663,6 +3663,11 @@ def bill_management():
             # Count linked parent bags for this bill
             parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
             
+            # Calculate actual child count from Link table
+            actual_child_count = db.session.query(func.count(Link.child_bag_id)).join(
+                BillBag, BillBag.bag_id == Link.parent_bag_id
+            ).filter(BillBag.bill_id == bill.id).scalar() or 0
+            
             # Get creator information if available
             creator_info = None
             if bill.created_by_id:
@@ -3681,7 +3686,7 @@ def bill_management():
                 'creator_info': creator_info,
                 'statistics': {
                     'parent_bags_linked': parent_count,
-                    'total_child_bags': getattr(bill, 'total_child_bags', 0) or 0,
+                    'total_child_bags': actual_child_count,  # Use actual count from Link table
                     'total_weight_kg': getattr(bill, 'total_weight_kg', 0) or 0
                 }
             })
@@ -4234,7 +4239,9 @@ def ultra_fast_bill_parent_scan():
         bill.total_weight_kg = (bill.total_weight_kg or 0) + 30.0
         # Only update total_child_bags if the column exists
         if hasattr(bill, 'total_child_bags'):
-            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + 30
+            # Calculate actual child count from Link table
+            actual_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + actual_child_count
         
         # Create scan record
         scan = Scan()
@@ -4397,7 +4404,9 @@ def process_bill_parent_scan():
             bill.total_weight_kg = (bill.total_weight_kg or 0) + (parent_bag.weight_kg or 30.0)
             # Only update total_child_bags if the column exists
             if hasattr(bill, 'total_child_bags'):
-                bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + (parent_bag.child_count or 30)
+                # Calculate actual child count from Link table instead of relying on child_count field
+                actual_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + actual_child_count
             
             # Create scan record
             scan = Scan()
