@@ -108,79 +108,101 @@ def get_current_environment():
     return 'development'
 
 def get_database_url():
-    """Get appropriate database URL based on environment"""
+    """Get appropriate database URL based on environment - AWS RDS priority"""
     current_env = get_current_environment()
     
-    if current_env == 'production':
-        # Production: use PRODUCTION_DATABASE_URL if available, fallback to DATABASE_URL
-        prod_url = os.environ.get('PRODUCTION_DATABASE_URL')
-        if prod_url:
-            logging.info("PRODUCTION: Using production database")
-            return prod_url
-        else:
-            dev_url = os.environ.get('DATABASE_URL')
-            if dev_url:
-                logging.info("PRODUCTION: Using fallback development database")
-                return dev_url
-            else:
-                raise ValueError("No database URL available for production")
-    else:
-        # Development: use DATABASE_URL (Replit Neon database)
-        dev_url = os.environ.get('DATABASE_URL')
-        if dev_url:
-            logging.info("DEVELOPMENT: Using development database")
-            return dev_url
-        else:
-            raise ValueError("DATABASE_URL not available in development environment")
+    # Always prefer PRODUCTION_DATABASE_URL if available (AWS RDS)
+    prod_url = os.environ.get('PRODUCTION_DATABASE_URL')
+    if prod_url:
+        logging.info("Using AWS RDS production database")
+        return prod_url
+    
+    # Fallback to Replit's DATABASE_URL
+    dev_url = os.environ.get('DATABASE_URL')
+    if dev_url:
+        logging.info("Using Replit development database (AWS RDS not configured)")
+        return dev_url
+    
+    # If no database URL is available, return a default SQLite URL
+    # This allows the app to start even without a database connection
+    logging.warning("No database URL found, using SQLite fallback")
+    return "sqlite:///tracetrack_fallback.db"
 
 # Configure database with environment-specific settings
 flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Import ultra-performance configuration for 50+ users and 800,000+ bags
-try:
-    from ultra_performance_config import UltraPerformanceConfig, PerformanceOptimizer
-    # Apply ultra-performance configuration
-    UltraPerformanceConfig.apply_to_app(app)
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = UltraPerformanceConfig.DATABASE_CONFIG
-    logger.info("✅ Using ULTRA-PERFORMANCE configuration for 50+ concurrent users and 800,000+ bags")
-except ImportError:
+# Configure optimized settings for AWS RDS connection
+# Check if we're using AWS RDS
+is_aws_rds = 'amazonaws.com' in app.config["SQLALCHEMY_DATABASE_URI"]
+
+if is_aws_rds:
+    # AWS RDS specific configuration with aggressive timeouts and retries
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_size": 5,  # Start small for faster initialization
+        "max_overflow": 15,  # Allow growth as needed
+        "pool_recycle": 280,  # Recycle before AWS timeout (300s)
+        "pool_pre_ping": True,  # Verify connections before use
+        "pool_timeout": 10,  # Quick timeout to fail fast
+        "echo": False,
+        "echo_pool": False,
+        "pool_use_lifo": True,  # Use most recent connections
+        "connect_args": {
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+            "connect_timeout": 5,  # Fast connection timeout for AWS
+            "application_name": "TraceTrack_AWS_RDS",
+            "options": "-c statement_timeout=60000"  # 60 second query timeout
+        }
+    }
+    logger.info("Using AWS RDS optimized configuration")
+else:
+    # Import ultra-performance configuration for local/Replit database
     try:
-        from production_config import ProductionConfig
-        # Apply production configuration
-        ProductionConfig.apply_to_app(app)
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ProductionConfig.DATABASE_CONFIG
-        logger.info("Using PRODUCTION configuration for 20+ concurrent users with heavy operations")
+        from ultra_performance_config import UltraPerformanceConfig, PerformanceOptimizer
+        # Apply ultra-performance configuration
+        UltraPerformanceConfig.apply_to_app(app)
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = UltraPerformanceConfig.DATABASE_CONFIG
+        logger.info("✅ Using ULTRA-PERFORMANCE configuration for 50+ concurrent users and 800,000+ bags")
     except ImportError:
         try:
-            from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
-            # Apply high-performance configuration
-            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
-            HighPerformanceConfig.apply_to_app(app)
-            logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
+            from production_config import ProductionConfig
+            # Apply production configuration
+            ProductionConfig.apply_to_app(app)
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ProductionConfig.DATABASE_CONFIG
+            logger.info("Using PRODUCTION configuration for 20+ concurrent users with heavy operations")
         except ImportError:
-            # Fallback to inline optimized configuration
-            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-                "pool_size": 30,  # Increased for heavy operations
-                "max_overflow": 20,  # Additional connections for peaks
-                "pool_recycle": 300,
-                "pool_pre_ping": True,
-                "pool_timeout": 20,  # Increased timeout for heavy queries
-                "echo": False,
-                "echo_pool": False,
-                "pool_use_lifo": True,
-                "connect_args": {
-                    "keepalives": 1,
-                    "keepalives_idle": 10,
-                    "keepalives_interval": 5,
-                    "keepalives_count": 5,
-                    "connect_timeout": 10,
-                    "application_name": "TraceTrack_Production",
-                    "options": "-c statement_timeout=30000"  # 30 second query timeout
+            try:
+                from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
+                # Apply high-performance configuration
+                app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
+                HighPerformanceConfig.apply_to_app(app)
+                logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
+            except ImportError:
+                # Fallback to inline optimized configuration
+                app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+                    "pool_size": 30,  # Increased for heavy operations
+                    "max_overflow": 20,  # Additional connections for peaks
+                    "pool_recycle": 300,
+                    "pool_pre_ping": True,
+                    "pool_timeout": 20,  # Increased timeout for heavy queries
+                    "echo": False,
+                    "echo_pool": False,
+                    "pool_use_lifo": True,
+                    "connect_args": {
+                        "keepalives": 1,
+                        "keepalives_idle": 10,
+                        "keepalives_interval": 5,
+                        "keepalives_count": 5,
+                        "connect_timeout": 10,
+                        "application_name": "TraceTrack_Production",
+                        "options": "-c statement_timeout=30000"  # 30 second query timeout
+                    }
                 }
-            }
-            logger.info("Using optimized database configuration for high concurrency")
+                logger.info("Using optimized database configuration for high concurrency")
 
 # Disable SQL logging to reduce noise
 app.config["SQLALCHEMY_ECHO"] = False
@@ -238,16 +260,32 @@ except ImportError:
 except Exception as e:
     logging.warning(f"Circuit breakers not applied: {e}")
 
-# Create tables after app initialization
-with app.app_context():
+# DEFER database table creation for AWS RDS - don't block startup
+# Tables will be created on first successful connection
+def initialize_database():
+    """Initialize database tables - called lazily"""
+    with app.app_context():
+        try:
+            # Import models to ensure they're registered
+            import models
+            # Create all tables
+            db.create_all()
+            logging.info("Database tables created successfully")
+            return True
+        except Exception as e:
+            logging.error(f"Database initialization error: {e}")
+            return False
+
+# Store initialization function on app for lazy loading
+app.initialize_database = initialize_database
+
+# For AWS RDS, skip immediate initialization to prevent startup blocking
+if not is_aws_rds:
+    # Only initialize immediately for local databases
     try:
-        # Import models to ensure they're registered
-        import models
-        # Create all tables
-        db.create_all()
-        logging.info("Database tables created successfully")
-    except Exception as e:
-        logging.error(f"Database initialization error: {e}")
+        initialize_database()
+    except:
+        pass
 
 # CSRF protection configuration moved to main config above
 
