@@ -123,42 +123,49 @@ flask_env = os.environ.get('FLASK_ENV', 'development')
 app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Import production-ready configuration
+# Import ultra-performance configuration for 50+ users and 800,000+ bags
 try:
-    from production_config import ProductionConfig
-    # Apply production configuration
-    ProductionConfig.apply_to_app(app)
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ProductionConfig.DATABASE_CONFIG
-    logger.info("Using PRODUCTION configuration for 20+ concurrent users with heavy operations")
+    from ultra_performance_config import UltraPerformanceConfig, PerformanceOptimizer
+    # Apply ultra-performance configuration
+    UltraPerformanceConfig.apply_to_app(app)
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = UltraPerformanceConfig.DATABASE_CONFIG
+    logger.info("✅ Using ULTRA-PERFORMANCE configuration for 50+ concurrent users and 800,000+ bags")
 except ImportError:
     try:
-        from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
-        # Apply high-performance configuration
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
-        HighPerformanceConfig.apply_to_app(app)
-        logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
+        from production_config import ProductionConfig
+        # Apply production configuration
+        ProductionConfig.apply_to_app(app)
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = ProductionConfig.DATABASE_CONFIG
+        logger.info("Using PRODUCTION configuration for 20+ concurrent users with heavy operations")
     except ImportError:
-        # Fallback to inline optimized configuration
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-            "pool_size": 30,  # Increased for heavy operations
-            "max_overflow": 20,  # Additional connections for peaks
-            "pool_recycle": 300,
-            "pool_pre_ping": True,
-            "pool_timeout": 20,  # Increased timeout for heavy queries
-            "echo": False,
-            "echo_pool": False,
-            "pool_use_lifo": True,
-            "connect_args": {
-                "keepalives": 1,
-                "keepalives_idle": 10,
-                "keepalives_interval": 5,
-                "keepalives_count": 5,
-                "connect_timeout": 10,
-                "application_name": "TraceTrack_Production",
-                "options": "-c statement_timeout=30000"  # 30 second query timeout
+        try:
+            from high_performance_config import HighPerformanceConfig, ConnectionPoolManager
+            # Apply high-performance configuration
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = HighPerformanceConfig.DATABASE_CONFIG
+            HighPerformanceConfig.apply_to_app(app)
+            logger.info("Using HIGH-PERFORMANCE configuration for 50+ concurrent users")
+        except ImportError:
+            # Fallback to inline optimized configuration
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+                "pool_size": 30,  # Increased for heavy operations
+                "max_overflow": 20,  # Additional connections for peaks
+                "pool_recycle": 300,
+                "pool_pre_ping": True,
+                "pool_timeout": 20,  # Increased timeout for heavy queries
+                "echo": False,
+                "echo_pool": False,
+                "pool_use_lifo": True,
+                "connect_args": {
+                    "keepalives": 1,
+                    "keepalives_idle": 10,
+                    "keepalives_interval": 5,
+                    "keepalives_count": 5,
+                    "connect_timeout": 10,
+                    "application_name": "TraceTrack_Production",
+                    "options": "-c statement_timeout=30000"  # 30 second query timeout
+                }
             }
-        }
-        logger.info("Using optimized database configuration for high concurrency")
+            logger.info("Using optimized database configuration for high concurrency")
 
 # Disable SQL logging to reduce noise
 app.config["SQLALCHEMY_ECHO"] = False
@@ -193,6 +200,22 @@ try:
     logging.info("Performance patches applied successfully")
 except Exception as e:
     logging.warning(f"Performance patches not applied: {e}")
+
+# Apply ultra-performance monitoring
+try:
+    from performance_monitor import apply_performance_monitoring
+    apply_performance_monitoring(app)
+    logging.info("✅ Performance monitoring activated")
+except Exception as e:
+    logging.warning(f"Performance monitoring not applied: {e}")
+
+# Apply circuit breakers for fault tolerance
+try:
+    from ultra_circuit_breaker import apply_circuit_breakers
+    apply_circuit_breakers(app)
+    logging.info("✅ Circuit breakers activated for fault tolerance")
+except Exception as e:
+    logging.warning(f"Circuit breakers not applied: {e}")
 
 # Create tables after app initialization
 with app.app_context():
