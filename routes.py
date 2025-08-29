@@ -3514,7 +3514,8 @@ def bill_management():
     
     try:
         # Import models locally
-        from models import Bill, Bag, BillBag, User
+        from models import Bill, Bag, BillBag, User, Link
+        from sqlalchemy import func
         
         # Get search/filter parameters
         search_bill_id = request.args.get('search_bill_id', '').strip()
@@ -3657,26 +3658,48 @@ def bill_management():
         
         bills_data = bills_query.limit(50).all()
         
+        # Batch load all data to avoid N+1 queries
+        bill_ids = [bill.id for bill in bills_data]
+        
+        # Single query for all parent counts
+        from sqlalchemy import text
+        parent_counts_result = db.session.execute(
+            text("""
+                SELECT bill_id, COUNT(*) as count 
+                FROM bill_bag 
+                WHERE bill_id = ANY(:bill_ids)
+                GROUP BY bill_id
+            """),
+            {"bill_ids": bill_ids}
+        ).fetchall()
+        parent_counts = {row[0]: row[1] for row in parent_counts_result}
+        
+        # Single query for all child counts
+        child_counts_result = db.session.execute(
+            text("""
+                SELECT bb.bill_id, COUNT(DISTINCT l.child_bag_id) as count
+                FROM bill_bag bb
+                LEFT JOIN link l ON l.parent_bag_id = bb.bag_id
+                WHERE bb.bill_id = ANY(:bill_ids)
+                GROUP BY bb.bill_id
+            """),
+            {"bill_ids": bill_ids}
+        ).fetchall()
+        child_counts = {row[0]: row[1] for row in child_counts_result}
+        
+        # Batch load all creators
+        creator_ids = [bill.created_by_id for bill in bills_data if bill.created_by_id]
+        creators = {}
+        if creator_ids:
+            users = User.query.filter(User.id.in_(creator_ids)).all()
+            creators = {user.id: {'username': user.username, 'role': user.role} for user in users}
+        
         # Convert to the expected format for the template
         bill_data = []
         for bill in bills_data:
-            # Count linked parent bags for this bill
-            parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
-            
-            # Calculate actual child count from Link table
-            actual_child_count = db.session.query(func.count(Link.child_bag_id)).join(
-                BillBag, BillBag.bag_id == Link.parent_bag_id
-            ).filter(BillBag.bill_id == bill.id).scalar() or 0
-            
-            # Get creator information if available
-            creator_info = None
-            if bill.created_by_id:
-                creator_user = User.query.get(bill.created_by_id)
-                if creator_user:
-                    creator_info = {
-                        'username': creator_user.username,
-                        'role': creator_user.role
-                    }
+            parent_count = parent_counts.get(bill.id, 0)
+            actual_child_count = child_counts.get(bill.id, 0)
+            creator_info = creators.get(bill.created_by_id) if bill.created_by_id else None
             
             bill_data.append({
                 'bill': bill,
@@ -3809,25 +3832,37 @@ def delete_bill(bill_id):
     try:
         # Import models locally
         from models import Bill, BillBag
+        from sqlalchemy import text
         
-        # Single fast query to get bill
-        bill = Bill.query.get(bill_id)
-        if not bill:
+        # Use a single transaction with raw SQL for maximum speed
+        # Get bill identifier first
+        result = db.session.execute(
+            text("SELECT bill_id FROM bill WHERE id = :bill_id LIMIT 1"),
+            {"bill_id": bill_id}
+        ).fetchone()
+        
+        if not result:
             flash('Bill not found.', 'error')
             return redirect(url_for('bill_management'))
         
-        bill_identifier = bill.bill_id
+        bill_identifier = result[0]
         
-        # Fast bulk delete without loading records (use parameterized query for safety)
-        from sqlalchemy import text
-        db.session.execute(text("DELETE FROM bill_bag WHERE bill_id = :bill_id"), {"bill_id": bill_id})
-        db.session.delete(bill)
+        # Execute both deletes in a single transaction for speed
+        # Using raw SQL for maximum performance
+        db.session.execute(
+            text("""
+                DELETE FROM bill_bag WHERE bill_id = :bill_id;
+                DELETE FROM bill WHERE id = :bill_id;
+            """),
+            {"bill_id": bill_id}
+        )
         db.session.commit()
         
         flash(f'Bill {bill_identifier} deleted successfully.', 'success')
         
     except Exception as e:
         db.session.rollback()
+        app.logger.error(f'Error deleting bill {bill_id}: {str(e)}')
         flash('Error deleting bill.', 'error')
     
     return redirect(url_for('bill_management'))
