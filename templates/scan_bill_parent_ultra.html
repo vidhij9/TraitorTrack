@@ -212,6 +212,24 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Weight Information -->
+                    <div class="mb-3">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center p-2 border rounded">
+                                    <small class="text-muted d-block">Actual Weight</small>
+                                    <strong class="text-primary" id="actual-weight">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center p-2 border rounded">
+                                    <small class="text-muted d-block">Expected Weight</small>
+                                    <strong class="text-info" id="expected-weight">{{ "%.1f"|format(bill.expected_weight_kg or 0) }} kg</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Action Buttons -->
                     <div class="mb-3">
@@ -608,7 +626,7 @@ function initializeScanner() {
     }
     
     // Update progress bar and complete button
-    function updateProgress() {
+    async function updateProgress() {
         const current = parseInt(bagCount.textContent);
         const max = parseInt(maxCount.textContent);
         const percentage = Math.round((current / max) * 100);
@@ -630,6 +648,24 @@ function initializeScanner() {
         const completeBtnText = document.getElementById('complete-btn-text');
         if (completeBtnText) {
             completeBtnText.textContent = `Complete Bill (${current}/${max} bags)`;
+        }
+        
+        // Update weight displays
+        try {
+            const response = await fetch(`/api/bill/{{ bill.id }}/weights`);
+            if (response.ok) {
+                const data = await response.json();
+                const actualWeightEl = document.getElementById('actual-weight');
+                const expectedWeightEl = document.getElementById('expected-weight');
+                if (actualWeightEl) {
+                    actualWeightEl.textContent = `${data.actual_weight.toFixed(1)} kg`;
+                }
+                if (expectedWeightEl) {
+                    expectedWeightEl.textContent = `${data.expected_weight.toFixed(1)} kg`;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching weights:', error);
         }
     }
     
