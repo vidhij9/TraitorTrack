@@ -54,6 +54,21 @@ logger = logging.getLogger(__name__)
 # Import all the main routes to ensure they're registered
 import routes
 import api  # Import consolidated API endpoints
+
+# Import database health monitoring for production stability
+try:
+    from database_health_monitor import register_health_endpoints
+    register_health_endpoints(app, db)
+    logger.info("✅ Database health monitoring activated for production stability")
+except ImportError as e:
+    logger.warning(f"Database health monitor not loaded: {e}")
+
+# Import improved scanning routes with retry logic
+try:
+    from improved_scanning_routes import ScanningService
+    logger.info("✅ Improved scanning service loaded with retry logic")
+except ImportError as e:
+    logger.warning(f"Improved scanning service not loaded: {e}")
 # from optimized_cache import cache  # Commented out - module doesn't exist
 
 # Inject query optimizer into routes

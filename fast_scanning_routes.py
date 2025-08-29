@@ -109,11 +109,20 @@ def fast_parent_scan():
     qr_code = qr_code.upper()
     
     try:
-        # Use raw SQL for speed
-        result = db.session.execute(
-            text(QUERIES['get_bag']),
-            {'qr_id': qr_code}
-        ).fetchone()
+        # Use raw SQL for speed with retry logic
+        for attempt in range(3):
+            try:
+                result = db.session.execute(
+                    text(QUERIES['get_bag']),
+                    {'qr_id': qr_code}
+                ).fetchone()
+                break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(0.5)
+                    db.session.rollback()
+                else:
+                    raise
         
         if result:
             if result.type != 'parent':
@@ -123,11 +132,22 @@ def fast_parent_scan():
                     'time_ms': round((time.time() - start) * 1000, 2)
                 })
             
-            # Get child count
-            count = db.session.execute(
-                text(QUERIES['get_child_count']),
-                {'parent_id': result.id}
-            ).scalar() or 0
+            # Get child count with retry logic
+            count = 0
+            for attempt in range(3):
+                try:
+                    count = db.session.execute(
+                        text(QUERIES['get_child_count']),
+                        {'parent_id': result.id}
+                    ).scalar() or 0
+                    break
+                except Exception as e:
+                    if attempt < 2:
+                        time.sleep(0.5)
+                        db.session.rollback()
+                    else:
+                        app.logger.error(f'Failed to get child count: {str(e)}')
+                        count = 0
             
             # Store in session
             session['current_parent_qr'] = qr_code
@@ -176,9 +196,12 @@ def fast_parent_scan():
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Fast parent scan error: {str(e)}')
+        # Provide more specific error message
+        error_msg = 'Database connection error' if 'connection' in str(e).lower() else 'Scan failed - please retry'
         return jsonify({
             'success': False,
-            'message': 'Scan failed - please retry',
+            'message': error_msg,
+            'error_type': 'database' if 'connection' in str(e).lower() else 'general',
             'time_ms': round((time.time() - start) * 1000, 2)
         })
 
@@ -222,11 +245,22 @@ def fast_child_scan():
         })
     
     try:
-        # Check child count first
-        count = db.session.execute(
-            text(QUERIES['get_child_count']),
-            {'parent_id': parent_id}
-        ).scalar() or 0
+        # Check child count first with retry logic
+        count = 0
+        for attempt in range(3):
+            try:
+                count = db.session.execute(
+                    text(QUERIES['get_child_count']),
+                    {'parent_id': parent_id}
+                ).scalar() or 0
+                break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(0.5)
+                    db.session.rollback()
+                else:
+                    app.logger.error(f'Failed to get child count: {str(e)}')
+                    count = 0
         
         if count >= 30:
             return jsonify({
@@ -235,11 +269,21 @@ def fast_child_scan():
                 'time_ms': round((time.time() - start) * 1000, 2)
             })
         
-        # Check if child exists
-        child = db.session.execute(
-            text(QUERIES['get_bag']),
-            {'qr_id': qr_code}
-        ).fetchone()
+        # Check if child exists with retry logic
+        child = None
+        for attempt in range(3):
+            try:
+                child = db.session.execute(
+                    text(QUERIES['get_bag']),
+                    {'qr_id': qr_code}
+                ).fetchone()
+                break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(0.5)
+                    db.session.rollback()
+                else:
+                    raise
         
         if child:
             if child.type == 'parent':
@@ -317,9 +361,22 @@ def fast_child_scan():
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Fast child scan error: {str(e)}')
+        # Provide more specific error message
+        error_msg = 'Database connection error' if 'connection' in str(e).lower() else 'Scan failed - please retry'
+        # Try to get current count for better UX
+        try:
+            current_count = db.session.execute(
+                text(QUERIES['get_child_count']),
+                {'parent_id': parent_id}
+            ).scalar() or 0
+        except:
+            current_count = 0
         return jsonify({
             'success': False,
-            'message': 'Scan failed - please retry',
+            'message': error_msg,
+            'child_count': current_count,
+            'parent_qr': parent_qr,
+            'error_type': 'database' if 'connection' in str(e).lower() else 'general',
             'time_ms': round((time.time() - start) * 1000, 2)
         })
 
