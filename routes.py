@@ -3758,18 +3758,16 @@ def create_bill():
                 flash(f'Bill ID "{bill_id}" already exists. Please use a different ID.', 'error')
                 return render_template('create_bill.html')
             
-            # Enhancement features disabled to prevent route registration errors
-            # from enhancement_features import enhance_bill_creator_tracking
-            
-            # Create bill with standard tracking (enhancement disabled)
-            bill_tracker = {}
-            bill_data = {
-                'bill_id': bill_id,
-                'description': '',
-                'parent_bag_count': parent_bag_count
-            }
-            
-            bill = bill_tracker['create_bill_with_tracking'](bill_data, current_user.id)
+            # Create bill directly without enhancement features
+            bill = Bill(
+                bill_id=bill_id,
+                description='',
+                parent_bag_count=parent_bag_count,
+                created_by_id=current_user.id,
+                status='new'
+            )
+            db.session.add(bill)
+            db.session.commit()
             
             app.logger.info(f'Bill created successfully: {bill_id} with {parent_bag_count} parent bags')
             
