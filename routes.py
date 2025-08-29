@@ -6028,3 +6028,5 @@ def excel_upload():
     
     # GET request - show upload form
     return render_template('excel_upload.html')
+
+# Monitoring endpoints are already defined in error_handlers.py and main.py

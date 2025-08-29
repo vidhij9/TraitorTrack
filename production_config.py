@@ -10,12 +10,12 @@ class ProductionConfig:
     
     # Database configuration for high concurrency
     DATABASE_CONFIG = {
-        # Connection pool settings optimized for 20+ concurrent users
-        "pool_size": 30,  # Base pool size for concurrent connections
-        "max_overflow": 20,  # Additional connections for peak load
-        "pool_recycle": 300,  # Recycle connections every 5 minutes
+        # Connection pool settings optimized for 50+ concurrent users
+        "pool_size": 60,  # Increased base pool size for more concurrent connections
+        "max_overflow": 40,  # Additional connections for peak load
+        "pool_recycle": 3600,  # Recycle connections every hour
         "pool_pre_ping": True,  # Test connections before use
-        "pool_timeout": 20,  # Wait up to 20 seconds for connection
+        "pool_timeout": 30,  # Wait up to 30 seconds for connection
         "echo": False,  # Disable SQL logging for performance
         "echo_pool": False,
         "pool_use_lifo": True,  # LIFO for better connection reuse
@@ -23,12 +23,12 @@ class ProductionConfig:
         # PostgreSQL specific optimizations
         "connect_args": {
             "keepalives": 1,
-            "keepalives_idle": 10,
-            "keepalives_interval": 5,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
             "keepalives_count": 5,
             "connect_timeout": 10,
             "application_name": "TraceTrack_Production",
-            "options": "-c statement_timeout=30000"  # 30 second timeout
+            "options": "-c statement_timeout=60000 -c idle_in_transaction_session_timeout=60000"  # 60 second timeouts
         },
         
         # Query execution settings
