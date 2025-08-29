@@ -475,8 +475,14 @@ function initializeScanner() {
         // AUTO-PAUSE: Scanner pauses automatically after detection
         showScanPauseOverlay(qrCode);
         
-        // Show immediate visual feedback
+        // Show immediate visual feedback with processing message
         showToast('📦 Processing ' + qrCode + '...', 'info', 2000);
+        
+        // Also update the scanner status to show processing
+        const statusEl = document.getElementById('scanner-status');
+        if (statusEl) {
+            statusEl.innerHTML = `<span class="text-primary"><i class="fas fa-spinner fa-pulse me-1"></i>Processing ${qrCode}...</span>`;
+        }
         
         // Check for duplicate scan
         if (scannedBags.has(qrCode)) {
@@ -530,9 +536,15 @@ function initializeScanner() {
                 console.log('Response data:', data);
             } catch (jsonError) {
                 console.error('JSON parse error:', jsonError);
-                const responseText = await response.text();
-                console.error('Response text:', responseText);
-                showToast('Invalid server response', 'danger', 3000);
+                showToast('❌ Invalid server response', 'danger', 3000);
+                hideScanPauseOverlay();
+                isProcessing = false;
+                // Resume scanning after error
+                if (scanner && scanner.resumeScanning) {
+                    setTimeout(() => {
+                        scanner.resumeScanning();
+                    }, 2000);
+                }
                 return;
             }
             
@@ -571,14 +583,22 @@ function initializeScanner() {
                         scannedBags.add(qrCode);
                         break;
                         
+                    case 'already_linked_other_bill':
                     case 'already_linked_different_bill':
                         toastType = 'warning';
                         duration = 3000;
                         resumeDelay = 2500;
                         break;
                         
+                    case 'bag_not_found':
                     case 'bag_not_registered':
                     case 'not_found':
+                        toastType = 'danger';
+                        duration = 3000;
+                        resumeDelay = 2000;
+                        break;
+                        
+                    case 'wrong_bag_type':
                         toastType = 'danger';
                         duration = 3000;
                         resumeDelay = 2000;
@@ -594,6 +614,25 @@ function initializeScanner() {
                         toastType = 'danger';
                         duration = 3000;
                         resumeDelay = 2000;
+                        break;
+                        
+                    case 'invalid_format':
+                        toastType = 'danger';
+                        duration = 3000;
+                        resumeDelay = 2000;
+                        break;
+                        
+                    case 'auth_required':
+                    case 'access_denied':
+                        toastType = 'danger';
+                        duration = 4000;
+                        resumeDelay = 3000;
+                        break;
+                        
+                    case 'server_error':
+                        toastType = 'danger';
+                        duration = 4000;
+                        resumeDelay = 2500;
                         break;
                         
                     default:

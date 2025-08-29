@@ -4302,146 +4302,140 @@ def ultra_fast_bill_parent_scan():
     if not user_id:
         return jsonify({
             'success': False,
-            'message': 'Please login first',
-            'auth_required': True
+            'message': '🚫 Please login first',
+            'auth_required': True,
+            'error_type': 'auth_required'
         }), 401
     
     # Check role
     user = User.query.get(user_id)
     if not user or user.role not in ['admin', 'biller']:
-        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
+        return jsonify({
+            'success': False, 
+            'message': '🚫 Access restricted to admin and biller users.',
+            'error_type': 'access_denied'
+        })
     
     bill_id = request.form.get('bill_id')
     qr_code = request.form.get('qr_code', '').strip().upper()
     
+    app.logger.info(f'Fast bill scan - bill_id: {bill_id}, qr_code: {qr_code}, user: {user.username}')
+    
     if not bill_id or not qr_code:
-        return jsonify({'success': False, 'message': 'Missing bill ID or QR code'})
+        return jsonify({
+            'success': False, 
+            'message': '🚫 Missing bill ID or QR code',
+            'error_type': 'missing_data'
+        })
     
     # Validate format
     import re
     if not re.match(r'^SB\d{5}$', qr_code):
         return jsonify({
             'success': False,
-            'message': f'Invalid format! Must be SB##### (e.g., SB12345)',
-            'show_popup': True
+            'message': f'🚫 Invalid format! Must be SB##### (e.g., SB12345). You scanned: {qr_code}',
+            'show_popup': True,
+            'error_type': 'invalid_format'
         })
     
     try:
-        # Use a single optimized query to get all needed data at once
-        result = db.session.execute(text("""
-            WITH bill_data AS (
-                SELECT id, bill_id, parent_bag_count, total_weight_kg, expected_weight_kg, total_child_bags
-                FROM bill WHERE id = :bill_id
-            ),
-            bag_data AS (
-                SELECT b.id, b.qr_id, b.type, b.child_count, b.weight_kg, b.status,
-                       COUNT(l.child_bag_id) as actual_child_count
-                FROM bag b
-                LEFT JOIN link l ON l.parent_bag_id = b.id
-                WHERE UPPER(b.qr_id) = :qr_code AND b.type = 'parent'
-                GROUP BY b.id, b.qr_id, b.type, b.child_count, b.weight_kg, b.status
-            ),
-            existing_links AS (
-                SELECT bb.bill_id, bb.bag_id, b2.bill_id as other_bill_id
-                FROM bill_bag bb
-                LEFT JOIN bill b2 ON bb.bill_id = b2.id
-                WHERE bb.bag_id = (SELECT id FROM bag_data LIMIT 1)
-            ),
-            current_count AS (
-                SELECT COUNT(*) as count FROM bill_bag WHERE bill_id = :bill_id
-            )
-            SELECT 
-                bd.*, 
-                bag.*, 
-                el.bill_id as existing_bill_id,
-                el.other_bill_id,
-                cc.count as current_bag_count
-            FROM bill_data bd
-            CROSS JOIN bag_data bag
-            LEFT JOIN existing_links el ON el.bag_id = bag.id
-            CROSS JOIN current_count cc
-            LIMIT 1
-        """), {'bill_id': int(bill_id), 'qr_code': qr_code}).fetchone()
+        # Simplified queries for better reliability and debugging
         
-        if not result:
+        # 1. Check if bill exists
+        bill = Bill.query.get(int(bill_id))
+        if not bill:
+            app.logger.error(f'Bill not found: {bill_id}')
             return jsonify({
                 'success': False, 
-                'message': f'🚫 Parent bag {qr_code} does not exist in the system. Please register it first.',
-                'error_type': 'not_found'
-            })
-        
-        # Extract data from result
-        bill_exists = result.id is not None
-        parent_bag_id = result[6] if len(result) > 6 else None  # bag.id
-        child_count = result.actual_child_count if hasattr(result, 'actual_child_count') else 0
-        
-        if not bill_exists:
-            return jsonify({
-                'success': False, 
-                'message': f'📋 Bill not found. Please check the bill ID.',
+                'message': f'📋 Bill not found',
                 'error_type': 'bill_not_found'
             })
         
-        if not parent_bag_id:
-            return jsonify({
-                'success': False, 
-                'message': f'📦 Parent bag {qr_code} not registered. Please register this bag before linking.',
-                'error_type': 'bag_not_registered'
-            })
-        
-        # Check for existing links
-        if result.existing_bill_id:
-            if result.existing_bill_id == int(bill_id):
+        # 2. Check if parent bag exists
+        parent_bag = Bag.query.filter_by(qr_id=qr_code, type='parent').first()
+        if not parent_bag:
+            # Check if it's registered as a different type
+            other_bag = Bag.query.filter_by(qr_id=qr_code).first()
+            if other_bag:
+                app.logger.warning(f'Bag {qr_code} is type {other_bag.type}, not parent')
                 return jsonify({
                     'success': False,
-                    'message': f'✅ {qr_code} is already linked to this bill ({child_count} children)',
-                    'error_type': 'already_linked_same_bill'
+                    'message': f'🚫 {qr_code} is registered as a {other_bag.type} bag, not a parent bag',
+                    'error_type': 'wrong_bag_type'
                 })
             else:
+                app.logger.warning(f'Bag {qr_code} not found in system')
                 return jsonify({
                     'success': False,
-                    'message': f'⚠️ {qr_code} is already linked to bill #{result.other_bill_id}. Cannot link to multiple bills.',
-                    'error_type': 'already_linked_different_bill'
+                    'message': f'🚫 Bag {qr_code} not registered in system',
+                    'error_type': 'bag_not_found'
                 })
         
-        # Check capacity
-        if result.current_bag_count >= result.parent_bag_count:
+        app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
+        
+        # 3. Get actual child count
+        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        app.logger.info(f'Parent bag {qr_code} has {child_count} children')
+        
+        # 4. Check if already linked to this bill
+        existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
+        if existing_link:
+            app.logger.info(f'Bag {qr_code} already linked to bill {bill.bill_id}')
             return jsonify({
                 'success': False,
-                'message': f'🚫 Bill capacity reached ({result.current_bag_count}/{result.parent_bag_count} bags). Cannot add more parent bags.',
-                'error_type': 'capacity_reached',
-                'show_popup': True
+                'message': f'✅ {qr_code} already linked to this bill',
+                'error_type': 'already_linked_same_bill'
             })
         
-        # Now do the updates in a single transaction
-        bill = Bill.query.get(int(bill_id))
-        parent_bag = Bag.query.get(parent_bag_id)
+        # 5. Check if linked to another bill
+        other_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
+        if other_link:
+            other_bill = Bill.query.get(other_link.bill_id)
+            app.logger.warning(f'Bag {qr_code} already linked to bill {other_bill.bill_id if other_bill else "Unknown"}')
+            return jsonify({
+                'success': False,
+                'message': f'⚠️ {qr_code} already linked to Bill #{other_bill.bill_id if other_bill else "Unknown"}',
+                'error_type': 'already_linked_other_bill'
+            })
         
-        # Update parent bag
+        # 6. Check current capacity
+        current_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        if current_count >= bill.parent_bag_count:
+            app.logger.warning(f'Bill {bill.bill_id} at capacity: {current_count}/{bill.parent_bag_count}')
+            return jsonify({
+                'success': False,
+                'message': f'🚫 Bill capacity reached ({current_count}/{bill.parent_bag_count})',
+                'error_type': 'capacity_reached'
+            })
+        
+        # All checks passed - link the parent bag to the bill
+        app.logger.info(f'Linking {qr_code} to bill {bill.bill_id}')
+        
+        # Update parent bag with actual child count and weight
         parent_bag.child_count = child_count
-        parent_bag.weight_kg = float(child_count)
-        parent_bag.status = 'completed' if child_count >= 30 else 'in_progress'
+        parent_bag.weight_kg = float(child_count)  # 1kg per child
+        if child_count >= 30:
+            parent_bag.status = 'completed'
+        elif child_count > 0:
+            parent_bag.status = 'in_progress'
         
-        # Link to bill
+        # Create the link
         bill_bag = BillBag()
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
+        bill_bag.status = 'linked'
         
-        # Update total child bags count (actual weight in kg = total child bags)
+        # Update bill totals
+        bill.total_weight_kg = (bill.total_weight_kg or 0.0) + parent_bag.weight_kg
         if hasattr(bill, 'total_child_bags'):
-            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + child_count
+            bill.total_child_bags = (bill.total_child_bags or 0) + child_count
         
-        # Actual weight = total number of child bags across all parent bags (1kg per child)
-        bill.total_weight_kg = float(getattr(bill, 'total_child_bags', child_count))
-        
-        # Count linked parent bags for expected weight calculation
-        linked_parent_count = BillBag.query.filter_by(bill_id=bill.id).count() + 1  # +1 for the current bag being added
-        
-        # Expected weight = number of parent bags * 30kg
+        # Update expected weight (30kg per parent bag)
+        linked_parent_count = current_count + 1  # +1 for the current bag being added
         if hasattr(bill, 'expected_weight_kg'):
             bill.expected_weight_kg = float(linked_parent_count * 30)
         
-        # Create scan record
+        # Record scan
         scan = Scan()
         scan.user_id = user_id
         scan.parent_bag_id = parent_bag.id
@@ -4451,11 +4445,10 @@ def ultra_fast_bill_parent_scan():
         db.session.add(scan)
         db.session.commit()
         
-        # Count linked bags
-        linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
-        
-        # Recalculate final linked count after commit
+        # Get final count after commit
         final_linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        
+        app.logger.info(f'Successfully linked {qr_code} to bill {bill.bill_id}. Total: {final_linked_count}/{bill.parent_bag_count}')
         
         return jsonify({
             'success': True,
@@ -4471,8 +4464,12 @@ def ultra_fast_bill_parent_scan():
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f'Fast bill scan error: {str(e)}')
-        return jsonify({'success': False, 'message': 'Error processing scan'})
+        app.logger.error(f'Fast bill scan error: {str(e)}', exc_info=True)
+        return jsonify({
+            'success': False, 
+            'message': f'❌ Error processing scan: {str(e)}',
+            'error_type': 'server_error'
+        })
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
 @csrf.exempt
