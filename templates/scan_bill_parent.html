@@ -214,12 +214,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 rememberLastUsedCamera: true
             };
             
-            // Try back camera first, then front camera
+            // Only try back camera, no fallback to front camera
             let cameraStarted = false;
             const cameraConfigs = [
-                { facingMode: "environment" },
-                { facingMode: "user" },
-                cameras[0].id // fallback to first available camera
+                { facingMode: "environment" }, // Back camera only
+                cameras[0].id // fallback to first available camera (still prefer back if possible)
             ];
             
             for (let i = 0; i < cameraConfigs.length && !cameraStarted; i++) {
