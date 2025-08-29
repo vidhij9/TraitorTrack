@@ -3677,6 +3677,12 @@ def bill_management():
                     summary_stats['total_child_bags'] += child_count
                     summary_stats['total_weight'] += bill.total_weight_kg or 0
                     
+                    # Safe access to expected_weight_kg with fallback
+                    try:
+                        expected_weight = bill.expected_weight_kg if hasattr(bill, 'expected_weight_kg') else parent_count * 30
+                    except:
+                        expected_weight = parent_count * 30
+                    
                     summary_data.append({
                         'bill_id': bill.bill_id,
                         'created_at': format_datetime_ist(bill.created_at),
@@ -3684,7 +3690,7 @@ def bill_management():
                         'parent_bags': parent_count,
                         'child_bags': child_count,
                         'actual_weight': bill.total_weight_kg or 0,
-                        'expected_weight': getattr(bill, 'expected_weight_kg', 0) or 0,
+                        'expected_weight': expected_weight,
                         'weight_kg': bill.total_weight_kg or 0,  # Keep for backward compatibility
                         'status': status,
                         'completion': (parent_count * 100 // bill.parent_bag_count) if bill.parent_bag_count else 0
@@ -3775,8 +3781,49 @@ def bill_management():
                              
     except Exception as e:
         app.logger.error(f"Bill management error: {str(e)}")
-        flash('Error loading bill management.', 'error')
-        return redirect(url_for('index'))
+        db.session.rollback()  # Rollback any failed transaction
+        
+        # Try a simplified version without expected_weight_kg column
+        try:
+            # Get basic bill list without problematic columns
+            bills_query = Bill.query.order_by(Bill.created_at.desc())
+            
+            if search_bill_id:
+                bills_query = bills_query.filter(Bill.bill_id.ilike(f'%{search_bill_id}%'))
+            
+            if status_filter != 'all':
+                bills_query = bills_query.filter(Bill.status == status_filter)
+            
+            bills_data = bills_query.limit(50).all()
+            
+            # Simple bill data without complex queries
+            bill_data = []
+            for bill in bills_data:
+                bill_data.append({
+                    'bill': bill,
+                    'parent_bags': [],
+                    'parent_count': bill.parent_bag_count or 0,
+                    'status': bill.status or 'pending',
+                    'creator_info': None,
+                    'statistics': {
+                        'parent_bags_linked': bill.parent_bag_count or 0,
+                        'total_child_bags': 0,
+                        'total_weight_kg': getattr(bill, 'total_weight_kg', 0) or 0
+                    }
+                })
+            
+            flash('Loading simplified view due to database issue.', 'warning')
+            return render_template('bill_management.html',
+                                 bill_data=bill_data,
+                                 search_bill_id=search_bill_id,
+                                 status_filter=status_filter,
+                                 summary_data=None,
+                                 summary_stats=None,
+                                 all_users=None)
+        except Exception as fallback_error:
+            app.logger.error(f"Bill management fallback error: {str(fallback_error)}")
+            flash('Error loading bill management. Please contact support.', 'error')
+            return redirect(url_for('index'))
 
 @app.route('/bill/create', methods=['GET', 'POST'])
 @csrf.exempt
