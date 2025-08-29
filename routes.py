@@ -138,14 +138,11 @@ def api_bill_weights(bill_id):
         bill = Bill.query.get_or_404(bill_id)
         
         # Get actual weight from linked parent bags
-        # Each parent with 30 children weighs 30kg, otherwise child count
+        # Actual weight = exact number of children (1kg per child)
         actual_weight = db.session.execute(
             text("""
                 SELECT COALESCE(SUM(
-                    CASE 
-                        WHEN (SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id) >= 30 THEN 30
-                        ELSE (SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id)
-                    END
+                    (SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id)
                 ), 0) as total_actual_weight
                 FROM bill_bag bb
                 JOIN bag b ON bb.bag_id = b.id
