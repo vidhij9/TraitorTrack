@@ -2228,10 +2228,14 @@ def process_child_scan():
                 })
         else:
             # Create new child bag with user association
+            user_id = session.get('user_id')  # Get user_id from session since we're not using @login_required
+            if not user_id:
+                return jsonify({'success': False, 'message': 'Session expired. Please login again.'})
+            
             child_bag = Bag()
             child_bag.qr_id = qr_code
             child_bag.type = 'child'
-            child_bag.user_id = current_user.id  # Associate child bag with user
+            child_bag.user_id = user_id  # Associate child bag with user
             child_bag.dispatch_area = parent_bag.dispatch_area
             db.session.add(child_bag)
             db.session.flush()  # Get the ID
@@ -2241,8 +2245,13 @@ def process_child_scan():
         link.parent_bag_id = parent_bag.id
         link.child_bag_id = child_bag.id
         
+        # Get user_id from session for scan record
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Session expired. Please login again.'})
+        
         scan = Scan()
-        scan.user_id = current_user.id
+        scan.user_id = user_id
         scan.child_bag_id = child_bag.id
         
         db.session.add_all([link, scan])
@@ -2266,7 +2275,9 @@ def process_child_scan():
         return jsonify({'success': False, 'message': str(e)})
     except Exception as e:
         db.session.rollback()
+        # Add more detailed error logging
         app.logger.error(f'Child scan error: {str(e)}', exc_info=True)
+        app.logger.error(f'Child scan details - QR: {qr_code if "qr_code" in locals() else "N/A"}, Parent: {parent_qr if "parent_qr" in locals() else "N/A"}')
         
         # Check for common database errors
         if 'duplicate key' in str(e).lower():
