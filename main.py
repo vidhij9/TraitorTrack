@@ -115,46 +115,100 @@ def ready():
 @app.route('/')
 def index():
     """Root page that works without database"""
-    if db_ready.is_set():
-        # Database is ready, redirect to login
+    try:
+        if db_ready.is_set():
+            # Database is ready, redirect to login
+            from flask import redirect
+            return redirect('/login')
+        else:
+            # Database still connecting
+            return '''
+            <html>
+                <head>
+                    <title>TraceTrack - Starting</title>
+                    <meta http-equiv="refresh" content="5">
+                </head>
+                <body style="font-family: Arial, sans-serif; padding: 50px; text-align: center;">
+                    <h1>🚀 TraceTrack is Starting Up</h1>
+                    <p>Connecting to database...</p>
+                    <p style="color: #666;">This page will refresh automatically.</p>
+                    <div style="margin: 30px auto; width: 200px; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden;">
+                        <div style="width: 100%; height: 100%; background: #4CAF50; animation: loading 2s linear infinite;">
+                            <style>
+                                @keyframes loading {
+                                    0% { transform: translateX(-100%); }
+                                    100% { transform: translateX(100%); }
+                                }
+                            </style>
+                        </div>
+                    </div>
+                    <p><small>Please wait while we establish database connection...</small></p>
+                </body>
+            </html>
+            '''
+    except Exception as e:
+        logger.error(f"Error in index route: {e}")
         return '''
         <html>
             <head>
-                <title>TraceTrack</title>
-                <meta http-equiv="refresh" content="0; url=/login">
-            </head>
-            <body>
-                <h1>TraceTrack Ready</h1>
-                <p>Redirecting to login...</p>
-            </body>
-        </html>
-        '''
-    else:
-        # Database still connecting
-        return '''
-        <html>
-            <head>
-                <title>TraceTrack - Starting</title>
-                <meta http-equiv="refresh" content="5">
+                <title>TraceTrack - Configuration Required</title>
             </head>
             <body style="font-family: Arial, sans-serif; padding: 50px; text-align: center;">
-                <h1>🚀 TraceTrack is Starting Up</h1>
-                <p>Connecting to AWS RDS database...</p>
-                <p style="color: #666;">This page will refresh automatically.</p>
-                <div style="margin: 30px auto; width: 200px; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden;">
-                    <div style="width: 100%; height: 100%; background: #4CAF50; animation: loading 2s linear infinite;">
-                        <style>
-                            @keyframes loading {
-                                0% { transform: translateX(-100%); }
-                                100% { transform: translateX(100%); }
-                            }
-                        </style>
-                    </div>
-                </div>
-                <p><small>If this takes too long, check your AWS RDS configuration.</small></p>
+                <h1>⚙️ Configuration Required</h1>
+                <p>The application is starting up. Please ensure:</p>
+                <ul style="text-align: left; display: inline-block;">
+                    <li>Database URL is configured in environment variables</li>
+                    <li>Network connectivity is available</li>
+                    <li>All required services are running</li>
+                </ul>
+                <p style="margin-top: 30px;">
+                    <a href="/health" style="color: blue;">Check Health Status</a> | 
+                    <a href="/" style="color: blue;">Retry</a>
+                </p>
             </body>
         </html>
         '''
+
+# Add error handler for production
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle internal server errors gracefully"""
+    logger.error(f"Internal Server Error: {error}")
+    return '''
+    <html>
+        <head>
+            <title>TraceTrack - Service Temporarily Unavailable</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; padding: 50px; text-align: center;">
+            <h1>⚠️ Service Temporarily Unavailable</h1>
+            <p>We're experiencing technical difficulties. Please try again in a few moments.</p>
+            <p style="margin-top: 30px;">
+                <a href="/" style="padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">Retry</a>
+            </p>
+            <p style="margin-top: 20px; color: #666;">
+                <small>If the problem persists, please contact support.</small>
+            </p>
+        </body>
+    </html>
+    ''', 500
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors gracefully"""
+    return '''
+    <html>
+        <head>
+            <title>TraceTrack - Page Not Found</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; padding: 50px; text-align: center;">
+            <h1>📍 Page Not Found</h1>
+            <p>The page you're looking for doesn't exist.</p>
+            <p style="margin-top: 30px;">
+                <a href="/" style="padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">Go Home</a>
+            </p>
+        </body>
+    </html>
+    ''', 404
 
 # Now import the full app configuration AFTER basic routes are set
 logger.info("Loading full application configuration...")
@@ -193,6 +247,7 @@ try:
 except Exception as e:
     logger.error(f"Failed to load full application: {e}")
     # App will still work with basic routes
+    db_ready.set()  # Set as ready to prevent infinite waiting
 
 # Import optimizers if available (non-blocking)
 try:
