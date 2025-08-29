@@ -163,7 +163,7 @@ def fast_parent_scan():
                 'parent_qr': qr_code,
                 'existing': True,
                 'child_count': count,
-                'message': f'Parent {qr_code} ready ({count}/30 children)',
+                'message': f'Parent {qr_code} ready ({count} children)',
                 'redirect': url_for('scan_child'),
                 'time_ms': round((time.time() - start) * 1000, 2)
             })
@@ -443,12 +443,8 @@ def fast_bill_parent_scan():
                 'time_ms': round((time.time() - start) * 1000, 2)
             })
         
-        if result.status != 'completed' and result.child_count < 30:
-            return jsonify({
-                'success': False,
-                'message': f'Parent bag not complete ({result.child_count}/30 children)',
-                'time_ms': round((time.time() - start) * 1000, 2)
-            })
+        # Parent bag can be linked regardless of child count
+        # No longer requiring 30 children
         
         if result.existing_bill:
             return jsonify({

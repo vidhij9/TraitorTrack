@@ -4374,24 +4374,20 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
         
-        # CHECK BAG STATUS - Only allow completed parent bags to be attached to bills
-        if parent_bag.status != 'completed':
-            # Count child bags to provide helpful feedback
-            child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-            
-            # Auto-update status if 30 children are present
-            if child_count == 30:
-                parent_bag.status = 'completed'
-                parent_bag.child_count = 30
-                parent_bag.weight_kg = 30.0
-                db.session.commit()
-                app.logger.info(f'Auto-completed parent bag {qr_id} with 30 children')
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': f'❌ Parent bag "{qr_id}" is not completed! It has {child_count}/30 child bags. Please complete scanning all 30 child bags first.',
-                    'show_popup': True
-                })
+        # Parent bag can be linked regardless of status or child count
+        # Count child bags for informational purposes only
+        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        
+        # Update child count and weight based on actual children
+        parent_bag.child_count = child_count
+        parent_bag.weight_kg = float(child_count)  # 1kg per child
+        
+        # Mark as completed if it has children, otherwise keep as is
+        if child_count > 0 and parent_bag.status == 'pending':
+            parent_bag.status = 'in_progress'
+        
+        db.session.commit()
+        app.logger.info(f'Parent bag {qr_id} has {child_count} children, proceeding with linking')
         
         # FIX: Check current bill capacity (after potential edits)
         current_capacity = bill.parent_bag_count
@@ -5424,23 +5420,20 @@ def manual_parent_entry():
         else:
             app.logger.info(f'Parent bag already exists: {manual_qr}, status: {parent_bag.status}')
         
-        # CHECK BAG STATUS - Only allow completed parent bags
-        if parent_bag.status != 'completed':
-            # Count child bags for feedback
-            child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-            
-            # Auto-complete if 30 children exist
-            if child_count == 30:
-                parent_bag.status = 'completed'
-                parent_bag.child_count = 30
-                parent_bag.weight_kg = 30.0
-                db.session.commit()
-            else:
-                app.logger.warning(f'Parent bag {manual_qr} not completed: {child_count}/30 children')
-                return jsonify({
-                    'success': False,
-                    'message': f'Parent bag {manual_qr} is not completed! It has {child_count}/30 child bags. Complete scanning before adding to bill.'
-                }), 400
+        # Parent bag can be linked regardless of status or child count
+        # Count child bags for weight calculation
+        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        
+        # Update bag with actual child count and weight
+        parent_bag.child_count = child_count
+        parent_bag.weight_kg = float(child_count)  # 1kg per child
+        
+        # Update status based on children
+        if child_count > 0 and parent_bag.status == 'pending':
+            parent_bag.status = 'in_progress'
+        
+        db.session.commit()
+        app.logger.info(f'Parent bag {manual_qr} has {child_count} children, proceeding with linking')
         
         # Check if bag is already linked to this bill
         app.logger.info(f'Checking if bag already linked to bill {bill.id}')
