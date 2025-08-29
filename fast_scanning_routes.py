@@ -460,8 +460,8 @@ def fast_bill_parent_scan():
         )
         
         # Update both actual and expected weights
-        # Get actual weight of the parent bag
-        actual_weight = result.child_count if result.child_count else 0
+        # Actual weight: 30kg if parent has 30 children, otherwise child count
+        actual_weight = 30 if result.child_count >= 30 else (result.child_count if result.child_count else 0)
         
         db.session.execute(
             text("""
