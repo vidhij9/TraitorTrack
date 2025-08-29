@@ -1568,6 +1568,8 @@ def link_to_bill(qr_id):
                 bill.description = f"Bill for {bill_id}"
                 bill.parent_bag_count = 0
                 bill.status = 'draft'
+                bill.expected_weight_kg = 0.0  # Initialize expected weight
+                bill.total_weight_kg = 0.0  # Initialize actual weight
                 db.session.add(bill)
                 db.session.flush()
             
@@ -3885,7 +3887,9 @@ def create_bill():
                 description='',
                 parent_bag_count=parent_bag_count,
                 created_by_id=current_user.id,
-                status='new'
+                status='new',
+                expected_weight_kg=parent_bag_count * 30.0,  # Initialize expected weight: 30kg per parent bag
+                total_weight_kg=0.0  # Initialize actual weight to 0
             )
             db.session.add(bill)
             db.session.commit()
@@ -4323,57 +4327,85 @@ def ultra_fast_bill_parent_scan():
         })
     
     try:
-        # Get bill
-        bill = Bill.query.get(int(bill_id))
-        if not bill:
+        # Use a single optimized query to get all needed data at once
+        result = db.session.execute(text("""
+            WITH bill_data AS (
+                SELECT id, bill_id, parent_bag_count, total_weight_kg, expected_weight_kg, total_child_bags
+                FROM bill WHERE id = :bill_id
+            ),
+            bag_data AS (
+                SELECT b.id, b.qr_id, b.type, b.child_count, b.weight_kg, b.status,
+                       COUNT(l.child_bag_id) as actual_child_count
+                FROM bag b
+                LEFT JOIN link l ON l.parent_bag_id = b.id
+                WHERE UPPER(b.qr_id) = :qr_code AND b.type = 'parent'
+                GROUP BY b.id, b.qr_id, b.type, b.child_count, b.weight_kg, b.status
+            ),
+            existing_links AS (
+                SELECT bb.bill_id, bb.bag_id, b2.bill_id as other_bill_id
+                FROM bill_bag bb
+                LEFT JOIN bill b2 ON bb.bill_id = b2.id
+                WHERE bb.bag_id = (SELECT id FROM bag_data LIMIT 1)
+            ),
+            current_count AS (
+                SELECT COUNT(*) as count FROM bill_bag WHERE bill_id = :bill_id
+            )
+            SELECT 
+                bd.*, 
+                bag.*, 
+                el.bill_id as existing_bill_id,
+                el.other_bill_id,
+                cc.count as current_bag_count
+            FROM bill_data bd
+            CROSS JOIN bag_data bag
+            LEFT JOIN existing_links el ON el.bag_id = bag.id
+            CROSS JOIN current_count cc
+            LIMIT 1
+        """), {'bill_id': int(bill_id), 'qr_code': qr_code}).fetchone()
+        
+        if not result:
+            return jsonify({'success': False, 'message': 'Bill or parent bag not found'})
+        
+        # Extract data from result
+        bill_exists = result.id is not None
+        parent_bag_id = result[6] if len(result) > 6 else None  # bag.id
+        child_count = result.actual_child_count if hasattr(result, 'actual_child_count') else 0
+        
+        if not bill_exists:
             return jsonify({'success': False, 'message': 'Bill not found'})
         
-        # Get parent bag
-        parent_bag = Bag.query.filter(
-            func.upper(Bag.qr_id) == qr_code,
-            Bag.type == 'parent'
-        ).first()
-        
-        if not parent_bag:
+        if not parent_bag_id:
             return jsonify({'success': False, 'message': f'Parent bag {qr_code} not found'})
         
-        # Get actual child count for weight calculation
-        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        # Check for existing links
+        if result.existing_bill_id:
+            if result.existing_bill_id == int(bill_id):
+                return jsonify({
+                    'success': False,
+                    'message': f'{qr_code} already linked to this bill'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': f'{qr_code} already linked to another bill'
+                })
         
-        # Update parent bag status and counts
-        parent_bag.child_count = child_count
-        parent_bag.weight_kg = float(child_count)  # 1kg per child
-        if child_count >= 30:
-            parent_bag.status = 'completed'
-        else:
-            parent_bag.status = 'in_progress'
-        
-        # Check duplicate
-        existing = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
-        if existing:
+        # Check capacity
+        if result.current_bag_count >= result.parent_bag_count:
             return jsonify({
                 'success': False,
-                'message': f'{qr_code} already linked to this bill'
-            })
-        
-        # Check other bills and get bill name
-        other = BillBag.query.filter_by(bag_id=parent_bag.id).first()
-        if other and other.bill_id != bill.id:
-            other_bill = Bill.query.get(other.bill_id)
-            bill_name = other_bill.bill_id if other_bill else f'Bill #{other.bill_id}'
-            return jsonify({
-                'success': False,
-                'message': f'{qr_code} already linked to {bill_name}'
-            })
-        
-        # Check capacity before linking
-        current_count = BillBag.query.filter_by(bill_id=bill.id).count()
-        if current_count >= bill.parent_bag_count:
-            return jsonify({
-                'success': False,
-                'message': f'Bill capacity reached ({current_count}/{bill.parent_bag_count}). Cannot add more bags.',
+                'message': f'Bill capacity reached ({result.current_bag_count}/{result.parent_bag_count}). Cannot add more bags.',
                 'show_popup': True
             })
+        
+        # Now do the updates in a single transaction
+        bill = Bill.query.get(int(bill_id))
+        parent_bag = Bag.query.get(parent_bag_id)
+        
+        # Update parent bag
+        parent_bag.child_count = child_count
+        parent_bag.weight_kg = float(child_count)
+        parent_bag.status = 'completed' if child_count >= 30 else 'in_progress'
         
         # Link to bill
         bill_bag = BillBag()
@@ -4811,71 +4843,81 @@ def edit_profile():
     return redirect(url_for('user_profile'))
 
 # API endpoints for dashboard data - Redirect to ultra-fast version
+# Simple in-memory cache for stats
+stats_cache = {'data': None, 'timestamp': 0}
+
 @app.route('/api/stats')
 @app.route('/api/v2/stats')  # Support v2 endpoint as well
 @login_required
 def api_dashboard_stats():
-    """Ultra-fast cached stats endpoint for production performance"""
-    # Try to use high-performance cache if available
+    """Ultra-fast cached stats endpoint with simple in-memory caching"""
+    import time
+    
+    # Check simple in-memory cache (30 second TTL)
+    current_time = time.time()
+    if stats_cache['data'] and (current_time - stats_cache['timestamp'] < 30):
+        return jsonify({
+            'success': True,
+            'statistics': stats_cache['data'],
+            'cached': True,
+            'cache_age': current_time - stats_cache['timestamp']
+        })
+    
     try:
-        from high_performance_cache import query_engine
-        # Get cached stats with 10 second TTL
-        stats = query_engine.get_dashboard_stats_cached()
+        # Single optimized query for all stats - using CTE for better performance
+        stats_result = db.session.execute(text("""
+            WITH bag_counts AS (
+                SELECT 
+                    COUNT(*) FILTER (WHERE type = 'parent') as parent_count,
+                    COUNT(*) FILTER (WHERE type = 'child') as child_count,
+                    COUNT(*) as total_count
+                FROM bag
+            )
+            SELECT 
+                bc.parent_count::int,
+                bc.child_count::int,
+                bc.total_count::int,
+                (SELECT COUNT(*) FROM scan)::int as scan_count,
+                (SELECT COUNT(*) FROM bill)::int as bill_count
+            FROM bag_counts bc
+        """)).fetchone()
         
-        # Format response for API
-        formatted_stats = {
-            'total_parent_bags': stats['parent_count'],
-            'total_child_bags': stats['child_count'],
-            'total_scans': stats['total_scans'],
-            'total_bills': stats.get('total_bills', 0),
-            'total_products': stats['total_bags'],
+        stats = {
+            'total_parent_bags': stats_result.parent_count if stats_result else 0,
+            'total_child_bags': stats_result.child_count if stats_result else 0,
+            'total_scans': stats_result.scan_count if stats_result else 0,
+            'total_bills': stats_result.bill_count if stats_result else 0,
+            'total_products': (stats_result.parent_count if stats_result else 0) + (stats_result.child_count if stats_result else 0),
             'active_dispatchers': 0,
             'status_counts': {
-                'active': stats['total_bags'],
-                'scanned': stats['total_scans']
+                'active': stats_result.total_count if stats_result else 0,
+                'scanned': stats_result.scan_count if stats_result else 0
             }
         }
         
+        # Update cache
+        stats_cache['data'] = stats
+        stats_cache['timestamp'] = current_time
+        
         return jsonify({
             'success': True,
-            'statistics': formatted_stats,
-            'cached': True
+            'statistics': stats,
+            'cached': False
         })
-    except:
-        # Fallback to optimized direct query if cache not available
-        try:
-            # Single optimized query for all stats
-            stats_result = db.session.execute(text("""
-                SELECT 
-                    (SELECT COUNT(*) FROM bag WHERE type = 'parent')::int as parent_count,
-                    (SELECT COUNT(*) FROM bag WHERE type = 'child')::int as child_count,
-                    (SELECT COUNT(*) FROM scan)::int as scan_count,
-                    (SELECT COUNT(*) FROM bill)::int as bill_count
-            """)).fetchone()
-            
-            stats = {
-                'total_parent_bags': stats_result.parent_count or 0,
-                'total_child_bags': stats_result.child_count or 0,
-                'total_scans': stats_result.scan_count or 0,
-                'total_bills': stats_result.bill_count or 0,
-                'total_products': (stats_result.parent_count or 0) + (stats_result.child_count or 0),
-                'active_dispatchers': 0,
-                'status_counts': {
-                    'active': (stats_result.parent_count or 0) + (stats_result.child_count or 0),
-                    'scanned': stats_result.scan_count or 0
-                }
-            }
-            
+    except Exception as e:
+        app.logger.error(f"Stats API error: {str(e)}")
+        # Return last cached data if available
+        if stats_cache['data']:
             return jsonify({
                 'success': True,
-                'statistics': stats,
-                'cached': False
+                'statistics': stats_cache['data'],
+                'cached': True,
+                'stale': True
             })
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': str(e)
-            }), 500
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @app.route('/api/scans')

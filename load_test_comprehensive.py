@@ -302,7 +302,7 @@ async def main():
     # Print slow endpoints
     if slow_endpoints:
         print(f"\n⚠️ SLOW ENDPOINTS ({len(slow_endpoints)}) - Need Optimization:")
-        for stats in sorted(slow_endpoints, key=lambda x: x.get("avg_response_time_ms', 0), reverse=True):
+        for stats in sorted(slow_endpoints, key=lambda x: x.get("avg_response_time_ms", 0), reverse=True):
             print(f"  • {stats['method']} {stats['endpoint']}: "
                   f"Avg={stats.get('avg_response_time_ms', 0):.1f}ms "
                   f"(Target: <{TARGET_RESPONSE_TIME_MS}ms), "
