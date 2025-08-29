@@ -554,34 +554,64 @@ function initializeScanner() {
                     }, 2000); // 2 second pause for user to see success
                 }
             } else {
-                // Error feedback with appropriate duration
+                // Enhanced error feedback with specific handling for different scenarios
                 let toastType = 'danger';
                 let duration = 4000;
+                let resumeDelay = 2000;
                 
-                if (data.message.includes('already linked to this bill')) {
-                    toastType = 'info';
-                    duration = 1500; // Faster feedback
-                    // Bag is already linked, add to set
-                    scannedBags.add(qrCode);
-                } else if (data.message.includes('already linked to different bill')) {
-                    toastType = 'warning';
-                    duration = 2500; // Reduced duration
-                } else if (data.message.includes('not registered')) {
-                    toastType = 'danger';
-                    duration = 2500; // Reduced duration
+                // Handle different error types with appropriate feedback
+                switch(data.error_type) {
+                    case 'already_linked_same_bill':
+                        toastType = 'info';
+                        duration = 2000;
+                        resumeDelay = 1500;
+                        // Add to scanned set since it's already linked
+                        scannedBags.add(qrCode);
+                        break;
+                        
+                    case 'already_linked_different_bill':
+                        toastType = 'warning';
+                        duration = 3000;
+                        resumeDelay = 2500;
+                        break;
+                        
+                    case 'bag_not_registered':
+                    case 'not_found':
+                        toastType = 'danger';
+                        duration = 3000;
+                        resumeDelay = 2000;
+                        break;
+                        
+                    case 'capacity_reached':
+                        toastType = 'warning';
+                        duration = 4000;
+                        resumeDelay = 3000;
+                        break;
+                        
+                    case 'bill_not_found':
+                        toastType = 'danger';
+                        duration = 3000;
+                        resumeDelay = 2000;
+                        break;
+                        
+                    default:
+                        // Fallback for unknown errors
+                        toastType = 'danger';
+                        duration = 3000;
+                        resumeDelay = 2000;
                 }
                 
-                showToast('⚠️ ' + data.message, toastType, duration);
+                showToast(data.message, toastType, duration);
                 hideScanPauseOverlay();
                 
                 // Resume scanning for retry
                 if (scanner && scanner.resumeScanning) {
                     setTimeout(() => {
                         console.log('Resuming scanner after error');
-                        showToast('▶️ Scanner resumed - Try again', 'info', 1500);
+                        showToast('▶️ Scanner ready - Try next bag', 'info', 1500);
                         isProcessing = false; // Reset processing flag
                         scanner.resumeScanning();
-                    }, 2000); // 2 second pause to read error
+                    }, resumeDelay);
                 }
             }
         } catch (error) {
@@ -688,9 +718,12 @@ function initializeScanner() {
         try {
             if (!scanner) {
                 console.log('Creating InstantDetectionScanner for bill parent scanning...');
-                scanner = new InstantDetectionScanner('bill-scanner-container');
-                scanner.onScan = onScanSuccess; // Use only onScan to prevent duplicates
-                console.log('Bill InstantDetectionScanner initialized with onScan callback');
+                scanner = new InstantDetectionScanner('bill-scanner-container', onScanSuccess);
+                console.log('Bill InstantDetectionScanner initialized with callback via constructor');
+                
+                // Also set onScan as backup to ensure callback is registered
+                scanner.onScan = onScanSuccess;
+                console.log('onScan callback also set as backup');
             }
             
             // InstantDetectionScanner starts automatically

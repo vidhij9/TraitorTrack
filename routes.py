@@ -4364,7 +4364,11 @@ def ultra_fast_bill_parent_scan():
         """), {'bill_id': int(bill_id), 'qr_code': qr_code}).fetchone()
         
         if not result:
-            return jsonify({'success': False, 'message': 'Bill or parent bag not found'})
+            return jsonify({
+                'success': False, 
+                'message': f'🚫 Parent bag {qr_code} does not exist in the system. Please register it first.',
+                'error_type': 'not_found'
+            })
         
         # Extract data from result
         bill_exists = result.id is not None
@@ -4372,29 +4376,40 @@ def ultra_fast_bill_parent_scan():
         child_count = result.actual_child_count if hasattr(result, 'actual_child_count') else 0
         
         if not bill_exists:
-            return jsonify({'success': False, 'message': 'Bill not found'})
+            return jsonify({
+                'success': False, 
+                'message': f'📋 Bill not found. Please check the bill ID.',
+                'error_type': 'bill_not_found'
+            })
         
         if not parent_bag_id:
-            return jsonify({'success': False, 'message': f'Parent bag {qr_code} not found'})
+            return jsonify({
+                'success': False, 
+                'message': f'📦 Parent bag {qr_code} not registered. Please register this bag before linking.',
+                'error_type': 'bag_not_registered'
+            })
         
         # Check for existing links
         if result.existing_bill_id:
             if result.existing_bill_id == int(bill_id):
                 return jsonify({
                     'success': False,
-                    'message': f'{qr_code} already linked to this bill'
+                    'message': f'✅ {qr_code} is already linked to this bill ({child_count} children)',
+                    'error_type': 'already_linked_same_bill'
                 })
             else:
                 return jsonify({
                     'success': False,
-                    'message': f'{qr_code} already linked to another bill'
+                    'message': f'⚠️ {qr_code} is already linked to bill #{result.other_bill_id}. Cannot link to multiple bills.',
+                    'error_type': 'already_linked_different_bill'
                 })
         
         # Check capacity
         if result.current_bag_count >= result.parent_bag_count:
             return jsonify({
                 'success': False,
-                'message': f'Bill capacity reached ({result.current_bag_count}/{result.parent_bag_count}). Cannot add more bags.',
+                'message': f'🚫 Bill capacity reached ({result.current_bag_count}/{result.parent_bag_count} bags). Cannot add more parent bags.',
+                'error_type': 'capacity_reached',
                 'show_popup': True
             })
         
@@ -4439,13 +4454,14 @@ def ultra_fast_bill_parent_scan():
         
         return jsonify({
             'success': True,
-            'message': f'{qr_code} linked successfully ({child_count} children)!',
+            'message': f'✅ {qr_code} linked successfully! Contains {child_count} children ({linked_count}/{bill.parent_bag_count} bags total)',
             'bag_qr': qr_code,
             'linked_count': linked_count,
             'expected_count': bill.parent_bag_count,
             'child_count': child_count,
             'actual_weight': bill.total_weight_kg,
-            'expected_weight': getattr(bill, 'expected_weight_kg', linked_count * 30.0)
+            'expected_weight': getattr(bill, 'expected_weight_kg', linked_count * 30.0),
+            'error_type': 'success'
         })
         
     except Exception as e:
