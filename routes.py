@@ -3639,7 +3639,9 @@ def bill_management():
                         'created_by': user_dict.get(bill.created_by_id, 'Unknown'),
                         'parent_bags': parent_count,
                         'child_bags': child_count,
-                        'weight_kg': bill.total_weight_kg or 0,
+                        'actual_weight': bill.total_weight_kg or 0,
+                        'expected_weight': getattr(bill, 'expected_weight_kg', 0) or 0,
+                        'weight_kg': bill.total_weight_kg or 0,  # Keep for backward compatibility
                         'status': status,
                         'completion': (parent_count * 100 // bill.parent_bag_count) if bill.parent_bag_count else 0
                     })
@@ -4434,8 +4436,14 @@ def process_bill_parent_scan():
             if not bill.created_by_id:
                 bill.created_by_id = current_user.id
             
-            # Standard weight update (enhancement disabled)
-            bill.total_weight_kg = (bill.total_weight_kg or 0) + (parent_bag.weight_kg or 30.0)
+            # Update both actual and expected weights
+            # Actual weight based on real child count (already calculated in parent_bag.weight_kg)
+            bill.total_weight_kg = (bill.total_weight_kg or 0) + (parent_bag.weight_kg or 0.0)
+            
+            # Expected weight: always add 30kg per parent bag
+            if hasattr(bill, 'expected_weight_kg'):
+                bill.expected_weight_kg = (bill.expected_weight_kg or 0) + 30.0
+            
             # Only update total_child_bags if the column exists
             if hasattr(bill, 'total_child_bags'):
                 # Calculate actual child count from Link table instead of relying on child_count field
@@ -4471,12 +4479,13 @@ def process_bill_parent_scan():
         
         response_data = {
             'success': True, 
-            'message': f'Parent bag {qr_id} linked successfully! (Weight: {parent_bag.weight_kg}kg)',
+            'message': f'Parent bag {qr_id} linked successfully! (Actual weight: {parent_bag.weight_kg}kg)',
             'bag_qr': qr_id,  # Changed from parent_qr to bag_qr for consistency
             'linked_count': updated_bag_count,
             'expected_count': bill.parent_bag_count or 10,
             'remaining_bags': (bill.parent_bag_count or 10) - updated_bag_count,
             'total_weight': bill.total_weight_kg,
+            'expected_weight': getattr(bill, 'expected_weight_kg', 0),
             'total_child_bags': getattr(bill, 'total_child_bags', 0)
         }
         
@@ -5459,9 +5468,15 @@ def manual_parent_entry():
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
-        # Update bill weights
-        app.logger.info(f'Updating bill weights - current: {bill.total_weight_kg}kg, adding: {parent_bag.weight_kg}kg')
+        # Update bill weights - both actual and expected
+        app.logger.info(f'Updating bill weights - current actual: {bill.total_weight_kg}kg, adding: {parent_bag.weight_kg}kg')
         bill.total_weight_kg = (bill.total_weight_kg or 0) + parent_bag.weight_kg
+        
+        # Update expected weight (30kg per parent bag)
+        if hasattr(bill, 'expected_weight_kg'):
+            bill.expected_weight_kg = (bill.expected_weight_kg or 0) + 30.0
+            app.logger.info(f'Updated expected weight: {bill.expected_weight_kg}kg')
+        
         # Only update total_child_bags if the column exists
         if hasattr(bill, 'total_child_bags'):
             bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + (parent_bag.child_count or 0)
@@ -5482,7 +5497,9 @@ def manual_parent_entry():
             'expected_count': bill.parent_bag_count,
             'remaining_bags': bill.parent_bag_count - linked_count,
             'bag_status': parent_bag.status,
-            'weight_kg': parent_bag.weight_kg
+            'weight_kg': parent_bag.weight_kg,
+            'total_actual_weight': bill.total_weight_kg,
+            'total_expected_weight': getattr(bill, 'expected_weight_kg', 0)
         }
         
         app.logger.info(f'=== MANUAL PARENT ENTRY SUCCESS ===')

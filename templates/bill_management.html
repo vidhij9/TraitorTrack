@@ -194,7 +194,8 @@
                                     <th>Created By</th>
                                     <th>Parent Bags</th>
                                     <th>Child Bags</th>
-                                    <th>Weight (kg)</th>
+                                    <th>Actual Weight</th>
+                                    <th>Expected Weight</th>
                                     <th>Status</th>
                                     <th>Completion</th>
                                 </tr>
@@ -208,7 +209,8 @@
                                         <td>{{ item.created_by }}</td>
                                         <td>{{ item.parent_bags }}</td>
                                         <td>{{ item.child_bags }}</td>
-                                        <td>{{ item.weight_kg }}</td>
+                                        <td>{{ "%.1f"|format(item.actual_weight or 0) }} kg</td>
+                                        <td>{{ "%.1f"|format(item.expected_weight or 0) }} kg</td>
                                         <td>
                                             {% if item.status == 'completed' %}
                                                 <span class="badge bg-success">Completed</span>
