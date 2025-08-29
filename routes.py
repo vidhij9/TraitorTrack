@@ -129,6 +129,44 @@ try:
 except Exception as e:
     app.logger.warning(f"Fast scanning routes not loaded: {e}")
 
+# API endpoint for bill weights
+@app.route('/api/bill/<int:bill_id>/weights')
+@login_required
+def api_bill_weights(bill_id):
+    """Get real-time weight information for a bill"""
+    try:
+        bill = Bill.query.get_or_404(bill_id)
+        
+        # Get actual weight from linked parent bags
+        actual_weight = db.session.execute(
+            text("""
+                SELECT COALESCE(SUM(
+                    (SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id)
+                ), 0) as total_actual_weight
+                FROM bill_bag bb
+                JOIN bag b ON bb.bag_id = b.id
+                WHERE bb.bill_id = :bill_id
+            """),
+            {'bill_id': bill_id}
+        ).scalar() or 0
+        
+        # Expected weight is parent bags * 30kg
+        parent_count = db.session.execute(
+            text("SELECT COUNT(*) FROM bill_bag WHERE bill_id = :bill_id"),
+            {'bill_id': bill_id}
+        ).scalar() or 0
+        
+        expected_weight = parent_count * 30.0
+        
+        return jsonify({
+            'actual_weight': float(actual_weight),
+            'expected_weight': float(expected_weight),
+            'parent_bags': parent_count
+        })
+    except Exception as e:
+        app.logger.error(f'Error fetching bill weights: {str(e)}')
+        return jsonify({'error': 'Failed to fetch weights'}), 500
+
 import csv
 import io
 import json
