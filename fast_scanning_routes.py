@@ -132,18 +132,27 @@ def fast_parent_scan():
                     'time_ms': round((time.time() - start) * 1000, 2)
                 })
             
-            # Get child count with optimized query
+            # Get child count with optimized query and better error handling
             count = 0
             try:
-                count = db.session.execute(
-                    text(QUERIES['get_child_count']),
+                # Ensure we get fresh data
+                db.session.rollback()  # Clear any pending transaction
+                count_result = db.session.execute(
+                    text("SELECT COUNT(DISTINCT child_bag_id) FROM link WHERE parent_bag_id = :parent_id"),
                     {'parent_id': result.id}
-                ).scalar() or 0
+                ).scalar()
+                count = count_result if count_result is not None else 0
                 app.logger.info(f'Parent {qr_code} (ID: {result.id}) has {count} children')
             except Exception as e:
                 app.logger.error(f'Failed to get child count for parent {qr_code}: {str(e)}')
                 db.session.rollback()
-                count = 0
+                # Try alternate query
+                try:
+                    from models import Link
+                    count = Link.query.filter_by(parent_bag_id=result.id).count()
+                    app.logger.info(f'Fallback count for {qr_code}: {count} children')
+                except:
+                    count = 0
             
             # Store in session
             session['current_parent_qr'] = qr_code

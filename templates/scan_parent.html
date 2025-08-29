@@ -152,7 +152,7 @@ function initializeScanner() {
     const startBtn = document.getElementById('start-camera');
     const stopBtn = document.getElementById('stop-camera');
     
-    function showToast(message, type = 'success') {
+    function showToast(message, type = 'success', duration = 3000) {
         const toast = document.getElementById('scan-toast');
         const toastMessage = document.getElementById('toast-message');
         
@@ -172,8 +172,9 @@ function initializeScanner() {
         
         toastMessage.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
         
-        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        const bsToast = new bootstrap.Toast(toast, { delay: duration });
         bsToast.show();
+        return bsToast;
     }
     
     function onScanSuccess(qrCode) {
@@ -186,8 +187,8 @@ function initializeScanner() {
         isProcessing = true;
         console.log('QR Code scanned successfully:', qrCode);
         
-        // Show success toast
-        showToast(`Processing parent bag: ${qrCode}`, 'info');
+        // Show clear processing message
+        showToast(`Scanning ${qrCode}...`, 'info', 10000);
         
         // Stop the scanner
         if (scanner) {
@@ -215,8 +216,8 @@ function initializeScanner() {
             qrInput.value = qrCode;
             console.log('QR code set in form:', qrInput.value);
             
-            // Show processing message
-            showToast(`Submitting parent bag: ${qrCode}...`, 'info');
+            // Clear any existing toasts before submission
+            hideAllToasts();
             
             // Submit via AJAX for better performance - use the fast parent scan endpoint
             const controller = new AbortController();
@@ -239,19 +240,20 @@ function initializeScanner() {
                 return response.json();
             })
             .then(data => {
-                // Always clear processing state
+                // Always clear processing state and hide processing message
                 isProcessing = false;
+                hideAllToasts();
                 
                 if (data && data.success && data.redirect) {
                     // Successful scan - show success section
-                    console.log('Successful parent scan, showing success section');
-                    const childCountMsg = data.child_count !== undefined ? ` (${data.child_count}/30 children)` : '';
+                    console.log('Successful parent scan:', data);
                     
-                    // Show clear success message with child count
-                    if (data.child_count !== undefined && data.child_count > 0) {
-                        showToast(`✅ Parent bag ${qrCode} is ready! Already has ${data.child_count}/30 children linked.`, 'success');
+                    // Show clear success message with accurate child count
+                    const childCount = data.child_count || 0;
+                    if (childCount > 0) {
+                        showToast(`✅ Parent ${qrCode} ready! Has ${childCount}/30 children.`, 'success', 5000);
                     } else {
-                        showToast(`✅ Parent bag ${qrCode} is ready! You can now scan child bags.`, 'success');
+                        showToast(`✅ Parent ${qrCode} ready! Start scanning child bags.`, 'success', 5000);
                     }
                     
                     // Update the success section with the scanned QR
@@ -274,7 +276,9 @@ function initializeScanner() {
                         window.location.href = data.redirect;
                     }, 2000);
                     return;
-                } else if (data && !data.success) {
+                } else if (data && data.success === false) {
+                    // Clear processing message
+                    hideAllToasts();
                     // Show popup for invalid QR format
                     if (data.show_popup || data.message.includes('Invalid QR format')) {
                         // Create and show a Bootstrap modal for invalid format
@@ -327,34 +331,57 @@ function initializeScanner() {
                             isProcessing = false;
                         });
                     } else {
-                        showToast(data.message || 'Error processing parent bag', 'danger');
+                        // Show error message clearly
+                        showToast(data.message || 'Error processing parent bag', 'danger', 5000);
                         // Re-enable scanner after error
                         if (scanner) scanner.start();
                     }
                 } else {
                     // Handle unexpected response format
-                    showToast('Unexpected response from server. Please try again.', 'danger');
+                    hideAllToasts();
+                    showToast('Server error. Please try again.', 'danger', 5000);
                     if (scanner) scanner.start();
                 }
             })
             .catch(error => {
                 clearTimeout(timeoutId);
                 console.error('Error:', error);
-                isProcessing = false; // Always reset processing state
+                isProcessing = false;
+                hideAllToasts();
                 
                 if (error.name === 'AbortError') {
-                    showToast('Server is taking too long. Please try again.', 'warning');
+                    showToast('Timeout. Please scan again.', 'warning', 5000);
                 } else {
-                    showToast('Network error. Please try again.', 'danger');
+                    showToast('Connection error. Please scan again.', 'danger', 5000);
                 }
-                // Re-enable scanner after error
+                // Re-enable scanner immediately
                 if (scanner) scanner.start();
             });
             
         } catch (error) {
             console.error('Error in form submission:', error);
-            showToast(`Error: ${error.message}`, 'danger');
+            hideAllToasts();
+            showToast(`Error: ${error.message}`, 'danger', 5000);
             isProcessing = false;
+            if (scanner) scanner.start();
+        }
+    }
+    
+    // Helper function to hide all toasts
+    function hideAllToasts() {
+        const toasts = document.querySelectorAll('.toast');
+        toasts.forEach(toast => {
+            const bsToast = bootstrap.Toast.getInstance(toast);
+            if (bsToast) bsToast.hide();
+        });
+    
+            
+        } catch (error) {
+            console.error('Error in form submission:', error);
+            hideAllToasts();
+            showToast(`Error: ${error.message}`, 'danger', 5000);
+            isProcessing = false;
+            if (scanner) scanner.start();
         }
     }
     
