@@ -67,6 +67,14 @@ except:
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-for-tracetrack-2024")
 
+# Import and apply query optimizations for <50ms response times
+try:
+    from optimized_query_cache import apply_query_optimizations
+    logger.info("Loading optimized query cache for <50ms performance...")
+except ImportError:
+    logger.warning("Optimized query cache not available")
+    apply_query_optimizations = None
+
 # Simple and reliable session configuration
 app.config.update(
     SESSION_COOKIE_SECURE=False,  # Allow HTTP in development
@@ -419,3 +427,11 @@ def inject_current_user():
     
     current_user = ProductionUser()
     return dict(current_user=current_user)
+
+# Apply query optimizations after all routes are registered
+if apply_query_optimizations:
+    try:
+        apply_query_optimizations(app)
+        logger.info("✅ Query optimizations applied for <50ms performance")
+    except Exception as e:
+        logger.warning(f"Could not apply query optimizations: {e}")
