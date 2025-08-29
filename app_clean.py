@@ -438,3 +438,34 @@ if apply_query_optimizations:
         logger.info("✅ Query optimizations applied for <50ms performance")
     except Exception as e:
         logger.warning(f"Could not apply query optimizations: {e}")
+
+# Run database migrations on startup
+def run_database_migrations():
+    """Run database migrations automatically on startup"""
+    try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'migrations'))
+        from migration_runner import run_migrations
+        
+        logger.info("🚀 Running database migrations...")
+        success = run_migrations()
+        if success:
+            logger.info("✅ Database migrations completed successfully")
+        else:
+            logger.error("❌ Database migrations failed")
+        return success
+    except Exception as e:
+        logger.error(f"❌ Migration runner error: {e}")
+        return False
+
+# Run migrations when app starts
+with app.app_context():
+    try:
+        # Ensure database tables exist first
+        db.create_all()
+        
+        # Run migrations to handle schema updates
+        run_database_migrations()
+    except Exception as e:
+        logger.error(f"Application startup error: {e}")
