@@ -239,10 +239,20 @@ function initializeScanner() {
                 return response.json();
             })
             .then(data => {
+                // Always clear processing state
+                isProcessing = false;
+                
                 if (data && data.success && data.redirect) {
                     // Successful scan - show success section
                     console.log('Successful parent scan, showing success section');
-                    showToast(`✅ Parent bag ${qrCode} processed successfully!`, 'success');
+                    const childCountMsg = data.child_count !== undefined ? ` (${data.child_count}/30 children)` : '';
+                    
+                    // Show clear success message with child count
+                    if (data.child_count !== undefined && data.child_count > 0) {
+                        showToast(`✅ Parent bag ${qrCode} is ready! Already has ${data.child_count}/30 children linked.`, 'success');
+                    } else {
+                        showToast(`✅ Parent bag ${qrCode} is ready! You can now scan child bags.`, 'success');
+                    }
                     
                     // Update the success section with the scanned QR
                     document.getElementById('scanned-parent-qr').textContent = qrCode;
@@ -318,27 +328,27 @@ function initializeScanner() {
                         });
                     } else {
                         showToast(data.message || 'Error processing parent bag', 'danger');
+                        // Re-enable scanner after error
+                        if (scanner) scanner.start();
                     }
-                    
-                    isProcessing = false;
-                    // Re-enable scanner after error
+                } else {
+                    // Handle unexpected response format
+                    showToast('Unexpected response from server. Please try again.', 'danger');
                     if (scanner) scanner.start();
                 }
             })
             .catch(error => {
                 clearTimeout(timeoutId);
                 console.error('Error:', error);
+                isProcessing = false; // Always reset processing state
                 
                 if (error.name === 'AbortError') {
-                    showToast('Server is busy. Retrying with backup endpoint...', 'warning');
-                    // Retry with process_parent_scan as fallback
-                    retryWithFallback(qrCode);
+                    showToast('Server is taking too long. Please try again.', 'warning');
                 } else {
                     showToast('Network error. Please try again.', 'danger');
-                    isProcessing = false;
-                    // Re-enable scanner after error
-                    if (scanner) scanner.start();
                 }
+                // Re-enable scanner after error
+                if (scanner) scanner.start();
             });
             
         } catch (error) {
@@ -348,11 +358,13 @@ function initializeScanner() {
         }
     }
     
-    // Fallback retry function with longer timeout
+    // Removed fallback retry - no longer needed with improved performance
     function retryWithFallback(qrCode) {
-        // Use longer timeout for fallback
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for fallback
+        // This function is no longer used but kept for compatibility
+        isProcessing = false;
+        showToast('Please try scanning again', 'info');
+        if (scanner) scanner.start();
+        return;
         
         fetch('/process_parent_scan', {
             signal: controller.signal,
