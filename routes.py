@@ -3825,9 +3825,12 @@ def create_bill():
 @login_required
 def delete_bill(bill_id):
     """Ultra-fast bill deletion - optimized for 8+ lakh bags"""
-    if not current_user.is_admin():
-        flash('Admin access required to delete bills.', 'error')
-        return redirect(url_for('bill_management'))
+    # Check if user has admin privileges
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin()):
+        # Check for role-based access as fallback
+        if not (hasattr(current_user, 'role') and current_user.role == 'admin'):
+            flash('Admin access required to delete bills.', 'error')
+            return redirect(url_for('bill_management'))
     
     try:
         # Import models locally

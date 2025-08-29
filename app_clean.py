@@ -77,12 +77,15 @@ except ImportError:
 
 # Simple and reliable session configuration
 app.config.update(
-    SESSION_COOKIE_SECURE=False,  # Allow HTTP in development
+    SESSION_COOKIE_SECURE=False,  # Allow HTTP for both dev and production (Replit handles HTTPS)
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     SESSION_COOKIE_NAME='tracetrack_session',
     PERMANENT_SESSION_LIFETIME=86400,  # 24 hours
-    SEND_FILE_MAX_AGE_DEFAULT=0  # Disable caching for development
+    SEND_FILE_MAX_AGE_DEFAULT=0,  # Disable caching for development
+    WTF_CSRF_ENABLED=True,  # Ensure CSRF is enabled
+    WTF_CSRF_TIME_LIMIT=None,  # No time limit for CSRF tokens
+    WTF_CSRF_CHECK_DEFAULT=True  # Check CSRF by default
 )
 
 def get_current_environment():
