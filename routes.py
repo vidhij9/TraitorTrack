@@ -4427,17 +4427,19 @@ def ultra_fast_bill_parent_scan():
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
-        # Update weights - actual weight based on real child count
-        actual_weight = float(child_count)  # 1kg per child
-        bill.total_weight_kg = (bill.total_weight_kg or 0) + actual_weight
-        
-        # Update expected weight (30kg per parent bag for billing)
-        if hasattr(bill, 'expected_weight_kg'):
-            bill.expected_weight_kg = (getattr(bill, 'expected_weight_kg', 0) or 0) + 30.0
-        
-        # Update total child bags if column exists
+        # Update total child bags count (actual weight in kg = total child bags)
         if hasattr(bill, 'total_child_bags'):
             bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + child_count
+        
+        # Actual weight = total number of child bags across all parent bags (1kg per child)
+        bill.total_weight_kg = float(getattr(bill, 'total_child_bags', child_count))
+        
+        # Count linked parent bags for expected weight calculation
+        linked_parent_count = BillBag.query.filter_by(bill_id=bill.id).count() + 1  # +1 for the current bag being added
+        
+        # Expected weight = number of parent bags * 30kg
+        if hasattr(bill, 'expected_weight_kg'):
+            bill.expected_weight_kg = float(linked_parent_count * 30)
         
         # Create scan record
         scan = Scan()
@@ -4452,15 +4454,18 @@ def ultra_fast_bill_parent_scan():
         # Count linked bags
         linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
         
+        # Recalculate final linked count after commit
+        final_linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        
         return jsonify({
             'success': True,
-            'message': f'✅ {qr_code} linked successfully! Contains {child_count} children ({linked_count}/{bill.parent_bag_count} bags total)',
+            'message': f'✅ {qr_code} linked successfully! Contains {child_count} children ({final_linked_count}/{bill.parent_bag_count} bags total)',
             'bag_qr': qr_code,
-            'linked_count': linked_count,
+            'linked_count': final_linked_count,
             'expected_count': bill.parent_bag_count,
             'child_count': child_count,
             'actual_weight': bill.total_weight_kg,
-            'expected_weight': getattr(bill, 'expected_weight_kg', linked_count * 30.0),
+            'expected_weight': getattr(bill, 'expected_weight_kg', final_linked_count * 30.0),
             'error_type': 'success'
         })
         
