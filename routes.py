@@ -4358,7 +4358,7 @@ def ultra_fast_bill_parent_scan():
             app.logger.error(f'Bill not found: {bill_id}')
             return jsonify({
                 'success': False, 
-                'message': f'📋 Bill not found',
+                'message': f'📋 Bill #{bill_id} not found. Please refresh the page.',
                 'error_type': 'bill_not_found'
             })
         
@@ -4378,7 +4378,7 @@ def ultra_fast_bill_parent_scan():
                 app.logger.warning(f'Bag {qr_code} not found in system')
                 return jsonify({
                     'success': False,
-                    'message': f'🚫 Bag {qr_code} not registered in system',
+                    'message': f'🚫 Bag {qr_code} not registered in system. Please scan a registered parent bag.',
                     'error_type': 'bag_not_found'
                 })
         
@@ -4394,7 +4394,7 @@ def ultra_fast_bill_parent_scan():
             app.logger.info(f'Bag {qr_code} already linked to bill {bill.bill_id}')
             return jsonify({
                 'success': False,
-                'message': f'✅ {qr_code} already linked to this bill',
+                'message': f'✅ {qr_code} already linked to this bill (contains {child_count} children)',
                 'error_type': 'already_linked_same_bill'
             })
         
@@ -4405,7 +4405,7 @@ def ultra_fast_bill_parent_scan():
             app.logger.warning(f'Bag {qr_code} already linked to bill {other_bill.bill_id if other_bill else "Unknown"}')
             return jsonify({
                 'success': False,
-                'message': f'⚠️ {qr_code} already linked to Bill #{other_bill.bill_id if other_bill else "Unknown"}',
+                'message': f'⚠️ {qr_code} already linked to different Bill #{other_bill.bill_id if other_bill else "Unknown"}. Cannot link to multiple bills.',
                 'error_type': 'already_linked_other_bill'
             })
         
@@ -4415,7 +4415,7 @@ def ultra_fast_bill_parent_scan():
             app.logger.warning(f'Bill {bill.bill_id} at capacity: {current_count}/{bill.parent_bag_count}')
             return jsonify({
                 'success': False,
-                'message': f'🚫 Bill capacity reached ({current_count}/{bill.parent_bag_count})',
+                'message': f'📦 Bill capacity reached ({current_count}/{bill.parent_bag_count} parent bags). Cannot add more bags.',
                 'error_type': 'capacity_reached'
             })
         
