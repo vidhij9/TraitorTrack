@@ -788,9 +788,16 @@ function initializeScanner() {
     // Complete bill function
     window.completeBill = async function() {
         const currentCount = parseInt(bagCount.textContent);
+        const maxCount = parseInt(document.getElementById('max-count').textContent);
         
         if (currentCount === 0) {
             showToast('Please scan at least one parent bag before completing.', 'warning');
+            return;
+        }
+        
+        // Check if capacity is met
+        if (currentCount < maxCount) {
+            showToast(`Cannot complete bill. Need ${maxCount - currentCount} more bags (${currentCount}/${maxCount} linked).`, 'warning', 4000);
             return;
         }
         
@@ -807,14 +814,19 @@ function initializeScanner() {
             const data = await response.json();
             
             if (data.success) {
-                showToast(`Bill completed with ${currentCount} bags!`, 'success', 3000);
+                showToast(`✅ Bill completed with ${currentCount} bags!`, 'success', 3000);
                 
                 // Redirect to bill management after short delay
                 setTimeout(() => {
                     window.location.href = '/bills';
                 }, 2000);
             } else {
-                showToast(data.message || 'Error completing bill', 'danger');
+                // Show popup if backend indicates to
+                if (data.show_popup) {
+                    alert(data.message);
+                } else {
+                    showToast(data.message || 'Error completing bill', 'danger', 4000);
+                }
             }
         } catch (error) {
             console.error('Error completing bill:', error);
