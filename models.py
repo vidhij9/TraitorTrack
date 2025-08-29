@@ -209,7 +209,8 @@ class Bill(db.Model):
     bill_id = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
     parent_bag_count = db.Column(db.Integer, default=1)
-    total_weight_kg = db.Column(db.Float, default=0.0)  # Total weight in kg
+    total_weight_kg = db.Column(db.Float, default=0.0)  # Actual weight based on real child count
+    expected_weight_kg = db.Column(db.Float, default=0.0)  # Expected weight (30kg per parent bag)
     total_child_bags = db.Column(db.Integer, default=0)  # Total number of child bags
     status = db.Column(db.String(20), default='new')  # Possible values: new, processing, completed
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)

@@ -72,6 +72,29 @@
                         </div>
                     </div>
                     
+                    <div class="mb-3">
+                        <p class="text-muted mb-1">Weight Information</p>
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Actual Weight</small>
+                                <span class="fs-5 fw-bold text-primary">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Expected Weight</small>
+                                <span class="fs-5 fw-bold text-info">{{ "%.1f"|format(bill.expected_weight_kg or 0) }} kg</span>
+                            </div>
+                        </div>
+                        {% if bill.expected_weight_kg and bill.total_weight_kg %}
+                        <div class="mt-2">
+                            <small class="text-muted">Difference: 
+                                <span class="fw-bold {% if bill.total_weight_kg < bill.expected_weight_kg %}text-warning{% else %}text-success{% endif %}">
+                                    {{ "%.1f"|format(bill.total_weight_kg - bill.expected_weight_kg) }} kg
+                                </span>
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
                     <div class="d-grid gap-2 mt-4">
                         {% if bag_links_count < bill.parent_bag_count %}
                             <a href="{{ url_for('scan_bill_parent', bill_id=bill.id) }}" class="btn btn-primary">

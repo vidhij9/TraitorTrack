@@ -453,10 +453,24 @@ def fast_bill_parent_scan():
                 'time_ms': round((time.time() - start) * 1000, 2)
             })
         
-        # Link to bill
+        # Link to bill and update weights
         db.session.execute(
             text("INSERT INTO bill_bag (bill_id, bag_id) VALUES (:bill_id, :parent_id)"),
             {'bill_id': bill_id, 'parent_id': result.id}
+        )
+        
+        # Update both actual and expected weights
+        # Get actual weight of the parent bag
+        actual_weight = result.child_count if result.child_count else 0
+        
+        db.session.execute(
+            text("""
+                UPDATE bill 
+                SET total_weight_kg = COALESCE(total_weight_kg, 0) + :actual_weight,
+                    expected_weight_kg = COALESCE(expected_weight_kg, 0) + 30.0
+                WHERE id = :bill_id
+            """),
+            {'bill_id': bill_id, 'actual_weight': actual_weight}
         )
         
         db.session.commit()
