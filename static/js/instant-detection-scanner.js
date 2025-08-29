@@ -295,7 +295,7 @@ class InstantDetectionScanner {
     async requestCameraWithTimeout(timeoutMs = 10000) {
         const constraints = {
             video: {
-                facingMode: { ideal: 'environment' },
+                facingMode: 'environment', // Force back camera, no fallback to front
                 width: { ideal: this.VIDEO_WIDTH },
                 height: { ideal: this.VIDEO_HEIGHT },
                 frameRate: { ideal: 30, min: 15 },
@@ -327,7 +327,7 @@ class InstantDetectionScanner {
     async tryFallbackCamera() {
         const fallbackConstraints = {
             video: {
-                facingMode: 'environment', // Remove ideal constraint
+                facingMode: 'environment', // Keep enforcing back camera
                 width: { min: 320, ideal: 640 },
                 height: { min: 240, ideal: 480 }
             }
@@ -338,8 +338,11 @@ class InstantDetectionScanner {
             console.log('✓ Fallback camera stream obtained');
             return stream;
         } catch (error) {
-            console.log('Fallback failed, trying basic constraints...');
-            return await navigator.mediaDevices.getUserMedia({ video: true });
+            console.log('Fallback failed, trying basic constraints with back camera...');
+            // Even in last resort, try to use back camera
+            return await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            });
         }
     }
     

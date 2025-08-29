@@ -124,7 +124,10 @@ class CameraPermissionManager {
                 // Try with basic constraints
                 console.log('Retrying with basic constraints...');
                 try {
-                    const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    // Even with basic constraints, try to use back camera
+                    const basicStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' } 
+                    });
                     this.storePermission(true);
                     return basicStream;
                 } catch (basicError) {
