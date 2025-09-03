@@ -27,13 +27,13 @@ class InstantDetectionScanner {
         this.track = null;
         this.stream = null; // Store stream reference for cleanup
         
-        // Agricultural packet optimized settings - balanced for performance
-        this.SCAN_INTERVAL = 33; // 30 FPS for smoother performance
-        this.DUPLICATE_TIMEOUT = 300; // 300ms duplicate prevention
-        this.VIDEO_WIDTH = 800; // Balanced resolution
-        this.VIDEO_HEIGHT = 600;
-        this.REGION_SIZE = 0.9; // 90% scan region for better coverage
-        this.MAX_PROCESS_TIME = 30; // Allow more time for processing
+        // Agricultural packet optimized settings - HIGH PERFORMANCE
+        this.SCAN_INTERVAL = 16; // 60 FPS for fastest detection
+        this.DUPLICATE_TIMEOUT = 200; // 200ms duplicate prevention (faster)
+        this.VIDEO_WIDTH = 640; // Lower resolution for faster processing
+        this.VIDEO_HEIGHT = 480;
+        this.REGION_SIZE = 0.7; // 70% scan region for faster processing
+        this.MAX_PROCESS_TIME = 20; // Tighter processing time limit
         
         // Performance monitoring
         this.frameCount = 0;
@@ -296,9 +296,9 @@ class InstantDetectionScanner {
         const constraints = {
             video: {
                 facingMode: 'environment', // Force back camera, no fallback to front
-                width: { ideal: this.VIDEO_WIDTH },
-                height: { ideal: this.VIDEO_HEIGHT },
-                frameRate: { ideal: 30, min: 15 },
+                width: { ideal: this.VIDEO_WIDTH, max: 1280 },
+                height: { ideal: this.VIDEO_HEIGHT, max: 720 },
+                frameRate: { ideal: 60, min: 30 }, // Higher framerate for faster detection
                 advanced: [{ torch: true }]
             }
         };
@@ -563,9 +563,9 @@ class InstantDetectionScanner {
                     return;
                 }
                 
-                // Optimized single-pass QR detection for better FPS
+                // Ultra-fast QR detection - single attempt only for speed
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: 'attemptBoth'
+                    inversionAttempts: 'dontInvert' // Single pass for maximum speed
                 });
                 
                 if (code && code.data) {
@@ -657,6 +657,22 @@ class InstantDetectionScanner {
         }
     }
     
+    // New methods for pausing/resuming scanning without stopping camera
+    pauseScanning() {
+        console.log('Pausing scanning (camera stays on)...');
+        this.scanActive = false;
+        this.updateStatus('Processing...', '#FFC107');
+    }
+    
+    resumeScanning() {
+        console.log('Resuming scanning...');
+        if (this.video && this.video.srcObject && !this.scanActive) {
+            this.scanActive = true;
+            this.updateStatus('Ready to scan', '#4CAF50');
+            this.startScanning();
+        }
+    }
+    
     // Improved cleanup on page hide/show
     handleVisibilityChange() {
         if (document.hidden) {
@@ -674,7 +690,9 @@ class InstantDetectionScanner {
             callbackType: typeof this.onSuccess
         });
         
-        this.updateStatus('QR code detected!', '#4CAF50');
+        // IMMEDIATELY PAUSE SCANNER after QR detection
+        this.pauseScanning();
+        this.updateStatus('QR detected, paused', '#FFC107');
         
         // Trigger the success callback if provided
         // Support both onSuccess and onScan for compatibility
@@ -683,20 +701,18 @@ class InstantDetectionScanner {
         if (callback && typeof callback === 'function') {
             console.log('Calling scan callback with data:', data);
             try {
+                // The callback should handle resuming the scanner when ready
                 callback(data);
             } catch (error) {
                 console.error('Error calling scan callback:', error);
+                // Resume scanning after error
+                setTimeout(() => this.resumeScanning(), 2000);
             }
         } else {
             console.warn('No scan callback provided (checked onScan and onSuccess)');
+            // Resume scanning if no callback
+            setTimeout(() => this.resumeScanning(), 2000);
         }
-        
-        // Auto-reset status after short delay
-        setTimeout(() => {
-            if (this.scanActive) {
-                this.updateStatus('Scanning...', '#4CAF50');
-            }
-        }, 1000);
     }
     
     flashSuccess() {

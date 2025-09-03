@@ -527,13 +527,13 @@ function initializeScanner() {
             isProcessing = false;
             
             // Resume scanning after duplicate
-            if (scanner && scanner.resumeScanning) {
-                setTimeout(() => {
-                    console.log('Resuming scanner after duplicate');
-                    showToast('Ready for next bag', 'info', 1500);
+            setTimeout(() => {
+                console.log('Resuming scanner after duplicate');
+                showToast('Ready for next bag', 'info', 1500);
+                if (scanner && scanner.resumeScanning) {
                     scanner.resumeScanning();
-                }, 1500); // Clear 1.5s pause for user feedback
-            }
+                }
+            }, 1500); // Clear 1.5s pause for user feedback
             return;
         }
         
@@ -561,12 +561,12 @@ function initializeScanner() {
                 hideScanPauseOverlay();
                 isProcessing = false;
                 // Resume scanning after error
-                if (scanner && scanner.resumeScanning) {
-                    setTimeout(() => {
-                        showToast('Ready for next bag', 'info', 1500);
+                setTimeout(() => {
+                    showToast('Ready for next bag', 'info', 1500);
+                    if (scanner && scanner.resumeScanning) {
                         scanner.resumeScanning();
-                    }, 2000);
-                }
+                    }
+                }, 2000);
                 return;
             }
             
@@ -588,13 +588,13 @@ function initializeScanner() {
                 isProcessing = false;
                 
                 // Resume scanning
-                if (scanner && scanner.resumeScanning) {
-                    setTimeout(() => {
-                        console.log('Resuming scanner after successful scan');
-                        showToast('Ready for next bag', 'info', 1500);
+                setTimeout(() => {
+                    console.log('Resuming scanner after successful scan');
+                    showToast('Ready for next bag', 'info', 1500);
+                    if (scanner && scanner.resumeScanning) {
                         scanner.resumeScanning();
-                    }, 2000); // 2 second pause for user to see success
-                }
+                    }
+                }, 2000); // 2 second pause for user to see success
             } else {
                 // Enhanced error feedback with specific handling for different scenarios
                 let toastType = 'danger';
@@ -681,13 +681,13 @@ function initializeScanner() {
                 isProcessing = false;
                 
                 // Resume scanning for retry
-                if (scanner && scanner.resumeScanning) {
-                    setTimeout(() => {
-                        console.log('Resuming scanner after error');
-                        showToast('▶️ Scanner ready - Try next bag', 'info', 1500);
+                setTimeout(() => {
+                    console.log('Resuming scanner after error');
+                    showToast('▶️ Scanner ready - Try next bag', 'info', 1500);
+                    if (scanner && scanner.resumeScanning) {
                         scanner.resumeScanning();
-                    }, resumeDelay);
-                }
+                    }
+                }, resumeDelay);
             }
         } catch (error) {
             console.error('Error processing scan:', error);
@@ -702,12 +702,12 @@ function initializeScanner() {
             isProcessing = false;
             
             // Resume scanning for retry quickly
-            if (scanner && scanner.resumeScanning) {
-                setTimeout(() => {
-                    console.log('Resuming scanner after network error');
+            setTimeout(() => {
+                console.log('Resuming scanner after network error');
+                if (scanner && scanner.resumeScanning) {
                     scanner.resumeScanning();
-                }, 500); // Faster resume after network error
-            }
+                }
+            }, 500); // Faster resume after network error
         }
     }
     
