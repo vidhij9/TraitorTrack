@@ -27,7 +27,11 @@ class OptimizedExcelUploader:
         self.batch_size = 2000  # Reduced batch size for large files (60k-80k+ rows) to prevent timeouts
         self.chunk_size = 10000  # Excel reading chunk size
         self.max_memory_mb = 500  # Maximum memory usage in MB
-        self.database_url = os.environ.get('DATABASE_URL')
+        
+        # Use production database if available, otherwise fallback to development
+        self.database_url = self._get_database_url()
+        logger.info(f"Excel uploader using database: {'PRODUCTION' if 'amazonaws.com' in self.database_url else 'DEVELOPMENT'}")
+        
         self.stats = {
             'total_rows': 0,
             'successful_links': 0,
@@ -38,6 +42,26 @@ class OptimizedExcelUploader:
             'invalid_format': 0,
             'errors': []
         }
+    
+    def _get_database_url(self):
+        """Get the appropriate database URL based on environment"""
+        # Check if we're in production (similar to app_clean.py logic)
+        replit_domains = os.environ.get('REPLIT_DOMAINS', '')
+        
+        # If we're on the production domain, use production database
+        if 'traitor-track.replit.app' in replit_domains and 'replit.dev' not in replit_domains:
+            prod_url = os.environ.get('PRODUCTION_DATABASE_URL')
+            if prod_url:
+                logger.info("Using PRODUCTION database (AWS RDS)")
+                return prod_url
+        
+        # Otherwise use development database
+        dev_url = os.environ.get('DATABASE_URL')
+        if dev_url:
+            logger.info("Using DEVELOPMENT database (Replit)")
+            return dev_url
+        
+        raise ValueError("No database URL configured")
         
     def process_excel_file(self, file_content: bytes, user_id: int, dispatch_area: str) -> Dict:
         """
