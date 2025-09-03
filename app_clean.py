@@ -93,38 +93,52 @@ app.config.update(
 )
 
 def get_current_environment():
-    """Detect current environment - simplified logic"""
+    """Detect current environment - improved logic for Replit"""
     # Check explicit environment variable first
     env = os.environ.get('ENVIRONMENT', '').lower()
     if env == 'production':
         return 'production'
     
-    # Check if we're on the actual production domain (not Replit preview)
+    # Check Replit environment
+    replit_env = os.environ.get('REPLIT_ENVIRONMENT', '').lower()
+    if replit_env == 'production':
+        # Double-check we're not on dev domain
+        replit_domains = os.environ.get('REPLIT_DOMAINS', '')
+        if 'replit.dev' not in replit_domains:
+            return 'production'
+    
+    # Check if we're on the actual production domain
     replit_domains = os.environ.get('REPLIT_DOMAINS', '')
-    if 'traitor-track.replit.app' in replit_domains and not 'replit.dev' in replit_domains:
+    if 'traitor-track.replit.app' in replit_domains and 'replit.dev' not in replit_domains:
         return 'production'
     
     # Default to development for Replit testing and local dev
     return 'development'
 
 def get_database_url():
-    """Get appropriate database URL based on environment - AWS RDS priority"""
+    """Get appropriate database URL based on environment"""
     current_env = get_current_environment()
     
-    # Always prefer PRODUCTION_DATABASE_URL if available (AWS RDS)
-    prod_url = os.environ.get('PRODUCTION_DATABASE_URL')
-    if prod_url:
-        logging.info("Using AWS RDS production database")
-        return prod_url
+    # Production environment: Use AWS RDS
+    if current_env == 'production':
+        prod_url = os.environ.get('PRODUCTION_DATABASE_URL')
+        if prod_url:
+            logging.info(f"🚀 PRODUCTION MODE: Using AWS RDS database")
+            return prod_url
+        else:
+            # Fallback to Replit DB if AWS not configured
+            dev_url = os.environ.get('DATABASE_URL')
+            if dev_url:
+                logging.warning("⚠️ PRODUCTION MODE: AWS RDS not found, using Replit DB as fallback")
+                return dev_url
     
-    # Fallback to Replit's DATABASE_URL
+    # Development/Testing environment: Use Replit's DATABASE_URL
     dev_url = os.environ.get('DATABASE_URL')
     if dev_url:
-        logging.info("Using Replit development database (AWS RDS not configured)")
+        logging.info(f"🧪 TESTING MODE: Using Replit database")
         return dev_url
     
     # If no database URL is available, return a default SQLite URL
-    # This allows the app to start even without a database connection
     logging.warning("No database URL found, using SQLite fallback")
     return "sqlite:///tracetrack_fallback.db"
 
