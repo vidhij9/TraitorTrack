@@ -129,7 +129,7 @@
             <h5 class="mb-0">Upload Instructions</h5>
         </div>
         <div class="card-body">
-            <p>Upload an Excel file (.xlsx) to bulk link parent and child bags. The file should have the following format:</p>
+            <p>Upload an Excel file (.xlsx) to bulk link parent and child bags. This optimized uploader can handle 80,000+ bags efficiently. The file should have the following format:</p>
             
             <table class="table table-bordered template-table mt-3">
                 <thead>
@@ -142,8 +142,8 @@
                 <tbody>
                     <tr>
                         <td>Serial Number</td>
-                        <td>Parent Bag (e.g., SB02544)</td>
-                        <td>Child Bag (e.g., 81923)</td>
+                        <td>Parent Bag (any format)</td>
+                        <td>Child Bag (any format)</td>
                     </tr>
                 </tbody>
             </table>
@@ -152,10 +152,11 @@
                 <strong>Important:</strong>
                 <ul class="mb-0">
                     <li>The first row should be a header row (it will be skipped)</li>
-                    <li>Parent bag IDs should start with 'SB' (case-insensitive)</li>
-                    <li>Each parent bag can have up to 30 child bags</li>
-                    <li>Existing links will be automatically skipped</li>
+                    <li>Accepts any format of parent and child bag IDs</li>
+                    <li>Each parent bag can have any number of child bags</li>
+                    <li>Duplicate child bags are automatically detected and skipped</li>
                     <li>New bags will be created if they don't exist</li>
+                    <li>Optimized for processing 80,000+ bags efficiently</li>
                 </ul>
             </div>
         </div>
