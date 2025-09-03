@@ -151,6 +151,25 @@ try:
 except Exception as e:
     logger.warning(f"Ultra-fast batch scanner not loaded: {e}")
 
+# Import optimized bill parent scanning
+try:
+    from optimized_bill_scanning import register_optimized_routes
+    register_optimized_routes(app, db)
+    logger.info("✅ Optimized bill parent scanning loaded - <50ms response time")
+except Exception as e:
+    logger.warning(f"Optimized bill scanning not loaded: {e}")
+
+# Initialize daily email reporting system
+try:
+    from daily_email_reports import init_daily_reports
+    report_system = init_daily_reports(app, db)
+    if report_system:
+        logger.info("✅ Daily email reporting system activated - reports at 6 PM daily")
+    else:
+        logger.info("Daily email reports disabled - no SendGrid key configured")
+except Exception as e:
+    logger.warning(f"Daily email reporting not loaded: {e}")
+
 # Import production optimization config for better concurrency
 try:
     from production_optimization_config import initialize as init_prod_config

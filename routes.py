@@ -4324,8 +4324,36 @@ def reopen_bill():
 @app.route('/fast/bill_parent_scan', methods=['POST'])
 @csrf.exempt
 def ultra_fast_bill_parent_scan():
-    """Ultra-fast bill parent bag scanning with auto-pause workflow"""
-    # Quick session check
+    """Ultra-fast bill parent bag scanning with optimized performance"""
+    # Try to use optimized version if available
+    try:
+        from optimized_bill_scanning import optimized_bill_parent_scan
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '🚫 Please login first',
+                'auth_required': True,
+                'error_type': 'auth_required'
+            }), 401
+        
+        bill_id = request.form.get('bill_id', type=int)
+        qr_code = request.form.get('qr_code', '')
+        
+        if not bill_id or not qr_code:
+            return jsonify({
+                'success': False,
+                'message': '🚫 Missing required parameters',
+                'error_type': 'missing_data'
+            })
+        
+        # Execute optimized scan
+        result = optimized_bill_parent_scan(db, bill_id, qr_code, user_id)
+        return jsonify(result)
+    except ImportError:
+        pass  # Fall back to original implementation
+    
+    # Original implementation as fallback
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({

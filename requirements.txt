@@ -46,3 +46,7 @@ asyncio
 beautifulsoup4
 openpyxl
 xlsxwriter
+sendgrid
+jinja2
+schedule
+sendgrid
