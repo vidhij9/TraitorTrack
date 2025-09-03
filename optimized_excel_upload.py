@@ -24,7 +24,7 @@ class OptimizedExcelUploader:
     """Ultra-optimized Excel upload handler for massive datasets"""
     
     def __init__(self):
-        self.batch_size = 5000  # Optimal batch size for PostgreSQL
+        self.batch_size = 2000  # Reduced batch size for large files (60k-80k+ rows) to prevent timeouts
         self.chunk_size = 10000  # Excel reading chunk size
         self.max_memory_mb = 500  # Maximum memory usage in MB
         self.database_url = os.environ.get('DATABASE_URL')
@@ -331,30 +331,45 @@ class OptimizedExcelUploader:
             # Always create scan record for audit
             scans_to_create.append((parent_id, child_id, user_id, now))
         
-        # Bulk insert links
+        # Bulk insert links in smaller batches to avoid timeouts
         if links_to_create:
-            execute_values(
-                cur,
-                """
-                INSERT INTO link (parent_bag_id, child_bag_id, created_at)
-                VALUES %s
-                ON CONFLICT (parent_bag_id, child_bag_id) DO NOTHING
-                """,
-                links_to_create
-            )
+            # Process in batches of 5000 for very large uploads
+            LINK_BATCH_SIZE = 5000
+            for i in range(0, len(links_to_create), LINK_BATCH_SIZE):
+                batch = links_to_create[i:i + LINK_BATCH_SIZE]
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO link (parent_bag_id, child_bag_id, created_at)
+                    VALUES %s
+                    ON CONFLICT (parent_bag_id, child_bag_id) DO NOTHING
+                    """,
+                    batch,
+                    page_size=500  # Smaller page size for stability
+                )
+                # Commit periodically for very large batches
+                if i > 0 and i % 20000 == 0:
+                    cur.connection.commit()
+                    logger.info(f"Committed {i} links...")
         
         # Bulk insert scans in batches
         if scans_to_create:
-            for i in range(0, len(scans_to_create), self.batch_size):
-                batch = scans_to_create[i:i + self.batch_size]
+            SCAN_BATCH_SIZE = 5000
+            for i in range(0, len(scans_to_create), SCAN_BATCH_SIZE):
+                batch = scans_to_create[i:i + SCAN_BATCH_SIZE]
                 execute_values(
                     cur,
                     """
                     INSERT INTO scan (parent_bag_id, child_bag_id, user_id, timestamp)
                     VALUES %s
                     """,
-                    batch
+                    batch,
+                    page_size=500
                 )
+                # Commit periodically
+                if i > 0 and i % 20000 == 0:
+                    cur.connection.commit()
+                    logger.info(f"Committed {i} scans...")
     
     def _update_parent_counts_bulk(self, cur, parent_ids: List[int]):
         """
