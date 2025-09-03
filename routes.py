@@ -4362,11 +4362,12 @@ def ultra_fast_bill_parent_scan():
                 'error_type': 'bill_not_found'
             })
         
-        # 2. Check if parent bag exists
-        parent_bag = Bag.query.filter_by(qr_id=qr_code, type='parent').first()
+        # 2. Check if parent bag exists (case-insensitive)
+        from sqlalchemy import func
+        parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_code.upper(), Bag.type == 'parent').first()
         if not parent_bag:
-            # Check if it's registered as a different type
-            other_bag = Bag.query.filter_by(qr_id=qr_code).first()
+            # Check if it's registered as a different type (case-insensitive)
+            other_bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_code.upper()).first()
             if other_bag:
                 app.logger.warning(f'Bag {qr_code} is type {other_bag.type}, not parent')
                 return jsonify({
