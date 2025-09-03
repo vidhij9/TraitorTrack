@@ -6071,7 +6071,7 @@ def excel_upload():
                 if len(stats['errors']) > 3:
                     flash(f"... and {len(stats['errors']) - 3} more errors", 'error')
             
-            return render_template('excel_upload.html', stats=stats)
+            return render_template('excel_upload_optimized.html', stats=stats)
             
         except Exception as e:
             db.session.rollback()
@@ -6079,7 +6079,7 @@ def excel_upload():
             flash(f"Error processing file: {str(e)}", 'error')
             return redirect(request.url)
     
-    # GET request - show upload form
-    return render_template('excel_upload.html')
+    # GET request - show upload form with optimized template
+    return render_template('excel_upload_optimized.html')
 
 # Monitoring endpoints are already defined in error_handlers.py and main.py

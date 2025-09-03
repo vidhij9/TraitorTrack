@@ -1,0 +1,264 @@
+{% extends "layout.html" %}
+
+{% block title %}Excel Upload - TraceTrack{% endblock %}
+
+{% block head %}
+<style>
+/* Excel Upload Styles */
+.upload-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.file-upload-wrapper {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+}
+
+.file-upload-wrapper input[type=file] {
+    position: absolute;
+    left: -9999px;
+}
+
+.file-upload-label {
+    display: block;
+    padding: 12px 20px;
+    background: #007bff;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+    text-align: center;
+}
+
+.file-upload-label:hover {
+    background: #0056b3;
+}
+
+.file-info {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    display: none;
+}
+
+.file-info.active {
+    display: block;
+}
+
+.stats-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.upload-button {
+    background: #28a745;
+    color: white;
+    padding: 10px 30px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.upload-button:hover {
+    background: #218838;
+}
+
+.upload-button:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.progress-container {
+    display: none;
+    margin-top: 20px;
+}
+
+.progress-bar {
+    background: #f0f0f0;
+    border-radius: 5px;
+    overflow: hidden;
+    height: 30px;
+}
+
+.progress-fill {
+    background: #28a745;
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+.instructions {
+    background: #e8f4f8;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border-left: 4px solid #007bff;
+}
+
+.instructions h3 {
+    margin-top: 0;
+    color: #007bff;
+}
+
+.instructions ol {
+    margin-bottom: 0;
+}
+
+.format-example {
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 15px;
+    font-family: monospace;
+    border: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="upload-container">
+        <h2>Excel Upload - Bulk Bag Linking</h2>
+        
+        <!-- Instructions -->
+        <div class="instructions">
+            <h3>📋 Instructions</h3>
+            <ol>
+                <li>Prepare your Excel file (.xlsx format)</li>
+                <li>First column: Parent Bag ID</li>
+                <li>Second column: Child Bag ID</li>
+                <li>Upload supports 80,000+ bags efficiently</li>
+                <li>Duplicates are automatically detected and skipped</li>
+            </ol>
+            
+            <div class="format-example">
+                <strong>Excel Format Example:</strong><br>
+                Column A: PARENT001<br>
+                Column B: CHILD001<br>
+                (Continue for all parent-child relationships)
+            </div>
+        </div>
+
+        <!-- Upload Form -->
+        <form id="uploadForm" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="file-upload-wrapper">
+                <label for="excel_file" class="file-upload-label">
+                    📁 Choose Excel File
+                </label>
+                <input type="file" 
+                       id="excel_file" 
+                       name="excel_file" 
+                       accept=".xlsx"
+                       required>
+            </div>
+            
+            <div id="fileInfo" class="file-info">
+                <strong>Selected File:</strong> <span id="fileName"></span><br>
+                <strong>Size:</strong> <span id="fileSize"></span>
+            </div>
+            
+            <button type="submit" class="upload-button" id="uploadBtn">
+                📤 Upload and Process
+            </button>
+        </form>
+
+        <!-- Progress Bar -->
+        <div id="progressContainer" class="progress-container">
+            <h4>Processing...</h4>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+            <p id="progressText">Uploading file...</p>
+        </div>
+
+        <!-- Results Display -->
+        {% if stats %}
+        <div class="stats-card">
+            <h3>📊 Upload Results</h3>
+            <table class="table">
+                <tr>
+                    <td><strong>Total Rows Processed:</strong></td>
+                    <td>{{ stats.total_rows|default(0) }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Successful Links:</strong></td>
+                    <td style="color: green;">{{ stats.successful_links|default(0) }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Parent Bags Created:</strong></td>
+                    <td>{{ stats.parent_bags_created|default(0) }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Child Bags Created:</strong></td>
+                    <td>{{ stats.child_bags_created|default(0) }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Existing Links (Skipped):</strong></td>
+                    <td>{{ stats.existing_links|default(0) }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Duplicate Children Removed:</strong></td>
+                    <td>{{ stats.duplicate_children|default(0) }}</td>
+                </tr>
+                {% if stats.processing_time %}
+                <tr>
+                    <td><strong>Processing Time:</strong></td>
+                    <td>{{ "%.2f"|format(stats.processing_time) }} seconds</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.getElementById('excel_file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        document.getElementById('fileName').textContent = file.name;
+        const size = (file.size / (1024 * 1024)).toFixed(2);
+        document.getElementById('fileSize').textContent = size + ' MB';
+        document.getElementById('fileInfo').classList.add('active');
+    }
+});
+
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('excel_file');
+    if (!fileInput.files[0]) {
+        e.preventDefault();
+        alert('Please select a file');
+        return;
+    }
+    
+    // Show progress bar
+    document.getElementById('progressContainer').style.display = 'block';
+    document.getElementById('uploadBtn').disabled = true;
+    document.getElementById('uploadBtn').textContent = 'Processing...';
+    
+    // Simulate progress (actual progress would need WebSocket or polling)
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += 5;
+        if (progress <= 90) {
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressFill').textContent = progress + '%';
+        }
+    }, 500);
+});
+</script>
+{% endblock %}
