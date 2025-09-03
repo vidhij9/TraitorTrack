@@ -930,57 +930,110 @@ def delete_user(user_id):
         
         username = user_result.username  # Store username before deletion
         
-        # Check if user has any scans that would prevent deletion  
+        # Check if user has any related data
         scan_count_result = db.session.execute(db.text('SELECT COUNT(*) FROM scan WHERE user_id = :user_id'), {'user_id': user_id}).scalar()
         scan_count = scan_count_result or 0
+        
+        bill_count_result = db.session.execute(db.text('SELECT COUNT(*) FROM bill WHERE created_by_id = :user_id'), {'user_id': user_id}).scalar()
+        bill_count = bill_count_result or 0
         
         # Log the deletion attempt for audit purposes
         log_audit('delete_user_attempt', 'user', user_id, {
             'username': username,
             'role': user_result.role,
             'scan_count': scan_count,
+            'bill_count': bill_count,
             'deleted_by': current_user.username
         })
         
-        # Instead of hard deleting, we could set user as inactive or anonymize
-        # But for now, let's handle the foreign key constraints properly
+        # PRODUCTION SAFETY: Clean up related records first to avoid foreign key violations
         
-        # Foreign key constraints will handle related records:
-        # - PromotionRequests where user is requester will be CASCADE deleted
-        # - PromotionRequests where user is processor will have admin_id SET NULL
-        # - Scans will have user_id SET NULL (preserving scan history)
-        # - AuditLogs will have user_id SET NULL (preserving audit trail)
+        # 1. First delete PromotionRequests (has CASCADE constraint)
+        db.session.execute(db.text('DELETE FROM promotion_requests WHERE user_id = :user_id'), {'user_id': user_id})
         
-        # Now delete the user using raw SQL
+        # 2. Update any bills created by this user to NULL (preserving billing history)
+        db.session.execute(db.text('UPDATE bill SET created_by_id = NULL WHERE created_by_id = :user_id'), {'user_id': user_id})
+        
+        # 3. Update any scans by this user to NULL (preserving scan history)
+        db.session.execute(db.text('UPDATE scan SET user_id = NULL WHERE user_id = :user_id'), {'user_id': user_id})
+        
+        # 4. Update any audit logs to NULL (preserving audit trail)
+        db.session.execute(db.text('UPDATE audit_log SET user_id = NULL WHERE user_id = :user_id'), {'user_id': user_id})
+        
+        # 5. Update promotion requests where user was the admin processor
+        db.session.execute(db.text('UPDATE promotion_requests SET admin_id = NULL WHERE admin_id = :user_id'), {'user_id': user_id})
+        
+        # Now safely delete the user
         db.session.execute(db.text('DELETE FROM "user" WHERE id = :user_id'), {'user_id': user_id})
         db.session.commit()
         
         # Log successful deletion
         log_audit('delete_user_success', 'user', user_id, {
             'username': username,
-            'deleted_by': current_user.username
+            'deleted_by': current_user.username,
+            'scans_nullified': scan_count,
+            'bills_nullified': bill_count
         })
         
         return jsonify({
             'success': True, 
-            'message': f'User {username} has been deleted successfully',
+            'message': f'User {username} has been safely deleted. {scan_count} scans and {bill_count} bills have been preserved with null user references.',
             'user_id': user_id,
-            'deleted_username': username
+            'deleted_username': username,
+            'preserved_scans': scan_count,
+            'preserved_bills': bill_count
         })
         
     except Exception as e:
         db.session.rollback()
         import logging
-        logging.error(f"Error deleting user {user_id}: {str(e)}")
+        error_msg = str(e)
+        
+        # PRODUCTION SAFETY: Provide helpful error messages for common issues
+        if 'foreign key' in error_msg.lower():
+            # Extract table name from the error if possible
+            if 'violates foreign key constraint' in error_msg:
+                error_msg = "Cannot delete user due to existing data dependencies. Please contact system administrator."
+            else:
+                error_msg = "User has related data that prevents deletion. Attempting safe cleanup..."
+                
+                # Try a safer approach - just disable the user instead of deleting
+                try:
+                    db.session.execute(db.text(
+                        'UPDATE "user" SET username = :disabled_name, email = NULL, password_hash = NULL WHERE id = :user_id'
+                    ), {
+                        'disabled_name': f'DELETED_USER_{user_id}',
+                        'user_id': user_id
+                    })
+                    db.session.commit()
+                    
+                    log_audit('delete_user_disabled', 'user', user_id, {
+                        'username': username,
+                        'action': 'disabled_instead_of_deleted',
+                        'reason': 'foreign_key_constraint',
+                        'deleted_by': current_user.username
+                    })
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'User {username} has been safely disabled (not deleted) due to data dependencies.',
+                        'action': 'disabled',
+                        'user_id': user_id
+                    })
+                except Exception as disable_error:
+                    db.session.rollback()
+                    error_msg = f"Could not delete or disable user: {str(disable_error)}"
+        
+        logging.error(f"Error deleting user {user_id}: {error_msg}")
         
         # Log failed deletion
         log_audit('delete_user_failed', 'user', user_id, {
-            'username': user_result.username if 'user_result' in locals() else 'Unknown',
-            'error': str(e),
+            'username': username if 'username' in locals() else 'Unknown',
+            'error': error_msg,
             'deleted_by': current_user.username
         })
         
-        return jsonify({'success': False, 'message': f'Error deleting user: {str(e)}'})
+        return jsonify({'success': False, 'message': error_msg})
 
 @app.route('/admin/comprehensive-user-deletion')
 @login_required
