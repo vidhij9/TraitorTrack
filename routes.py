@@ -948,8 +948,8 @@ def delete_user(user_id):
         
         # PRODUCTION SAFETY: Clean up related records first to avoid foreign key violations
         
-        # 1. First delete PromotionRequests (has CASCADE constraint)
-        db.session.execute(db.text('DELETE FROM promotion_requests WHERE user_id = :user_id'), {'user_id': user_id})
+        # 1. First delete PromotionRequests (has CASCADE constraint) - table is named 'promotionrequest' not 'promotion_requests'
+        db.session.execute(db.text('DELETE FROM promotionrequest WHERE user_id = :user_id'), {'user_id': user_id})
         
         # 2. Update any bills created by this user to NULL (preserving billing history)
         db.session.execute(db.text('UPDATE bill SET created_by_id = NULL WHERE created_by_id = :user_id'), {'user_id': user_id})
@@ -961,7 +961,7 @@ def delete_user(user_id):
         db.session.execute(db.text('UPDATE audit_log SET user_id = NULL WHERE user_id = :user_id'), {'user_id': user_id})
         
         # 5. Update promotion requests where user was the admin processor
-        db.session.execute(db.text('UPDATE promotion_requests SET admin_id = NULL WHERE admin_id = :user_id'), {'user_id': user_id})
+        db.session.execute(db.text('UPDATE promotionrequest SET admin_id = NULL WHERE admin_id = :user_id'), {'user_id': user_id})
         
         # Now safely delete the user
         db.session.execute(db.text('DELETE FROM "user" WHERE id = :user_id'), {'user_id': user_id})
