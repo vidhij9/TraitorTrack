@@ -125,6 +125,7 @@ from models import (
 # Import fast scanning routes for millisecond performance
 try:
     import fast_scanning_routes
+    import optimized_bill_scanner
     app.logger.info("Fast scanning routes loaded successfully")
 except Exception as e:
     app.logger.warning(f"Fast scanning routes not loaded: {e}")
