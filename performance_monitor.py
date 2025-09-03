@@ -102,13 +102,30 @@ class PerformanceMonitor:
         """Record a cache miss"""
         self.cache_misses += 1
     
+    def _get_external_cache_stats(self):
+        """Get cache stats from external cache manager"""
+        try:
+            # Try to get stats from redis cache manager
+            from redis_cache_manager import cache_manager
+            stats = cache_manager.get_stats()
+            return {
+                'hits': stats.get('hits', 0),
+                'misses': stats.get('misses', 0),
+                'total': stats.get('total_requests', 0)
+            }
+        except:
+            return {'hits': 0, 'misses': 0, 'total': 0}
+    
     def _monitor_system(self):
         """Background thread to monitor system metrics"""
         while self.monitoring:
             try:
-                # CPU and memory usage
-                self.cpu_usage.append(psutil.cpu_percent(interval=1))
-                self.memory_usage.append(psutil.virtual_memory().percent)
+                # CPU and memory usage - use interval=0 for non-blocking
+                cpu_pct = psutil.cpu_percent(interval=0)
+                if cpu_pct > 0:  # Only append valid readings
+                    self.cpu_usage.append(cpu_pct)
+                mem_pct = psutil.virtual_memory().percent
+                self.memory_usage.append(mem_pct)
                 
                 # Calculate requests per second
                 current_time = time.time()
@@ -127,7 +144,7 @@ class PerformanceMonitor:
                 # Check thresholds and alert if needed
                 self._check_thresholds()
                 
-                time.sleep(1)
+                time.sleep(2)
                 
             except Exception as e:
                 logger.error(f"Error in monitoring thread: {e}")
@@ -171,15 +188,28 @@ class PerformanceMonitor:
         if self.response_times:
             sorted_times = sorted(self.response_times)
             p50 = sorted_times[len(sorted_times) // 2]
-            p95 = sorted_times[int(len(sorted_times) * 0.95)]
-            p99 = sorted_times[int(len(sorted_times) * 0.99)]
+            p95_idx = min(len(sorted_times) - 1, int(len(sorted_times) * 0.95))
+            p99_idx = min(len(sorted_times) - 1, int(len(sorted_times) * 0.99))
+            p95 = sorted_times[p95_idx]
+            p99 = sorted_times[p99_idx]
             avg_response_time = sum(self.response_times) / len(self.response_times)
         else:
             p50 = p95 = p99 = avg_response_time = 0
         
-        # Calculate cache hit rate
-        total_cache_ops = self.cache_hits + self.cache_misses
-        cache_hit_rate = (self.cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0
+        # Get cache stats from external cache manager
+        external_cache = self._get_external_cache_stats()
+        
+        # Calculate cache hit rate (prefer external stats if available)
+        if external_cache['total'] > 0:
+            cache_hits = external_cache['hits']
+            cache_misses = external_cache['misses']
+            total_cache_ops = external_cache['total']
+        else:
+            cache_hits = self.cache_hits
+            cache_misses = self.cache_misses
+            total_cache_ops = self.cache_hits + self.cache_misses
+        
+        cache_hit_rate = (cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0
         
         # Current RPS
         current_rps = self.requests_per_second[-1] if self.requests_per_second else 0
@@ -206,17 +236,17 @@ class PerformanceMonitor:
             'database': {
                 'avg_query_time_ms': round(
                     sum(self.db_query_times) / len(self.db_query_times), 2
-                ) if self.db_query_times else 0,
+                ) if self.db_query_times else 0.0,
                 'slow_queries_count': len(self.slow_queries),
                 'connection_pool': self.connection_pool_stats
             },
             'cache': {
-                'hits': self.cache_hits,
-                'misses': self.cache_misses,
+                'hits': cache_hits,
+                'misses': cache_misses,
                 'hit_rate_percent': round(cache_hit_rate, 2)
             },
             'system': {
-                'cpu_percent': round(self.cpu_usage[-1], 1) if self.cpu_usage else 0,
+                'cpu_percent': round(sum(self.cpu_usage) / len(self.cpu_usage), 1) if self.cpu_usage else 0,
                 'memory_percent': round(self.memory_usage[-1], 1) if self.memory_usage else 0,
                 'active_connections': self.active_connections
             },
@@ -289,6 +319,14 @@ monitor = PerformanceMonitor()
 def apply_performance_monitoring(app):
     """Apply performance monitoring to Flask app"""
     from flask import request, g
+    
+    # Try to import cache manager for tracking
+    try:
+        from redis_cache_manager import cache_manager as redis_cache
+        global cache_source
+        cache_source = redis_cache
+    except ImportError:
+        cache_source = None
     
     @app.before_request
     def before_request():

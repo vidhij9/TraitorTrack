@@ -254,9 +254,18 @@ except Exception as e:
 
 # Apply ultra-performance monitoring
 try:
-    from performance_monitor import apply_performance_monitoring
+    from performance_monitor import apply_performance_monitoring, monitor
     apply_performance_monitoring(app)
     logging.info("✅ Performance monitoring activated")
+    
+    # Initialize database query tracking
+    try:
+        from database_query_tracker import init_query_tracking
+        init_query_tracking(db, monitor)
+        logging.info("✅ Database query tracking activated")
+    except Exception as e:
+        logging.warning(f"Database query tracking not applied: {e}")
+        
 except ImportError:
     # Gracefully handle missing performance monitoring
     pass
