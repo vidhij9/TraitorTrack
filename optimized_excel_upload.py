@@ -45,7 +45,7 @@ class OptimizedExcelUploader:
         Accepts any format of parent and child bags
         """
         start_time = time.time()
-        logger.info("Starting optimized Excel processing")
+        logger.info(f"Starting optimized Excel processing for user_id: {user_id}")
         
         try:
             # Reset statistics
@@ -253,6 +253,13 @@ class OptimizedExcelUploader:
         
         logger.info(f"Creating {len(qr_ids)} {bag_type} bags")
         
+        # Verify user exists to avoid foreign key errors
+        if user_id is not None:
+            cur.execute("SELECT id FROM \"user\" WHERE id = %s", (user_id,))
+            if not cur.fetchone():
+                logger.warning(f"User ID {user_id} not found, using NULL for user_id")
+                user_id = None
+        
         # Prepare data for bulk insert
         now = datetime.utcnow()
         bags_data = []
@@ -262,7 +269,7 @@ class OptimizedExcelUploader:
                 qr_id,
                 bag_type,
                 'pending',
-                user_id,
+                user_id,  # Will be NULL if user doesn't exist
                 dispatch_area,
                 0 if bag_type == 'parent' else None,  # child_count
                 0.0 if bag_type == 'parent' else 1.0,  # weight_kg
@@ -313,6 +320,12 @@ class OptimizedExcelUploader:
         scans_to_create = []
         now = datetime.utcnow()
         
+        # First verify that the user exists to avoid foreign key constraint errors
+        cur.execute("SELECT id FROM \"user\" WHERE id = %s", (user_id,))
+        if not cur.fetchone():
+            logger.warning(f"User ID {user_id} not found in database, using NULL for scan records")
+            user_id = None  # Use NULL instead of invalid user_id
+        
         for parent_qr, child_qr in parent_child_pairs:
             parent_id = parent_bags.get(parent_qr)
             child_id = child_bags.get(child_qr)
@@ -328,8 +341,9 @@ class OptimizedExcelUploader:
                 links_to_create.append((parent_id, child_id, now))
                 self.stats['successful_links'] += 1
             
-            # Always create scan record for audit
-            scans_to_create.append((parent_id, child_id, user_id, now))
+            # Only create scan record if we have a valid user_id
+            if user_id is not None:
+                scans_to_create.append((parent_id, child_id, user_id, now))
         
         # Bulk insert links in smaller batches to avoid timeouts
         if links_to_create:

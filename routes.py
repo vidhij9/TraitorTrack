@@ -6061,9 +6061,16 @@ def excel_upload():
             
             # Use optimized Excel processor for 80k+ bags
             dispatch_area = session.get('dispatch_area', 'Default')
+            
+            # Ensure we have a valid user ID
+            user_id = current_user.id if hasattr(current_user, 'id') else None
+            
+            # Log the user information for debugging
+            app.logger.info(f"Excel upload by user: {user_id}, username: {current_user.username if hasattr(current_user, 'username') else 'Unknown'}")
+            
             stats = excel_uploader.process_excel_file(
                 file_content, 
-                current_user.id, 
+                user_id, 
                 dispatch_area
             )
             
