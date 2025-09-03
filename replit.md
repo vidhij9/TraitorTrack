@@ -60,6 +60,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (September 03, 2025)
 
+### Database Configuration Update
+- **Proper Environment Separation**: Configured separate databases for testing and production
+- **Testing Environment**: Uses Replit Neon database (`DATABASE_URL`) - Empty for safe testing
+- **Production Environment**: Uses AWS RDS (`PRODUCTION_DATABASE_URL`) - Contains real data (66,845 bags)
+- **Automatic Detection**: System automatically selects correct database based on domain
+- **Data Protection**: Production data on AWS RDS is protected from test operations
+
+## Recent Changes (September 03, 2025)
+
 ### Excel Upload Feature Optimization
 - **80,000+ Bag Support**: Optimized Excel upload to handle 80,000+ bags efficiently
 - **Flexible Formats**: Accepts any format of parent and child bag IDs (no longer restricted to specific prefixes)
