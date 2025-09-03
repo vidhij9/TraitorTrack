@@ -2431,6 +2431,13 @@ def ajax_scan_parent_bag():
 @limiter.exempt  # Exempt from rate limiting for fast scanning
 def process_child_scan_fast():
     """Ultra-fast child bag processing with CSRF exemption for JSON requests"""
+    # Import optimized handler
+    try:
+        from performance_fix import optimized_child_scan_handler
+    except ImportError:
+        # Fallback to original implementation if optimization not available
+        pass
+    
     try:
         # Get QR code from JSON or form data
         if request.content_type and 'application/json' in request.content_type:
@@ -2459,7 +2466,17 @@ def process_child_scan_fast():
         if qr_id == parent_qr:
             return jsonify({'success': False, 'message': 'Cannot link to itself'})
         
-        # OPTIMIZED: Single query with bulk operations
+        # Try optimized handler first
+        try:
+            if 'optimized_child_scan_handler' in locals():
+                user_id = current_user.id
+                dispatch_area = current_user.dispatch_area or 'Default'
+                result = optimized_child_scan_handler(qr_id, parent_qr, user_id, dispatch_area)
+                return jsonify(result)
+        except:
+            pass
+        
+        # Fallback to ORM queries
         parent_bag = Bag.query.filter(
             func.upper(Bag.qr_id) == func.upper(parent_qr),
             Bag.type == 'parent'
