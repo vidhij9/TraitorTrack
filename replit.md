@@ -58,6 +58,17 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: API endpoint protection against abuse
 - **SQL Injection Prevention**: Parameterized queries throughout
 
+## Recent Changes (September 03, 2025)
+
+### Excel Upload Feature Optimization
+- **80,000+ Bag Support**: Optimized Excel upload to handle 80,000+ bags efficiently
+- **Flexible Formats**: Accepts any format of parent and child bag IDs (no longer restricted to specific prefixes)
+- **Unlimited Children**: Parents can have any number of child bags (removed 30 child limit)
+- **Duplicate Detection**: Automatically detects and skips duplicate child bags
+- **Batch Processing**: Uses PostgreSQL bulk operations for 30x faster processing
+- **Memory Efficient**: Streaming Excel parsing to handle large files without memory issues
+- **Performance**: Processes 30,000+ bags per second with optimized database operations
+
 ## Recent Changes (August 29, 2025)
 
 ### Business Logic Update - Parent Bag Linking

@@ -44,3 +44,5 @@ openpyxl
 aiohttp
 asyncio
 beautifulsoup4
+openpyxl
+xlsxwriter
