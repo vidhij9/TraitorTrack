@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
+            <p class="text-muted">System activity and performance reports</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-calendar-week"></i> Recent Activity ({{ data.period }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h3 class="text-primary">{{ data.recent_scans }}</h3>
+                                <p class="text-muted">Scans</p>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h3 class="text-success">{{ data.recent_bills }}</h3>
+                                <p class="text-muted">Bills</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-download"></i> Export Reports</h5>
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-outline-primary btn-block mb-2">
+                        <i class="fas fa-file-excel"></i> Export Scan Data
+                    </button>
+                    <button class="btn btn-outline-success btn-block mb-2">
+                        <i class="fas fa-file-pdf"></i> Export Bill Summary
+                    </button>
+                    <button class="btn btn-outline-info btn-block">
+                        <i class="fas fa-chart-line"></i> Performance Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Generate Custom Report</h5>
+                </div>
+                <div class="card-body">
+                    <form>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label>Report Type</label>
+                                <select class="form-control">
+                                    <option>Scan Activity</option>
+                                    <option>Bill Summary</option>
+                                    <option>User Activity</option>
+                                    <option>Performance Metrics</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label>Date From</label>
+                                <input type="date" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Date To</label>
+                                <input type="date" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label>&nbsp;</label>
+                                <button type="button" class="btn btn-primary form-control">
+                                    <i class="fas fa-play"></i> Generate
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

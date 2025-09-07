@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Batch Scanning - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-barcode"></i> Batch Scanning</h4>
+                    <p class="text-muted">Scan multiple child bags at once for faster processing</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Ultra-Fast Batch Scanner</h5>
+                            <p>Use our optimized batch scanner for processing multiple bags quickly.</p>
+                            <a href="/ultra/batch" class="btn btn-primary btn-lg">
+                                <i class="fas fa-rocket"></i> Start Batch Scan
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Manual Batch Entry</h5>
+                            <p>Enter multiple QR codes manually if needed.</p>
+                            <textarea class="form-control" rows="10" placeholder="Enter QR codes, one per line..."></textarea>
+                            <button class="btn btn-secondary mt-2">Process Batch</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
