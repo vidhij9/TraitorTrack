@@ -139,8 +139,8 @@ def optimized_bill_parent_scan(db, bill_id: int, qr_code: str, user_id: int):
         # Use a single compound INSERT/UPDATE statement for atomic operation
         db.session.execute(text("""
             WITH inserted_link AS (
-                INSERT INTO bill_bag (bill_id, bag_id, status)
-                VALUES (:bill_id, :bag_id, 'linked')
+                INSERT INTO bill_bag (bill_id, bag_id)
+                VALUES (:bill_id, :bag_id)
                 RETURNING bill_id
             ),
             updated_bag AS (
