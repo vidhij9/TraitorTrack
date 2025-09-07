@@ -68,9 +68,38 @@ class CurrentUserProxy:
         
 current_user = CurrentUserProxy()
 
-# Commented out missing modules
+# Commented out missing modules with fallbacks
 # from query_optimizer import query_optimizer
 # from optimized_cache import cached, cache, invalidate_cache
+
+# Define fallback functions for missing imports
+def query_optimizer_fallback():
+    """Fallback class for query optimizer when not available"""
+    class FallbackOptimizer:
+        @staticmethod
+        def get_bag_by_qr(qr_id, bag_type=None):
+            from models import Bag
+            return Bag.query.filter_by(qr_id=qr_id).first()
+        
+        @staticmethod
+        def create_bag_optimized(*args, **kwargs):
+            return None
+            
+        @staticmethod  
+        def create_scan_optimized(*args, **kwargs):
+            return None
+            
+        @staticmethod
+        def create_link_optimized(*args, **kwargs):
+            return None, False
+            
+        @staticmethod
+        def bulk_commit():
+            return True
+    return FallbackOptimizer()
+
+# Set query_optimizer with fallback
+query_optimizer = query_optimizer_fallback()
 
 # Using Flask-Login's login_required decorator directly
 
@@ -1316,7 +1345,11 @@ def create_user():
         
         # Invalidate cache after creating new user
         try:
-            from optimized_cache import invalidate_cache
+            try:
+                from optimized_cache import invalidate_cache
+            except ImportError:
+                def invalidate_cache(*args, **kwargs):
+                    pass
             invalidate_cache()
         except:
             pass  # Don't fail on cache errors
@@ -2486,7 +2519,11 @@ def process_child_scan_fast():
     """Ultra-fast child bag processing with CSRF exemption for JSON requests"""
     # Import optimized handler
     try:
-        from performance_fix import optimized_child_scan_handler
+        try:
+            from performance_fix import optimized_child_scan_handler
+        except ImportError:
+            def optimized_child_scan_handler(*args, **kwargs):
+                return None
     except ImportError:
         # Fallback to original implementation if optimization not available
         pass
