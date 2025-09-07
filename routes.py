@@ -6333,6 +6333,7 @@ def db_health():
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
+@csrf.exempt  # Exempt from CSRF for file upload functionality
 def upload():
     """Excel upload page - redirect to existing excel_upload"""
     if request.method == 'POST':
