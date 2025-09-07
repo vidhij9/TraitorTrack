@@ -40,7 +40,21 @@ class Base(DeclarativeBase):
 # Initialize extensions
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
+# Initialize CSRF with proper exemption support
 csrf = CSRFProtect()
+
+# Create a no-op decorator for production compatibility
+class CSRFExempt:
+    @staticmethod
+    def exempt(f):
+        """CSRF exemption decorator that works in production"""
+        if hasattr(csrf, 'exempt'):
+            return csrf.exempt(f)
+        else:
+            # Fallback for production - just return the function
+            return f
+
+csrf_compat = CSRFExempt()
 
 # Configure limiter with graceful Redis fallback
 try:
