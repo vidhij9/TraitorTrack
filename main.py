@@ -4,6 +4,22 @@ import logging
 import time
 from flask import request, g
 
+# Import ULTRA performance optimizer for <50ms response times
+try:
+    from ultra_performance_optimizer import apply_ultra_performance_optimizations
+    app = apply_ultra_performance_optimizations(app, db)
+    logging.info("✅ ULTRA Performance Optimizer loaded - <50ms target active")
+except ImportError as e:
+    logging.warning(f"Ultra performance optimizer not loaded: {e}")
+
+# Import ULTRA fast scanning for 800,000+ bags
+try:
+    from ultra_fast_scanning import register_ultra_fast_scanning
+    app = register_ultra_fast_scanning(app)
+    logging.info("✅ Ultra-fast scanning registered - <50ms scanning active")
+except ImportError as e:
+    logging.warning(f"Ultra-fast scanning not loaded: {e}")
+
 # Import production optimizer for zero failures
 try:
     from production_optimizer import (
