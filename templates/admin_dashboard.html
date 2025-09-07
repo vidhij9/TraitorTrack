@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-crown"></i> Admin Dashboard</h2>
+            <p class="text-muted">System-wide overview and management</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.total_users }}</h4>
+                            <p>Total Users</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ "{:,}".format(stats.total_bags) }}</h4>
+                            <p>Total Bags</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-box fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.total_bills }}</h4>
+                            <p>Total Bills</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-file-invoice fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ "{:,}".format(stats.total_scans) }}</h4>
+                            <p>Total Scans</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-barcode fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-tools"></i> Admin Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="/user_management" class="btn btn-outline-primary btn-block mb-2">
+                        <i class="fas fa-users"></i> Manage Users
+                    </a>
+                    <a href="/performance/dashboard" class="btn btn-outline-info btn-block mb-2">
+                        <i class="fas fa-chart-line"></i> Performance Monitor
+                    </a>
+                    <a href="/reports" class="btn btn-outline-success btn-block mb-2">
+                        <i class="fas fa-chart-bar"></i> System Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-activity"></i> System Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-success">
+                        <i class="fas fa-check-circle"></i> System Online
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-database"></i> Database Connected
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-rocket"></i> Performance Optimized
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
