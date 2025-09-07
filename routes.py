@@ -4533,7 +4533,6 @@ def ultra_fast_bill_parent_scan():
         bill_bag = BillBag()
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
-        bill_bag.status = 'linked'
         
         # Update bill totals
         bill.total_weight_kg = (bill.total_weight_kg or 0.0) + parent_bag.weight_kg
