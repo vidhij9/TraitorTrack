@@ -1,0 +1,300 @@
+{
+  "timestamp": "2025-09-07T07:51:09.400930",
+  "duration": 2.2762691974639893,
+  "summary": {
+    "total_tests": 33,
+    "passed": 32,
+    "failed": 1,
+    "success_rate": 96.96969696969697
+  },
+  "feature_results": {
+    "connectivity": {
+      "passed": 1,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "homepage_access",
+          "passed": true,
+          "message": "Status: 200",
+          "response_time": 16.69001579284668,
+          "timestamp": "2025-09-07T07:51:07.134801"
+        }
+      ]
+    },
+    "authentication": {
+      "passed": 6,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "login_page_access",
+          "passed": true,
+          "message": "Login page loaded",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:07.195936"
+        },
+        {
+          "name": "administrator_login",
+          "passed": true,
+          "message": "Successful login and dashboard access",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:07.495671"
+        },
+        {
+          "name": "biller_login",
+          "passed": true,
+          "message": "Successful login and dashboard access",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:07.646199"
+        },
+        {
+          "name": "dispatcher_login",
+          "passed": true,
+          "message": "Successful login and dashboard access",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:07.777927"
+        },
+        {
+          "name": "invalid_login_rejection",
+          "passed": true,
+          "message": "Invalid login properly rejected",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:07.896086"
+        },
+        {
+          "name": "logout",
+          "passed": true,
+          "message": "Logout successful",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:07.910386"
+        }
+      ]
+    },
+    "scanning": {
+      "passed": 8,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "parent_scan_page",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 31.909704208374023,
+          "timestamp": "2025-09-07T07:51:07.943881"
+        },
+        {
+          "name": "child_scan_page",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 13.157844543457031,
+          "timestamp": "2025-09-07T07:51:07.957242"
+        },
+        {
+          "name": "batch_scan_page",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 14.733076095581055,
+          "timestamp": "2025-09-07T07:51:07.972217"
+        },
+        {
+          "name": "ultra_parent_scan",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:08.079292"
+        },
+        {
+          "name": "ultra_child_scan",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:08.189251"
+        },
+        {
+          "name": "ultra_batch_scan",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:08.303044"
+        },
+        {
+          "name": "ultra_lookup",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:08.441976"
+        },
+        {
+          "name": "ultra_stats",
+          "passed": true,
+          "message": "Stats endpoint working",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:08.550635"
+        }
+      ]
+    },
+    "bills": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "bill_list_page",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 14.739274978637695,
+          "timestamp": "2025-09-07T07:51:08.566259"
+        },
+        {
+          "name": "create_bill_page",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 16.617298126220703,
+          "timestamp": "2025-09-07T07:51:08.585830"
+        },
+        {
+          "name": "bill_generation_endpoint",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:08.602851"
+        }
+      ]
+    },
+    "excel": {
+      "passed": 1,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "upload_page",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 30.82561492919922,
+          "timestamp": "2025-09-07T07:51:08.635460"
+        },
+        {
+          "name": "file_upload",
+          "passed": false,
+          "message": "Upload failed: 400",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:08.763993"
+        }
+      ]
+    },
+    "dashboard": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "main_dashboard",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 17.717599868774414,
+          "timestamp": "2025-09-07T07:51:08.783550"
+        },
+        {
+          "name": "admin_dashboard",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 12.360334396362305,
+          "timestamp": "2025-09-07T07:51:08.796560"
+        },
+        {
+          "name": "reports_page",
+          "passed": true,
+          "message": "Page loaded successfully",
+          "response_time": 10.345458984375,
+          "timestamp": "2025-09-07T07:51:08.807415"
+        },
+        {
+          "name": "statistics_api",
+          "passed": true,
+          "message": "Statistics endpoint working",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:08.997114"
+        }
+      ]
+    },
+    "performance": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "dashboard",
+          "passed": true,
+          "message": "Performance dashboard accessible",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.009996"
+        },
+        {
+          "name": "health_check",
+          "passed": true,
+          "message": "Health check working",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.020806"
+        },
+        {
+          "name": "database_health",
+          "passed": true,
+          "message": "Database health check working",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.036315"
+        }
+      ]
+    },
+    "api": {
+      "passed": 5,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "bags_api",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.056107"
+        },
+        {
+          "name": "users_api",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.068985"
+        },
+        {
+          "name": "scans_api",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.200785"
+        },
+        {
+          "name": "bills_api",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.213691"
+        },
+        {
+          "name": "statistics_api",
+          "passed": true,
+          "message": "Endpoint accessible: 200",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.368789"
+        }
+      ]
+    },
+    "database": {
+      "passed": 1,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "health_check",
+          "passed": true,
+          "message": "Database is healthy",
+          "response_time": null,
+          "timestamp": "2025-09-07T07:51:09.393866"
+        }
+      ]
+    }
+  },
+  "errors": [
+    "excel/file_upload: Upload failed: 400"
+  ]
+}
