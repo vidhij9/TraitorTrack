@@ -6268,12 +6268,39 @@ def reports_page():
         return redirect(url_for('dashboard'))
 
 @app.route('/api/statistics')
-@cached_route
 def statistics_api():
-    """Statistics API endpoint - redirect to existing stats"""
-    return redirect(url_for('api_stats'))
+    """Statistics API endpoint - direct implementation"""
+    try:
+        # Get basic statistics
+        total_bags = db.session.query(Bag).count()
+        total_scans = db.session.query(Scan).count() 
+        total_bills = db.session.query(Bill).count()
+        total_users = db.session.query(User).count()
+        
+        stats = {
+            'total_bags': total_bags,
+            'total_scans': total_scans,
+            'total_bills': total_bills,
+            'total_users': total_users,
+            'status': 'active'
+        }
+        
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({'error': str(e), 'status': 'error'}), 500
 
 @app.route('/db/health')
 def db_health():
     """Database health check - redirect to existing endpoint"""
-    return redirect(url_for('db_health_check'))
+    return redirect(url_for('health_check'))
+
+@app.route('/upload', methods=['GET', 'POST'])
+@login_required
+def upload():
+    """Excel upload page - redirect to existing excel_upload"""
+    if request.method == 'POST':
+        # Forward POST request to excel_upload with same data
+        return redirect(url_for('excel_upload'))
+    else:
+        # GET request - redirect to excel_upload page
+        return redirect(url_for('excel_upload'))
