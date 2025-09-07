@@ -123,7 +123,7 @@ def validate_qr_code(qr_id):
 from sqlalchemy import desc, func, and_, or_, text
 from datetime import datetime, timedelta
 
-from app_clean import app, db, limiter, csrf
+from app_clean import app, db, limiter, csrf, csrf_compat
 from forms import LoginForm, RegistrationForm, ChildLookupForm, ManualScanForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 # from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 # Define simple validation functions
@@ -235,19 +235,19 @@ def log_audit(action, entity_type, entity_id=None, details=None):
 
 # Health check endpoint for load balancers
 @app.route('/test_manual_entry')
-@csrf.exempt
+@csrf_compat.exempt
 def test_manual_entry_page():
     """Test page for manual parent entry"""
     return render_template('test_manual_entry_ui.html')
 
 @app.route('/manual_entry_info')
-@csrf.exempt
+@csrf_compat.exempt
 def manual_entry_info_page():
     """Information page about manual parent entry"""
     return render_template('manual_entry_info.html')
 
 @app.route('/health')
-@csrf.exempt
+@csrf_compat.exempt
 def system_health_check():
     """Health check endpoint for production monitoring"""
     try:
@@ -1487,7 +1487,7 @@ def dashboard():
     return render_template('dashboard.html')
 
 @app.route('/login', methods=['GET', 'POST'])
-@csrf.exempt  # Temporarily exempt login from CSRF for high-concurrency testing
+@csrf_compat.exempt  # Temporarily exempt login from CSRF for high-concurrency testing
 def login():
     """User login endpoint with improved error handling"""
     if is_logged_in() and request.method == 'GET':
@@ -1743,7 +1743,7 @@ def fix_admin_password():
     return "Admin user not found"
 
 @app.route('/register', methods=['GET', 'POST'])
-@csrf.exempt  # Temporarily exempt registration from CSRF for production access
+@csrf_compat.exempt  # Temporarily exempt registration from CSRF for production access
 @limiter.limit("50 per minute")  # Further increased for development testing
 def register():
     """User registration page with form validation"""
@@ -2104,7 +2104,7 @@ def api_fast_parent_scan():
 
 
 @app.route('/process_parent_scan', methods=['GET', 'POST'])
-@csrf.exempt
+@csrf_compat.exempt
 def process_parent_scan():
     """Process parent bag scan - Optimized for high concurrency"""
     # Manual authentication check that works
@@ -2223,7 +2223,7 @@ def process_parent_scan():
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan', methods=['GET', 'POST'])
-@csrf.exempt
+@csrf_compat.exempt
 def process_child_scan():
     """Optimized child bag processing for high concurrency"""
     # Manual authentication check
@@ -2509,7 +2509,7 @@ def ajax_scan_parent_bag():
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan_fast', methods=['POST'])
-@csrf.exempt
+@csrf_compat.exempt
 @login_required
 @limiter.exempt  # Exempt from rate limiting for fast scanning
 def process_child_scan_fast():
@@ -2631,7 +2631,7 @@ def process_child_scan_fast():
         return jsonify({'success': False, 'message': 'Error processing scan'})
 
 @app.route('/complete_parent_scan', methods=['POST'])
-@csrf.exempt
+@csrf_compat.exempt
 @login_required
 def complete_parent_scan():
     """Complete parent bag scanning and mark as completed if 30 children"""
@@ -3940,7 +3940,7 @@ def bill_management():
             return redirect(url_for('index'))
 
 @app.route('/bill/create', methods=['GET', 'POST'])
-@csrf.exempt
+@csrf_compat.exempt
 @login_required
 def create_bill():
     """Create a new bill - admin and employee access"""
@@ -4208,7 +4208,7 @@ def edit_bill(bill_id):
     return render_template('edit_bill.html', bill=bill)
 
 @app.route('/remove_bag_from_bill', methods=['POST'])
-@csrf.exempt
+@csrf_compat.exempt
 @login_required
 def remove_bag_from_bill():
     """Remove a parent bag from a bill - admin and employee access"""
@@ -4317,7 +4317,7 @@ def scan_bill_parent(bill_id):
 # Removed redundant save_bill function - bills are automatically saved when parent bags are linked
 
 @app.route('/complete_bill', methods=['POST'])
-@csrf.exempt
+@csrf_compat.exempt
 @login_required
 def complete_bill():
     """Complete a bill - must meet capacity requirements - admin and biller access"""
@@ -4368,7 +4368,7 @@ def complete_bill():
         return jsonify({'success': False, 'message': 'Error completing bill.'})
 
 @app.route('/reopen_bill', methods=['POST'])
-@csrf.exempt
+@csrf_compat.exempt
 @login_required
 def reopen_bill():
     """Reopen a completed bill for editing - admin and biller access"""
@@ -4406,7 +4406,7 @@ def reopen_bill():
         return jsonify({'success': False, 'message': 'Error reopening bill.'})
 
 @app.route('/fast/bill_parent_scan', methods=['POST'])
-@csrf.exempt
+@csrf_compat.exempt
 def ultra_fast_bill_parent_scan():
     """Ultra-fast bill parent bag scanning with optimized performance"""
     # Try to use optimized version if available
@@ -4612,7 +4612,7 @@ def ultra_fast_bill_parent_scan():
         })
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
-@csrf.exempt
+@csrf_compat.exempt
 @login_required
 def process_bill_parent_scan():
     """Process a parent bag scan for bill linking - admin and biller access (works for completed bills too)"""
@@ -5340,7 +5340,7 @@ def api_delete_child_scan():
         }), 500
 
 @app.route('/api/delete_bag', methods=['POST'])
-@csrf.exempt
+@csrf_compat.exempt
 @login_required
 def api_delete_bag():
     """Delete a bag and handle parent/child relationships - optimized for performance"""
@@ -5635,7 +5635,7 @@ def api_get_parent_children(parent_qr):
 
 # Bill Summary and Manual Entry Routes
 @app.route('/bill/manual_parent_entry', methods=['GET', 'POST'])
-@csrf.exempt  # Exempt from CSRF for AJAX requests
+@csrf_compat.exempt  # Exempt from CSRF for AJAX requests
 @login_required
 def manual_parent_entry():
     """Manually enter a parent bag QR code to link to a bill"""
@@ -6029,7 +6029,7 @@ def eod_summary_preview():
         return redirect(url_for('bill_summary'))
 
 @app.route('/api/bill_summary/schedule_eod', methods=['POST'])
-@csrf.exempt  # Exempt from CSRF for scheduled tasks
+@csrf_compat.exempt  # Exempt from CSRF for scheduled tasks
 def schedule_eod_summary():
     """Endpoint for cron job to trigger EOD summary sending"""
     # This can be called by a cron job without authentication
@@ -6136,7 +6136,7 @@ def child_lookup_page():
 
 @app.route('/excel_upload', methods=['GET', 'POST'])
 @login_required
-@csrf.exempt
+@csrf_compat.exempt
 def excel_upload():
     """Excel file upload for bulk bag linking - ADMIN ONLY"""
     # Check if user is admin
@@ -6327,7 +6327,7 @@ def db_health():
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
-@csrf.exempt  # Exempt from CSRF for file upload functionality
+@csrf_compat.exempt  # Exempt from CSRF for file upload functionality
 def upload():
     """Excel upload page - redirect to existing excel_upload"""
     if request.method == 'POST':
