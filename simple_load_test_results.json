@@ -1,0 +1,62 @@
+{
+  "timestamp": "2025-09-07T07:07:07.725302",
+  "num_users": 50,
+  "duration": 4.835791349411011,
+  "total_requests": 500,
+  "success_rate": 100.0,
+  "p50": 323.5814571380615,
+  "p90": 540.7321453094482,
+  "p95": 589.4620418548584,
+  "endpoint_stats": {
+    "/health": {
+      "count": 50,
+      "total_time": 5480.236053466797,
+      "errors": 0
+    },
+    "/": {
+      "count": 50,
+      "total_time": 7019.737005233765,
+      "errors": 0
+    },
+    "/login": {
+      "count": 50,
+      "total_time": 7161.566734313965,
+      "errors": 0
+    },
+    "/dashboard": {
+      "count": 50,
+      "total_time": 22462.432384490967,
+      "errors": 0
+    },
+    "/bags": {
+      "count": 50,
+      "total_time": 20782.42015838623,
+      "errors": 0
+    },
+    "/bills": {
+      "count": 50,
+      "total_time": 19279.081106185913,
+      "errors": 0
+    },
+    "/api/dashboard/analytics": {
+      "count": 50,
+      "total_time": 18277.39429473877,
+      "errors": 0
+    },
+    "/api/bags": {
+      "count": 50,
+      "total_time": 24300.520420074463,
+      "errors": 0
+    },
+    "/api/bills": {
+      "count": 50,
+      "total_time": 17813.688039779663,
+      "errors": 0
+    },
+    "/lookup": {
+      "count": 50,
+      "total_time": 13885.103464126587,
+      "errors": 0
+    }
+  }
+}
