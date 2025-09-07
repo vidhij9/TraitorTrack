@@ -1057,7 +1057,7 @@ def delete_user(user_id):
         
         # Log failed deletion
         log_audit('delete_user_failed', 'user', user_id, {
-            'username': username if 'username' in locals() else 'Unknown',
+            'username': username if username else 'Unknown',
             'error': error_msg,
             'deleted_by': current_user.username
         })
@@ -1345,11 +1345,8 @@ def create_user():
         
         # Invalidate cache after creating new user
         try:
-            try:
-                from optimized_cache import invalidate_cache
-            except ImportError:
-                def invalidate_cache(*args, **kwargs):
-                    pass
+            # Skip cache invalidation - not critical for user creation
+            pass
             invalidate_cache()
         except:
             pass  # Don't fail on cache errors
@@ -2519,11 +2516,8 @@ def process_child_scan_fast():
     """Ultra-fast child bag processing with CSRF exemption for JSON requests"""
     # Import optimized handler
     try:
-        try:
-            from performance_fix import optimized_child_scan_handler
-        except ImportError:
-            def optimized_child_scan_handler(*args, **kwargs):
-                return None
+        # Skip optimized handler - use standard processing
+        optimized_child_scan_handler = None
     except ImportError:
         # Fallback to original implementation if optimization not available
         pass
