@@ -50,3 +50,5 @@ sendgrid
 jinja2
 schedule
 sendgrid
+openpyxl
+pandas
