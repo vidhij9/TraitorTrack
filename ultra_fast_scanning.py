@@ -5,7 +5,7 @@ Achieves <50ms response times for 800,000+ bags with 100+ concurrent users
 
 from flask import Blueprint, request, jsonify
 from sqlalchemy import text
-from app_clean import db, limiter
+from app_clean import db, limiter, csrf
 import time
 import json
 import hashlib
@@ -93,6 +93,7 @@ def ultra_cache(ttl=30):
     return decorator
 
 @ultra_scan_bp.route('/ultra/scan/parent', methods=['POST'])
+@csrf.exempt
 @limiter.limit("1000 per minute")
 def ultra_fast_parent_scan():
     """
@@ -173,6 +174,7 @@ def ultra_fast_parent_scan():
         }), 500
 
 @ultra_scan_bp.route('/ultra/scan/child', methods=['POST'])
+@csrf.exempt
 @limiter.limit("1000 per minute")
 def ultra_fast_child_scan():
     """
@@ -248,6 +250,7 @@ def ultra_fast_child_scan():
         }), 500
 
 @ultra_scan_bp.route('/ultra/batch/scan', methods=['POST'])
+@csrf.exempt
 @limiter.limit("100 per minute")
 def ultra_fast_batch_scan():
     """
