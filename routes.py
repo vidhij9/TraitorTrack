@@ -1659,7 +1659,7 @@ def link_to_bill(qr_id):
             # Link parent bag to bill
             existing_link = BillBag.query.filter_by(
                 bill_id=bill.id, 
-                parent_bag_id=parent_bag.id
+                bag_id=parent_bag.id
             ).first()
             
             if not existing_link:
