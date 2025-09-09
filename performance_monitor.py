@@ -32,7 +32,8 @@ class PerformanceMonitor:
         self.requests_count = 0
         self.last_rps_calc = time.time()
         
-        # Error tracking
+        # Error tracking - FIXED: Use deque for windowed error tracking
+        self.error_statuses = deque(maxlen=window_size)  # Track actual status codes
         self.error_count = 0
         self.error_rate = 0.0
         self.errors_by_type = defaultdict(int)
@@ -73,22 +74,16 @@ class PerformanceMonitor:
         self.monitor_thread.start()
     
     def record_request(self, endpoint: str, response_time_ms: float, status_code: int):
-        """Record a request completion"""
+        """Record a request completion - FIXED: Proper windowed error tracking"""
         self.requests_count += 1
         self.response_times.append(response_time_ms)
         self.endpoint_times[endpoint].append(response_time_ms)
         
-        # Track errors - exclude authentication errors (401, 403) from critical error rate
-        # These are user/client issues, not system failures
-        if status_code >= 500:  # Only count server errors (5xx) as critical
-            self.error_count += 1
-            self.errors_by_type[status_code] += 1
-        elif status_code in [401, 403]:
-            # Track auth errors separately but don't count as critical system errors
-            self.errors_by_type[status_code] += 1
-        elif status_code >= 400:
-            # Other client errors (4xx except auth) - count as errors but less critical
-            self.error_count += 1
+        # FIXED: Track status codes in windowed deque for accurate error rate calculation
+        self.error_statuses.append(status_code)
+        
+        # Track errors by type for debugging (but don't use for error rate calculation)
+        if status_code >= 400:
             self.errors_by_type[status_code] += 1
         
         # Check for slow requests
@@ -140,19 +135,16 @@ class PerformanceMonitor:
                     self.requests_count = 0
                     self.last_rps_calc = current_time
                 
-                # Calculate error rate properly - reset accumulated errors
-                total_requests = len(self.response_times)
+                # FIXED: Calculate error rate from windowed status codes only
+                total_requests = len(self.error_statuses)
                 if total_requests > 0:
-                    # Reset error counts if they've accumulated beyond the window size
-                    if self.error_count > total_requests:
-                        self.error_count = min(self.error_count, total_requests // 2)
-                    
-                    self.error_rate = (self.error_count / total_requests) * 100
-                    
-                    # Reset counters every 1000 requests to prevent accumulation
-                    if self.requests_count > 1000:
-                        self.error_count = 0  # Fresh start after window reset
-                        self.requests_count = 0
+                    # Count only server errors (5xx) in current window
+                    server_errors = sum(1 for status in self.error_statuses if status >= 500)
+                    self.error_rate = (server_errors / total_requests) * 100
+                    self.error_count = server_errors  # Update for consistency
+                else:
+                    self.error_rate = 0.0
+                    self.error_count = 0
                 
                 # Check thresholds and alert if needed
                 self._check_thresholds()
