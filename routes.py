@@ -6305,17 +6305,23 @@ def api_bag_stats():
     try:
         from models import Bag, Link
         
-        total_bags = Bag.query.count()
-        parent_bags = Bag.query.filter_by(type='parent').count()
-        child_bags = Bag.query.filter_by(type='child').count()
-        linked_children = Link.query.count()
+        # Use optimized queries for performance
+        result = db.session.execute(text("""
+            SELECT 
+                COUNT(*) as total_bags,
+                COUNT(CASE WHEN type = 'parent' THEN 1 END) as parent_bags,
+                COUNT(CASE WHEN type = 'child' THEN 1 END) as child_bags
+            FROM bag
+        """)).fetchone()
+        
+        linked_children = db.session.execute(text("SELECT COUNT(*) FROM link")).scalar()
         
         return jsonify({
-            'total_bags': total_bags,
-            'parent_bags': parent_bags,
-            'child_bags': child_bags,
-            'linked_children': linked_children,
-            'unlinked_children': child_bags - linked_children
+            'total_bags': result.total_bags or 0,
+            'parent_bags': result.parent_bags or 0,
+            'child_bags': result.child_bags or 0,
+            'linked_children': linked_children or 0,
+            'unlinked_children': (result.child_bags or 0) - (linked_children or 0)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -6346,8 +6352,18 @@ def api_recent_activity():
 def api_performance_stats():
     """API endpoint for performance statistics"""
     try:
-        # Get performance monitor instance
-        monitor = getattr(app, 'performance_monitor', None)
+        # Get performance monitor instance - import from production modules
+        monitor = None
+        try:
+            from production_optimizer import performance_monitor
+            monitor = performance_monitor
+        except ImportError:
+            try:
+                from production_ready_optimizer import performance_monitor as prod_monitor
+                monitor = prod_monitor
+            except ImportError:
+                monitor = getattr(app, 'performance_monitor', None)
+        
         if monitor:
             metrics = monitor.get_metrics()
             return jsonify({
