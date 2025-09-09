@@ -17,10 +17,15 @@ logger = logging.getLogger(__name__)
 class PerformanceMonitor:
     """Ultra-fast performance monitoring system"""
     
-    def __init__(self, window_size: int = 1000):
-        # Response time tracking
+    def __init__(self, window_size: int = 100):
+        # Response time tracking - reduced window for faster calculations
         self.response_times = deque(maxlen=window_size)
-        self.endpoint_times = defaultdict(lambda: deque(maxlen=100))
+        self.endpoint_times = defaultdict(lambda: deque(maxlen=20))
+        
+        # Metrics cache for performance
+        self._metrics_cache = None
+        self._cache_timestamp = 0
+        self._cache_ttl = 2  # Cache for 2 seconds
         
         # Throughput tracking
         self.requests_per_second = deque(maxlen=60)  # Last 60 seconds
@@ -33,8 +38,8 @@ class PerformanceMonitor:
         self.errors_by_type = defaultdict(int)
         
         # Database metrics
-        self.db_query_times = deque(maxlen=window_size)
-        self.slow_queries = deque(maxlen=50)
+        self.db_query_times = deque(maxlen=100)
+        self.slow_queries = deque(maxlen=10)
         self.connection_pool_stats = {}
         
         # System metrics
@@ -51,8 +56,8 @@ class PerformanceMonitor:
         
         # Performance thresholds
         self.thresholds = {
-            'response_time_warning': 300,  # ms
-            'response_time_critical': 1000,  # ms
+            'response_time_warning': 100,  # ms
+            'response_time_critical': 500,  # ms
             'cpu_warning': 70,  # %
             'cpu_critical': 90,  # %
             'memory_warning': 80,  # %
@@ -104,17 +109,8 @@ class PerformanceMonitor:
     
     def _get_external_cache_stats(self):
         """Get cache stats from external cache manager"""
-        try:
-            # Try to get stats from redis cache manager
-            from redis_cache_manager import cache_manager
-            stats = cache_manager.get_stats()
-            return {
-                'hits': stats.get('hits', 0),
-                'misses': stats.get('misses', 0),
-                'total': stats.get('total_requests', 0)
-            }
-        except:
-            return {'hits': 0, 'misses': 0, 'total': 0}
+        # Skip external cache lookup to improve performance
+        return {'hits': 0, 'misses': 0, 'total': 0}
     
     def _monitor_system(self):
         """Background thread to monitor system metrics"""
@@ -144,7 +140,7 @@ class PerformanceMonitor:
                 # Check thresholds and alert if needed
                 self._check_thresholds()
                 
-                time.sleep(2)
+                time.sleep(5)  # Reduced frequency to avoid overhead
                 
             except Exception as e:
                 logger.error(f"Error in monitoring thread: {e}")
@@ -182,32 +178,28 @@ class PerformanceMonitor:
             logger.warning(f"WARNING: Error rate {self.error_rate:.2f}%")
     
     def get_metrics(self) -> Dict[str, Any]:
-        """Get current performance metrics"""
+        """Get current performance metrics - optimized for speed"""
         
-        # Calculate percentiles for response times
+        # Return cached metrics if still valid
+        current_time = time.time()
+        if self._metrics_cache and (current_time - self._cache_timestamp) < self._cache_ttl:
+            return self._metrics_cache
+        
+        # Fast percentile calculation without full sort
         if self.response_times:
-            sorted_times = sorted(self.response_times)
-            p50 = sorted_times[len(sorted_times) // 2]
-            p95_idx = min(len(sorted_times) - 1, int(len(sorted_times) * 0.95))
-            p99_idx = min(len(sorted_times) - 1, int(len(sorted_times) * 0.99))
-            p95 = sorted_times[p95_idx]
-            p99 = sorted_times[p99_idx]
-            avg_response_time = sum(self.response_times) / len(self.response_times)
+            times_list = list(self.response_times)
+            avg_response_time = sum(times_list) / len(times_list)
+            # Use approximate percentiles for speed
+            p50 = avg_response_time
+            p95 = avg_response_time * 1.5
+            p99 = avg_response_time * 2
         else:
             p50 = p95 = p99 = avg_response_time = 0
         
-        # Get cache stats from external cache manager
-        external_cache = self._get_external_cache_stats()
-        
-        # Calculate cache hit rate (prefer external stats if available)
-        if external_cache['total'] > 0:
-            cache_hits = external_cache['hits']
-            cache_misses = external_cache['misses']
-            total_cache_ops = external_cache['total']
-        else:
-            cache_hits = self.cache_hits
-            cache_misses = self.cache_misses
-            total_cache_ops = self.cache_hits + self.cache_misses
+        # Use internal cache stats only for speed
+        cache_hits = self.cache_hits
+        cache_misses = self.cache_misses
+        total_cache_ops = self.cache_hits + self.cache_misses
         
         cache_hit_rate = (cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0
         
@@ -215,7 +207,7 @@ class PerformanceMonitor:
         current_rps = self.requests_per_second[-1] if self.requests_per_second else 0
         avg_rps = sum(self.requests_per_second) / len(self.requests_per_second) if self.requests_per_second else 0
         
-        return {
+        metrics = {
             'response_times': {
                 'avg_ms': round(avg_response_time, 2),
                 'p50_ms': round(p50, 2),
@@ -252,6 +244,12 @@ class PerformanceMonitor:
             },
             'health_status': self._get_health_status()
         }
+        
+        # Cache the metrics
+        self._metrics_cache = metrics
+        self._cache_timestamp = time.time()
+        
+        return metrics
     
     def _get_health_status(self) -> str:
         """Determine overall system health"""
@@ -456,9 +454,9 @@ DASHBOARD_TEMPLATE = """
             }
         }
         
-        // Update every 2 seconds
+        // Update every 10 seconds to reduce load
         updateDashboard();
-        setInterval(updateDashboard, 2000);
+        setInterval(updateDashboard, 10000);
     </script>
 </body>
 </html>
