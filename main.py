@@ -29,6 +29,8 @@ try:
         performance_monitor
     )
     app = apply_production_fixes(app)
+    # Store performance monitor reference in app for API access
+    app.performance_monitor = performance_monitor
     logging.info("Production optimizations applied successfully")
 except ImportError as e:
     logging.warning(f"Production optimizer not loaded: {e}")
