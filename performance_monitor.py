@@ -140,16 +140,19 @@ class PerformanceMonitor:
                     self.requests_count = 0
                     self.last_rps_calc = current_time
                 
-                # Calculate error rate properly - reset error_count to match window
+                # Calculate error rate properly - reset accumulated errors
                 total_requests = len(self.response_times)
                 if total_requests > 0:
-                    # Only count errors in the current window to avoid inflated rates
-                    window_errors = sum(1 for t in self.response_times if hasattr(t, 'error') and t.error)
-                    self.error_rate = min((self.error_count / max(self.requests_count, total_requests)) * 100, 100.0)
-                    # Reset error_count periodically to prevent accumulation
+                    # Reset error counts if they've accumulated beyond the window size
+                    if self.error_count > total_requests:
+                        self.error_count = min(self.error_count, total_requests // 2)
+                    
+                    self.error_rate = (self.error_count / total_requests) * 100
+                    
+                    # Reset counters every 1000 requests to prevent accumulation
                     if self.requests_count > 1000:
-                        self.error_count = self.error_count // 2
-                        self.requests_count = self.requests_count // 2
+                        self.error_count = 0  # Fresh start after window reset
+                        self.requests_count = 0
                 
                 # Check thresholds and alert if needed
                 self._check_thresholds()
