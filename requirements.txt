@@ -52,3 +52,5 @@ schedule
 sendgrid
 openpyxl
 pandas
+locust
+requests-futures
