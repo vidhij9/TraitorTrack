@@ -6104,6 +6104,7 @@ def api_users_endpoint():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/health')
+@app.route('/api/system_health')  # Alias for compatibility
 def api_health_check():
     """Public API health check"""
     return jsonify({
@@ -6297,6 +6298,81 @@ def reports_page():
     except Exception as e:
         flash(f'Error loading reports: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
+
+@app.route('/api/bag_stats')
+def api_bag_stats():
+    """API endpoint for bag statistics"""
+    try:
+        from models import Bag, Link
+        
+        total_bags = Bag.query.count()
+        parent_bags = Bag.query.filter_by(type='parent').count()
+        child_bags = Bag.query.filter_by(type='child').count()
+        linked_children = Link.query.count()
+        
+        return jsonify({
+            'total_bags': total_bags,
+            'parent_bags': parent_bags,
+            'child_bags': child_bags,
+            'linked_children': linked_children,
+            'unlinked_children': child_bags - linked_children
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/recent_activity')
+def api_recent_activity():
+    """API endpoint for recent activity"""
+    try:
+        from models import Scan
+        
+        recent_scans = Scan.query.order_by(Scan.timestamp.desc()).limit(10).all()
+        activity = []
+        
+        for scan in recent_scans:
+            activity.append({
+                'id': scan.id,
+                'bag_qr': scan.bag_qr,
+                'user': scan.user.username if scan.user else 'Unknown',
+                'timestamp': scan.timestamp.isoformat() if scan.timestamp else None,
+                'type': 'scan'
+            })
+        
+        return jsonify({'recent_activity': activity})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/performance/stats')
+def api_performance_stats():
+    """API endpoint for performance statistics"""
+    try:
+        # Get performance monitor instance
+        monitor = getattr(app, 'performance_monitor', None)
+        if monitor:
+            metrics = monitor.get_metrics()
+            return jsonify({
+                'average_response_time': metrics.get('avg_response_time', 0),
+                'requests_per_second': metrics.get('rps', 0),
+                'error_rate': metrics.get('error_rate', 0),
+                'cpu_usage': metrics.get('cpu_usage', 0),
+                'memory_usage': metrics.get('memory_usage', 0),
+                'active_connections': metrics.get('active_connections', 0)
+            })
+        else:
+            return jsonify({'error': 'Performance monitor not available'}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bag_count')
+def api_bag_count():
+    """API endpoint for bag count"""
+    try:
+        from models import Bag
+        
+        count = Bag.query.count()
+        return jsonify({'bag_count': count})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/statistics')
 def statistics_api():
