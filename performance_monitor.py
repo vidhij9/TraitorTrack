@@ -78,8 +78,16 @@ class PerformanceMonitor:
         self.response_times.append(response_time_ms)
         self.endpoint_times[endpoint].append(response_time_ms)
         
-        # Track errors
-        if status_code >= 400:
+        # Track errors - exclude authentication errors (401, 403) from critical error rate
+        # These are user/client issues, not system failures
+        if status_code >= 500:  # Only count server errors (5xx) as critical
+            self.error_count += 1
+            self.errors_by_type[status_code] += 1
+        elif status_code in [401, 403]:
+            # Track auth errors separately but don't count as critical system errors
+            self.errors_by_type[status_code] += 1
+        elif status_code >= 400:
+            # Other client errors (4xx except auth) - count as errors but less critical
             self.error_count += 1
             self.errors_by_type[status_code] += 1
         
