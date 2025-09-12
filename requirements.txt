@@ -54,3 +54,6 @@ openpyxl
 pandas
 locust
 requests-futures
+aiohttp
+psycopg2-binary
+redis
