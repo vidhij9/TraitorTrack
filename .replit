@@ -3,7 +3,7 @@ run = "python main.py"
 
 [nix]
 channel = "stable-25_05"
-packages = ["cargo", "cyrus_sasl", "freetype", "glibcLocales", "libev", "libiconv", "libmemcached", "librsvg", "libxcrypt", "memcached", "nodejs", "openssl", "postgresql", "redis", "rustc", "zlib", "awscli2", "docker"]
+packages = ["cargo", "cyrus_sasl", "freetype", "glibcLocales", "libev", "libiconv", "libmemcached", "librsvg", "libxcrypt", "memcached", "nodejs", "openssl", "postgresql", "redis", "rustc", "zlib", "awscli2", "docker", "jq"]
 
 [deployment]
 deploymentTarget = "autoscale"
