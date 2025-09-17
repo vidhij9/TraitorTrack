@@ -85,7 +85,9 @@ def scan():
         # Find or create bag
         bag = Bag.query.filter_by(qr_code=qr_code).first()
         if not bag:
-            bag = Bag(qr_code=qr_code, customer_name='New Customer')
+            bag = Bag()
+            bag.qr_code = qr_code
+            bag.customer_name = 'New Customer'
             db.session.add(bag)
             db.session.commit()
             flash(f'New bag created: {qr_code}')
@@ -94,12 +96,11 @@ def scan():
         
         # Log the scan
         response_time = int((time.time() - start_time) * 1000)
-        scan_log = ScanLog(
-            bag_id=bag.id,
-            user_id=current_user.id,
-            action='scan',
-            response_time_ms=response_time
-        )
+        scan_log = ScanLog()
+        scan_log.bag_id = bag.id
+        scan_log.user_id = current_user.id
+        scan_log.action = 'scan'
+        scan_log.response_time_ms = response_time
         db.session.add(scan_log)
         db.session.commit()
         
@@ -153,7 +154,10 @@ def create_admin():
     try:
         admin = User.query.filter_by(username='admin').first()
         if not admin:
-            admin = User(username='admin', email='admin@tracetrack.com', role='admin')
+            admin = User()
+            admin.username = 'admin'
+            admin.email = 'admin@tracetrack.com'
+            admin.role = 'admin'
             admin.set_password('admin')
             db.session.add(admin)
             db.session.commit()
