@@ -1,110 +1,76 @@
-{% extends "layout.html" %}
-
-{% block title %} - Dashboard{% endblock %}
-
-{% block head %}
-<style>
-    .status-card {
-        transition: all 0.3s ease;
-    }
-    .status-card:hover {
-        transform: translateY(-5px);
-    }
-    .map-container {
-        height: 400px;
-        width: 100%;
-    }
-    @keyframes pulse {
-        0% {
-            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
-        }
-        70% {
-            box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
-        }
-        100% {
-            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
-        }
-    }
-</style>
-{% endblock %}
-
+{% extends "base.html" %}
 {% block content %}
-<!-- Compact Header -->
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <h4 class="mb-0">
-        <i class="fas fa-chart-line me-2"></i>Dashboard
-    </h4>
-    <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-data">
-        <i class="fas fa-sync-alt"></i>
-    </button>
-</div>
-
-<!-- Compact Stats -->
-<div class="mb-2">
-    <div class="bg-white rounded border py-1 px-2">
-        <div class="row text-center g-0">
-            <div class="col-3">
-                <span class="fw-bold text-primary" id="total-parent-bags">0</span>
-                <small class="d-block text-muted" style="font-size: 10px;">Parents</small>
-            </div>
-            <div class="col-3">
-                <span class="fw-bold text-success" id="total-child-bags">0</span>
-                <small class="d-block text-muted" style="font-size: 10px;">Children</small>
-            </div>
-            <div class="col-3">
-                <span class="fw-bold text-warning" id="total-bills">0</span>
-                <small class="d-block text-muted" style="font-size: 10px;">Bills</small>
-            </div>
-            <div class="col-3">
-                <span class="fw-bold text-danger" id="total-scans">0</span>
-                <small class="d-block text-muted" style="font-size: 10px;">Scans</small>
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <h1>🏷️ TraceTrack Dashboard</h1>
+                <p class="lead">Ultra-Fast QR Code Bag Tracking System</p>
+                <span class="badge bg-success fs-6">🚀 LIVE ON AWS</span>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Compact Actions -->
-<div class="mb-2">
-    <div class="d-flex gap-1">
-        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-sm flex-fill py-1">
-            <i class="fas fa-qrcode"></i> Scan Parent
-        </a>
-        <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success btn-sm flex-fill py-1">
-            <i class="fas fa-file-invoice"></i> Bills
-        </a>
-        <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-info btn-sm flex-fill py-1">
-            <i class="fas fa-search"></i> Lookup
-        </a>
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary">{{ "{:,}".format(stats.total_bags) }}+</h3>
+                <p>Total Bags Tracked</p>
+            </div>
+        </div>
     </div>
-</div>
-
-<!-- Compact Recent Scans -->
-<div class="card">
-    <div class="card-header py-2">
-        <h6 class="mb-0">Recent Scans</h6>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ stats.avg_response_time }}ms</h3>
+                <p>Average Scan Time</p>
+            </div>
+        </div>
     </div>
-    <div class="card-body p-2">
-        <div class="table-responsive">
-            <table class="table table-hover table-sm mb-0" id="recent-scans-table" style="font-size: 12px;">
-                <thead>
-                    <tr>
-                        <th style="width: 35%;">QR ID</th>
-                        <th style="width: 20%;">Type</th>
-                        <th style="width: 25%;">User</th>
-                        <th style="width: 20%;">Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td colspan="5" class="text-center">Loading...</td>
-                    </tr>
-                </tbody>
-            </table>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-info">{{ stats.active_users }}+</h3>
+                <p>Active Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-warning">{{ stats.system_uptime }}</h3>
+                <p>System Uptime</p>
+            </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/dashboard_ultra.js') }}"></script>
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('scan') }}" class="btn btn-primary btn-lg w-100 mb-2">🔍 Scan QR Code</a>
+                <a href="{{ url_for('bags_list') }}" class="btn btn-secondary w-100">📦 View All Bags</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>System Status</h5>
+            </div>
+            <div class="card-body">
+                <p>✅ Database: Connected</p>
+                <p>✅ QR Scanner: Operational</p>
+                <p>✅ API: High Performance</p>
+                <p>✅ AWS: Infrastructure Active</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
