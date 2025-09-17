@@ -31,7 +31,11 @@ class Bag(db.Model):
     
     @property
     def total_weight(self):
-        return sum(child.weight for child in self.children) + self.weight
+        try:
+            children_weight = sum(child.weight for child in self.children.all())
+            return children_weight + (self.weight or 0.0)
+        except:
+            return self.weight or 0.0
 
 class ScanLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
