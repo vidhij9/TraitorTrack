@@ -34,6 +34,11 @@ Resources:
                   - ecr:CompleteLayerUpload
                   - ecr:PutImage
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource: 'arn:aws:s3:::tracetrack-source-*/*'
 
   TraceTrackBuildProject:
     Type: AWS::CodeBuild::Project
@@ -57,7 +62,7 @@ Resources:
           - Name: IMAGE_TAG
             Value: latest
       Source:
-        Type: NO_SOURCE
+        Type: S3
         BuildSpec: |
           version: 0.2
           phases:

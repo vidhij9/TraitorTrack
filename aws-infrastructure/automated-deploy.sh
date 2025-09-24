@@ -13,6 +13,12 @@ AWS_ACCOUNT_ID="605134465544"
 ECR_REPOSITORY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/tracetrack"
 STACK_PREFIX="${PROJECT_NAME}-${ENVIRONMENT}"
 
+# Source code packaging
+SOURCE_BUCKET="tracetrack-source-20250924122358-ap-south-1"
+TIMESTAMP=$(date +%Y%m%d%H%M%S)
+SOURCE_KEY="source-${TIMESTAMP}.zip"
+IMAGE_TAG="build-${TIMESTAMP}"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -77,19 +83,59 @@ deploy_stack() {
     success "Stack $stack_name deployed successfully"
 }
 
-# Function to start CodeBuild
+# Function to package and upload source code
+package_source() {
+    log "Packaging source code for deployment..."
+    
+    # Create temporary directory for packaging
+    TEMP_DIR=$(mktemp -d)
+    
+    # Copy application files (excluding unnecessary files)
+    log "Copying application files..."
+    cd ..
+    
+    # Create zip with application files, excluding large/unnecessary files
+    zip -r "$TEMP_DIR/$SOURCE_KEY" \
+        . \
+        -x "*.git*" \
+        -x "*__pycache__*" \
+        -x "*.pyc" \
+        -x "*node_modules*" \
+        -x "*venv*" \
+        -x "*env*" \
+        -x "*.log" \
+        -x "*tmp*" \
+        -x "*cache*" \
+        -x "aws-infrastructure/automated-deploy.sh.backup*"
+    
+    # Upload to S3
+    log "Uploading source code to S3: s3://$SOURCE_BUCKET/$SOURCE_KEY"
+    aws s3 cp "$TEMP_DIR/$SOURCE_KEY" "s3://$SOURCE_BUCKET/$SOURCE_KEY" --region "$AWS_REGION"
+    
+    # Clean up
+    rm -rf "$TEMP_DIR"
+    cd aws-infrastructure
+    
+    success "Source code packaged and uploaded successfully"
+}
+
+# Function to start CodeBuild with source overrides
 start_build() {
     local project_name=$1
     
-    log "Starting CodeBuild project: $project_name"
+    log "Starting CodeBuild project: $project_name with source s3://$SOURCE_BUCKET/$SOURCE_KEY"
     
     BUILD_ID=$(aws codebuild start-build \
         --project-name "$project_name" \
         --region "$AWS_REGION" \
+        --source-type-override S3 \
+        --source-location-override "$SOURCE_BUCKET/$SOURCE_KEY" \
+        --environment-variables-override name=IMAGE_TAG,value="$IMAGE_TAG" \
         --query 'build.id' \
         --output text)
     
     log "Build started with ID: $BUILD_ID"
+    log "Image will be tagged as: $IMAGE_TAG"
     log "Waiting for build to complete..."
     
     # Wait for build to complete
@@ -107,6 +153,14 @@ start_build() {
                 ;;
             "FAILED"|"FAULT"|"STOPPED"|"TIMED_OUT")
                 error "Build failed with status: $BUILD_STATUS"
+                # Get build logs for debugging
+                log "Fetching build logs..."
+                aws logs get-log-events \
+                    --log-group-name "/aws/codebuild/$project_name" \
+                    --log-stream-name "$BUILD_ID" \
+                    --region "$AWS_REGION" \
+                    --query 'events[*].message' \
+                    --output text | tail -20
                 return 1
                 ;;
             *)
@@ -147,16 +201,20 @@ deploy_stack \
     "${STACK_PREFIX}-database" \
     "ParameterKey=ProjectName,ParameterValue=$PROJECT_NAME ParameterKey=Environment,ParameterValue=$ENVIRONMENT"
 
-# Step 4: Build and Push Docker Image
-log "Step 4: Building and pushing Docker image..."
+# Step 4: Package and Upload Source Code
+log "Step 4: Packaging and uploading source code..."
+package_source
+
+# Step 5: Build and Push Docker Image
+log "Step 5: Building and pushing Docker image..."
 start_build "tracetrack-build"
 
-# Step 5: Deploy Application (ECS Service)
-log "Step 5: Deploying ECS application..."
+# Step 6: Deploy Application (ECS Service)
+log "Step 6: Deploying ECS application..."
 deploy_stack \
     "../aws-deployment/cloudformation/application.yml" \
     "${STACK_PREFIX}-application" \
-    "ParameterKey=ProjectName,ParameterValue=$PROJECT_NAME ParameterKey=Environment,ParameterValue=$ENVIRONMENT ParameterKey=ImageURI,ParameterValue=$ECR_REPOSITORY:latest"
+    "ParameterKey=ProjectName,ParameterValue=$PROJECT_NAME ParameterKey=Environment,ParameterValue=$ENVIRONMENT ParameterKey=ImageURI,ParameterValue=$ECR_REPOSITORY:$IMAGE_TAG"
 
 # Get the Load Balancer URL
 log "Getting application URL..."
