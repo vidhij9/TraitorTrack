@@ -1,0 +1,33 @@
+version: '3.8'
+
+# Development override for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: tracetrack:dev
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://tracetrack_user:tracetrack_password@db:5432/tracetrack_dev
+    command: ["gunicorn", "--reload", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "60", "main:app"]
+    ports:
+      - "5000:5000"
+
+  db:
+    environment:
+      - POSTGRES_DB=tracetrack_dev
+    ports:
+      - "5433:5432"  # Different port for dev to avoid conflicts
+
+  # Remove nginx for development
+  nginx:
+    profiles:
+      - production

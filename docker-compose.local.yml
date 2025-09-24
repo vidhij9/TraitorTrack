@@ -1,0 +1,33 @@
+version: '3.8'
+
+# Local development with build capability
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.local.yml up
+
+services:
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: tracetrack:latest
+    profiles:
+      - ""  # Always active
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://tracetrack_user:tracetrack_password@db:5432/tracetrack_db
+      - SESSION_SECRET=local-development-secret-key
+      - FLASK_ENV=development
+      - ENVIRONMENT=local
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+
+  # Remove nginx for local development
+  nginx:
+    profiles:
+      - production

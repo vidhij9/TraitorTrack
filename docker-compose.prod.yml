@@ -1,0 +1,54 @@
+version: '3.8'
+
+# Production override for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  web:
+    image: tracetrack:latest
+    profiles:
+      - ""  # Always active in production
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - FLASK_ENV=production
+      - ENVIRONMENT=production
+      - REDIS_URL=${REDIS_URL}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - static_files:/shared/static  # Shared static files volume
+
+  nginx:
+    restart: unless-stopped
+    ports:
+      - "443:443"  # Only expose HTTPS in production
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs:/var/log/nginx
+      - static_files:/app/static:ro  # Serve static files directly
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  db:
+    restart: unless-stopped
+    command: postgres -c 'max_connections=200' -c 'shared_buffers=256MB' -c 'effective_cache_size=1GB'
+
+  redis:
+    restart: unless-stopped
+
+volumes:
+  static_files:
+    driver: local
