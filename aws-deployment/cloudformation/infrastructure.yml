@@ -1,0 +1,411 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'TraceTrack Infrastructure - VPC, Subnets, Security Groups, and Load Balancer'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: tracetrack
+    Description: Name of the project for resource naming
+  
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+    Description: Environment name
+  
+  VpcCidr:
+    Type: String
+    Default: '10.0.0.0/16'
+    Description: CIDR block for VPC
+  
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+
+Resources:
+  # VPC Configuration
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-vpc'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-igw'
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  # Public Subnets
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: '10.0.1.0/24'
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-public-subnet-1'
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.0.2.0/24'
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-public-subnet-2'
+
+  # Private Subnets
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: '10.0.3.0/24'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-private-subnet-1'
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.0.4.0/24'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-private-subnet-2'
+
+  # NAT Gateways
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway2EIP.AllocationId
+      SubnetId: !Ref PublicSubnet2
+
+  # Route Tables
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-public-routes'
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-private-routes-1'
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-private-routes-2'
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway2
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+
+  # Security Groups
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-${Environment}-alb-sg'
+      GroupDescription: Security group for Application Load Balancer
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+          Description: 'HTTP from anywhere'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+          Description: 'HTTPS from anywhere'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: '0.0.0.0/0'
+          Description: 'All outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-alb-sg'
+
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-${Environment}-ecs-sg'
+      GroupDescription: Security group for ECS tasks
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          Description: 'HTTP from Load Balancer'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          Description: 'HTTP from Load Balancer'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: '0.0.0.0/0'
+          Description: 'All outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-ecs-sg'
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-${Environment}-db-sg'
+      GroupDescription: Security group for RDS database
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+          Description: 'PostgreSQL from ECS tasks'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: '0.0.0.0/0'
+          Description: 'All outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-db-sg'
+
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-${Environment}-redis-sg'
+      GroupDescription: Security group for Redis cluster
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+          Description: 'Redis from ECS tasks'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: '0.0.0.0/0'
+          Description: 'All outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-redis-sg'
+
+  # Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-alb'
+      Scheme: internet-facing
+      Type: application
+      IpAddressType: ipv4
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-alb'
+
+  # Target Group
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-tg'
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      TargetType: ip
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      Matcher:
+        HttpCode: '200'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-tg'
+
+  # Load Balancer Listener
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-vpc-id'
+
+  PublicSubnet1Id:
+    Description: Public Subnet 1 ID
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-public-subnet-1-id'
+
+  PublicSubnet2Id:
+    Description: Public Subnet 2 ID
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-public-subnet-2-id'
+
+  PrivateSubnet1Id:
+    Description: Private Subnet 1 ID
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-private-subnet-1-id'
+
+  PrivateSubnet2Id:
+    Description: Private Subnet 2 ID
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-private-subnet-2-id'
+
+  LoadBalancerSecurityGroupId:
+    Description: Load Balancer Security Group ID
+    Value: !Ref LoadBalancerSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-alb-sg-id'
+
+  ECSSecurityGroupId:
+    Description: ECS Security Group ID
+    Value: !Ref ECSSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ecs-sg-id'
+
+  DatabaseSecurityGroupId:
+    Description: Database Security Group ID
+    Value: !Ref DatabaseSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-db-sg-id'
+
+  RedisSecurityGroupId:
+    Description: Redis Security Group ID
+    Value: !Ref RedisSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-redis-sg-id'
+
+  LoadBalancerArn:
+    Description: Load Balancer ARN
+    Value: !Ref ApplicationLoadBalancer
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-alb-arn'
+
+  LoadBalancerFullName:
+    Description: Load Balancer Full Name
+    Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-alb-full-name'
+
+  LoadBalancerDNS:
+    Description: Load Balancer DNS Name
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-alb-dns'
+
+  TargetGroupArn:
+    Description: Target Group ARN
+    Value: !Ref TargetGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-tg-arn'

@@ -1,0 +1,390 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'TraceTrack Monitoring and Alerting - CloudWatch Dashboards and Alarms'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: tracetrack
+    Description: Name of the project for resource naming
+  
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+    Description: Environment name
+  
+  AlertEmail:
+    Type: String
+    Description: Email address for alerts
+    AllowedPattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+  
+  SlackWebhookURL:
+    Type: String
+    Default: ''
+    Description: Slack webhook URL for notifications (optional)
+  
+  LoadBalancerFullName:
+    Type: String
+    Description: Full name of the load balancer (from infrastructure stack)
+  
+  ServiceName:
+    Type: String
+    Description: ECS service name (from application stack)
+  
+  ClusterName:
+    Type: String
+    Description: ECS cluster name (from application stack)
+  
+  DatabaseInstanceId:
+    Type: String
+    Description: RDS instance identifier (from database stack)
+
+Conditions:
+  HasSlackWebhook: !Not [!Equals [!Ref SlackWebhookURL, '']]
+
+Resources:
+  # SNS Topic for Alerts
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-${Environment}-alerts'
+      DisplayName: !Sub 'TraceTrack ${Environment} Alerts'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-alerts'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # SNS Subscription for Email
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref AlertTopic
+      Endpoint: !Ref AlertEmail
+
+  # SNS Subscription for Slack (if webhook provided)
+  SlackSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasSlackWebhook
+    Properties:
+      Protocol: https
+      TopicArn: !Ref AlertTopic
+      Endpoint: !Ref SlackWebhookURL
+
+  # CloudWatch Dashboard
+  ApplicationDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ProjectName}-${Environment}-dashboard'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${LoadBalancerFullName}" ],
+                  [ ".", "HTTPCode_Target_2XX_Count", ".", "." ],
+                  [ ".", "HTTPCode_Target_4XX_Count", ".", "." ],
+                  [ ".", "HTTPCode_Target_5XX_Count", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Load Balancer Requests",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${LoadBalancerFullName}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Response Time",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "min": 0
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ECS", "CPUUtilization", "ServiceName", "${ServiceName}", "ClusterName", "${ClusterName}" ],
+                  [ ".", "MemoryUtilization", ".", ".", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "ECS Resource Utilization",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "min": 0,
+                    "max": 100
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "${DatabaseInstanceId}" ],
+                  [ ".", "DatabaseConnections", ".", "." ],
+                  [ ".", "ReadLatency", ".", "." ],
+                  [ ".", "WriteLatency", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "RDS Performance",
+                "period": 300
+              }
+            }
+          ]
+        }
+
+  # Application Load Balancer Alarms
+  HighResponseTimeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-high-response-time'
+      AlarmDescription: 'Application response time is too high'
+      MetricName: TargetResponseTime
+      Namespace: AWS/ApplicationELB
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 2.0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Sub '${LoadBalancerFullName}'
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  High5XXErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-high-5xx-errors'
+      AlarmDescription: 'High number of 5XX errors'
+      MetricName: HTTPCode_Target_5XX_Count
+      Namespace: AWS/ApplicationELB
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Sub '${LoadBalancerFullName}'
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # ECS Service Alarms
+  HighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-high-cpu'
+      AlarmDescription: 'ECS service CPU utilization is too high'
+      MetricName: CPUUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ServiceName
+          Value: !Sub '${ServiceName}'
+        - Name: ClusterName
+          Value: !Sub '${ClusterName}'
+      AlarmActions:
+        - !Ref AlertTopic
+
+  HighMemoryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-high-memory'
+      AlarmDescription: 'ECS service memory utilization is too high'
+      MetricName: MemoryUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 85
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ServiceName
+          Value: !Sub '${ServiceName}'
+        - Name: ClusterName
+          Value: !Sub '${ClusterName}'
+      AlarmActions:
+        - !Ref AlertTopic
+
+  # RDS Database Alarms
+  DatabaseHighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-db-high-cpu'
+      AlarmDescription: 'Database CPU utilization is too high'
+      MetricName: CPUUtilization
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Sub '${DatabaseInstanceId}'
+      AlarmActions:
+        - !Ref AlertTopic
+
+  DatabaseHighConnectionsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-db-high-connections'
+      AlarmDescription: 'Database connection count is too high'
+      MetricName: DatabaseConnections
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 150
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Sub '${DatabaseInstanceId}'
+      AlarmActions:
+        - !Ref AlertTopic
+
+  # Log Group for Custom Application Metrics
+  CustomMetricsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}-${Environment}-metrics'
+      RetentionInDays: 14
+
+  # Lambda function for custom metrics (optional)
+  CustomMetricsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-custom-metrics'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt CustomMetricsRole.Arn
+      Timeout: 30
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import logging
+          from datetime import datetime
+          
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+          
+          cloudwatch = boto3.client('cloudwatch')
+          
+          def lambda_handler(event, context):
+              try:
+                  # Custom metric logic here
+                  # This is a placeholder for application-specific metrics
+                  
+                  # Example: Put custom metric
+                  cloudwatch.put_metric_data(
+                      Namespace='TraceTrack/Application',
+                      MetricData=[
+                          {
+                              'MetricName': 'CustomHealthCheck',
+                              'Value': 1,
+                              'Unit': 'Count',
+                              'Timestamp': datetime.utcnow()
+                          }
+                      ]
+                  )
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Metrics published successfully')
+                  }
+              except Exception as e:
+                  logger.error(f"Error publishing metrics: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps('Error publishing metrics')
+                  }
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-custom-metrics'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role for Custom Metrics Lambda
+  CustomMetricsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-custom-metrics-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CloudWatchMetrics
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: '*'
+
+Conditions:
+  HasSlackWebhook: !Not [!Equals [!Ref SlackWebhookURL, '']]
+
+
+Outputs:
+  DashboardURL:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ProjectName}-${Environment}-dashboard'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-dashboard-url'
+
+  AlertTopicArn:
+    Description: SNS Alert Topic ARN
+    Value: !Ref AlertTopic
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-alert-topic-arn'

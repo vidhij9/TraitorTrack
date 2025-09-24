@@ -1,0 +1,98 @@
+{
+  "family": "tracetrack-production",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/tracetrack-production-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/tracetrack-production-task-role",
+  "containerDefinitions": [
+    {
+      "name": "tracetrack-app",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/tracetrack:latest",
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "ENVIRONMENT",
+          "value": "production"
+        },
+        {
+          "name": "FLASK_ENV", 
+          "value": "production"
+        },
+        {
+          "name": "PYTHONUNBUFFERED",
+          "value": "1"
+        },
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "REGION"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:tracetrack/production/database"
+        },
+        {
+          "name": "SESSION_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:tracetrack/production/session"
+        },
+        {
+          "name": "SENDGRID_API_KEY",
+          "valueFrom": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/tracetrack/production/sendgrid/api_key"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/tracetrack-production",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:5000/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "stopTimeout": 30,
+      "ulimits": [
+        {
+          "name": "nofile",
+          "softLimit": 65536,
+          "hardLimit": 65536
+        }
+      ],
+      "mountPoints": [],
+      "volumesFrom": []
+    }
+  ],
+  "volumes": [],
+  "placementConstraints": [],
+  "tags": [
+    {
+      "key": "Name",
+      "value": "tracetrack-production-task-definition"
+    },
+    {
+      "key": "Environment",
+      "value": "production"
+    },
+    {
+      "key": "Project",
+      "value": "tracetrack"
+    }
+  ]
+}

@@ -1,0 +1,313 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'TraceTrack Application Infrastructure - ECS Fargate Service'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: tracetrack
+    Description: Name of the project for resource naming
+  
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+    Description: Environment name
+  
+  ImageURI:
+    Type: String
+    Description: ECR image URI for the application
+  
+  TaskCpu:
+    Type: String
+    Default: '512'
+    AllowedValues: ['256', '512', '1024', '2048', '4096']
+    Description: Task CPU units
+  
+  TaskMemory:
+    Type: String
+    Default: '1024'
+    AllowedValues: ['512', '1024', '2048', '4096', '8192']
+    Description: Task memory in MB
+  
+  DesiredCount:
+    Type: Number
+    Default: 2
+    MinValue: 1
+    MaxValue: 10
+    Description: Desired number of tasks
+  
+  ContainerPort:
+    Type: Number
+    Default: 5000
+    Description: Port the container listens on
+  
+  LogRetentionDays:
+    Type: Number
+    Default: 7
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+    Description: CloudWatch log retention period
+
+Resources:
+  # ECS Cluster
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${ProjectName}-${Environment}-cluster'
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+        - CapacityProvider: FARGATE_SPOT
+          Weight: 1
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-cluster'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Log Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${ProjectName}-${Environment}'
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-logs'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ECS Task Execution Role
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-task-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-session-secret-arn'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-task-execution-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ECS Task Role
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-task-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ApplicationPermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub '${LogGroup.Arn}:*'
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-task-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ECS Task Definition
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${ProjectName}-${Environment}'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      TaskRoleArn: !Ref TaskRole
+      ContainerDefinitions:
+        - Name: !Sub '${ProjectName}-app'
+          Image: !Ref ImageURI
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: tcp
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: FLASK_ENV
+              Value: production
+            - Name: PYTHONUNBUFFERED
+              Value: '1'
+            - Name: REDIS_URL
+              Value: !Sub
+                - 'redis://${endpoint}:${port}/0'
+                - endpoint:
+                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-redis-endpoint'
+                  port:
+                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-redis-port'
+          Secrets:
+            - Name: DATABASE_URL
+              ValueFrom:
+                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
+            - Name: SESSION_SECRET
+              ValueFrom:
+                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-session-secret-arn'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - 'curl -f http://localhost:5000/health || exit 1'
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 60
+          Essential: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-task-definition'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ECS Service
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub '${ProjectName}-${Environment}-service'
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: !Ref DesiredCount
+      PlatformVersion: LATEST
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-sg-id'
+          Subnets:
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-subnet-1-id'
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-subnet-2-id'
+      LoadBalancers:
+        - TargetGroupArn:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-tg-arn'
+          ContainerName: !Sub '${ProjectName}-app'
+          ContainerPort: !Ref ContainerPort
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      EnableExecuteCommand: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-service'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Auto Scaling Target
+  ServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 10
+      MinCapacity: 1
+      ResourceId: !Sub 'service/${ECSCluster}/${ECSService.Name}'
+      RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService'
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  # Auto Scaling Policy - CPU
+  ServiceScalingPolicyCPU:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-cpu-scaling'
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ServiceScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70.0
+        ScaleOutCooldown: 300
+        ScaleInCooldown: 300
+
+  # Auto Scaling Policy - Memory
+  ServiceScalingPolicyMemory:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-memory-scaling'
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ServiceScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageMemoryUtilization
+        TargetValue: 80.0
+        ScaleOutCooldown: 300
+        ScaleInCooldown: 300
+
+Outputs:
+  ClusterName:
+    Description: ECS Cluster Name
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-cluster-name'
+
+  ServiceName:
+    Description: ECS Service Name
+    Value: !GetAtt ECSService.Name
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-service-name'
+
+  ServiceArn:
+    Description: ECS Service ARN
+    Value: !Ref ECSService
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-service-arn'
+
+  TaskDefinitionArn:
+    Description: Task Definition ARN
+    Value: !Ref TaskDefinition
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-task-definition-arn'
+
+  LogGroupName:
+    Description: CloudWatch Log Group Name
+    Value: !Ref LogGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-log-group-name'
