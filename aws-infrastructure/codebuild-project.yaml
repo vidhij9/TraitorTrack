@@ -62,7 +62,7 @@ Resources:
           - Name: IMAGE_TAG
             Value: latest
       Source:
-        Type: S3
+        Type: NO_SOURCE
         BuildSpec: |
           version: 0.2
           phases:

@@ -13,9 +13,9 @@ AWS_ACCOUNT_ID="605134465544"
 ECR_REPOSITORY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/tracetrack"
 STACK_PREFIX="${PROJECT_NAME}-${ENVIRONMENT}"
 
-# Source code packaging
-SOURCE_BUCKET="tracetrack-source-20250924122358-ap-south-1"
+# Source code packaging (dynamically create bucket if needed)
 TIMESTAMP=$(date +%Y%m%d%H%M%S)
+SOURCE_BUCKET="tracetrack-source-${TIMESTAMP}-${AWS_REGION}"
 SOURCE_KEY="source-${TIMESTAMP}.zip"
 IMAGE_TAG="build-${TIMESTAMP}"
 
@@ -87,14 +87,24 @@ deploy_stack() {
 package_source() {
     log "Packaging source code for deployment..."
     
+    # Create/ensure S3 bucket exists
+    log "Ensuring S3 bucket exists: $SOURCE_BUCKET"
+    if ! aws s3api head-bucket --bucket "$SOURCE_BUCKET" --region "$AWS_REGION" 2>/dev/null; then
+        log "Creating new S3 bucket: $SOURCE_BUCKET"
+        aws s3api create-bucket \
+            --bucket "$SOURCE_BUCKET" \
+            --region "$AWS_REGION" \
+            --create-bucket-configuration LocationConstraint="$AWS_REGION"
+    fi
+    
     # Create temporary directory for packaging
     TEMP_DIR=$(mktemp -d)
     
-    # Copy application files (excluding unnecessary files)
+    # Copy application files (excluding large/unnecessary files)
     log "Copying application files..."
     cd ..
     
-    # Create zip with application files, excluding large/unnecessary files
+    # Create zip with only essential application files
     zip -r "$TEMP_DIR/$SOURCE_KEY" \
         . \
         -x "*.git*" \
@@ -106,6 +116,11 @@ package_source() {
         -x "*.log" \
         -x "*tmp*" \
         -x "*cache*" \
+        -x "*.tar.gz" \
+        -x "*.zip" \
+        -x "test_*.xlsx" \
+        -x "attached_assets/*" \
+        -x "*.md" \
         -x "aws-infrastructure/automated-deploy.sh.backup*"
     
     # Upload to S3
@@ -194,12 +209,9 @@ deploy_stack \
     "${STACK_PREFIX}-infrastructure" \
     "ParameterKey=ProjectName,ParameterValue=$PROJECT_NAME ParameterKey=Environment,ParameterValue=$ENVIRONMENT"
 
-# Step 3: Deploy Database and Redis Infrastructure
-log "Step 3: Deploying database and Redis infrastructure..."
-deploy_stack \
-    "../aws-deployment/cloudformation/database.yml" \
-    "${STACK_PREFIX}-database" \
-    "ParameterKey=ProjectName,ParameterValue=$PROJECT_NAME ParameterKey=Environment,ParameterValue=$ENVIRONMENT"
+# Step 3: Skip database deployment (using existing AWS database)
+log "Step 3: Skipping database deployment (using existing AWS database)..."
+success "Using existing AWS database as requested"
 
 # Step 4: Package and Upload Source Code
 log "Step 4: Packaging and uploading source code..."
