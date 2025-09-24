@@ -254,6 +254,11 @@ Resources:
           ToPort: 5432
           SourceSecurityGroupId: !Ref ECSSecurityGroup
           Description: 'PostgreSQL from ECS tasks'
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref LambdaRotationSecurityGroup
+          Description: 'PostgreSQL from Lambda rotation function'
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: '0.0.0.0/0'
@@ -281,6 +286,21 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-redis-sg'
+
+  # Security Group for Lambda rotation function
+  LambdaRotationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-${Environment}-lambda-rotation-sg'
+      GroupDescription: Security group for database rotation Lambda
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: '0.0.0.0/0'
+          Description: 'All outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-lambda-rotation-sg'
 
   # Application Load Balancer
   ApplicationLoadBalancer:
@@ -385,6 +405,12 @@ Outputs:
     Value: !Ref RedisSecurityGroup
     Export:
       Name: !Sub '${ProjectName}-${Environment}-redis-sg-id'
+
+  LambdaRotationSecurityGroupId:
+    Description: Lambda Rotation Security Group ID
+    Value: !Ref LambdaRotationSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-lambda-rotation-sg-id'
 
   LoadBalancerArn:
     Description: Load Balancer ARN

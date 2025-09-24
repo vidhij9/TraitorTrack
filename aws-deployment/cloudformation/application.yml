@@ -179,9 +179,29 @@ Resources:
                   port:
                     Fn::ImportValue: !Sub '${ProjectName}-${Environment}-redis-port'
           Secrets:
-            - Name: DATABASE_URL
-              ValueFrom:
-                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
+            - Name: DB_USERNAME
+              ValueFrom: !Sub
+                - '${secretArn}:username::'
+                - secretArn:
+                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
+            - Name: DB_PASSWORD
+              ValueFrom: !Sub
+                - '${secretArn}:password::'
+                - secretArn:
+                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
+            - Name: DB_HOST
+              ValueFrom: !Sub
+                - '${secretArn}:host::'
+                - secretArn:
+                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
+            - Name: DB_PORT
+              ValueFrom: !Sub
+                - '${secretArn}:port::'
+                - secretArn:
+                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
+            - Name: DB_NAME
+              Value:
+                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-name'
             - Name: SESSION_SECRET
               ValueFrom:
                 Fn::ImportValue: !Sub '${ProjectName}-${Environment}-session-secret-arn'

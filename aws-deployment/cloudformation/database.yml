@@ -39,12 +39,10 @@ Parameters:
     Default: tracetrack_user
     Description: Database master username
   
-  DatabasePassword:
+  KMSKeyId:
     Type: String
-    NoEcho: true
-    Description: Database master password
-    MinLength: 8
-    MaxLength: 128
+    Default: ''
+    Description: KMS Key ID for secret encryption (optional)
   
   DatabaseAllocatedStorage:
     Type: Number
@@ -127,7 +125,9 @@ Resources:
       Engine: !Ref DatabaseEngine
       EngineVersion: !Ref DatabaseEngineVersion
       MasterUsername: !Ref DatabaseUsername
-      MasterUserPassword: !Ref DatabasePassword
+      ManageMasterUserPassword: true
+      MasterUserSecret:
+        KmsKeyId: !If [CreateKMSKey, !Ref SecretsKMSKey, !Ref KMSKeyId]
       AllocatedStorage: !Ref DatabaseAllocatedStorage
       StorageType: gp2
       StorageEncrypted: true
@@ -209,21 +209,62 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # Database Secret in Secrets Manager  
-  DatabaseSecret:
-    Type: AWS::SecretsManager::Secret
-    DependsOn: Database
+  # KMS Key for Secrets Encryption
+  SecretsKMSKey:
+    Type: AWS::KMS::Key
+    Condition: CreateKMSKey
     Properties:
-      Name: !Sub '${ProjectName}/${Environment}/database'
-      Description: Database credentials for TraceTrack
-      SecretString: !Sub 'postgresql://${DatabaseUsername}:${DatabasePassword}@${Database.Endpoint.Address}:5432/${DatabaseName}'
+      Description: !Sub 'KMS Key for ${ProjectName} ${Environment} secrets encryption'
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Enable IAM root permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow ECS task execution role
+            Effect: Allow
+            Principal:
+              AWS: 
+                - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-${Environment}-task-execution-role'
+                - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-${Environment}-task-role'
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:DescribeKey'
+            Resource: '*'
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-db-secret'
+          Value: !Sub '${ProjectName}-${Environment}-secrets-key'
         - Key: Environment
           Value: !Ref Environment
 
-  # Session Secret
+  SecretsKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Condition: CreateKMSKey
+    Properties:
+      AliasName: !Sub 'alias/${ProjectName}-${Environment}-secrets'
+      TargetKeyId: !Ref SecretsKMSKey
+
+  # Database Secret Rotation (using RDS-managed secret)
+  DatabaseSecretRotation:
+    Type: AWS::SecretsManager::RotationSchedule
+    Condition: IsProduction
+    Properties:
+      SecretId: !GetAtt Database.MasterUserSecret.SecretArn
+      HostedRotationLambda:
+        RotationType: PostgreSQLSingleUser
+        RotationLambdaName: !Sub '${ProjectName}-${Environment}-db-rotation'
+        VpcSecurityGroupIds: 
+          - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-rotation-sg-id'
+        VpcSubnetIds:
+          - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-subnet-1-id'
+          - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-subnet-2-id'
+      RotationRules:
+        AutomaticallyAfterDays: 30
+
+  # Session Secret with CMK Encryption
   SessionSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -232,6 +273,7 @@ Resources:
       GenerateSecretString:
         PasswordLength: 64
         ExcludeCharacters: '"@/\'
+      KmsKeyId: !If [CreateKMSKey, !Ref SecretsKMSKey, !Ref KMSKeyId]
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-session-secret'
@@ -240,6 +282,7 @@ Resources:
 
 Conditions:
   IsProduction: !Equals [!Ref Environment, production]
+  CreateKMSKey: !Equals [!Ref KMSKeyId, '']
 
 Outputs:
   DatabaseEndpoint:
@@ -273,8 +316,8 @@ Outputs:
       Name: !Sub '${ProjectName}-${Environment}-redis-port'
 
   DatabaseSecretArn:
-    Description: Database secret ARN
-    Value: !Ref DatabaseSecret
+    Description: RDS-managed database secret ARN
+    Value: !GetAtt Database.MasterUserSecret.SecretArn
     Export:
       Name: !Sub '${ProjectName}-${Environment}-db-secret-arn'
 

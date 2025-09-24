@@ -10,8 +10,7 @@ PROJECT_NAME="tracetrack"
 ENVIRONMENT="production"
 AWS_REGION="us-east-1"
 KEY_PAIR_NAME=""
-DATABASE_PASSWORD=""
-GENERATE_DB_PASSWORD=false
+# Database passwords are now managed by AWS RDS
 STACK_PREFIX="${PROJECT_NAME}-${ENVIRONMENT}"
 
 # Colors for output
@@ -28,8 +27,7 @@ usage() {
     echo "  -e, --environment ENV       Environment (development/staging/production)"
     echo "  -r, --region REGION         AWS region (default: us-east-1)"
     echo "  -k, --key-pair KEY          EC2 Key Pair name (required)"
-    echo "  -d, --db-password PASS      Database password (optional - auto-generated if not provided)"
-    echo "  --generate-password         Auto-generate secure database password"
+    echo "  # Database passwords are now automatically managed by AWS RDS"
     echo "  -i, --image-uri URI         ECR image URI (required for application)"
     echo "  -h, --help                  Show this help message"
     echo ""
@@ -72,15 +70,7 @@ check_prerequisites() {
         error "Key pair name is required (-k option)"
     fi
     
-    if [[ -z "$DATABASE_PASSWORD" && "$GENERATE_DB_PASSWORD" == "false" ]]; then
-        warning "No database password provided. Auto-generating secure password..."
-        GENERATE_DB_PASSWORD=true
-    fi
-    
-    if [[ "$GENERATE_DB_PASSWORD" == "true" ]]; then
-        DATABASE_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-        log "Generated secure database password"
-    fi
+    # Database passwords are automatically managed by AWS RDS
     
     success "Prerequisites check passed"
 }
@@ -146,14 +136,6 @@ while [[ $# -gt 0 ]]; do
             KEY_PAIR_NAME="$2"
             shift 2
             ;;
-        -d|--db-password)
-            DATABASE_PASSWORD="$2"
-            shift 2
-            ;;
-        --generate-password)
-            GENERATE_DB_PASSWORD=true
-            shift
-            ;;
         -i|--image-uri)
             IMAGE_URI="$2"
             shift 2
@@ -193,7 +175,7 @@ log "Step 2: Deploying database infrastructure (RDS PostgreSQL, ElastiCache Redi
 deploy_stack \
     "cloudformation/database.yml" \
     "${STACK_PREFIX}-database" \
-    "ParameterKey=ProjectName,ParameterValue=$PROJECT_NAME ParameterKey=Environment,ParameterValue=$ENVIRONMENT ParameterKey=DatabasePassword,ParameterValue=$DATABASE_PASSWORD"
+    "ParameterKey=ProjectName,ParameterValue=$PROJECT_NAME ParameterKey=Environment,ParameterValue=$ENVIRONMENT"
 
 # Deploy application stack (if image URI provided)
 if [[ -n "$IMAGE_URI" ]]; then
