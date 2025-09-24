@@ -97,16 +97,22 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
-        - PolicyName: SecretsManagerAccess
+        - PolicyName: ParameterStoreAndSecretsAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - secretsmanager:GetSecretValue
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
                 Resource:
-                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
-                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-session-secret-arn'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tracetrack/*'
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                Resource:
+                  - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/ssm'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-task-execution-role'
@@ -171,40 +177,13 @@ Resources:
               Value: production
             - Name: PYTHONUNBUFFERED
               Value: '1'
-            - Name: REDIS_URL
-              Value: !Sub
-                - 'redis://${endpoint}:${port}/0'
-                - endpoint:
-                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-redis-endpoint'
-                  port:
-                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-redis-port'
           Secrets:
-            - Name: DB_USERNAME
-              ValueFrom: !Sub
-                - '${secretArn}:username::'
-                - secretArn:
-                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
-            - Name: DB_PASSWORD
-              ValueFrom: !Sub
-                - '${secretArn}:password::'
-                - secretArn:
-                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
-            - Name: DB_HOST
-              ValueFrom: !Sub
-                - '${secretArn}:host::'
-                - secretArn:
-                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
-            - Name: DB_PORT
-              ValueFrom: !Sub
-                - '${secretArn}:port::'
-                - secretArn:
-                    Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-secret-arn'
-            - Name: DB_NAME
-              Value:
-                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-db-name'
-            - Name: SESSION_SECRET
-              ValueFrom:
-                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-session-secret-arn'
+            # Get database URL from Parameter Store SecureString (matches Replit env)
+            - Name: DATABASE_URL
+              ValueFrom: !Sub '/tracetrack/${Environment}/database-url'
+            # Get session secret from Parameter Store SecureString
+            - Name: SESSION_SECRET  
+              ValueFrom: !Sub '/tracetrack/${Environment}/session-secret'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -215,10 +194,10 @@ Resources:
             Command:
               - CMD-SHELL
               - 'curl -f http://localhost:5000/health || exit 1'
-            Interval: 30
-            Timeout: 10
-            Retries: 3
-            StartPeriod: 60
+            Interval: 60
+            Timeout: 30
+            Retries: 5
+            StartPeriod: 120
           Essential: true
       Tags:
         - Key: Name

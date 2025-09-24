@@ -213,16 +213,82 @@ deploy_stack \
 log "Step 3: Skipping database deployment (using existing AWS database)..."
 success "Using existing AWS database as requested"
 
-# Step 4: Package and Upload Source Code
-log "Step 4: Packaging and uploading source code..."
+# Step 4: Configure database and session secrets in Parameter Store
+log "Step 4: Configuring database and session secrets securely..."
+if [[ -n "$PRODUCTION_DATABASE_URL" ]]; then
+    log "Using existing PRODUCTION_DATABASE_URL for AWS deployment"
+    aws ssm put-parameter \
+        --region "$AWS_REGION" \
+        --name "/tracetrack/$ENVIRONMENT/database-url" \
+        --value "$PRODUCTION_DATABASE_URL" \
+        --type "SecureString" \
+        --overwrite \
+        --description "Database connection URL for TraceTrack application"
+elif [[ -n "$DATABASE_URL" ]]; then
+    log "Using existing DATABASE_URL for AWS deployment" 
+    aws ssm put-parameter \
+        --region "$AWS_REGION" \
+        --name "/tracetrack/$ENVIRONMENT/database-url" \
+        --value "$DATABASE_URL" \
+        --type "SecureString" \
+        --overwrite \
+        --description "Database connection URL for TraceTrack application"
+else
+    error "No database connection found. Please ensure DATABASE_URL or PRODUCTION_DATABASE_URL is set."
+    exit 1
+fi
+
+# Configure session secret
+if [[ -n "$SESSION_SECRET" ]]; then
+    log "Using existing SESSION_SECRET for AWS deployment"
+    aws ssm put-parameter \
+        --region "$AWS_REGION" \
+        --name "/tracetrack/$ENVIRONMENT/session-secret" \
+        --value "$SESSION_SECRET" \
+        --type "SecureString" \
+        --overwrite \
+        --description "Session secret for TraceTrack application"
+    success "Database and session secrets configured in Parameter Store"
+else
+    error "SESSION_SECRET environment variable not found"
+    exit 1
+fi
+
+# Step 5: Package and Upload Source Code
+log "Step 5: Packaging and uploading source code..."
 package_source
 
-# Step 5: Build and Push Docker Image
-log "Step 5: Building and pushing Docker image..."
+# Step 6: Build and Push Docker Image
+log "Step 6: Building and pushing Docker image..."
 start_build "tracetrack-build"
 
-# Step 6: Deploy Application (ECS Service)
-log "Step 6: Deploying ECS application..."
+# Step 7: Configure database security group access
+log "Step 7: Configuring database security group for ECS access..."
+ECS_SG_ID=$(aws cloudformation describe-stacks \
+    --stack-name "${STACK_PREFIX}-infrastructure" \
+    --region "$AWS_REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`ECSSecurityGroupId`].OutputValue' \
+    --output text)
+
+# Find the RDS security group and add ECS access rule
+RDS_SG_ID=$(aws rds describe-db-instances \
+    --db-instance-identifier "traitortrack" \
+    --region "$AWS_REGION" \
+    --query 'DBInstances[0].VpcSecurityGroups[0].VpcSecurityGroupId' \
+    --output text)
+
+# Add security group rule (ignore if already exists)
+aws ec2 authorize-security-group-ingress \
+    --group-id "$RDS_SG_ID" \
+    --protocol tcp \
+    --port 5432 \
+    --source-group "$ECS_SG_ID" \
+    --region "$AWS_REGION" || true
+
+success "Database security group configured for ECS access"
+
+# Step 8: Deploy Application (ECS Service)
+log "Step 8: Deploying ECS application..."
 deploy_stack \
     "../aws-deployment/cloudformation/application.yml" \
     "${STACK_PREFIX}-application" \
