@@ -19,9 +19,10 @@ Parameters:
     Description: CIDR block for VPC
   
   KeyPairName:
-    Type: AWS::EC2::KeyPair::KeyName
-    Description: EC2 Key Pair for SSH access
-    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+    Type: String
+    Description: EC2 Key Pair for SSH access (optional for ECS Fargate)
+    Default: ""
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair (leave empty for ECS Fargate)
 
 Resources:
   # VPC Configuration

@@ -49,7 +49,9 @@ Resources:
         PrivilegedMode: true
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION
-            Value: us-east-1
+            Value: ap-south-1
+          - Name: AWS_ACCOUNT_ID
+            Value: 605134465544
           - Name: IMAGE_REPO_NAME
             Value: tracetrack
           - Name: IMAGE_TAG
@@ -62,25 +64,20 @@ Resources:
             pre_build:
               commands:
                 - echo Logging in to Amazon ECR...
-                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin 605134465544.dkr.ecr.us-east-1.amazonaws.com
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
             build:
               commands:
                 - echo Build started on `date`
                 - echo Building the Docker image...
-                - echo "FROM python:3.11-slim" > Dockerfile
-                - echo "WORKDIR /app" >> Dockerfile
-                - echo "COPY requirements.txt ." >> Dockerfile
-                - echo "RUN pip install --no-cache-dir -r requirements.txt" >> Dockerfile
-                - echo "COPY . ." >> Dockerfile
-                - echo "EXPOSE 5000" >> Dockerfile
-                - echo 'CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--reuse-port", "--reload", "main:app"]' >> Dockerfile
                 - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
-                - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG 605134465544.dkr.ecr.us-east-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+                - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
             post_build:
               commands:
                 - echo Build completed on `date`
                 - echo Pushing the Docker image...
-                - docker push 605134465544.dkr.ecr.us-east-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+                - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+                - echo Writing image definitions file...
+                - printf '[{"name":"tracetrack-app","imageUri":"%s"}]' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json
 
 Outputs:
   BuildProjectName:

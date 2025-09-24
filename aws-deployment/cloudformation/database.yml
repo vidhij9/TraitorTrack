@@ -182,7 +182,7 @@ Resources:
     Type: AWS::ElastiCache::ParameterGroup
     Properties:
       CacheParameterGroupName: !Sub '${ProjectName}-${Environment}-redis-params'
-      CacheParameterGroupFamily: redis7.x
+      CacheParameterGroupFamily: redis7
       Description: Parameter group for TraceTrack Redis cache
       Properties:
         maxmemory-policy: allkeys-lru
