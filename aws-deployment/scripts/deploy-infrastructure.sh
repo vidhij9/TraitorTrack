@@ -8,7 +8,7 @@ set -e
 # Default values
 PROJECT_NAME="tracetrack"
 ENVIRONMENT="production"
-AWS_REGION="us-east-1"
+AWS_REGION="ap-south-1"
 KEY_PAIR_NAME=""
 # Database passwords are now managed by AWS RDS
 STACK_PREFIX="${PROJECT_NAME}-${ENVIRONMENT}"
@@ -32,7 +32,7 @@ usage() {
     echo "  -h, --help                  Show this help message"
     echo ""
     echo "Example:"
-    echo "  $0 -k my-key-pair -d MySecurePassword123 -i 123456789.dkr.ecr.us-east-1.amazonaws.com/tracetrack:latest"
+    echo "  $0 -k my-key-pair -i 123456789012.dkr.ecr.ap-south-1.amazonaws.com/tracetrack:latest"
 }
 
 log() {
