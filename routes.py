@@ -125,6 +125,32 @@ def bags_list():
     )
     return render_template('bags_list.html', bags=bags)
 
+@app.route('/parent-scanner')
+@login_required
+def parent_scanner():
+    """Parent bag scanning interface"""
+    return render_template('parent_scanner.html')
+
+@app.route('/child-scanner')
+@login_required
+def child_scanner():
+    """Child bag batch scanning interface"""
+    return render_template('child_scanner.html')
+
+@app.route('/bills')
+@login_required
+def bills():
+    """Bills management interface"""
+    from models import Bill
+    bills = Bill.query.order_by(Bill.created_at.desc()).limit(20).all()
+    return render_template('bills.html', bills=bills)
+
+@app.route('/upload')
+@login_required
+def upload():
+    """Excel upload interface for bulk import"""
+    return render_template('upload.html')
+
 @app.route('/api/stats')
 def api_stats():
     """API endpoint for real-time statistics"""

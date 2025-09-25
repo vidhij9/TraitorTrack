@@ -3,12 +3,14 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 
 class Base(DeclarativeBase):
     pass
 
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
+csrf = CSRFProtect()
 
 app = Flask(__name__)
 # Ensure session secret is available in production
@@ -44,6 +46,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'  # type: ignore
+csrf.init_app(app)
 
 with app.app_context():
     import models
