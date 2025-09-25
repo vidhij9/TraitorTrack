@@ -19,13 +19,13 @@ Parameters:
   
   TaskCpu:
     Type: String
-    Default: '512'
+    Default: '1024'
     AllowedValues: ['256', '512', '1024', '2048', '4096']
     Description: Task CPU units
   
   TaskMemory:
     Type: String
-    Default: '1024'
+    Default: '2048'
     AllowedValues: ['512', '1024', '2048', '4096', '8192']
     Description: Task memory in MB
   
@@ -194,10 +194,10 @@ Resources:
             Command:
               - CMD-SHELL
               - 'curl -f http://localhost:5000/health || exit 1'
-            Interval: 60
-            Timeout: 30
-            Retries: 5
-            StartPeriod: 120
+            Interval: 30
+            Timeout: 10
+            Retries: 10
+            StartPeriod: 300
           Essential: true
       Tags:
         - Key: Name

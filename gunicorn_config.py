@@ -109,10 +109,13 @@ def on_exit(server):
 
 # Environment-specific configurations
 if os.environ.get("ENVIRONMENT") == "production":
-    workers = max(4, multiprocessing.cpu_count() * 2)  # At least 4 workers in production
-    loglevel = "warning"  # Less verbose in production
-    accesslog = "/var/log/tracetrack/access.log" if os.path.exists("/var/log/tracetrack") else "-"
-    errorlog = "/var/log/tracetrack/error.log" if os.path.exists("/var/log/tracetrack") else "-"
+    # For AWS ECS with 1024 CPU units, use conservative settings
+    workers = 2  # Conservative for 1024 CPU units
+    worker_class = "sync"  # More stable than gevent for initial deployment
+    timeout = 60  # Standard timeout
+    loglevel = "info"  # Balanced logging
+    accesslog = "-"  # Always log to stdout for CloudWatch
+    errorlog = "-"  # Always log to stdout for CloudWatch
 else:
     workers = 2  # Fewer workers in development
     loglevel = "debug"  # More verbose in development
