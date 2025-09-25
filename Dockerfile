@@ -65,18 +65,5 @@ EXPOSE 5000
 # Set entrypoint and default command
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 CMD ["gunicorn", \
-    "--bind", "0.0.0.0:5000", \
-    "--workers", "4", \
-    "--threads", "2", \
-    "--worker-class", "gthread", \
-    "--timeout", "60", \
-    "--graceful-timeout", "30", \
-    "--keepalive", "5", \
-    "--max-requests", "2000", \
-    "--max-requests-jitter", "100", \
-    "--access-logfile", "-", \
-    "--error-logfile", "-", \
-    "--log-level", "info", \
-    "--capture-output", \
-    "--enable-stdio-inheritance", \
+    "--config", "/app/gunicorn_config.py", \
     "main:app"]
