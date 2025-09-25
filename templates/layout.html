@@ -152,33 +152,33 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link{% if request.path == '/' %} active{% endif %}" href="{{ url_for('index', s=request.args.get('s')) }}">
+                        <a class="nav-link{% if request.path == '/' %} active{% endif %}" href="{{ url_for('dashboard') }}">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                     </li>
                     
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link{% if '/scan_parent' in request.path %} active{% endif %}" href="{{ url_for('scan_parent', s=request.args.get('s')) }}">
+                            <a class="nav-link{% if '/parent-scanner' in request.path %} active{% endif %}" href="{{ url_for('parent_scanner') }}">
                                 <i class="fas fa-qrcode"></i> Scan
                             </a>
                         </li>
                         
                         <li class="nav-item">
-                            <a class="nav-link{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup', s=request.args.get('s')) }}">
+                            <a class="nav-link{% if '/search' in request.path %} active{% endif %}" href="{{ url_for('search') }}">
                                 <i class="fas fa-search"></i> Search
                             </a>
                         </li>
                         
                         <li class="nav-item">
-                            <a class="nav-link{% if '/bag' in request.path or '/excel_upload' in request.path %} active{% endif %}" href="{{ url_for('bag_management', s=request.args.get('s')) }}">
+                            <a class="nav-link{% if '/bag' in request.path or '/upload' in request.path %} active{% endif %}" href="{{ url_for('bags_list') }}">
                                 <i class="fas fa-boxes"></i> Bags
                             </a>
                         </li>
                         
                         {% if current_user.is_admin() or current_user.can_edit_bills() %}
                             <li class="nav-item">
-                                <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bill_management', s=request.args.get('s')) }}">
+                                <a class="nav-link{% if '/bill' in request.path %} active{% endif %}" href="{{ url_for('bills') }}">
                                     <i class="fas fa-file-invoice"></i> Bills
                                 </a>
                             </li>
@@ -187,24 +187,30 @@
 
                         
                         {% if current_user.is_admin() %}
+                            <!-- User Management not implemented yet
                             <li class="nav-item">
-                                <a class="nav-link{% if '/admin/users' in request.path %} active{% endif %}" href="{{ url_for('user_management', s=request.args.get('s')) }}">
+                                <a class="nav-link{% if '/admin/users' in request.path %} active{% endif %}" href="#">
                                     <i class="fas fa-users-cog"></i> Users
                                 </a>
                             </li>
+                            -->
+                            <!-- Admin Promotions not implemented yet
                             <li class="nav-item">
-                                <a class="nav-link{% if '/admin/promotions' in request.path %} active{% endif %}" href="{{ url_for('admin_promotions', s=request.args.get('s')) }}">
+                                <a class="nav-link{% if '/admin/promotions' in request.path %} active{% endif %}" href="#">
                                     <i class="fas fa-user-shield"></i> Promotions
                                 </a>
                             </li>
+                            -->
                         {% endif %}
                         
                         {% if not current_user.is_admin() %}
+                            <!-- Request Promotion not implemented yet
                             <li class="nav-item">
-                                <a class="nav-link text-warning" href="{{ url_for('request_promotion') }}">
+                                <a class="nav-link text-warning" href="#">
                                     <i class="fas fa-user-shield"></i> Request Admin
                                 </a>
                             </li>
+                            -->
                         {% endif %}
                     {% endif %}
                 </ul>

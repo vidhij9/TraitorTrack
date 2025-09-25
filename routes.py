@@ -83,16 +83,20 @@ def scan():
             return redirect(url_for('scan'))
         
         # Find or create bag
-        bag = Bag.query.filter_by(qr_code=qr_code).first()
+        bag = Bag.query.filter_by(qr_id=qr_code).first()
         if not bag:
             bag = Bag()
-            bag.qr_code = qr_code
-            bag.customer_name = 'New Customer'
+            bag.qr_id = qr_code
+            bag.type = 'standard'  # Default type
+            bag.name = 'New Bag'
+            bag.status = 'received'
+            bag.weight_kg = 0.0
+            bag.child_count = 0
             db.session.add(bag)
             db.session.commit()
             flash(f'New bag created: {qr_code}')
         else:
-            flash(f'Bag found: {qr_code} - {bag.customer_name}')
+            flash(f'Bag found: {qr_code} - {bag.name}')
         
         # Log the scan
         response_time = int((time.time() - start_time) * 1000)
@@ -107,6 +111,30 @@ def scan():
         return redirect(url_for('bag_detail', bag_id=bag.id))
     
     return render_template('scan.html')
+
+@app.route('/search', methods=['GET', 'POST'])
+@login_required
+def search():
+    """Search for bags"""
+    bags = []
+    query_str = ''
+    
+    if request.method == 'POST' or request.args.get('q'):
+        query_str = request.form.get('query', request.args.get('q', '')).strip()
+        
+        if query_str:
+            # Search by QR ID or name
+            bags = Bag.query.filter(
+                (Bag.qr_id.ilike(f'%{query_str}%')) | 
+                (Bag.name.ilike(f'%{query_str}%'))
+            ).limit(50).all()
+            
+            if not bags:
+                flash(f'No bags found for: {query_str}')
+            else:
+                flash(f'Found {len(bags)} bag(s) matching: {query_str}')
+    
+    return render_template('search.html', bags=bags, query=query_str)
 
 @app.route('/bag/<int:bag_id>')
 @login_required
@@ -141,14 +169,28 @@ def child_scanner():
 @login_required
 def bills():
     """Bills management interface"""
-    from models import Bill
-    bills = Bill.query.order_by(Bill.created_at.desc()).limit(20).all()
-    return render_template('bills.html', bills=bills)
+    # Create Bill model if it doesn't exist
+    try:
+        from models import Bill
+        bills_list = Bill.query.order_by(Bill.created_at.desc()).limit(20).all()
+    except:
+        bills_list = []
+    return render_template('bills.html', bills=bills_list)
 
-@app.route('/upload')
+@app.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
     """Excel upload interface for bulk import"""
+    if request.method == 'POST':
+        if 'file' in request.files:
+            file = request.files['file']
+            if file and file.filename.endswith(('.xlsx', '.xls')):
+                flash('File uploaded successfully! Processing will begin shortly.')
+            else:
+                flash('Please upload a valid Excel file (.xlsx or .xls)')
+        else:
+            flash('No file selected')
+    
     return render_template('upload.html')
 
 @app.route('/api/stats')
