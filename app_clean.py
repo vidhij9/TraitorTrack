@@ -1,43 +1,22 @@
 import os
-from flask import Flask
+from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 class Base(DeclarativeBase):
     pass
 
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
-csrf = CSRFProtect()
 
 app = Flask(__name__)
-# Ensure session secret is available in production
-session_secret = os.environ.get("SESSION_SECRET")
-if not session_secret:
-    if os.environ.get("ENVIRONMENT") == "production":
-        raise RuntimeError("SESSION_SECRET environment variable is required in production")
-    session_secret = "dev-secret-key"  # Only for development
-app.secret_key = session_secret
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.secret_key = os.environ.get("SESSION_SECRET", "tracetrack-aws-key-2025")
 
-# Build database URL from individual components for security
-db_user = os.environ.get("DB_USERNAME")
-db_password = os.environ.get("DB_PASSWORD") 
-db_host = os.environ.get("DB_HOST")
-db_port = os.environ.get("DB_PORT", "5432")
-db_name = os.environ.get("DB_NAME")
-
-if all([db_user, db_password, db_host, db_name]):
-    # URL-encode password to handle special characters
-    from urllib.parse import quote_plus
-    encoded_password = quote_plus(db_password)
-    database_url = f"postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
-else:
-    # Fallback to DATABASE_URL if individual components not available
-    database_url = os.environ.get("DATABASE_URL", "postgresql://user:pass@localhost/tracetrack")
-
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+# Database configuration
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///tracetrack.db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -45,18 +24,20 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 
 db.init_app(app)
 login_manager.init_app(app)
-login_manager.login_view = 'login'  # type: ignore
-csrf.init_app(app)
+login_manager.login_view = 'login'
 
 with app.app_context():
     import models
+    db.create_all()
+    
+    # Create admin user if not exists
     try:
-        db.create_all()
+        from models import User
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(username='admin', email='admin@tracetrack.com')
+            admin.set_password('admin')
+            db.session.add(admin)
+            db.session.commit()
     except Exception as e:
-        print(f"Database setup warning: {e}")
-
-# Add user_loader function for Flask-Login
-@login_manager.user_loader
-def load_user(user_id):
-    from models import User
-    return User.query.get(int(user_id))
+        print(f"Admin user creation error: {e}")
