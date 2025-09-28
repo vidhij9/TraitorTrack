@@ -58,6 +58,15 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: API endpoint protection against abuse
 - **SQL Injection Prevention**: Parameterized queries throughout
 
+## Recent Changes (September 28, 2025)
+
+### AWS Deployment to Asia Pacific Mumbai Region
+- **AWS Infrastructure**: Successfully deployed EC2 instance in ap-south-1 region
+- **Instance Details**: EC2 instance i-0057a68f7062dd425 at IP 13.201.135.42
+- **Database Connection**: Configured via AWS Systems Manager Parameter Store
+- **Deployment Method**: Automated deployment using EC2 user data scripts
+- **Status**: Instance running, application deployment initializing
+
 ## Recent Changes (September 03, 2025)
 
 ### Database Configuration Update
