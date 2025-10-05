@@ -8,6 +8,9 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
+    role = db.Column(db.String(20), default='dispatcher')
+    area_id = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -17,6 +20,18 @@ class User(UserMixin, db.Model):
     
     def get_id(self):
         return str(self.id)
+    
+    def is_admin(self):
+        return self.role == 'admin'
+    
+    def is_biller(self):
+        return self.role == 'biller'
+    
+    def is_dispatcher(self):
+        return self.role == 'dispatcher'
+    
+    def can_edit_bills(self):
+        return self.role in ['admin', 'biller']
 
 class Bag(db.Model):
     __tablename__ = 'bags'

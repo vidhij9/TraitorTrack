@@ -35,9 +35,15 @@ with app.app_context():
         from models import User
         admin = User.query.filter_by(username='admin').first()
         if not admin:
-            admin = User(username='admin', email='admin@tracetrack.com')
+            admin = User(username='admin', email='admin@tracetrack.com', role='admin')
             admin.set_password('admin')
             db.session.add(admin)
             db.session.commit()
     except Exception as e:
         print(f"Admin user creation error: {e}")
+
+# Add context processor for templates
+@app.context_processor
+def inject_current_year():
+    from datetime import datetime
+    return dict(current_year=datetime.now().year)
