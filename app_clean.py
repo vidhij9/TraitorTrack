@@ -272,13 +272,7 @@ csrf.init_app(app)
 # CSRF exemption will be handled in routes.py for specific endpoints
 limiter.init_app(app)
 
-# Apply performance optimizations
-try:
-    from performance_patches import apply_performance_patches
-    apply_performance_patches(app)
-    logging.info("Performance patches applied successfully")
-except Exception as e:
-    logging.warning(f"Performance patches not applied: {e}")
+# Performance patches removed - not needed
 
 # Apply ultra-performance monitoring
 try:
@@ -311,32 +305,31 @@ except ImportError:
 except Exception as e:
     logging.warning(f"Circuit breakers not applied: {e}")
 
-# DEFER database table creation for AWS RDS - don't block startup
-# Tables will be created on first successful connection
-def initialize_database():
-    """Initialize database tables - called lazily"""
-    with app.app_context():
-        try:
-            # Import models to ensure they're registered
-            import models
-            # Create all tables
-            db.create_all()
-            logging.info("Database tables created successfully")
-            return True
-        except Exception as e:
-            logging.error(f"Database initialization error: {e}")
-            return False
-
-# Store initialization function on app for lazy loading
-app.initialize_database = initialize_database
-
-# For AWS RDS, skip immediate initialization to prevent startup blocking
-if not is_aws_rds:
-    # Only initialize immediately for local databases
+# Initialize database tables
+with app.app_context():
     try:
-        initialize_database()
-    except:
-        pass
+        # Import models to ensure they're registered
+        import models
+        # Create all tables
+        db.create_all()
+        
+        # Create default admin user if it doesn't exist
+        from models import User
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User()
+            admin.username = 'admin'
+            admin.email = 'admin@tracetrack.com'
+            admin.set_password('admin')
+            admin.role = 'admin'
+            admin.verified = True
+            db.session.add(admin)
+            db.session.commit()
+            logger.info("Admin user created successfully")
+        
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
 
 # CSRF protection configuration moved to main config above
 

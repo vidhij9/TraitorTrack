@@ -141,45 +141,39 @@ class PerformanceMonitor:
                 if total_requests > 0:
                     self.error_rate = (self.error_count / total_requests) * 100
                 
-                # Check thresholds and alert if needed
-                self._check_thresholds()
+                # Check thresholds only occasionally to reduce logging overhead
+                # Only log critical issues
+                if len(self.cpu_usage) % 30 == 0:  # Check every 60 seconds
+                    self._check_thresholds()
                 
-                time.sleep(2)
+                time.sleep(10)  # Increased from 2 to 10 seconds to reduce CPU overhead
                 
             except Exception as e:
                 logger.error(f"Error in monitoring thread: {e}")
     
     def _check_thresholds(self):
-        """Check if any metrics exceed thresholds"""
-        # Response time check
+        """Check if any metrics exceed thresholds - only log critical issues"""
+        # Response time check - only critical
         if self.response_times:
             avg_response_time = sum(self.response_times) / len(self.response_times)
             if avg_response_time > self.thresholds['response_time_critical']:
                 logger.critical(f"CRITICAL: Average response time {avg_response_time:.2f}ms")
-            elif avg_response_time > self.thresholds['response_time_warning']:
-                logger.warning(f"WARNING: Average response time {avg_response_time:.2f}ms")
         
-        # CPU check
+        # CPU check - only critical
         if self.cpu_usage:
             current_cpu = self.cpu_usage[-1]
             if current_cpu > self.thresholds['cpu_critical']:
                 logger.critical(f"CRITICAL: CPU usage {current_cpu:.1f}%")
-            elif current_cpu > self.thresholds['cpu_warning']:
-                logger.warning(f"WARNING: CPU usage {current_cpu:.1f}%")
         
-        # Memory check
+        # Memory check - only critical
         if self.memory_usage:
             current_memory = self.memory_usage[-1]
             if current_memory > self.thresholds['memory_critical']:
                 logger.critical(f"CRITICAL: Memory usage {current_memory:.1f}%")
-            elif current_memory > self.thresholds['memory_warning']:
-                logger.warning(f"WARNING: Memory usage {current_memory:.1f}%")
         
-        # Error rate check
+        # Error rate check - only critical
         if self.error_rate > self.thresholds['error_rate_critical']:
             logger.critical(f"CRITICAL: Error rate {self.error_rate:.2f}%")
-        elif self.error_rate > self.thresholds['error_rate_warning']:
-            logger.warning(f"WARNING: Error rate {self.error_rate:.2f}%")
     
     def get_metrics(self) -> Dict[str, Any]:
         """Get current performance metrics"""
