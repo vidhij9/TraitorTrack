@@ -21,18 +21,28 @@ class User(UserMixin, db.Model):
 class Bag(db.Model):
     __tablename__ = 'bags'
     id = db.Column(db.Integer, primary_key=True)
-    qr_code = db.Column(db.String(100), unique=True, nullable=False)
+    qr_code = db.Column(db.String(100), unique=True, nullable=False, index=True)
     customer_name = db.Column(db.String(200))
     weight = db.Column(db.Float, default=0.0)
-    status = db.Column(db.String(50), default='created')
-    parent_bag_id = db.Column(db.Integer, db.ForeignKey('bags.id'))
-    is_parent = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(50), default='received')
+    parent_id = db.Column(db.Integer, db.ForeignKey('bags.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    children = db.relationship('Bag', backref=db.backref('parent', remote_side=[id]))
+    
+    @property
+    def total_weight(self):
+        return sum(child.weight for child in self.children) + self.weight
 
-class Scan(db.Model):
-    __tablename__ = 'scans'
+class ScanLog(db.Model):
+    __tablename__ = 'scan_log'
     id = db.Column(db.Integer, primary_key=True)
     bag_id = db.Column(db.Integer, db.ForeignKey('bags.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    scan_type = db.Column(db.String(50))
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(50), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    response_time_ms = db.Column(db.Integer, default=0)
+    
+    bag = db.relationship('Bag', backref='scan_logs')
+    user = db.relationship('User', backref='scan_logs')
