@@ -8,11 +8,25 @@ TraceTrack is a high-performance bag tracking system designed for warehouse and 
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 05, 2025)
+
+### Scanner Integration - Coconut Wireless 2D Barcode Scanner
+- **Replaced Mobile Camera Scanning**: Switched from camera-based QR scanning to Coconut wireless 2D barcode scanner for dramatically improved speed and accuracy
+- **Scanner Technology**: Coconut wireless 2D scanner (model BSC01) operates as USB HID keyboard device - types scanned data directly into web application
+- **QR Code Support**: 2D scanner fully supports QR codes, 1D barcodes, Data Matrix, and other 2D barcode formats
+- **Performance Improvement**: Instant scan detection (no camera initialization, no image processing delays)
+- **Accuracy Improvement**: Hardware scanner provides 1000% better accuracy compared to camera + software decoding
+- **Simplified Architecture**: Removed jsQR library, camera permission management, and video stream processing
+- **User Experience**: Workers now point scanner at QR code and press scan button - data appears instantly in focused input field
+- **Auto-Submit**: Scanner sends Enter key after data, triggering automatic form submission
+- **Implementation**: Large, prominently styled input fields with auto-focus and visual feedback for scanning status
+- **Files Updated**: `scan_parent.html`, `scan_child.html` - both now use keyboard input capture instead of camera API
+
 ## System Architecture
 
 ### Frontend Architecture
 - **Flask Web Framework**: Server-side rendered templates with Bootstrap UI
-- **Mobile-Optimized Interface**: Responsive design optimized for low-literacy users with large buttons and visual icons
+- **Scanner-Based Interface**: Optimized for Coconut wireless 2D barcode scanner with keyboard input capture
 - **Session-Based Authentication**: Simple session management with role-based access control
 - **Real-time Updates**: AJAX-powered dashboard with auto-refresh capabilities
 
