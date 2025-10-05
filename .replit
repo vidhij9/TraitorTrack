@@ -3,7 +3,7 @@ run = "python main.py"
 
 [nix]
 channel = "stable-25_05"
-packages = ["cargo", "cyrus_sasl", "freetype", "glibcLocales", "libev", "libiconv", "libmemcached", "librsvg", "libxcrypt", "memcached", "nodejs", "openssl", "postgresql", "redis", "rustc", "zlib", "awscli2", "docker", "jq", "zip"]
+packages = ["cargo", "cyrus_sasl", "freetype", "glibcLocales", "libev", "libiconv", "libmemcached", "librsvg", "libxcrypt", "memcached", "nodejs", "openssl", "postgresql", "redis", "rustc", "zlib"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -37,38 +37,6 @@ externalPort = 80
 [[ports]]
 localPort = 6379
 externalPort = 3000
-
-[[ports]]
-localPort = 33325
-externalPort = 3002
-
-[[ports]]
-localPort = 33481
-externalPort = 3003
-
-[[ports]]
-localPort = 34165
-externalPort = 5000
-
-[[ports]]
-localPort = 36695
-externalPort = 5173
-
-[[ports]]
-localPort = 44299
-externalPort = 3001
-
-[[ports]]
-localPort = 45123
-externalPort = 6800
-
-[[ports]]
-localPort = 45339
-externalPort = 6000
-
-[[ports]]
-localPort = 46619
-externalPort = 4200
 
 [agent]
 integrations = ["python_sendgrid==1.0.0"]

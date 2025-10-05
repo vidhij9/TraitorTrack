@@ -21,13 +21,6 @@ def cached_route(seconds=60):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            # Import performance monitor if available
-            try:
-                from performance_monitor import monitor
-                has_monitor = True
-            except:
-                has_monitor = False
-            
             # Generate cache key from function name and arguments
             cache_key = hashlib.md5(
                 f"{f.__name__}:{args}:{kwargs}".encode()
@@ -39,16 +32,12 @@ def cached_route(seconds=60):
                 entry = _cache[cache_key]
                 if entry['expires'] > now:
                     _cache_stats['hits'] += 1
-                    if has_monitor:
-                        monitor.record_cache_hit()
                     return entry['value']
                 else:
                     del _cache[cache_key]
             
             # Execute function and cache result
             _cache_stats['misses'] += 1
-            if has_monitor:
-                monitor.record_cache_miss()
             result = f(*args, **kwargs)
             
             _cache[cache_key] = {

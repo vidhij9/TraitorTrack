@@ -1,0 +1,119 @@
+2025-08-27T18:57:22Z info: Creating Autoscale service
+forwarding local port 5000 to external port 80 (mapped as 1104)
+starting up user application
+2025-08-27 18:58:14,590 - production_optimizer - WARNING - Redis not available, using in-memory cache
+2025-08-27 18:58:15,425 - high_performance_cache - INFO - Cache initialized - Ready for high-performance queries
+2025-08-27 18:58:14,866 - production_ready_optimizer - WARNING - ⚠️ Redis not available, using memory cache: Error 111 connecting to localhost:6379. Connection refused.
+2025-08-27 18:58:18,311 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+2025-08-27 18:58:15,443 - redis_cache_manager - INFO - ✅ Using optimized in-memory cache (Redis disabled)
+2025-08-27 18:58:15,485 - __main__ - WARNING - Extreme optimizer not loaded: No module named 'extreme_performance_optimizer'
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bag_qr_hash ON bag USING hash(qr_id)]
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_scan_bag_user ON scan(bag_id, user_id)]
+2025-08-27 18:58:15,484 - __main__ - WARNING - Ultra performance optimizer not loaded: expected 'except' or 'finally' block (ultra_performance_optimizer.py, line 274)
+2025-08-27 18:58:17,284 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+
+2025-08-27 18:58:15,484 - __main__ - WARNING - Production ultra optimizer not loaded: No module named 'production_ultra_optimizer'
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-08-27 18:58:15,457 - __main__ - INFO - ✅ Redis caching layer loaded - Connected: False
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bag_created_desc ON bag(created_at DESC)]
+2025-08-27 18:58:15,457 - optimized_routes - INFO - ✅ Optimized routes with Redis caching registered
+
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-08-27 18:58:15,512 - __main__ - INFO - Ultra-fast batch scanner loaded - reduces 30 bag scanning from 20min to <1min
+2025-08-27 18:58:15,535 - production_scale_optimizer - INFO - APPLYING SCALE OPTIMIZATIONS FOR 600K+ BAGS & 100+ USERS
+2025-08-27 18:58:15,536 - production_scale_optimizer - INFO - ✅ Database pool optimized for 100+ concurrent users
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bag_parent_child ON bag(parent_id, id)]
+2025-08-27 18:58:15,425 - __main__ - INFO - High-performance caching loaded successfully
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-08-27 18:58:19,311 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+2025-08-27 18:58:15,535 - production_scale_optimizer - INFO - ============================================================
+2025-08-27 18:58:15,512 - ultra_fast_batch_scanner - INFO - Ultra-fast batch scanner registered
+2025-08-27 18:58:15,536 - production_scale_optimizer - INFO -   - Optimized for 600,000 bags
+2025-08-27 18:58:15,536 - production_scale_optimizer - INFO -   - Pool size: 150 base + 250 overflow
+2025-08-27 18:58:15,408 - __main__ - INFO - Ultra-optimized API loaded with circuit breakers and caching
+2025-08-27 18:58:15,535 - production_scale_optimizer - INFO - ============================================================
+2025-08-27 18:58:16,286 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+
+
+2025-08-27 18:58:15,512 - __main__ - WARNING - Production optimization config not loaded: No module named 'production_optimization_config'
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bill_user_created ON bill(user_id, created_at DESC)]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-08-27 18:58:21,311 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_scan_timestamp_desc ON scan(timestamp DESC)]
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_scan_location ON scan(location)]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-08-27 18:58:24,306 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bill_bag_bill ON bill_bag(bill_id, bag_id)]
+2025-08-27 18:58:20,313 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+2025-08-27 18:58:23,308 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+2025-08-27 18:58:22,311 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_activity_user ON user_activity_log(user_id, timestamp DESC)]
+
+
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+
+2025-08-27 18:58:26,308 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+2025-08-27 18:58:25,309 - production_scale_optimizer - WARNING - ⚠️ Index creation issue: (psycopg2.errors.ActiveSqlTransaction) CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+2025-08-27 18:58:26,557 - production_scale_optimizer - INFO - ✅ Created 0 performance indexes for 600k+ bags
+
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bag_composite ON bag(qr_id, parent_id, created_at)]
+[SQL: CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_scan_composite ON scan(bag_id, user_id, timestamp)]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+2025-08-27 18:58:31,929 - production_scale_optimizer - INFO - ✅ Updated statistics for bag
+2025-08-27 18:58:33,969 - production_scale_optimizer - INFO - ✅ Updated statistics for bill
+2025-08-27 18:58:30,800 - production_scale_optimizer - INFO - ✅ Applied 8 query planner optimizations
+2025-08-27 18:58:32,963 - production_scale_optimizer - INFO - ✅ Updated statistics for scan
+2025-08-27 18:58:36,717 - production_scale_optimizer - WARNING - ⚠️ Statistics update issue for user_activity_log: (psycopg2.errors.UndefinedTable) relation "user_activity_log" does not exist
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+2025-08-27 18:58:35,720 - production_scale_optimizer - WARNING - ⚠️ Statistics update issue for users: (psycopg2.errors.UndefinedTable) relation "users" does not exist
+
+2025-08-27 18:58:34,970 - production_scale_optimizer - INFO - ✅ Updated statistics for bill_bag
+(Background on this error at: https://sqlalche.me/e/20/f405)
+[SQL: ANALYZE users]
+[SQL: ANALYZE user_activity_log]
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - ✅ Applied 6 autovacuum configurations
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - OPTIMIZATION COMPLETE
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - ============================================================
+2025-08-27 18:58:44,129 - production_database_optimizer - INFO - ✅ Applied: ANALYZE bag...
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - ✅ Database pool: Optimized for 100+ concurrent users
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - ============================================================
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - ✅ Query planner: Configured for large datasets
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - ✅ Indexes: Created for 600k+ bags performance
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - ✅ Statistics: Updated for optimal query plans
+2025-08-27 18:58:42,961 - __main__ - INFO - ✅ Production scale optimizer loaded - 600k+ bags, 100+ users
+2025-08-27 18:58:42,961 - production_scale_optimizer - INFO - ✅ Autovacuum: Configured for high-traffic tables
+2025-08-27 18:58:48,185 - production_database_optimizer - INFO - ✅ Applied: ANALYZE bill...
+2025-08-27 18:58:45,164 - production_database_optimizer - INFO - ✅ Applied: ANALYZE scan...
+2025-08-27 18:58:49,183 - production_database_optimizer - INFO - ✅ Applied: ANALYZE "user"...
+2025-08-27 18:58:46,185 - production_database_optimizer - INFO - ✅ Applied: ANALYZE link...
+2025-08-27 18:58:47,185 - production_database_optimizer - INFO - ✅ Applied: ANALYZE bill_bag...
+2025-08-27 18:58:54,180 - production_database_optimizer - INFO - ✅ Production database optimizations initialized
+2025-08-27 18:58:54,179 - production_database_optimizer - INFO - ✅ Connection pool events configured
+2025-08-27 18:58:54,180 - __main__ - INFO - Production database optimizer loaded
+2025-08-27 18:58:54,179 - production_database_optimizer - INFO - ✅ Connection pool resized: 100 base + 200 overflow
+2025-08-27 18:58:54,179 - production_database_optimizer - INFO - ✅ Database optimizations applied successfully
+2025-08-27T18:58:58Z info: Waiting for service to be ready
+ * Serving Flask app 'app_clean'
+2025-08-27 18:58:54,929 - __main__ - INFO - Database connection verified
+ * Debug mode: off
+ * Running on http://127.0.0.1:5000
+2025-08-27 18:58:56,377 - app_clean - INFO - Request: GET http://127.0.0.1:1104/login - IP: 127.0.0.1
+ * Running on all addresses (0.0.0.0)
+✅ Patched werkzeug password functions for speed
+Production database optimizer loaded
+✅ Ultra-optimized API loaded with circuit breakers and caching
+2025-08-27 18:58:56,423 - werkzeug - INFO - 127.0.0.1 - - [27/Aug/2025 18:58:56] "GET /login HTTP/1.1" 200 -
+ * Running on http://169.254.8.1:5000
+2025-08-27 18:58:55,212 - werkzeug - INFO - Press CTRL+C to quit
+2025-08-27 18:58:56,373 - app_clean - INFO - Request: GET http://127.0.0.1:1104/ - IP: 127.0.0.1
+2025-08-27 18:58:56,375 - werkzeug - INFO - 127.0.0.1 - - [27/Aug/2025 18:58:56] "GET / HTTP/1.1" 302 -
+2025-08-27 18:58:55,212 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+2025-08-27T18:59:01Z info: Deployment successful
