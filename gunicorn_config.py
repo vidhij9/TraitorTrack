@@ -114,6 +114,6 @@ if os.environ.get("ENVIRONMENT") == "production":
     accesslog = "/var/log/tracetrack/access.log" if os.path.exists("/var/log/tracetrack") else "-"
     errorlog = "/var/log/tracetrack/error.log" if os.path.exists("/var/log/tracetrack") else "-"
 else:
-    workers = 2  # Fewer workers in development
-    loglevel = "debug"  # More verbose in development
+    workers = 4  # 4 workers for load testing (50+ concurrent users)
+    loglevel = "info"  # Info level in development
     reload = True  # Enable auto-reload in development
