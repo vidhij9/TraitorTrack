@@ -60,12 +60,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (September 28, 2025)
 
-### AWS Deployment to Asia Pacific Mumbai Region
-- **AWS Infrastructure**: Successfully deployed EC2 instance in ap-south-1 region
-- **Instance Details**: EC2 instance i-0057a68f7062dd425 at IP 13.201.135.42
-- **Database Connection**: Configured via AWS Systems Manager Parameter Store
-- **Deployment Method**: Automated deployment using EC2 user data scripts
-- **Status**: Instance running, application deployment initializing
+### Application Fixes and Testing Environment
+- **Fixed Flask Compatibility**: Resolved `@app.before_first_request` deprecated decorator issue
+- **Fixed Database Schema**: Simplified User model to match existing database schema
+- **Local Environment**: Testing environment running successfully on Replit
+- **Health Check**: Application responding with healthy status
+- **Note**: AWS deployment attempt discontinued per user request
 
 ## Recent Changes (September 03, 2025)
 
