@@ -302,37 +302,52 @@ def get_bag_children(bag_id):
 @app.route('/api/dashboard/stats')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached(ttl=120, prefix='api')
+@cached(ttl=10, prefix='dashboard_stats')  # Shorter cache for real-time feel
 def get_dashboard_statistics():
-    """Single optimized endpoint for all dashboard data"""
+    """Ultra-optimized dashboard stats using single aggregated query"""
     try:
-        # Get comprehensive stats in one query
+        # Single aggregated query for all stats
+        stats_result = db.session.execute(text("""
+            SELECT 
+                (SELECT COUNT(*) FROM bags) as total_bags,
+                (SELECT COUNT(*) FROM scans) as total_scans,
+                (SELECT COUNT(*) FROM bills) as total_bills,
+                (SELECT COUNT(DISTINCT user_id) FROM scans WHERE user_id IS NOT NULL) as active_users
+        """)).fetchone()
+        
         stats = {
-            'total_bags': Bag.query.count(),
-            'total_scans': Scan.query.count(),
-            'total_bills': Bill.query.count(),
-            'active_users': db.session.query(func.count(func.distinct(Scan.user_id))).scalar() or 0
+            'total_bags': stats_result[0] or 0,
+            'total_scans': stats_result[1] or 0,
+            'total_bills': stats_result[2] or 0,
+            'active_users': stats_result[3] or 0
         }
         
-        # Get recent activity
-        recent_scans = Scan.query.order_by(desc(Scan.timestamp)).limit(10).all()
-        recent_activity = []
+        # Get recent activity with a single optimized query
+        recent_scans_result = db.session.execute(text("""
+            SELECT 
+                s.id,
+                s.timestamp,
+                s.parent_bag_id,
+                s.child_bag_id,
+                u.username,
+                COALESCE(pb.qr_id, cb.qr_id) as qr_id
+            FROM scans s
+            LEFT JOIN users u ON s.user_id = u.id
+            LEFT JOIN bags pb ON s.parent_bag_id = pb.id
+            LEFT JOIN bags cb ON s.child_bag_id = cb.id
+            ORDER BY s.timestamp DESC
+            LIMIT 10
+        """)).fetchall()
         
-        for scan in recent_scans:
-            activity_data = {
-                'timestamp': scan.timestamp.isoformat(),
-                'user': scan.scanned_by.username if scan.scanned_by else 'Unknown',
-                'scan_type': 'parent' if scan.parent_bag_id else 'child'
-            }
-            
-            if scan.parent_bag_id and scan.parent_bag:
-                activity_data['qr_id'] = scan.parent_bag.qr_id
-            elif scan.child_bag_id and scan.child_bag:
-                activity_data['qr_id'] = scan.child_bag.qr_id
-            else:
-                activity_data['qr_id'] = 'Unknown'
-                
-            recent_activity.append(activity_data)
+        recent_activity = []
+        for scan in recent_scans_result:
+            recent_activity.append({
+                'id': scan[0],
+                'timestamp': scan[1].isoformat() if scan[1] else None,
+                'user': scan[4] or 'Unknown',
+                'scan_type': 'parent' if scan[2] else 'child',
+                'qr_id': scan[5] or 'Unknown'
+            })
         
         response_data = {
             'success': True,
