@@ -7,6 +7,7 @@ from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_session import Session
 
 # Configure logging for production - suppress unnecessary warnings
 import warnings
@@ -107,18 +108,52 @@ except ImportError:
     # Gracefully handle missing optimization modules
     apply_query_optimizations = None
 
-# Simple and reliable session configuration
-app.config.update(
-    SESSION_COOKIE_SECURE=False,  # Allow HTTP for both dev and production (Replit handles HTTPS)
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_NAME='tracetrack_session',
-    PERMANENT_SESSION_LIFETIME=86400,  # 24 hours
-    SEND_FILE_MAX_AGE_DEFAULT=0,  # Disable caching for development
-    WTF_CSRF_ENABLED=True,  # Ensure CSRF is enabled
-    WTF_CSRF_TIME_LIMIT=None,  # No time limit for CSRF tokens
-    WTF_CSRF_CHECK_DEFAULT=True  # Check CSRF by default
-)
+# Redis-based session configuration for 100+ concurrent users
+try:
+    from redis_config import RedisConfig, get_redis_client
+    
+    # Initialize Redis for sessions
+    redis_client = get_redis_client()
+    
+    if redis_client:
+        # Redis session configuration - reduces database load significantly
+        app.config.update(
+            SESSION_TYPE='redis',
+            SESSION_REDIS=redis_client,
+            SESSION_PERMANENT=False,
+            SESSION_USE_SIGNER=True,
+            SESSION_KEY_PREFIX='tracetrack:session:',
+            SESSION_COOKIE_SECURE=False,  # Allow HTTP (Replit handles HTTPS)
+            SESSION_COOKIE_HTTPONLY=True,
+            SESSION_COOKIE_SAMESITE='Lax',
+            SESSION_COOKIE_NAME='tracetrack_session',
+            PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
+            SEND_FILE_MAX_AGE_DEFAULT=0,
+            WTF_CSRF_ENABLED=True,
+            WTF_CSRF_TIME_LIMIT=None,
+            WTF_CSRF_CHECK_DEFAULT=True
+        )
+        logger.info("✅ Redis-based session storage enabled - database load reduced")
+    else:
+        raise Exception("Redis not available")
+except:
+    # Fallback to filesystem sessions if Redis unavailable
+    app.config.update(
+        SESSION_TYPE='filesystem',
+        SESSION_COOKIE_SECURE=False,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_NAME='tracetrack_session',
+        PERMANENT_SESSION_LIFETIME=86400,  # 24 hours
+        SEND_FILE_MAX_AGE_DEFAULT=0,
+        WTF_CSRF_ENABLED=True,
+        WTF_CSRF_TIME_LIMIT=None,
+        WTF_CSRF_CHECK_DEFAULT=True
+    )
+    logger.warning("⚠️ Redis unavailable - using filesystem sessions")
+
+# Initialize Flask-Session
+Session(app)
 
 def get_current_environment():
     """Detect current environment - improved logic for Replit"""

@@ -53,3 +53,5 @@ sendgrid
 openpyxl
 pandas
 locust
+flask-session
+hiredis
