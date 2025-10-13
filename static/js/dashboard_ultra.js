@@ -81,11 +81,12 @@
             dataCache.stats = data;
             dataCache.lastUpdate = Date.now();
             
-            // Update UI with stats data
-            updateElementSafely('total-parent-bags', data.parent_bags || 0);
-            updateElementSafely('total-child-bags', data.child_bags || 0);
-            updateElementSafely('total-bills', data.active_bills || 0);
-            updateElementSafely('total-scans', data.recent_scans || 0);
+            // Update UI with stats data (handle both API response formats)
+            const stats = data.statistics || data;
+            updateElementSafely('total-parent-bags', stats.total_parent_bags || stats.parent_bags || 0);
+            updateElementSafely('total-child-bags', stats.total_child_bags || stats.child_bags || 0);
+            updateElementSafely('total-bills', stats.total_bills || stats.active_bills || 0);
+            updateElementSafely('total-scans', stats.total_scans || stats.recent_scans || 0);
             
             // Show success indicator
             showStatusIndicator('success');
