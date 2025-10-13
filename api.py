@@ -405,6 +405,50 @@ def get_recent_scans():
 # OPTIMIZED SEARCH AND LOOKUP ENDPOINTS
 # =============================================================================
 
+@app.route('/api/bags/search')
+@require_auth
+@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
+@cached(ttl=30, prefix='bags_search')
+def search_bags_api():
+    """Fast bag search endpoint for load testing"""
+    try:
+        query_text = request.args.get('q', '').strip()
+        limit = min(request.args.get('limit', 50, type=int), 100)
+        
+        if not query_text:
+            return jsonify({'success': True, 'bags': [], 'count': 0})
+        
+        # Optimized bag search query
+        bags = Bag.query.filter(
+            or_(
+                Bag.qr_id.ilike(f'%{query_text}%'),
+                Bag.name.ilike(f'%{query_text}%')
+            )
+        ).limit(limit).all()
+        
+        bags_data = []
+        for bag in bags:
+            bags_data.append({
+                'id': bag.id,
+                'qr_id': bag.qr_id,
+                'name': bag.name,
+                'type': bag.type,
+                'dispatch_area': bag.dispatch_area,
+                'status': bag.status
+            })
+        
+        return jsonify({
+            'success': True,
+            'bags': bags_data,
+            'count': len(bags_data),
+            'query': query_text,
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Bag search error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Search failed'}), 500
+
 @app.route('/api/search')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
