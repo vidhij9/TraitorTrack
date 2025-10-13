@@ -1,6 +1,7 @@
 """
-Locust load test for TraceTrack - 1.5M bags, 50+ concurrent users
+Locust load test for TraceTrack - 1.5M bags, 100+ concurrent users
 Tests scanner endpoints and dashboard with realistic user behavior
+Enhanced for massive scale operations
 """
 from locust import HttpUser, task, between, SequentialTaskSet
 import random
@@ -31,8 +32,8 @@ class ScannerUserBehavior(SequentialTaskSet):
         # Wait a bit (realistic user behavior)
         time.sleep(random.uniform(0.5, 1.5))
         
-        # Scan a random parent bag
-        parent_qr = f"SB{random.randint(1, 50000):05d}"
+        # Scan a random parent bag (up to 1.5M range)
+        parent_qr = f"SB{random.randint(1, 150000):05d}"
         
         start_time = time.time()
         response = self.client.post('/process_parent_scan', 
@@ -59,8 +60,8 @@ class ScannerUserBehavior(SequentialTaskSet):
     @task
     def scan_child_workflow(self):
         """Complete child scanning workflow"""
-        # First scan a parent
-        parent_qr = f"SB{random.randint(1, 50000):05d}"
+        # First scan a parent (up to 1.5M range)
+        parent_qr = f"SB{random.randint(1, 150000):05d}"
         self.client.post('/process_parent_scan', 
             data={'qr_code': parent_qr},
             allow_redirects=False
