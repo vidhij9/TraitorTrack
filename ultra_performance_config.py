@@ -12,10 +12,11 @@ class UltraPerformanceConfig:
     """Ultimate performance configuration for production scale - 100+ users, 1.5M+ bags"""
     
     # Database Configuration - Optimized for 100+ concurrent users and 1.5M bags
+    # Sized for typical managed Postgres limits (100 max connections)
     DATABASE_CONFIG = {
-        # Connection pool sized for heavy concurrent load - 100+ users
-        "pool_size": 80,                      # Base pool for 100+ users
-        "max_overflow": 120,                  # Total 200 connections max
+        # Connection pool sized for 100+ users within DB limits
+        "pool_size": 40,                      # Base pool for sustained load
+        "max_overflow": 50,                   # Total 90 connections (safely under 100 limit)
         "pool_recycle": 1800,                 # Recycle every 30 minutes
         "pool_pre_ping": True,                # Always test connections
         "pool_timeout": 5,                    # Fast fail on connection wait
@@ -24,7 +25,7 @@ class UltraPerformanceConfig:
         "pool_use_lifo": True,                # Better connection reuse
         "pool_reset_on_return": "rollback",   # Clean connection state
         
-        # PostgreSQL optimizations for 1.5M+ bags
+        # PostgreSQL optimizations for 1.5M+ bags (conservative memory)
         "connect_args": {
             "keepalives": 1,
             "keepalives_idle": 5,
@@ -37,13 +38,13 @@ class UltraPerformanceConfig:
                 "-c idle_in_transaction_session_timeout=5000 "  # 5 second idle timeout
                 "-c jit=on "                   # Enable JIT compilation
                 "-c random_page_cost=1.1 "     # Optimize for SSD
-                "-c work_mem=32MB "            # More memory per operation for large datasets
+                "-c work_mem=8MB "             # Conservative: 8MB * 90 connections = 720MB total
                 "-c enable_seqscan=on "        # Allow sequential scans
                 "-c enable_indexscan=on "      # Use indexes
                 "-c enable_bitmapscan=on "     # Use bitmap scans
                 "-c enable_hashjoin=on "       # Use hash joins
                 "-c enable_mergejoin=on "      # Use merge joins
-                "-c max_parallel_workers_per_gather=4 "  # Parallel query execution
+                "-c max_parallel_workers_per_gather=2 "  # Conservative parallel (2 workers)
                 "-c parallel_tuple_cost=0.01"  # Tune parallel query cost
             )
         },

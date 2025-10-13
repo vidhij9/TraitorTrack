@@ -1,235 +1,62 @@
 # TraceTrack - Bag Tracking System
 
 ## Overview
-
-TraceTrack is a high-performance bag tracking system designed for warehouse and logistics operations. The application manages parent-child bag relationships, scanning operations, and bill generation with support for **100+ concurrent users** and **1.5M+ bags**. It features a web-based interface for dispatchers, billers, and administrators with real-time tracking capabilities and millisecond-level response times.
+TraceTrack is a high-performance bag tracking system designed for warehouse and logistics operations. It manages parent-child bag relationships, scanning operations, and bill generation. The system is built to support **100+ concurrent users** and **1.5M+ bags** with millisecond-level response times. It provides a web-based interface for dispatchers, billers, and administrators with real-time tracking capabilities. The project aims to provide a robust, scalable, and efficient solution for demanding logistics environments, streamlining operations and improving accuracy.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
-
-## Recent Changes (October 13, 2025)
-
-### Massive Scale Optimization - 100+ Users & 1.5M Bags
-- **Target Scale**: Enhanced from 50+ users/800K bags to **100+ concurrent users and 1.5 million bags**
-- **Database Optimization**:
-  - **Connection Pool**: Increased from 40→80 base pool, 60→120 max_overflow (total 200 connections)
-  - **AWS RDS**: Upgraded from 5→80 base pool, 15→120 max_overflow for production
-  - **PostgreSQL Settings**: Enhanced work_mem to 32MB, enabled parallel query execution (4 workers)
-  - **Query Timeouts**: Extended to 15 seconds for large dataset operations
-  - **Removed Server Parameters**: Cleaned server-level parameters (shared_buffers, etc.) that cannot be set per-connection
-- **Load Testing Results**:
-  - ✅ Successfully handled 100 concurrent users
-  - ✅ 1,000 requests completed with 0% error rate
-  - ✅ Average response time: 96ms (well under 300ms target)
-  - ✅ Throughput: 464.6 requests/second
-  - ✅ P95 response time: 353ms
-  - ✅ P99 response time: 406ms
-- **Database Cleanup**: Removed all test data from local Replit DB for clean testing environment
-- **Files Updated**: `ultra_performance_config.py`, `app_clean.py`
-- **System Status**: Production-ready for massive scale - 100+ users, 1.5M+ bags
-
-## Recent Changes (October 13, 2025)
-
-### Dashboard Statistics Display Bug Fix
-- **Issue**: Dashboard stats cards displayed zeros despite API returning correct data (88 parent bags, 3 child bags, 91 scans)
-- **Root Cause**: JavaScript expected flat property structure (`data.parent_bags`) but API returns nested format (`data.statistics.total_parent_bags`)
-- **Fix**: Updated `dashboard_ultra.js` to handle both API response formats with defensive fallback logic
-- **Result**: Dashboard now correctly displays all statistics in real-time
-- **Files Updated**: `static/js/dashboard_ultra.js`
-
-### Comprehensive E2E Testing Completed
-- **Test Coverage**: 100% pass rate on all critical workflows
-  - Authentication & session protection
-  - Parent bag scanning (6ms avg response time)
-  - Child bag scanning (batch of 5 bags successfully scanned)
-  - Dashboard statistics display
-  - Bag management (search, view details)
-  - Bill management (create bill, link parent bags, weight calculation)
-- **Performance Validated**: All response time targets met
-  - Parent scan: <100ms (actual: 6ms)
-  - Child scan: <50ms per scan (actual: <50ms)
-  - Dashboard load: <300ms (actual: <300ms)
-- **System Status**: Production-ready with 50+ concurrent user support
-
-### System Capabilities Verified
-- ✅ Coconut wireless 2D barcode scanner integration working perfectly
-- ✅ Keyboard wedge mode (no special drivers needed)
-- ✅ Instant scan detection with auto-submit on Enter key
-- ✅ Real-time dashboard updates with accurate statistics
-- ✅ Parent-child bag relationship tracking
-- ✅ Bill creation and bag linking functionality
-- ✅ Role-based access control (admin, biller, dispatcher)
-- ✅ Session security and protected route enforcement
-- ✅ High-performance database operations with caching
-
-### Complete Camera Code Removal (Black Screen Bug Fix)
-- **Issue**: Some pages still had residual camera code causing black screens and slow loading
-- **Root Cause**: Incomplete migration to keyboard scanner - camera initialization code remained in scan.html and scan_bill_parent_ultra.html
-- **Fix Process**:
-  - Removed all camera/video code from scan.html (parent bag upload via Excel)
-  - Removed all camera code from scan_bill_parent_ultra.html (bill parent bag scanner)
-  - Fixed JavaScript syntax errors from sed command that removed scanner.resumeScanning() but left orphaned closing braces
-  - Replaced with keyboard input fields for Coconut wireless scanner
-- **Result**: All pages now 100% keyboard-input based with no camera dependencies
-- **Files Updated**: `scan.html`, `scan_bill_parent_ultra.html`
-- **Performance**: No more camera initialization delays - instant page loads
-
-## Recent Changes (October 05, 2025)
-
-### Scanner Integration - Coconut Wireless 2D Barcode Scanner
-- **Replaced Mobile Camera Scanning**: Switched from camera-based QR scanning to Coconut wireless 2D barcode scanner for dramatically improved speed and accuracy
-- **Scanner Technology**: Coconut wireless 2D scanner (model BSC01) operates as USB HID keyboard device - types scanned data directly into web application
-- **QR Code Support**: 2D scanner fully supports QR codes, 1D barcodes, Data Matrix, and other 2D barcode formats
-- **Performance Improvement**: Instant scan detection (no camera initialization, no image processing delays)
-- **Accuracy Improvement**: Hardware scanner provides 1000% better accuracy compared to camera + software decoding
-- **Simplified Architecture**: Removed jsQR library, camera permission management, and video stream processing
-- **User Experience**: Workers now point scanner at QR code and press scan button - data appears instantly in focused input field
-- **Auto-Submit**: Scanner sends Enter key after data, triggering automatic form submission
-- **Implementation**: Large, prominently styled input fields with auto-focus and visual feedback for scanning status
-- **Files Updated**: `scan_parent.html`, `scan_child.html` - both now use keyboard input capture instead of camera API
 
 ## System Architecture
 
 ### Frontend Architecture
-- **Flask Web Framework**: Server-side rendered templates with Bootstrap UI
-- **Scanner-Based Interface**: Optimized for Coconut wireless 2D barcode scanner with keyboard input capture
-- **Session-Based Authentication**: Simple session management with role-based access control
-- **Real-time Updates**: AJAX-powered dashboard with auto-refresh capabilities
+The application uses a Flask web framework for server-side rendered templates, enhanced with Bootstrap for UI. The interface is optimized for a Coconut wireless 2D barcode scanner, capturing keyboard input. It features session-based authentication with role-based access control and AJAX-powered dashboards for real-time updates.
 
 ### Backend Architecture
-- **Flask Application**: Modular design with blueprint-based routing
-- **SQLAlchemy ORM**: Database abstraction layer with optimized query patterns
-- **Role-Based Access Control**: Three user roles (admin, biller, dispatcher) with area-based permissions
-- **High-Performance Caching**: Multi-layer caching strategy with Redis fallback to in-memory cache
-- **Circuit Breaker Pattern**: Prevents cascading failures in high-load scenarios
+The backend is a modular Flask application utilizing blueprint-based routing. It uses SQLAlchemy ORM for database abstraction with optimized query patterns. Key features include role-based access control for administrators, billers, and dispatchers, a multi-layer caching strategy with Redis, and a circuit breaker pattern for fault tolerance under high load.
 
 ### Database Design
-- **PostgreSQL Primary Database**: Production-ready with connection pooling and query optimization
-- **Schema Design**: 
-  - Users table with role-based permissions
-  - Bags table supporting parent-child relationships
-  - Links table for many-to-many bag relationships
-  - Scans table for tracking operations
-  - Bills table for billing operations
-  - Audit logs for compliance tracking
-- **Performance Optimizations**: 
-  - Composite indexes on frequently queried columns
-  - Partial indexes for filtered queries
-  - Connection pooling with 50+ concurrent connections
-  - Query optimization with sub-50ms response times
+PostgreSQL (version 12+) is the primary database, configured for production with connection pooling and query optimization. The schema design includes tables for Users (with role-based permissions), Bags (supporting parent-child relationships), Links (for many-to-many bag relationships), Scans, and Bills, along with audit logs. Performance is enhanced with composite and partial indexes, and connection pooling supports 50+ concurrent connections, targeting sub-50ms query response times.
 
 ### Caching Strategy
-- **Multi-Level Caching**: Redis primary with in-memory fallback
-- **Intelligent TTL**: Different cache durations based on data volatility
-- **Cache Invalidation**: Pattern-based cache clearing for data consistency
-- **Performance Targets**: Sub-millisecond cache hits, <100ms cache misses
+A multi-level caching system is implemented, with Redis as the primary cache and an in-memory fallback. It employs intelligent TTL (Time-To-Live) based on data volatility and pattern-based cache invalidation to maintain data consistency. The goal is sub-millisecond cache hits and <100ms cache misses.
 
 ### Performance Optimizations
-- **Gunicorn Configuration**: Async workers with gevent for high concurrency
-- **Database Connection Pooling**: Optimized for 50+ concurrent connections
-- **Query Optimization**: Aggressive query caching and batch operations
-- **Response Time Monitoring**: Real-time performance tracking with alerting
-- **Load Testing**: Validated for 50+ concurrent users with <300ms response times
+The system is configured with Gunicorn and gevent for asynchronous workers to achieve high concurrency. Database connection pooling is optimized for 50+ concurrent connections. Aggressive query caching and batch operations are used. Real-time monitoring tracks response times, CPU, memory, and throughput. Load testing has validated support for 50-75 concurrent users with sub-300ms response times for database operations. For 100+ concurrent users, further scaling considerations include read replicas, Redis-based session stores, and connection pooling proxies.
 
 ### Security Features
-- **CSRF Protection**: Implemented across all forms
-- **Input Validation**: Comprehensive sanitization and validation
-- **Session Security**: Secure session management with timeout handling
-- **Rate Limiting**: API endpoint protection against abuse
-- **SQL Injection Prevention**: Parameterized queries throughout
+Security measures include CSRF protection on all forms, comprehensive input validation and sanitization, secure session management with timeout handling, API endpoint rate limiting, and SQL injection prevention through parameterized queries.
 
-## Recent Changes (September 03, 2025)
-
-### Database Configuration Update
-- **Proper Environment Separation**: Configured separate databases for testing and production
-- **Testing Environment**: Uses Replit Neon database (`DATABASE_URL`) - Empty for safe testing
-- **Production Environment**: Uses AWS RDS (`PRODUCTION_DATABASE_URL`) - Contains real data (66,845 bags)
-- **Automatic Detection**: System automatically selects correct database based on domain
-- **Data Protection**: Production data on AWS RDS is protected from test operations
-
-## Recent Changes (September 03, 2025)
-
-### Excel Upload Feature Optimization
-- **80,000+ Bag Support**: Optimized Excel upload to handle 80,000+ bags efficiently
-- **Flexible Formats**: Accepts any format of parent and child bag IDs (no longer restricted to specific prefixes)
-- **Unlimited Children**: Parents can have any number of child bags (removed 30 child limit)
-- **Duplicate Detection**: Automatically detects and skips duplicate child bags
-- **Batch Processing**: Uses PostgreSQL bulk operations for 30x faster processing
-- **Memory Efficient**: Streaming Excel parsing to handle large files without memory issues
-- **Performance**: Processes 30,000+ bags per second with optimized database operations
-
-## Recent Changes (August 29, 2025)
-
-### Business Logic Update - Parent Bag Linking
-- **Removed 30 Child Bag Requirement**: Parent bags can now be linked to bills regardless of how many child bags they contain
-- **Flexible Bag Linking**: Any registered parent bag can be immediately linked to a bill (0 children, 10 children, 30+ children all allowed)
-- **Weight Calculation**: Bag weight is dynamically calculated based on actual child count (1kg per child)
-- **Status Updates**: Parent bag status reflects actual state rather than enforcing completion at 30 children
-
-## Recent Performance Optimizations (August 29, 2025)
-
-### Critical Bug Fixes - Parent Scanner (Latest Fix)
-- **Fixed "Processing..." Stuck Issue**: Parent scanner no longer gets stuck showing "Processing bag_name..." without feedback
-- **Improved Response Times**: Reduced parent scanner response time from 933ms to 6ms average (155x improvement!)
-- **Fixed Child Count Display**: Correctly shows actual child count (e.g., 30/30) instead of always showing 0/30
-- **Enhanced User Feedback**: Clear success/error messages with child count information
-- **Removed Unnecessary Retries**: Eliminated redundant fallback logic that caused delays
-
-### Ultra-Performance Configuration
-- **Database Connection Pooling**: Optimized for 50+ concurrent connections with 25-50 pool size
-- **Query Optimization**: Advanced indexing strategy with composite and partial indexes
-- **Response Time Targets**: Achieved 6ms average for parent scanning (target was <100ms)
-- **Actual Performance**: Parent scanner now at 6ms, child scanner at <50ms
-- **Circuit Breakers**: Fault tolerance pattern preventing cascading failures
-- **Performance Monitoring**: Real-time tracking of response times, CPU, memory, and throughput
-
-### Load Testing Results
-- **Concurrent Users**: Successfully tested with 50+ simultaneous users
-- **Database Scale**: Optimized for 800,000+ bags in the database
-- **Throughput**: Achieved 100+ requests per second under load
-- **Error Rate**: Maintained <1% error rate under peak load
-- **Response Times**: P95 <300ms, P99 <500ms across all endpoints
-
-### Key Performance Features
-- **Ultra-Fast Parent Scanner**: Scans parent bags in 6ms average (was 933ms - 155x faster!)
-- **Ultra-Fast Batch Scanner**: Processes 30 child bags in under 1 minute (previously 15-20 minutes)
-- **Multi-Layer Caching**: Redis primary with in-memory fallback for sub-millisecond cache hits
-- **Connection Pooling**: SQLAlchemy pool with optimized settings for Neon database
-- **Circuit Breaker Pattern**: Automatic failure detection and recovery
-- **Performance Dashboard**: Real-time monitoring at `/performance/dashboard`
+### Key Features and Implementations
+- **Scanner Integration**: Transitioned from camera-based scanning to Coconut wireless 2D barcode scanner (USB HID keyboard device) for instant, accurate input and auto-submission.
+- **Bag Management**: Supports flexible parent-child bag relationships, allowing any number of child bags per parent and linking parent bags to bills regardless of child count.
+- **Bill Generation**: Dynamic weight calculation based on actual child count.
+- **Excel Upload**: Optimized to handle 80,000+ bags efficiently with flexible formats, duplicate detection, and batch processing using PostgreSQL bulk operations.
+- **User Interface**: Designed for keyboard-input, removing all camera dependencies for faster page loads.
 
 ## External Dependencies
 
 ### Database Services
-- **PostgreSQL**: Primary database with version 12+ for advanced indexing features
-- **Connection Pooling**: SQLAlchemy with optimized pool settings for production scale
+- **PostgreSQL**: Primary database.
+- **AWS RDS**: Managed PostgreSQL for production environments.
 
 ### Caching Services
-- **Redis**: Primary caching layer for session storage and query caching
-- **In-Memory Cache**: Fallback caching when Redis is unavailable
+- **Redis**: Primary caching layer for session storage and query caching.
 
 ### Python Libraries
-- **Flask**: Web framework with extensive plugin ecosystem
-- **SQLAlchemy**: ORM with advanced query optimization features
-- **bcrypt**: Fast password hashing with configurable rounds
-- **psycopg2**: PostgreSQL adapter with connection pooling
-- **redis**: Python Redis client with connection pooling
-- **gunicorn**: WSGI server optimized for production deployment
-- **gevent**: Async library for handling concurrent connections
-
-### Development Tools
-- **Flask-WTF**: CSRF protection and form handling
-- **Flask-Login**: User session management
-- **Flask-Limiter**: Rate limiting for API endpoints
-- **Werkzeug**: WSGI utilities and security helpers
+- **Flask**: Web framework.
+- **SQLAlchemy**: ORM.
+- **bcrypt**: Password hashing.
+- **psycopg2**: PostgreSQL adapter.
+- **redis**: Python Redis client.
+- **gunicorn**: WSGI server.
+- **gevent**: Asynchronous library.
+- **Flask-WTF**: CSRF protection and form handling.
+- **Flask-Login**: User session management.
+- **Flask-Limiter**: Rate limiting.
+- **Werkzeug**: WSGI utilities and security helpers.
 
 ### Monitoring and Analytics
-- **psutil**: System resource monitoring
-- **Custom Performance Monitor**: Real-time application performance tracking
-- **Load Testing Suite**: Comprehensive testing for production readiness
+- **psutil**: System resource monitoring.
 
 ### Deployment Infrastructure
-- **AWS RDS**: Managed PostgreSQL for production database
-- **Gunicorn**: Production WSGI server with optimized worker configuration
-- **Environment-based Configuration**: Separate settings for development, staging, and production
+- **Gunicorn**: Production WSGI server.

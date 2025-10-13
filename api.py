@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 @app.route('/api/dashboard/analytics')
 @require_auth
-@limiter.limit("60 per minute")
+@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached(ttl=30, prefix='dashboard_analytics')
 def get_dashboard_analytics():
     """Comprehensive dashboard analytics endpoint with role-based data"""
@@ -209,7 +209,7 @@ def get_dashboard_analytics():
 
 @app.route('/api/bags/parent/list')
 @require_auth
-@limiter.limit("30 per minute")
+@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached(ttl=30, prefix='parent_bags')
 def get_all_parent_bags():
     """Optimized parent bags listing with pagination and search"""
@@ -264,7 +264,7 @@ def get_all_parent_bags():
 
 @app.route('/api/bags/<int:bag_id>/children')
 @require_auth
-@limiter.limit("60 per minute")
+@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached(ttl=60, prefix='api')
 def get_bag_children(bag_id):
     """Get all child bags for a specific parent bag"""
@@ -301,7 +301,7 @@ def get_bag_children(bag_id):
 
 @app.route('/api/dashboard/stats')
 @require_auth
-@limiter.limit("20 per minute")
+@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached(ttl=120, prefix='api')
 def get_dashboard_statistics():
     """Single optimized endpoint for all dashboard data"""
@@ -358,7 +358,7 @@ def get_dashboard_statistics():
 
 @app.route('/api/scans/recent')
 @require_auth
-@limiter.limit("30 per minute")
+@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached(ttl=60, prefix='api')
 def get_recent_scans():
     """Get recent scans with filtering options"""
@@ -407,7 +407,7 @@ def get_recent_scans():
 
 @app.route('/api/search')
 @require_auth
-@limiter.limit("60 per minute")
+@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 def search_unified():
     """Unified search endpoint for all entities"""
     try:
@@ -494,7 +494,7 @@ def search_unified():
 
 @app.route('/api/cache/clear', methods=['POST'])
 @require_auth
-@limiter.limit("5 per minute")
+@limiter.limit("5000 per minute")  # Increased for 100+ concurrent users
 def clear_api_cache():
     """Clear API cache (admin only)"""
     if not current_user.is_admin():
@@ -516,7 +516,7 @@ def clear_api_cache():
 
 @app.route('/api/system/health')
 @require_auth
-@limiter.limit("10 per minute")
+@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 def system_health():
     """System health check endpoint"""
     try:

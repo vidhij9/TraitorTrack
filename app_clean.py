@@ -181,9 +181,10 @@ is_aws_rds = 'amazonaws.com' in app.config["SQLALCHEMY_DATABASE_URI"]
 
 if is_aws_rds:
     # AWS RDS specific configuration for 100+ concurrent users and 1.5M+ bags
+    # Sized for typical RDS instance limits (adjust based on your RDS instance class)
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 80,  # Large pool for 100+ concurrent users
-        "max_overflow": 120,  # Total 200 connections max
+        "pool_size": 40,  # Base pool for sustained load
+        "max_overflow": 50,  # Total 90 connections (safely under typical RDS limit)
         "pool_recycle": 280,  # Recycle before AWS timeout (300s)
         "pool_pre_ping": True,  # Verify connections before use
         "pool_timeout": 10,  # Quick timeout to fail fast
@@ -201,7 +202,7 @@ if is_aws_rds:
             "options": (
                 "-c statement_timeout=15000 "  # 15 second query timeout for large datasets
                 "-c idle_in_transaction_session_timeout=5000 "  # 5 second idle timeout
-                "-c work_mem=32MB "  # More memory for large dataset operations
+                "-c work_mem=8MB "  # Conservative: 8MB * 90 connections = 720MB total
                 "-c jit=on "  # Enable JIT compilation
                 "-c random_page_cost=1.1 "  # Optimize for SSD
                 "-c enable_seqscan=on "  # Allow sequential scans
@@ -209,12 +210,12 @@ if is_aws_rds:
                 "-c enable_bitmapscan=on "  # Use bitmap scans
                 "-c enable_hashjoin=on "  # Use hash joins
                 "-c enable_mergejoin=on "  # Use merge joins
-                "-c max_parallel_workers_per_gather=4 "  # Parallel query execution
+                "-c max_parallel_workers_per_gather=2 "  # Conservative parallel (2 workers)
                 "-c parallel_tuple_cost=0.01"  # Tune parallel query cost
             )
         }
     }
-    logger.info("✅ Using AWS RDS ULTRA-PERFORMANCE configuration for 100+ users and 1.5M+ bags")
+    logger.info("✅ Using AWS RDS optimized configuration for 100+ users and 1.5M+ bags (90 max connections, 720MB work_mem)")
 else:
     # Import ultra-performance configuration for local/Replit database
     try:
