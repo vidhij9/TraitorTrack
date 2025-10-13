@@ -21,7 +21,30 @@ PostgreSQL (version 12+) is the primary database, configured for production with
 A multi-level caching system is implemented, with Redis as the primary cache and an in-memory fallback. It employs intelligent TTL (Time-To-Live) based on data volatility and pattern-based cache invalidation to maintain data consistency. The goal is sub-millisecond cache hits and <100ms cache misses.
 
 ### Performance Optimizations
-The system is configured with Gunicorn and gevent for asynchronous workers to achieve high concurrency. Database connection pooling is optimized for 50+ concurrent connections. Aggressive query caching and batch operations are used. Real-time monitoring tracks response times, CPU, memory, and throughput. Load testing has validated support for 50-75 concurrent users with sub-300ms response times for database operations. For 100+ concurrent users, further scaling considerations include read replicas, Redis-based session stores, and connection pooling proxies.
+The system is configured with Gunicorn and gevent for asynchronous workers to achieve high concurrency. Database connection pooling is optimized for 90 concurrent connections (40 base + 50 overflow) for AWS RDS, with advanced pool management through connection_pool_optimizer.py. The system includes:
+
+**Connection Pool Management:**
+- PgBouncer-like connection pooling with intelligent monitoring
+- Pool size: 40 base + 50 overflow = 90 total connections for AWS RDS
+- LIFO pooling for connection reuse efficiency
+- Pre-ping validation to detect stale connections
+- Automatic connection recycling (280s for AWS RDS)
+
+**Session Management:**
+- Filesystem-based session storage (500 session threshold)
+- Reduces database load by storing sessions on disk instead of DB
+- 1-hour session lifetime with proper cleanup
+
+**Async Operations Framework:**
+- asyncpg-based connection pool (10-50 connections)
+- Non-blocking database queries for dashboard stats, search, and scans
+- Parallel query execution for improved throughput
+
+**Load Test Results:**
+- 50-75 concurrent users: Proven reliable with sub-300ms response times
+- 100+ concurrent users: Infrastructure optimizations in place; routes need async integration for full performance
+
+Real-time monitoring tracks response times, CPU, memory, throughput, and connection pool statistics.
 
 ### Security Features
 Security measures include CSRF protection on all forms, comprehensive input validation and sanitization, secure session management with timeout handling, API endpoint rate limiting, and SQL injection prevention through parameterized queries.
@@ -44,12 +67,15 @@ Security measures include CSRF protection on all forms, comprehensive input vali
 
 ### Python Libraries
 - **Flask**: Web framework.
+- **Flask-Session**: Server-side session management.
 - **SQLAlchemy**: ORM.
+- **asyncpg**: Async PostgreSQL adapter for non-blocking queries.
 - **bcrypt**: Password hashing.
-- **psycopg2**: PostgreSQL adapter.
+- **psycopg2-binary**: PostgreSQL adapter.
 - **redis**: Python Redis client.
-- **gunicorn**: WSGI server.
-- **gevent**: Asynchronous library.
+- **hiredis**: High-performance Redis parser.
+- **gunicorn**: Production WSGI server.
+- **gevent**: Asynchronous workers for concurrency.
 - **Flask-WTF**: CSRF protection and form handling.
 - **Flask-Login**: User session management.
 - **Flask-Limiter**: Rate limiting.
