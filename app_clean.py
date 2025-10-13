@@ -192,18 +192,19 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Check if we're using AWS RDS
 is_aws_rds = 'amazonaws.com' in app.config["SQLALCHEMY_DATABASE_URI"]
 
-if is_aws_rds:
-    # AWS RDS specific configuration for 100+ concurrent users and 1.5M+ bags
-    # Use connection pool optimizer for advanced pool management
-    try:
-        from connection_pool_optimizer import get_optimized_pool_config, setup_pool_monitoring
-        
-        # Get optimized pool configuration
-        pool_config = get_optimized_pool_config(app.config["SQLALCHEMY_DATABASE_URI"], pool_size=40, max_overflow=50)
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = pool_config
-        logger.info("✅ Using OPTIMIZED connection pool for AWS RDS: 40 base + 50 overflow = 90 total connections")
-    except ImportError:
-        # Fallback to manual configuration
+# Apply optimized connection pool for ALL PostgreSQL databases (not just AWS RDS)
+try:
+    from connection_pool_optimizer import pool_optimizer, setup_pool_monitoring
+    
+    # Get optimized pool configuration
+    pool_size = 40 if is_aws_rds else 30
+    max_overflow = 50 if is_aws_rds else 20
+    pool_config = pool_optimizer.create_optimized_pool(app.config["SQLALCHEMY_DATABASE_URI"], pool_size=pool_size, max_overflow=max_overflow)
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = pool_config
+    logger.info(f"✅ Using OPTIMIZED connection pool: {pool_size} base + {max_overflow} overflow = {pool_size + max_overflow} total connections")
+except ImportError:
+    # Fallback to manual configuration
+    if is_aws_rds:
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
             "pool_size": 40,
             "max_overflow": 50,
@@ -238,6 +239,20 @@ if is_aws_rds:
             }
         }
         logger.info("✅ Using AWS RDS optimized configuration for 100+ users (90 max connections)")
+    else:
+        # Local/Replit database with optimized pool
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": 30,
+            "max_overflow": 20,
+            "pool_recycle": 1800,
+            "pool_pre_ping": True,
+            "pool_timeout": 10,
+            "echo": False,
+            "echo_pool": False,
+            "pool_use_lifo": True,
+            "pool_reset_on_return": "rollback",
+        }
+        logger.info("✅ Using optimized connection pool for local database (50 max connections)")
 else:
     # Import ultra-performance configuration for local/Replit database
     try:
