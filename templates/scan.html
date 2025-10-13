@@ -3,22 +3,56 @@
 {% block title %} - Scan QR Code{% endblock %}
 
 {% block head %}
-<!-- HTML5-QRCode library -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
-    #reader {
-        width: 100%;
-        max-width: 600px;
-        margin: 0 auto;
-        border-radius: 8px;
-        overflow: hidden;
+    /* Scanner Input - Large and prominent */
+    .scanner-input-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 40px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        margin: 20px 0;
     }
+
+    .scanner-input {
+        font-size: 2.5rem;
+        padding: 20px;
+        text-align: center;
+        border: 4px solid #fff;
+        border-radius: 12px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        background: rgba(255,255,255,0.95);
+        transition: all 0.3s ease;
+    }
+
+    .scanner-input:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 20px rgba(40,167,69,0.5);
+        background: #fff;
+    }
+
+    .scanner-status {
+        text-align: center;
+        margin-top: 15px;
+        color: #fff;
+        font-size: 1.2rem;
+    }
+
+    .scanner-icon {
+        font-size: 4rem;
+        color: #fff;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
     #scan-result {
         display: none;
-    }
-    .scan-icon {
-        font-size: 50px;
-        margin-bottom: 20px;
     }
 </style>
 {% endblock %}
@@ -29,27 +63,32 @@
         <div class="card bg-light mb-4">
             <div class="card-header">
                 <h3 class="mb-0"><i class="fas fa-qrcode me-2"></i>Scan QR Code</h3>
+                <small>Using Coconut Wireless 2D Scanner</small>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6 mb-4">
-                        <div class="text-center mb-4">
-                            <div class="scan-icon text-primary">
-                                <i class="fas fa-qrcode"></i>
+                        <!-- Scanner Input Section -->
+                        <div class="scanner-input-container">
+                            <div class="text-center">
+                                <i class="fas fa-barcode scanner-icon"></i>
+                                <h5 class="text-white mb-3">Point scanner at QR code and scan</h5>
                             </div>
-                            <h4>Scan a Product QR Code</h4>
-                            <p class="text-muted">Position the QR code within the scanner to track product movement</p>
-                        </div>
-                        
-                        <div id="reader" class="mb-4"></div>
-                        
-                        <div class="d-flex justify-content-center mb-3">
-                            <button class="btn btn-primary me-2" id="start-scanner">
-                                <i class="fas fa-play me-2"></i>Start Scanner
-                            </button>
-                            <button class="btn btn-secondary" id="stop-scanner">
-                                <i class="fas fa-stop me-2"></i>Stop Scanner
-                            </button>
+                            
+                            <input 
+                                type="text" 
+                                id="scanner-input" 
+                                class="form-control scanner-input" 
+                                placeholder="Ready to scan..." 
+                                autocomplete="off"
+                                autofocus
+                            >
+                            
+                            <div class="scanner-status">
+                                <span id="status-text">
+                                    <i class="fas fa-check-circle me-2"></i>Scanner ready
+                                </span>
+                            </div>
                         </div>
                         
                         <div class="alert alert-info">
@@ -60,9 +99,10 @@
                                 <div>
                                     <h5 class="alert-heading">Scanner Tips</h5>
                                     <ul class="mb-0">
-                                        <li>Ensure the QR code is well-lit</li>
-                                        <li>Hold the camera steady</li>
-                                        <li>Position the entire QR code in the scanner</li>
+                                        <li>Make sure the input field above is highlighted (click it if not)</li>
+                                        <li>Point your Coconut scanner at a QR code</li>
+                                        <li>Press the scan button on your scanner</li>
+                                        <li>The QR code will appear instantly!</li>
                                     </ul>
                                 </div>
                             </div>
@@ -75,6 +115,7 @@
                             <p class="text-muted">Fill in the scan details and submit to log the movement</p>
                             
                             <form action="{{ url_for('log_scan') }}" method="post">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <div class="mb-3">
                                     <label for="qr_id" class="form-label">QR Code ID</label>
                                     <div class="input-group">
@@ -84,8 +125,6 @@
                                         <input type="text" class="form-control" id="qr_id" name="qr_id" placeholder="QR ID (scanned or enter manually)" required>
                                     </div>
                                 </div>
-                                
-                                <!-- Location field removed as per application requirements -->
                                 
                                 <div class="mb-3">
                                     <label for="status" class="form-label">Status</label>
@@ -123,37 +162,59 @@
                 </div>
             </div>
         </div>
-        
-        <div class="card bg-light">
-            <div class="card-header">
-                <h4 class="mb-0">Recent Scans</h4>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover" id="recent-user-scans">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>QR ID</th>
-                                <th>Location</th>
-                                <th>Status</th>
-                                <th>Time</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="6" class="text-center">Loading your recent scans...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/scan.js') }}"></script>
+<script>
+// Handle scanner input with auto-fill
+document.addEventListener('DOMContentLoaded', function() {
+    const scannerInput = document.getElementById('scanner-input');
+    const qrInput = document.getElementById('qr_id');
+    const statusText = document.getElementById('status-text');
+    const scanForm = document.getElementById('scan-form');
+    const scanResult = document.getElementById('scan-result');
+    const resultQrId = document.getElementById('result-qrid');
+    
+    // Auto-focus scanner input on page load
+    scannerInput.focus();
+    
+    // When scanner input receives data (Enter key)
+    scannerInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const scannedValue = scannerInput.value.trim();
+            
+            if (scannedValue) {
+                // Update status
+                statusText.innerHTML = '<i class="fas fa-check-circle me-2"></i>Scan detected!';
+                statusText.parentElement.className = 'scanner-status text-success';
+                
+                // Fill the QR input
+                qrInput.value = scannedValue;
+                
+                // Show result
+                resultQrId.textContent = scannedValue;
+                scanResult.style.display = 'block';
+                
+                // Clear scanner input for next scan
+                scannerInput.value = '';
+                
+                // Reset status after 2 seconds
+                setTimeout(function() {
+                    statusText.innerHTML = '<i class="fas fa-check-circle me-2"></i>Scanner ready';
+                    statusText.parentElement.className = 'scanner-status';
+                }, 2000);
+            }
+        }
+    });
+    
+    // Keep focus on scanner input
+    document.addEventListener('click', function(e) {
+        // Don't refocus if user is interacting with the form
+        if (!e.target.closest('#scan-form') && !e.target.closest('#scan-result')) {
+            scannerInput.focus();
+        }
+    });
+});
+</script>
 {% endblock %}

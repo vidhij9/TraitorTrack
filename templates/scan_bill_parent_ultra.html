@@ -149,39 +149,38 @@
                     </h4>
                 </div>
                 <div class="card-body">
-                    <!-- Scanner Container -->
-                    <div id="bill-scanner-container" class="scanner-container mb-3"></div>
-                    
-                    <!-- Scanner Status -->
-                    <div class="text-center">
-                        <div class="alert alert-info py-2">
-                            <i class="fas fa-camera me-2"></i>
-                            <span id="scanner-status">Initializing camera...</span>
+                    <!-- Keyboard Scanner Input - Primary Method -->
+                    <div class="scanner-input-container mb-3" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 30px; border-radius: 12px;">
+                        <div class="text-center">
+                            <i class="fas fa-barcode" style="font-size: 3rem; color: #fff; margin-bottom: 15px;"></i>
+                            <h5 class="text-white mb-3">Scan Parent Bag with Coconut Scanner</h5>
                         </div>
-                        <button id="start-camera" class="btn btn-success btn-sm px-3 py-1" style="display: none;">
-                            <i class="fas fa-play me-1"></i>Restart Scanner
-                        </button>
-                        <button id="stop-camera" class="btn btn-secondary btn-sm px-3 py-1" style="display: none;">
-                            <i class="fas fa-stop me-1"></i>Stop Scanner
-                        </button>
+                        
+                        <input 
+                            type="text" 
+                            id="manual-qr-input" 
+                            class="form-control text-center" 
+                            style="font-size: 2rem; padding: 15px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; border: 3px solid #fff; border-radius: 8px;"
+                            placeholder="Ready to scan..." 
+                            autocomplete="off"
+                            autofocus
+                        >
+                        
+                        <div class="text-center mt-3">
+                            <small class="text-white d-block">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Point scanner at parent bag QR code and press scan button
+                            </small>
+                            <small class="text-white-50">Accepts any format: SB12345, sb00860, etc.</small>
+                        </div>
                     </div>
                     
-                    <!-- Manual Entry Section -->
-                    <hr class="my-3">
-                    <div class="manual-entry-section">
-                        <h6 class="mb-2"><i class="fas fa-keyboard me-2"></i>Manual Entry</h6>
-                        <div class="input-group">
-                            <input type="text" 
-                                   id="manual-qr-input" 
-                                   class="form-control" 
-                                   placeholder="Enter parent bag QR (accepts: SB, Sb, sB, sb)" 
-                                   pattern="^[sS][bB]\d{5}$"
-                                   maxlength="7">
-                            <button class="btn btn-primary" type="button" onclick="submitManualEntry()">
-                                <i class="fas fa-plus me-1"></i>Add
-                            </button>
+                    <!-- Status Display -->
+                    <div class="text-center">
+                        <div class="alert alert-info py-2">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <span id="scanner-status">Scanner ready - Point and scan</span>
                         </div>
-                        <small class="text-muted">Format: SB##### (accepts: SB, Sb, sB, sb - e.g., SB12345, sb00860)</small>
                     </div>
                 </div>
             </div>
@@ -290,29 +289,14 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
-
 <script>
-// Wait for libraries to fully load
-window.addEventListener('load', function() {
-    // Verify InstantDetectionScanner is loaded
-    if (typeof InstantDetectionScanner === 'undefined') {
-        console.error('InstantDetectionScanner not loaded');
-        showToast('Scanner library failed to load. Please refresh the page.', 'danger');
-        return;
-    }
-    
+// Initialize keyboard scanner on page load
+document.addEventListener('DOMContentLoaded', function() {
     initializeScanner();
 });
 
 function initializeScanner() {
-    // Global scanner variable
-    let scanner = null;
     // UI Elements
-    const startBtn = document.getElementById('start-camera');
-    const stopBtn = document.getElementById('stop-camera');
     const bagCount = document.getElementById('bag-count');
     const maxCount = document.getElementById('max-count');
     const progressBar = document.getElementById('progress-bar');
@@ -352,58 +336,13 @@ function initializeScanner() {
         }
     }
     
-    // Show scan pause status when QR is detected
+    // No camera pause overlay needed for keyboard scanner
     function showScanPauseOverlay(qrCode) {
-        // Update status to show paused state
-        const statusEl = document.getElementById('scanner-status');
-        if (statusEl) {
-            statusEl.innerHTML = `<span class="text-warning"><i class="fas fa-pause-circle me-1"></i>Paused - Processing ${qrCode}...</span>`;
-        }
-        
-        // Add a simple pause indicator on the camera feed
-        const scannerContainer = document.getElementById('bill-scanner-container');
-        if (scannerContainer) {
-            let pauseIndicator = document.getElementById('pause-indicator');
-            if (!pauseIndicator) {
-                pauseIndicator = document.createElement('div');
-                pauseIndicator.id = 'pause-indicator';
-                pauseIndicator.style.cssText = `
-                    position: absolute;
-                    top: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: rgba(0, 0, 0, 0.7);
-                    color: #ffc107;
-                    padding: 8px 20px;
-                    border-radius: 20px;
-                    font-size: 14px;
-                    font-weight: 500;
-                    z-index: 1000;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                `;
-                scannerContainer.style.position = 'relative';
-                scannerContainer.appendChild(pauseIndicator);
-            }
-            pauseIndicator.innerHTML = `<span style="display: inline-block; width: 8px; height: 8px; background: #ffc107; border-radius: 50%;"></span> Paused`;
-            pauseIndicator.style.display = 'flex';
-        }
+        // Removed camera-specific code
     }
     
-    // Hide scan pause indicator
     function hideScanPauseOverlay() {
-        // Update status back to scanning
-        const statusEl = document.getElementById('scanner-status');
-        if (statusEl) {
-            statusEl.innerHTML = '<i class="fas fa-camera me-2"></i>Scanning...';
-        }
-        
-        // Hide the pause indicator
-        const pauseIndicator = document.getElementById('pause-indicator');
-        if (pauseIndicator) {
-            pauseIndicator.style.display = 'none';
-        }
+        // Removed camera-specific code
     }
     
     // Submit manual entry
@@ -507,8 +446,7 @@ function initializeScanner() {
                 isProcessing = false;
                 hideScanPauseOverlay();
                 // Try to resume scanner
-                if (scanner && scanner.resumeScanning) {
-                    scanner.resumeScanning();
+                // No camera to resume
                 }
             }
         }, 3000);
@@ -530,8 +468,7 @@ function initializeScanner() {
             setTimeout(() => {
                 console.log('Resuming scanner after duplicate');
                 showToast('Ready for next bag', 'info', 1500);
-                if (scanner && scanner.resumeScanning) {
-                    scanner.resumeScanning();
+                // No camera to resume
                 }
             }, 1500); // Clear 1.5s pause for user feedback
             return;
@@ -563,8 +500,7 @@ function initializeScanner() {
                 // Resume scanning after error
                 setTimeout(() => {
                     showToast('Ready for next bag', 'info', 1500);
-                    if (scanner && scanner.resumeScanning) {
-                        scanner.resumeScanning();
+                    // No camera to resume
                     }
                 }, 2000);
                 return;
@@ -591,8 +527,7 @@ function initializeScanner() {
                 setTimeout(() => {
                     console.log('Resuming scanner after successful scan');
                     showToast('Ready for next bag', 'info', 1500);
-                    if (scanner && scanner.resumeScanning) {
-                        scanner.resumeScanning();
+                    // No camera to resume
                     }
                 }, 2000); // 2 second pause for user to see success
             } else {
@@ -684,8 +619,7 @@ function initializeScanner() {
                 setTimeout(() => {
                     console.log('Resuming scanner after error');
                     showToast('▶️ Scanner ready - Try next bag', 'info', 1500);
-                    if (scanner && scanner.resumeScanning) {
-                        scanner.resumeScanning();
+                    // No camera to resume
                     }
                 }, resumeDelay);
             }
@@ -704,8 +638,7 @@ function initializeScanner() {
             // Resume scanning for retry quickly
             setTimeout(() => {
                 console.log('Resuming scanner after network error');
-                if (scanner && scanner.resumeScanning) {
-                    scanner.resumeScanning();
+                // No camera to resume
                 }
             }, 500); // Faster resume after network error
         }
@@ -801,79 +734,66 @@ function initializeScanner() {
         await updateWeights();
     }
     
-    // Initialize Scanner with InstantDetectionScanner
+    // Initialize Keyboard Scanner - No Camera!
     async function initScanner() {
-        console.log('🎬 initScanner called');
-        try {
-            if (!scanner) {
-                console.log('Creating InstantDetectionScanner for bill parent scanning...');
+        console.log('🎬 Keyboard scanner initialized');
+        
+        // Get input element
+        const scannerInput = document.getElementById('manual-qr-input');
+        if (!scannerInput) {
+            console.error('Scanner input not found');
+            return;
+        }
+        
+        // Auto-focus the input
+        scannerInput.focus();
+        
+        // Handle Enter key press (scanner sends Enter after data)
+        scannerInput.addEventListener('keypress', async function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const qrCode = scannerInput.value.trim().toUpperCase();
                 
-                // Ensure onScanSuccess is defined
-                if (typeof onScanSuccess !== 'function') {
-                    console.error('❌ onScanSuccess is not a function!');
-                    showToast('Scanner initialization error', 'danger');
-                    return;
+                if (qrCode) {
+                    // Update status
+                    const statusEl = document.getElementById('scanner-status');
+                    if (statusEl) {
+                        statusEl.innerHTML = '<i class="fas fa-spinner fa-pulse me-2"></i>Processing...';
+                    }
+                    
+                    // Process the scan
+                    await onScanSuccess(qrCode);
+                    
+                    // Clear input for next scan
+                    scannerInput.value = '';
+                    
+                    // Reset status
+                    if (statusEl) {
+                        statusEl.innerHTML = '<i class="fas fa-check-circle me-2"></i>Scanner ready - Point and scan';
+                    }
                 }
-                
-                scanner = new InstantDetectionScanner('bill-scanner-container', onScanSuccess);
-                console.log('Bill InstantDetectionScanner initialized with callback via constructor');
-                console.log('Scanner object:', scanner);
-                
-                // Also set onScan as backup to ensure callback is registered
-                scanner.onScan = onScanSuccess;
-                console.log('onScan callback set, value:', scanner.onScan);
-                console.log('onSuccess callback value:', scanner.onSuccess);
-            } else {
-                console.log('Scanner already exists, reusing');
             }
-            
-            // InstantDetectionScanner starts automatically
-            
-            // Update UI
-            startBtn.style.display = 'none';
-            stopBtn.style.display = 'inline-block';
-            const statusEl = document.getElementById('scanner-status');
-            if (statusEl) {
-                statusEl.innerHTML = '<i class="fas fa-camera me-2"></i>Scanning...';
-                statusEl.parentElement.className = 'alert alert-success py-2';
+        });
+        
+        // Also handle the manual button click
+        window.submitManualEntry = async function() {
+            const qrCode = scannerInput.value.trim().toUpperCase();
+            if (qrCode) {
+                await onScanSuccess(qrCode);
+                scannerInput.value = '';
             }
-            showToast('📷 Camera ready! Start scanning parent bags', 'success', 3000);
-            
-        } catch (error) {
-            console.error('Scanner initialization failed:', error);
-            
-            // Handle specific error types
-            if (error.message && error.message.includes('Permission denied')) {
-                showToast('Camera permission required. Please allow camera access.', 'warning', 5000);
-            } else if (error.message && error.message.includes('No camera')) {
-                showToast('No camera found. Please check your camera.', 'danger');
-            } else {
-                showToast('Camera error. Please check permissions.', 'danger');
+        };
+        
+        // Keep focus on scanner input
+        document.addEventListener('click', function(e) {
+            // Don't refocus if user is clicking on other interactive elements
+            if (!e.target.closest('button') && !e.target.closest('input[type="text"]') && e.target.id !== 'manual-qr-input') {
+                scannerInput.focus();
             }
-            
-            startBtn.style.display = 'inline-block';
-            stopBtn.style.display = 'none';
-            const statusEl = document.getElementById('scanner-status');
-            if (statusEl) {
-                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle me-2 text-danger"></i>Camera error - Check permissions';
-                statusEl.parentElement.className = 'alert alert-danger py-2';
-            }
-        }
-    }
-    
-    // Stop scanner
-    async function stopScanner() {
-        if (scanner) {
-            try {
-                scanner.stop();
-                
-                // Update UI
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-            } catch (error) {
-                console.error('Error stopping scanner:', error);
-            }
-        }
+        });
+        
+        console.log('Keyboard scanner ready!');
+        showToast('✅ Scanner ready - Point and scan parent bags', 'success', 2000);
     }
     
     // Remove bag function
