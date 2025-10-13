@@ -108,51 +108,29 @@ except ImportError:
     # Gracefully handle missing optimization modules
     apply_query_optimizations = None
 
-# Redis-based session configuration for 100+ concurrent users
-try:
-    from redis_config import RedisConfig, get_redis_client
-    
-    # Initialize Redis for sessions
-    redis_client = get_redis_client()
-    
-    if redis_client:
-        # Redis session configuration - reduces database load significantly
-        app.config.update(
-            SESSION_TYPE='redis',
-            SESSION_REDIS=redis_client,
-            SESSION_PERMANENT=False,
-            SESSION_USE_SIGNER=True,
-            SESSION_KEY_PREFIX='tracetrack:session:',
-            SESSION_COOKIE_SECURE=False,  # Allow HTTP (Replit handles HTTPS)
-            SESSION_COOKIE_HTTPONLY=True,
-            SESSION_COOKIE_SAMESITE='Lax',
-            SESSION_COOKIE_NAME='tracetrack_session',
-            PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
-            SEND_FILE_MAX_AGE_DEFAULT=0,
-            WTF_CSRF_ENABLED=True,
-            WTF_CSRF_TIME_LIMIT=None,
-            WTF_CSRF_CHECK_DEFAULT=True
-        )
-        logger.info("✅ Redis-based session storage enabled - database load reduced")
-    else:
-        raise Exception("Redis not available")
-except:
-    # Fallback to filesystem sessions if Redis unavailable
-    app.config.update(
-        SESSION_TYPE='filesystem',
-        SESSION_COOKIE_SECURE=False,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE='Lax',
-        SESSION_COOKIE_NAME='tracetrack_session',
-        PERMANENT_SESSION_LIFETIME=86400,  # 24 hours
-        SEND_FILE_MAX_AGE_DEFAULT=0,
-        WTF_CSRF_ENABLED=True,
-        WTF_CSRF_TIME_LIMIT=None,
-        WTF_CSRF_CHECK_DEFAULT=True
-    )
-    logger.warning("⚠️ Redis unavailable - using filesystem sessions")
+# Session configuration - using filesystem for compatibility
+# Note: Redis would reduce database load but isn't available in all environments
+app.config.update(
+    SESSION_TYPE='filesystem',
+    SESSION_FILE_DIR='/tmp/flask_session',
+    SESSION_PERMANENT=False,
+    SESSION_USE_SIGNER=True,
+    SESSION_FILE_THRESHOLD=500,  # Store max 500 sessions in filesystem
+    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_NAME='tracetrack_session',
+    PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
+    SEND_FILE_MAX_AGE_DEFAULT=0,
+    WTF_CSRF_ENABLED=True,
+    WTF_CSRF_TIME_LIMIT=None,
+    WTF_CSRF_CHECK_DEFAULT=True
+)
+logger.info("✅ Filesystem session storage configured")
 
 # Initialize Flask-Session
+import os
+os.makedirs('/tmp/flask_session', exist_ok=True)
 Session(app)
 
 def get_current_environment():
@@ -216,41 +194,50 @@ is_aws_rds = 'amazonaws.com' in app.config["SQLALCHEMY_DATABASE_URI"]
 
 if is_aws_rds:
     # AWS RDS specific configuration for 100+ concurrent users and 1.5M+ bags
-    # Sized for typical RDS instance limits (adjust based on your RDS instance class)
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 40,  # Base pool for sustained load
-        "max_overflow": 50,  # Total 90 connections (safely under typical RDS limit)
-        "pool_recycle": 280,  # Recycle before AWS timeout (300s)
-        "pool_pre_ping": True,  # Verify connections before use
-        "pool_timeout": 10,  # Quick timeout to fail fast
-        "echo": False,
-        "echo_pool": False,
-        "pool_use_lifo": True,  # Use most recent connections
-        "pool_reset_on_return": "rollback",  # Clean connection state
-        "connect_args": {
-            "keepalives": 1,
-            "keepalives_idle": 30,
-            "keepalives_interval": 10,
-            "keepalives_count": 5,
-            "connect_timeout": 5,  # Fast connection timeout for AWS
-            "application_name": "TraceTrack_AWS_RDS_150M",
-            "options": (
-                "-c statement_timeout=15000 "  # 15 second query timeout for large datasets
-                "-c idle_in_transaction_session_timeout=5000 "  # 5 second idle timeout
-                "-c work_mem=8MB "  # Conservative: 8MB * 90 connections = 720MB total
-                "-c jit=on "  # Enable JIT compilation
-                "-c random_page_cost=1.1 "  # Optimize for SSD
-                "-c enable_seqscan=on "  # Allow sequential scans
-                "-c enable_indexscan=on "  # Use indexes
-                "-c enable_bitmapscan=on "  # Use bitmap scans
-                "-c enable_hashjoin=on "  # Use hash joins
-                "-c enable_mergejoin=on "  # Use merge joins
-                "-c max_parallel_workers_per_gather=2 "  # Conservative parallel (2 workers)
-                "-c parallel_tuple_cost=0.01"  # Tune parallel query cost
-            )
+    # Use connection pool optimizer for advanced pool management
+    try:
+        from connection_pool_optimizer import get_optimized_pool_config, setup_pool_monitoring
+        
+        # Get optimized pool configuration
+        pool_config = get_optimized_pool_config(app.config["SQLALCHEMY_DATABASE_URI"], pool_size=40, max_overflow=50)
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = pool_config
+        logger.info("✅ Using OPTIMIZED connection pool for AWS RDS: 40 base + 50 overflow = 90 total connections")
+    except ImportError:
+        # Fallback to manual configuration
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": 40,
+            "max_overflow": 50,
+            "pool_recycle": 280,
+            "pool_pre_ping": True,
+            "pool_timeout": 10,
+            "echo": False,
+            "echo_pool": False,
+            "pool_use_lifo": True,
+            "pool_reset_on_return": "rollback",
+            "connect_args": {
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
+                "connect_timeout": 5,
+                "application_name": "TraceTrack_AWS_RDS_150M",
+                "options": (
+                    "-c statement_timeout=15000 "
+                    "-c idle_in_transaction_session_timeout=5000 "
+                    "-c work_mem=8MB "
+                    "-c jit=on "
+                    "-c random_page_cost=1.1 "
+                    "-c enable_seqscan=on "
+                    "-c enable_indexscan=on "
+                    "-c enable_bitmapscan=on "
+                    "-c enable_hashjoin=on "
+                    "-c enable_mergejoin=on "
+                    "-c max_parallel_workers_per_gather=2 "
+                    "-c parallel_tuple_cost=0.01"
+                )
+            }
         }
-    }
-    logger.info("✅ Using AWS RDS optimized configuration for 100+ users and 1.5M+ bags (90 max connections, 720MB work_mem)")
+        logger.info("✅ Using AWS RDS optimized configuration for 100+ users (90 max connections)")
 else:
     # Import ultra-performance configuration for local/Replit database
     try:
@@ -321,6 +308,15 @@ csrf.init_app(app)
 # Make CSRF available for route decorators
 # CSRF exemption will be handled in routes.py for specific endpoints
 limiter.init_app(app)
+
+# Setup connection pool monitoring if using optimized pool
+if is_aws_rds:
+    try:
+        from connection_pool_optimizer import setup_pool_monitoring
+        setup_pool_monitoring(db.engine)
+        logger.info("✅ Connection pool monitoring enabled for AWS RDS")
+    except Exception as e:
+        logger.warning(f"Pool monitoring not enabled: {e}")
 
 # Performance patches removed - not needed
 

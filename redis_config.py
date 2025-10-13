@@ -34,15 +34,8 @@ class RedisConfig:
     
     # Connection pooling for Redis
     REDIS_MAX_CONNECTIONS = 150  # Support 100+ concurrent users
-    REDIS_SOCKET_KEEPALIVE = True
-    REDIS_SOCKET_KEEPALIVE_OPTIONS = {
-        1: 1,  # TCP_KEEPIDLE
-        2: 1,  # TCP_KEEPINTVL
-        3: 3,  # TCP_KEEPCNT
-    }
     REDIS_CONNECTION_POOL_KWARGS = {
         'max_connections': 150,
-        'socket_keepalive': True,
         'socket_connect_timeout': 5,
         'retry_on_timeout': True,
         'health_check_interval': 30,
@@ -58,15 +51,13 @@ class RedisSessionStore:
     def init_redis(self):
         """Initialize Redis connection pool"""
         try:
-            # Create connection pool
+            # Create connection pool without socket keepalive (compatibility issues on some systems)
             self.connection_pool = redis.ConnectionPool(
                 host=RedisConfig.REDIS_HOST,
                 port=RedisConfig.REDIS_PORT,
                 db=RedisConfig.REDIS_DB,
                 password=RedisConfig.REDIS_PASSWORD,
                 max_connections=RedisConfig.REDIS_MAX_CONNECTIONS,
-                socket_keepalive=RedisConfig.REDIS_SOCKET_KEEPALIVE,
-                socket_keepalive_options=RedisConfig.REDIS_SOCKET_KEEPALIVE_OPTIONS,
                 socket_connect_timeout=5,
                 retry_on_timeout=True,
                 health_check_interval=30,
