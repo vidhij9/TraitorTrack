@@ -180,27 +180,41 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 is_aws_rds = 'amazonaws.com' in app.config["SQLALCHEMY_DATABASE_URI"]
 
 if is_aws_rds:
-    # AWS RDS specific configuration with aggressive timeouts and retries
+    # AWS RDS specific configuration for 100+ concurrent users and 1.5M+ bags
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 5,  # Start small for faster initialization
-        "max_overflow": 15,  # Allow growth as needed
+        "pool_size": 80,  # Large pool for 100+ concurrent users
+        "max_overflow": 120,  # Total 200 connections max
         "pool_recycle": 280,  # Recycle before AWS timeout (300s)
         "pool_pre_ping": True,  # Verify connections before use
         "pool_timeout": 10,  # Quick timeout to fail fast
         "echo": False,
         "echo_pool": False,
         "pool_use_lifo": True,  # Use most recent connections
+        "pool_reset_on_return": "rollback",  # Clean connection state
         "connect_args": {
             "keepalives": 1,
             "keepalives_idle": 30,
             "keepalives_interval": 10,
             "keepalives_count": 5,
             "connect_timeout": 5,  # Fast connection timeout for AWS
-            "application_name": "TraceTrack_AWS_RDS",
-            "options": "-c statement_timeout=60000"  # 60 second query timeout
+            "application_name": "TraceTrack_AWS_RDS_150M",
+            "options": (
+                "-c statement_timeout=15000 "  # 15 second query timeout for large datasets
+                "-c idle_in_transaction_session_timeout=5000 "  # 5 second idle timeout
+                "-c work_mem=32MB "  # More memory for large dataset operations
+                "-c jit=on "  # Enable JIT compilation
+                "-c random_page_cost=1.1 "  # Optimize for SSD
+                "-c enable_seqscan=on "  # Allow sequential scans
+                "-c enable_indexscan=on "  # Use indexes
+                "-c enable_bitmapscan=on "  # Use bitmap scans
+                "-c enable_hashjoin=on "  # Use hash joins
+                "-c enable_mergejoin=on "  # Use merge joins
+                "-c max_parallel_workers_per_gather=4 "  # Parallel query execution
+                "-c parallel_tuple_cost=0.01"  # Tune parallel query cost
+            )
         }
     }
-    logger.info("Using AWS RDS optimized configuration")
+    logger.info("✅ Using AWS RDS ULTRA-PERFORMANCE configuration for 100+ users and 1.5M+ bags")
 else:
     # Import ultra-performance configuration for local/Replit database
     try:

@@ -1,6 +1,7 @@
 """
-Ultra-Performance Configuration for 50+ Concurrent Users and 800,000+ Bags
+Ultra-Performance Configuration for 100+ Concurrent Users and 1.5M+ Bags
 Optimized for sub-100ms response times across all endpoints
+Enhanced for massive scale operations
 """
 
 import os
@@ -8,13 +9,13 @@ import multiprocessing
 from datetime import timedelta
 
 class UltraPerformanceConfig:
-    """Ultimate performance configuration for production scale"""
+    """Ultimate performance configuration for production scale - 100+ users, 1.5M+ bags"""
     
-    # Database Configuration - Optimized for 50+ concurrent users
+    # Database Configuration - Optimized for 100+ concurrent users and 1.5M bags
     DATABASE_CONFIG = {
-        # Connection pool sized for heavy concurrent load
-        "pool_size": 40,                      # Base pool for 50+ users
-        "max_overflow": 60,                   # Total 100 connections max
+        # Connection pool sized for heavy concurrent load - 100+ users
+        "pool_size": 80,                      # Base pool for 100+ users
+        "max_overflow": 120,                  # Total 200 connections max
         "pool_recycle": 1800,                 # Recycle every 30 minutes
         "pool_pre_ping": True,                # Always test connections
         "pool_timeout": 5,                    # Fast fail on connection wait
@@ -23,25 +24,27 @@ class UltraPerformanceConfig:
         "pool_use_lifo": True,                # Better connection reuse
         "pool_reset_on_return": "rollback",   # Clean connection state
         
-        # PostgreSQL optimizations for 800,000+ bags
+        # PostgreSQL optimizations for 1.5M+ bags
         "connect_args": {
             "keepalives": 1,
             "keepalives_idle": 5,
             "keepalives_interval": 2,
             "keepalives_count": 5,
             "connect_timeout": 3,              # Very fast connect
-            "application_name": "TraceTrack_Ultra",
+            "application_name": "TraceTrack_Ultra_150M",
             "options": (
-                "-c statement_timeout=10000 "  # 10 second query timeout
+                "-c statement_timeout=15000 "  # 15 second query timeout for large datasets
                 "-c idle_in_transaction_session_timeout=5000 "  # 5 second idle timeout
                 "-c jit=on "                   # Enable JIT compilation
                 "-c random_page_cost=1.1 "     # Optimize for SSD
-                "-c work_mem=16MB "            # More memory per operation
+                "-c work_mem=32MB "            # More memory per operation for large datasets
                 "-c enable_seqscan=on "        # Allow sequential scans
                 "-c enable_indexscan=on "      # Use indexes
                 "-c enable_bitmapscan=on "     # Use bitmap scans
                 "-c enable_hashjoin=on "       # Use hash joins
-                "-c enable_mergejoin=on"       # Use merge joins
+                "-c enable_mergejoin=on "      # Use merge joins
+                "-c max_parallel_workers_per_gather=4 "  # Parallel query execution
+                "-c parallel_tuple_cost=0.01"  # Tune parallel query cost
             )
         },
         
