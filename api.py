@@ -306,38 +306,54 @@ def get_bag_children(bag_id):
 def get_dashboard_statistics():
     """Ultra-optimized dashboard stats using single aggregated query"""
     try:
-        # Single aggregated query for all stats
+        # Get core stats
         stats_result = db.session.execute(text("""
             SELECT 
                 (SELECT COUNT(*) FROM bags) as total_bags,
                 (SELECT COUNT(*) FROM scans) as total_scans,
-                (SELECT COUNT(*) FROM bills) as total_bills,
                 (SELECT COUNT(DISTINCT user_id) FROM scans WHERE user_id IS NOT NULL) as active_users
         """)).fetchone()
         
-        stats = {
-            'total_bags': stats_result[0] or 0,
-            'total_scans': stats_result[1] or 0,
-            'total_bills': stats_result[2] or 0,
-            'active_users': stats_result[3] or 0
-        }
+        # Get bills count with error handling
+        total_bills = 0
+        try:
+            bills_result = db.session.execute(text("SELECT COUNT(*) FROM bills")).fetchone()
+            total_bills = bills_result[0] if bills_result else 0
+        except:
+            # If bills table doesn't exist, rollback and continue
+            db.session.rollback()
+            total_bills = 0
         
-        # Get recent activity with a single optimized query
-        recent_scans_result = db.session.execute(text("""
-            SELECT 
-                s.id,
-                s.timestamp,
-                s.parent_bag_id,
-                s.child_bag_id,
-                u.username,
-                COALESCE(pb.qr_id, cb.qr_id) as qr_id
-            FROM scans s
-            LEFT JOIN users u ON s.user_id = u.id
-            LEFT JOIN bags pb ON s.parent_bag_id = pb.id
-            LEFT JOIN bags cb ON s.child_bag_id = cb.id
-            ORDER BY s.timestamp DESC
-            LIMIT 10
-        """)).fetchall()
+        # Get recent scans
+        recent_scans_result = []
+        try:
+            recent_scans_result = db.session.execute(text("""
+                SELECT 
+                    s.id,
+                    s.timestamp,
+                    s.parent_bag_id,
+                    s.child_bag_id,
+                    u.username,
+                    COALESCE(pb.qr_id, cb.qr_id) as qr_id
+                FROM scans s
+                LEFT JOIN users u ON s.user_id = u.id
+                LEFT JOIN bags pb ON s.parent_bag_id = pb.id
+                LEFT JOIN bags cb ON s.child_bag_id = cb.id
+                ORDER BY s.timestamp DESC
+                LIMIT 10
+            """)).fetchall()
+        except Exception as e:
+            # If recent scans query fails, rollback and use empty list
+            db.session.rollback()
+            logger.error(f"Recent scans query failed: {e}")
+            recent_scans_result = []
+        
+        stats = {
+            'total_bags': stats_result[0] if stats_result else 0,
+            'total_scans': stats_result[1] if stats_result else 0,
+            'total_bills': total_bills,
+            'active_users': stats_result[2] if stats_result else 0
+        }
         
         recent_activity = []
         for scan in recent_scans_result:
