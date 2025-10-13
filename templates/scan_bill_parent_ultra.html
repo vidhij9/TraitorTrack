@@ -445,9 +445,7 @@ function initializeScanner() {
                 console.warn('Auto-resetting stuck processing flag after 3 seconds');
                 isProcessing = false;
                 hideScanPauseOverlay();
-                // Try to resume scanner
-                // No camera to resume
-                }
+                // No camera to resume - keyboard scanner always ready
             }
         }, 3000);
         
@@ -468,8 +466,7 @@ function initializeScanner() {
             setTimeout(() => {
                 console.log('Resuming scanner after duplicate');
                 showToast('Ready for next bag', 'info', 1500);
-                // No camera to resume
-                }
+                // No camera to resume - keyboard scanner always ready
             }, 1500); // Clear 1.5s pause for user feedback
             return;
         }
@@ -500,8 +497,7 @@ function initializeScanner() {
                 // Resume scanning after error
                 setTimeout(() => {
                     showToast('Ready for next bag', 'info', 1500);
-                    // No camera to resume
-                    }
+                    // No camera to resume - keyboard scanner always ready
                 }, 2000);
                 return;
             }
@@ -527,8 +523,7 @@ function initializeScanner() {
                 setTimeout(() => {
                     console.log('Resuming scanner after successful scan');
                     showToast('Ready for next bag', 'info', 1500);
-                    // No camera to resume
-                    }
+                    // No camera to resume - keyboard scanner always ready
                 }, 2000); // 2 second pause for user to see success
             } else {
                 // Enhanced error feedback with specific handling for different scenarios
@@ -619,8 +614,7 @@ function initializeScanner() {
                 setTimeout(() => {
                     console.log('Resuming scanner after error');
                     showToast('▶️ Scanner ready - Try next bag', 'info', 1500);
-                    // No camera to resume
-                    }
+                    // No camera to resume - keyboard scanner always ready
                 }, resumeDelay);
             }
         } catch (error) {
@@ -638,8 +632,7 @@ function initializeScanner() {
             // Resume scanning for retry quickly
             setTimeout(() => {
                 console.log('Resuming scanner after network error');
-                // No camera to resume
-                }
+                // No camera to resume - keyboard scanner always ready
             }, 500); // Faster resume after network error
         }
     }
