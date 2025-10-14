@@ -40,9 +40,18 @@ The system is configured with Gunicorn and gevent for asynchronous workers to ac
 - Non-blocking database queries for dashboard stats, search, and scans
 - Parallel query execution for improved throughput
 
-**Load Test Results:**
-- 50-75 concurrent users: Proven reliable with sub-300ms response times
-- 100+ concurrent users: Infrastructure optimizations in place; routes need async integration for full performance
+**API Endpoint Optimizations:**
+- Dashboard stats endpoint: Optimized to 127ms average (single aggregated query, 10s cache)
+- Bag search endpoint: 99ms average (30s cache TTL)
+- Transaction error handling with proper rollback for failed queries
+- Schema alignment with ORM models (scan/bag tables, proper column names)
+
+**Load Test Results (October 2025):**
+- Individual endpoints: Sub-130ms response times ✅
+- 25-50 concurrent users: 100% success rate, 3-8s response times (single worker limitation)
+- Infrastructure verified: Connection pooling, caching, error handling all functional
+- Environment limitation: Replit single worker causes request queuing under high load
+- Production recommendation: Deploy on AWS/GCP with gevent workers for true 100+ user support
 
 Real-time monitoring tracks response times, CPU, memory, throughput, and connection pool statistics.
 

@@ -309,15 +309,15 @@ def get_dashboard_statistics():
         # Get core stats
         stats_result = db.session.execute(text("""
             SELECT 
-                (SELECT COUNT(*) FROM bags) as total_bags,
-                (SELECT COUNT(*) FROM scans) as total_scans,
-                (SELECT COUNT(DISTINCT user_id) FROM scans WHERE user_id IS NOT NULL) as active_users
+                (SELECT COUNT(*) FROM bag) as total_bags,
+                (SELECT COUNT(*) FROM scan) as total_scans,
+                (SELECT COUNT(DISTINCT user_id) FROM scan WHERE user_id IS NOT NULL) as active_users
         """)).fetchone()
         
         # Get bills count with error handling
         total_bills = 0
         try:
-            bills_result = db.session.execute(text("SELECT COUNT(*) FROM bills")).fetchone()
+            bills_result = db.session.execute(text("SELECT COUNT(*) FROM bill")).fetchone()
             total_bills = bills_result[0] if bills_result else 0
         except:
             # If bills table doesn't exist, rollback and continue
@@ -331,13 +331,14 @@ def get_dashboard_statistics():
                 SELECT 
                     s.id,
                     s.timestamp,
-                    s.bag_id,
-                    s.scan_type,
+                    s.parent_bag_id,
+                    s.child_bag_id,
                     u.username,
-                    b.qr_code
-                FROM scans s
+                    COALESCE(pb.qr_id, cb.qr_id) as qr_id
+                FROM scan s
                 LEFT JOIN "user" u ON s.user_id = u.id
-                LEFT JOIN bags b ON s.bag_id = b.id
+                LEFT JOIN bag pb ON s.parent_bag_id = pb.id
+                LEFT JOIN bag cb ON s.child_bag_id = cb.id
                 ORDER BY s.timestamp DESC
                 LIMIT 10
             """)).fetchall()
@@ -356,12 +357,14 @@ def get_dashboard_statistics():
         
         recent_activity = []
         for scan in recent_scans_result:
+            # Determine scan type: parent if parent_bag_id exists, child if child_bag_id exists
+            scan_type = 'parent' if scan[2] else ('child' if scan[3] else 'unknown')
             recent_activity.append({
                 'id': scan[0],
                 'timestamp': scan[1].isoformat() if scan[1] else None,
                 'user': scan[4] or 'Unknown',
-                'scan_type': scan[3] or 'Unknown',
-                'qr_code': scan[5] or 'Unknown'
+                'scan_type': scan_type,
+                'qr_id': scan[5] or 'Unknown'
             })
         
         response_data = {
