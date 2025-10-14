@@ -331,14 +331,13 @@ def get_dashboard_statistics():
                 SELECT 
                     s.id,
                     s.timestamp,
-                    s.parent_bag_id,
-                    s.child_bag_id,
+                    s.bag_id,
+                    s.scan_type,
                     u.username,
-                    COALESCE(pb.qr_id, cb.qr_id) as qr_id
+                    b.qr_code
                 FROM scans s
-                LEFT JOIN users u ON s.user_id = u.id
-                LEFT JOIN bags pb ON s.parent_bag_id = pb.id
-                LEFT JOIN bags cb ON s.child_bag_id = cb.id
+                LEFT JOIN "user" u ON s.user_id = u.id
+                LEFT JOIN bags b ON s.bag_id = b.id
                 ORDER BY s.timestamp DESC
                 LIMIT 10
             """)).fetchall()
@@ -361,8 +360,8 @@ def get_dashboard_statistics():
                 'id': scan[0],
                 'timestamp': scan[1].isoformat() if scan[1] else None,
                 'user': scan[4] or 'Unknown',
-                'scan_type': 'parent' if scan[2] else 'child',
-                'qr_id': scan[5] or 'Unknown'
+                'scan_type': scan[3] or 'Unknown',
+                'qr_code': scan[5] or 'Unknown'
             })
         
         response_data = {
