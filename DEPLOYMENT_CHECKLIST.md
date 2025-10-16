@@ -37,7 +37,7 @@ SESSION_SECRET=<generate-a-secure-random-string>
 - Must be kept secret and consistent across deployments
 - Used for Flask session encryption
 
-### Admin Password (REQUIRED FOR PRODUCTION)
+### Admin Password (REQUIRED)
 ```bash
 ADMIN_PASSWORD=<secure-admin-password>
 ```
@@ -48,6 +48,17 @@ ADMIN_PASSWORD=<secure-admin-password>
 - **For testing/development only:** Can be set to a known value (e.g., "admin123")
 - **For production:** MUST be a strong, unique password
 - Username will be: `admin`
+
+### Test User Accounts (Development/Testing Only)
+```bash
+CREATE_TEST_USERS=true           # Set to "true" to create test users (NEVER in production)
+BILLER_PASSWORD=<password>       # Required if CREATE_TEST_USERS=true
+DISPATCHER_PASSWORD=<password>   # Required if CREATE_TEST_USERS=true
+```
+- **PRODUCTION:** DO NOT set CREATE_TEST_USERS (or set to "false")
+- **DEVELOPMENT:** Set CREATE_TEST_USERS=true to enable biller1 and dispatcher1 test users
+- Test users are for development/testing only - never use in production
+- Production users should be created via admin interface after deployment
 
 ### Redis Configuration (Optional but Recommended)
 ```bash
@@ -128,11 +139,25 @@ python -c "from app_clean import app, db; app.app_context().push(); db.create_al
 python -c "from app_clean import app, db; app.app_context().push(); print(db.engine.table_names())"
 ```
 
-### 3. Create Admin User
+### 3. Verify Admin User Creation
 ```bash
-# Admin user should be created automatically on first run
-# Default credentials: admin/admin123
-# Change password immediately after first login
+# Admin user is created automatically on first run using ADMIN_PASSWORD environment variable
+# Username: admin
+# Password: Value of ADMIN_PASSWORD environment variable
+# 
+# If ADMIN_PASSWORD is not set, a secure random password is generated and displayed ONCE on console
+# IMPORTANT: Check startup logs for the generated password if ADMIN_PASSWORD was not set
+```
+
+**Test Users (Development/Testing Only):**
+```bash
+# To create test users (biller1, dispatcher1), set:
+export CREATE_TEST_USERS=true
+export BILLER_PASSWORD=<password>
+export DISPATCHER_PASSWORD=<password>
+
+# For production: DO NOT set CREATE_TEST_USERS
+# Production should use admin user to create additional users via web interface
 ```
 
 ### 4. Start Application
