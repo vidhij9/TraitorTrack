@@ -376,12 +376,30 @@ with app.app_context():
         
         # Create default admin user if it doesn't exist
         from models import User
+        import os
+        import secrets
+        
         admin = User.query.filter_by(username='admin').first()
         if not admin:
+            # SECURITY: Admin password must be provided via environment variable
+            admin_password = os.environ.get('ADMIN_PASSWORD')
+            
+            if not admin_password:
+                # Generate a secure random password if none provided
+                admin_password = secrets.token_urlsafe(16)
+                print('=' * 80)
+                print('WARNING: No ADMIN_PASSWORD environment variable set!')
+                print('Generated secure random password for admin user:')
+                print(f'USERNAME: admin')
+                print(f'PASSWORD: {admin_password}')
+                print('IMPORTANT: Save this password NOW! It will not be displayed again.')
+                print('=' * 80)
+                logger.warning("Admin user created with generated password - check console output")
+            
             admin = User()
             admin.username = 'admin'
             admin.email = 'admin@tracetrack.com'
-            admin.set_password('admin')
+            admin.set_password(admin_password)
             admin.role = 'admin'
             admin.verified = True
             db.session.add(admin)
