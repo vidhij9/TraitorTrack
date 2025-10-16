@@ -400,8 +400,15 @@ def get_recent_scans():
         user_id = request.args.get('user_id', type=int)
         scan_type = request.args.get('type', '').lower()
         
-        # Use optimized query
-        scans = query_optimizer.get_recent_scans(limit=limit, user_id=user_id)
+        # Build query for recent scans
+        query = Scan.query.order_by(Scan.timestamp.desc())
+        
+        # Filter by user if specified
+        if user_id:
+            query = query.filter(Scan.scanned_by_id == user_id)
+        
+        # Get scans with limit
+        scans = query.limit(limit).all()
         
         scans_data = []
         for scan in scans:
