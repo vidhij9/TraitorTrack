@@ -56,7 +56,7 @@ The system is configured with Gunicorn and gevent for asynchronous workers to ac
 **Recent Bug Fixes (October 16, 2025):**
 - **Bill Details View Fix**: Implemented null-safe query handling for bill details page to prevent 500 errors when viewing bills with linked parent bags. Uses `COALESCE` for child count aggregation and null-safe filters for bag references.
 - **Recent Scans API Fix**: Removed undefined `query_optimizer` dependency, replaced with direct database query implementation.
-- **Admin Password Fix**: Reset admin password hash to correct value for "admin123" authentication.
+- **CRITICAL SECURITY FIX**: Removed hardcoded admin password from codebase. Admin password now required via ADMIN_PASSWORD environment variable. If not provided, system generates secure random password and displays once during bootstrap. This ensures no default credentials are exposed in production deployments.
 
 **Comprehensive Testing Completed:**
 - ✅ All 30 API endpoints tested (100% success rate)

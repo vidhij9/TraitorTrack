@@ -37,6 +37,18 @@ SESSION_SECRET=<generate-a-secure-random-string>
 - Must be kept secret and consistent across deployments
 - Used for Flask session encryption
 
+### Admin Password (REQUIRED FOR PRODUCTION)
+```bash
+ADMIN_PASSWORD=<secure-admin-password>
+```
+- **CRITICAL:** Must be set before first production deployment
+- Generate secure password: `python -c "import secrets; print(secrets.token_urlsafe(16))"`
+- Minimum 12 characters recommended
+- If not set, system generates random password and displays ONCE on console
+- **For testing/development only:** Can be set to a known value (e.g., "admin123")
+- **For production:** MUST be a strong, unique password
+- Username will be: `admin`
+
 ### Redis Configuration (Optional but Recommended)
 ```bash
 REDIS_URL=redis://host:port/db
@@ -98,11 +110,14 @@ cd tracetrack
 # Install dependencies
 pip install -r requirements.txt
 
-# Set environment variables
+# Set environment variables (CRITICAL FOR SECURITY)
 export DATABASE_URL="postgresql://..."
 export SESSION_SECRET="..."
+export ADMIN_PASSWORD="<strong-unique-password>"  # REQUIRED
 export REDIS_URL="redis://..." # Optional
 ```
+
+**IMPORTANT:** Never commit `.env` files containing ADMIN_PASSWORD to version control!
 
 ### 2. Database Setup
 ```bash
@@ -184,13 +199,15 @@ curl http://localhost:5000/login
 - [x] Rate limiting on API endpoints
 
 ### Post-Deployment Security
-- [ ] Change default admin password immediately
+- [ ] **CRITICAL:** Verify ADMIN_PASSWORD environment variable is set to a strong password
+- [ ] Save admin credentials securely (password manager recommended)
 - [ ] Enable HTTPS/TLS (Let's Encrypt or AWS ACM)
 - [ ] Configure firewall rules (allow only 80/443)
 - [ ] Set up regular database backups
 - [ ] Enable application logging and monitoring
 - [ ] Configure log rotation
 - [ ] Set up intrusion detection (optional)
+- [ ] Review startup logs for any generated passwords and secure them
 
 ## Backup Strategy
 
