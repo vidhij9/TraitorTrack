@@ -4110,60 +4110,54 @@ def finish_bill_scan(bill_id):
 @login_required  
 def view_bill(bill_id):
     """Ultra-fast bill view - optimized for 8+ lakh bags"""
-    try:
-        # Import models locally
-        # Models already imported globally
-        from sqlalchemy import func
-        
-        bill = Bill.query.get_or_404(bill_id)
-        
-        # Single optimized query for parent bags with child counts
-        parent_data = db.session.query(
-            Bag,
-            func.count(Link.child_bag_id).label('child_count')
-        ).join(
-            BillBag, Bag.id == BillBag.bag_id
-        ).outerjoin(
-            Link, Link.parent_bag_id == Bag.id
-        ).filter(
-            BillBag.bill_id == bill.id
-        ).group_by(Bag.id).limit(50).all()  # Limit for performance
-        
-        # Format data efficiently
-        parent_bags = []
-        parent_bag_ids = []
-        for bag, child_count in parent_data:
+    # Import models locally
+    # Models already imported globally
+    from sqlalchemy import func
+    
+    bill = Bill.query.get_or_404(bill_id)
+    
+    # Single optimized query for parent bags with child counts
+    # Uses outer join to handle bags with no children gracefully
+    parent_data = db.session.query(
+        Bag,
+        func.coalesce(func.count(Link.child_bag_id), 0).label('child_count')
+    ).join(
+        BillBag, Bag.id == BillBag.bag_id
+    ).outerjoin(
+        Link, Link.parent_bag_id == Bag.id
+    ).filter(
+        BillBag.bill_id == bill.id,
+        Bag.id.isnot(None)  # Ensure valid bag reference
+    ).group_by(Bag.id).limit(50).all()  # Limit for performance
+    
+    # Format data efficiently with null-safe access
+    parent_bags = []
+    parent_bag_ids = []
+    for bag, child_count in parent_data:
+        if bag:  # Null-safe check
             parent_bags.append({
                 'parent_bag': bag,
-                'child_count': child_count,
+                'child_count': child_count or 0,  # Handle None
                 'child_bags': []  # Don't load all children initially
             })
             parent_bag_ids.append(bag.id)
-        
-        # Get limited scan history for performance - handle empty list
-        scans = []
-        if parent_bag_ids:
-            try:
-                scans = Scan.query.filter(
-                    Scan.parent_bag_id.in_(parent_bag_ids)
-                ).order_by(desc(Scan.timestamp)).limit(100).all()
-            except Exception as scan_error:
-                app.logger.warning(f'Error loading scans for bill {bill_id}: {scan_error}')
-                scans = []
-        
-        # Fast count
-        bag_links_count = len(parent_bags)
-        
-        return render_template('view_bill.html', 
-                             bill=bill, 
-                             parent_bags=parent_bags, 
-                             child_bags=[],  # Fixed: all_child_bags was undefined
-                             scans=scans,
-                             bag_links_count=bag_links_count)
-    except Exception as e:
-        app.logger.error(f'Error viewing bill {bill_id}: {str(e)}', exc_info=True)
-        flash(f'Error loading bill details: {str(e)}', 'error')
-        return redirect(url_for('bill_management'))
+    
+    # Get limited scan history for performance - handle empty list
+    scans = []
+    if parent_bag_ids:
+        scans = Scan.query.filter(
+            Scan.parent_bag_id.in_(parent_bag_ids)
+        ).order_by(desc(Scan.timestamp)).limit(100).all()
+    
+    # Fast count
+    bag_links_count = len(parent_bags)
+    
+    return render_template('view_bill.html', 
+                         bill=bill, 
+                         parent_bags=parent_bags, 
+                         child_bags=[],  # Fixed: all_child_bags was undefined
+                         scans=scans or [],  # Ensure never None
+                         bag_links_count=bag_links_count)
 
 @app.route('/bill/<int:bill_id>/edit', methods=['GET', 'POST'])
 @login_required
