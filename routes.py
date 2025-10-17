@@ -151,12 +151,7 @@ from models import (
     DispatchArea
 )
 
-# Import fast scanning routes for millisecond performance
-try:
-    import fast_scanning_routes
-    app.logger.info("Fast scanning routes loaded successfully")
-except Exception as e:
-    app.logger.warning(f"Fast scanning routes not loaded: {e}")
+# Fast scanning routes removed - functionality consolidated
 
 # API endpoint for bill weights
 @app.route('/api/bill/<int:bill_id>/weights')
@@ -232,19 +227,6 @@ def log_audit(action, entity_type, entity_id=None, details=None):
         # Note: commit should be done by the calling function
     except Exception as e:
         app.logger.error(f'Audit logging failed: {str(e)}')
-
-# Health check endpoint for load balancers
-@app.route('/test_manual_entry')
-@csrf_compat.exempt
-def test_manual_entry_page():
-    """Test page for manual parent entry"""
-    return render_template('test_manual_entry_ui.html')
-
-@app.route('/manual_entry_info')
-@csrf_compat.exempt
-def manual_entry_info_page():
-    """Information page about manual parent entry"""
-    return render_template('manual_entry_info.html')
 
 @app.route('/health')
 @csrf_compat.exempt
@@ -1595,29 +1577,6 @@ def fix_session():
     except Exception as e:
         flash(f'Error fixing session: {str(e)}', 'error')
         return redirect(url_for('index'))
-
-@app.route('/test-session')
-def test_session():
-    """Debug endpoint to check session state"""
-    return jsonify({
-        'authenticated': is_logged_in(),
-        'user_id': session.get('user_id'),
-        'username': session.get('username'),
-        'logged_in': session.get('logged_in'),
-        'session_keys': list(session.keys())
-    })
-
-@app.route('/auth-test')
-def auth_test():
-    """Authentication test page to debug session issues"""
-    from flask import session
-    
-    # Get session data for debugging
-    session_data = dict(session)
-    
-    return render_template('auth_test.html', session_data=session_data)
-
-
 
 @app.route('/link_to_bill/<qr_id>', methods=['GET', 'POST'])
 @login_required
@@ -5917,34 +5876,11 @@ def eod_bill_summary():
 @app.route('/api/bill_summary/send_eod', methods=['POST'])
 @login_required
 def send_eod_summaries():
-    """Send EOD bill summaries via email to billers and admins"""
+    """Send EOD bill summaries - Email functionality removed"""
     if not current_user.is_admin():
-        return jsonify({'error': 'Admin access required to send EOD summaries'}), 403
+        return jsonify({'error': 'Admin access required'}), 403
     
-    try:
-        from eod_bill_sharing import eod_sharing
-        
-        # Get date range from request (optional)
-        date_from = request.json.get('date_from') if request.json else None
-        date_to = request.json.get('date_to') if request.json else None
-        
-        if date_from:
-            date_from = datetime.strptime(date_from, '%Y-%m-%d')
-        if date_to:
-            date_to = datetime.strptime(date_to, '%Y-%m-%d')
-        
-        # Send EOD summaries
-        results = eod_sharing.send_eod_summaries(date_from, date_to)
-        
-        return jsonify({
-            'success': True,
-            'message': 'EOD summaries sent successfully',
-            'results': results
-        })
-        
-    except Exception as e:
-        app.logger.error(f'Error sending EOD summaries: {str(e)}')
-        return jsonify({'error': f'Failed to send EOD summaries: {str(e)}'}), 500
+    return jsonify({'error': 'Email functionality not configured. Use EOD summary endpoint to view data.'}), 501
 
 @app.route('/eod_summary_preview')
 @login_required  
@@ -5955,17 +5891,13 @@ def eod_summary_preview():
         return redirect(url_for('index'))
     
     try:
-        from eod_bill_sharing import eod_sharing
-        
-        # Generate preview for current user
-        if current_user.is_admin():
-            # Show admin summary
-            summary = eod_sharing.generate_admin_summary()
-            html_content = eod_sharing.format_admin_email(summary)
-        else:
-            # Show biller summary
-            summary = eod_sharing.generate_biller_summary(current_user.id)
-            html_content = eod_sharing.format_biller_email(current_user.username, summary)
+        # Email functionality removed - show simple message
+        html_content = """
+        <div style="padding: 20px; background: #f8f9fa; text-align: center;">
+            <h2>Email functionality is not configured</h2>
+            <p>Use the EOD Summary API endpoint to view report data.</p>
+        </div>
+        """
         
         # Return the HTML directly for preview
         return f"""
@@ -6056,18 +5988,13 @@ def schedule_eod_summary():
         return jsonify({'error': 'Unauthorized'}), 401
     
     try:
-        from eod_bill_sharing import eod_sharing
-        
-        # Send EOD summaries for today
-        results = eod_sharing.send_eod_summaries()
-        
-        app.logger.info(f"Scheduled EOD summary sent: {results}")
+        # Email functionality removed
+        app.logger.info("Scheduled EOD summary called - email functionality not configured")
         
         return jsonify({
-            'success': True,
-            'message': 'Scheduled EOD summaries sent',
-            'results': results
-        })
+            'success': False,
+            'message': 'Email functionality not configured. Use EOD summary endpoint to view data.'
+        }), 501
         
     except Exception as e:
         app.logger.error(f'Scheduled EOD error: {str(e)}')
