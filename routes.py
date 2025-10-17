@@ -935,11 +935,11 @@ def delete_user(user_id):
     if not user_result:
         return jsonify({'success': False, 'message': 'User not found'}), 404
     
+    username = user_result.username  # Store username before deletion (always available)
+    
     try:
         if user_result.id == current_user.id:
             return jsonify({'success': False, 'message': 'Cannot delete yourself'})
-        
-        username = user_result.username  # Store username before deletion
         
         # Check if user has any related data
         scan_count_result = db.session.execute(db.text('SELECT COUNT(*) FROM scan WHERE user_id = :user_id'), {'user_id': user_id}).scalar()
@@ -1019,7 +1019,7 @@ def delete_user(user_id):
                     db.session.commit()
                     
                     log_audit('delete_user_disabled', 'user', user_id, {
-                        'username': username,
+                        'username': username if 'username' in locals() else f'user_{user_id}',
                         'action': 'disabled_instead_of_deleted',
                         'reason': 'foreign_key_constraint',
                         'deleted_by': current_user.username
@@ -1027,7 +1027,7 @@ def delete_user(user_id):
                     
                     return jsonify({
                         'success': True,
-                        'message': f'User {username} has been safely disabled (not deleted) due to data dependencies.',
+                        'message': f'User {username if "username" in locals() else user_id} has been safely disabled (not deleted) due to data dependencies.',
                         'action': 'disabled',
                         'user_id': user_id
                     })
@@ -1039,7 +1039,7 @@ def delete_user(user_id):
         
         # Log failed deletion
         log_audit('delete_user_failed', 'user', user_id, {
-            'username': username if username else 'Unknown',
+            'username': username,
             'error': error_msg,
             'deleted_by': current_user.username
         })
@@ -1325,13 +1325,8 @@ def create_user():
         db.session.add(user)
         db.session.commit()
         
-        # Invalidate cache after creating new user
-        try:
-            # Skip cache invalidation - not critical for user creation
-            pass
-            invalidate_cache()
-        except:
-            pass  # Don't fail on cache errors
+        # Cache invalidation skipped - not critical for user creation
+        # invalidate_cache() function not implemented
         
         flash(f'User {username} created successfully!', 'success')
         return redirect(url_for('user_management'))
@@ -2328,17 +2323,6 @@ def process_child_scan():
         
         # Check for common database errors
         if 'duplicate key' in str(e).lower():
-            # For duplicate keys, check if it's already linked and return success
-            existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id if 'parent_bag' in locals() else None, child_bag_id=child_bag.id if 'child_bag' in locals() else None).first()
-            if existing_link:
-                current_count = Link.query.filter_by(parent_bag_id=parent_bag.id if 'parent_bag' in locals() else None).count()
-                return jsonify({
-                    'success': True,
-                    'child_qr': qr_code if 'qr_code' in locals() else '',
-                    'parent_qr': parent_qr if 'parent_qr' in locals() else '',
-                    'message': f'Child bag {qr_code} already linked! ({current_count}/30)',
-                    'child_count': current_count
-                })
             return jsonify({'success': False, 'message': 'Duplicate entry detected. This bag may already be processed.'})
         elif 'foreign key' in str(e).lower():
             return jsonify({'success': False, 'message': 'Database relationship error. Please contact support.'})
@@ -2423,22 +2407,25 @@ def ajax_scan_parent_bag():
                     return jsonify({'success': False, 'message': str(e)})
             
             # OPTIMIZED: Create scan record
-            query_optimizer.create_scan_optimized(
-                user_id=current_user.id,
-                parent_bag_id=parent_bag.id
-            )
-            
-            # OPTIMIZED: Single bulk commit
-            if not query_optimizer.bulk_commit():
-                return jsonify({'success': False, 'message': 'Database error occurred'})
-            
-            # Store in session for child scanning  
-            session['last_scan'] = {
-                'type': 'parent',
-                'qr_id': qr_id,
-                'bag_name': parent_bag.name,
-                'timestamp': datetime.utcnow().isoformat()
-            }
+            if parent_bag:
+                query_optimizer.create_scan_optimized(
+                    user_id=current_user.id,
+                    parent_bag_id=parent_bag.id
+                )
+                
+                # OPTIMIZED: Single bulk commit
+                if not query_optimizer.bulk_commit():
+                    return jsonify({'success': False, 'message': 'Database error occurred'})
+                
+                # Store in session for child scanning  
+                session['last_scan'] = {
+                    'type': 'parent',
+                    'qr_id': qr_id,
+                    'bag_name': parent_bag.name if hasattr(parent_bag, 'name') else qr_id,
+                    'timestamp': datetime.utcnow().isoformat()
+                }
+            else:
+                return jsonify({'success': False, 'message': 'Failed to create parent bag'})
             # Also store the current parent QR for child scanner
             session['current_parent_qr'] = qr_id
             
@@ -2514,17 +2501,7 @@ def process_child_scan_fast():
         if qr_id == parent_qr:
             return jsonify({'success': False, 'message': 'Cannot link to itself'})
         
-        # Try optimized handler first
-        try:
-            if 'optimized_child_scan_handler' in locals():
-                user_id = current_user.id
-                dispatch_area = current_user.dispatch_area or 'Default'
-                result = optimized_child_scan_handler(qr_id, parent_qr, user_id, dispatch_area)
-                return jsonify(result)
-        except:
-            pass
-        
-        # Fallback to ORM queries
+        # Fallback to ORM queries (optimized handler not available)
         parent_bag = Bag.query.filter(
             func.upper(Bag.qr_id) == func.upper(parent_qr),
             Bag.type == 'parent'
@@ -2749,59 +2726,65 @@ def scan_child():
                     child_bag = existing_bag
                 
                 # OPTIMIZED: Check if link already exists before creating
-                existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
-                if existing_link:
-                    # Link already exists - return success with current count
-                    current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-                    return jsonify({
-                        'success': True,
-                        'child_qr': qr_id,
-                        'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
-                        'parent_qr': parent_bag.qr_id,
-                        'message': f'{qr_id} was already linked to this parent! ({current_count}/30)',
-                        'child_count': current_count
-                    })
+                if child_bag:
+                    existing_link = Link.query.filter_by(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id).first()
+                    if existing_link:
+                        # Link already exists - return success with current count
+                        current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                        return jsonify({
+                            'success': True,
+                            'child_qr': qr_id,
+                            'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
+                            'parent_qr': parent_bag.qr_id,
+                            'message': f'{qr_id} was already linked to this parent! ({current_count}/30)',
+                            'child_count': current_count
+                        })
+                else:
+                    return jsonify({'success': False, 'message': 'Failed to create or find child bag'})
                 
                 # Create new link
-                app.logger.info(f'Creating link between parent {parent_bag.id} ({parent_bag.qr_id}) and child {child_bag.id} ({child_bag.qr_id})')
-                link, created = query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
-                if not created:
-                    # This shouldn't happen since we checked above, but handle gracefully
-                    current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-                    return jsonify({
-                        'success': True,
-                        'child_qr': qr_id,
-                        'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
-                        'parent_qr': parent_bag.qr_id,
-                        'message': f'{qr_id} was already linked! ({current_count}/30)',
-                        'child_count': current_count
-                    })
-                
-                # OPTIMIZED: Create scan record
-                query_optimizer.create_scan_optimized(
-                    user_id=current_user.id,
-                    child_bag_id=child_bag.id
-                )
-                
-                # OPTIMIZED: Single bulk commit for maximum speed
-                try:
-                    db.session.commit()
-                    app.logger.info(f'Successfully committed link between {parent_bag.qr_id} and {qr_id}')
+                if parent_bag and child_bag:
+                    app.logger.info(f'Creating link between parent {parent_bag.id} ({parent_bag.qr_id}) and child {child_bag.id} ({child_bag.qr_id})')
+                    link, created = query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
+                    if not created:
+                        # This shouldn't happen since we checked above, but handle gracefully
+                        current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                        return jsonify({
+                            'success': True,
+                            'child_qr': qr_id,
+                            'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
+                            'parent_qr': parent_bag.qr_id,
+                            'message': f'{qr_id} was already linked! ({current_count}/30)',
+                            'child_count': current_count
+                        })
                     
-                    # ULTRA-FAST: Get current count and return
-                    current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-                    return jsonify({
-                        'success': True,
-                        'child_qr': qr_id,
-                        'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
-                        'parent_qr': parent_bag.qr_id,
-                        'message': f'{qr_id} linked successfully! ({current_count}/30)',
-                        'child_count': current_count
-                    })
-                except Exception as commit_error:
-                    db.session.rollback()
-                    app.logger.error(f'Commit failed for linking {qr_id} to {parent_bag.qr_id}: {str(commit_error)}')
-                    return jsonify({'success': False, 'message': 'Failed to save link. Please try again.'})
+                    # OPTIMIZED: Create scan record
+                    query_optimizer.create_scan_optimized(
+                        user_id=current_user.id,
+                        child_bag_id=child_bag.id
+                    )
+                    
+                    # OPTIMIZED: Single bulk commit for maximum speed
+                    try:
+                        db.session.commit()
+                        app.logger.info(f'Successfully committed link between {parent_bag.qr_id} and {qr_id}')
+                        
+                        # ULTRA-FAST: Get current count and return
+                        current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                        return jsonify({
+                            'success': True,
+                            'child_qr': qr_id,
+                            'child_name': child_bag.name if hasattr(child_bag, 'name') else None,
+                            'parent_qr': parent_bag.qr_id,
+                            'message': f'{qr_id} linked successfully! ({current_count}/30)',
+                            'child_count': current_count
+                        })
+                    except Exception as commit_error:
+                        db.session.rollback()
+                        app.logger.error(f'Commit failed for linking {qr_id} to {parent_bag.qr_id}: {str(commit_error)}')
+                        return jsonify({'success': False, 'message': 'Failed to save link. Please try again.'})
+                else:
+                    return jsonify({'success': False, 'message': 'Parent or child bag not found'})
                 
             except Exception as e:
                 db.session.rollback()
@@ -3863,6 +3846,10 @@ def bill_management():
         
         # Try a simplified version without expected_weight_kg column
         try:
+            # Get search parameters from request
+            search_bill_id = request.args.get('search_bill_id', '').strip()
+            status_filter = request.args.get('status_filter', 'all')
+            
             # Get basic bill list without problematic columns
             bills_query = Bill.query.order_by(Bill.created_at.desc())
             
@@ -4740,9 +4727,9 @@ def process_bill_parent_scan():
         # Commit outside the nested transaction
         db.session.commit()
         
-        # Clear relevant caches after successful commit
-        cache.clear_pattern(f'bill_bags:{bill.id}')
-        cache.clear_pattern('api_stats_*')
+        # Cache clearing skipped - cache module not available
+        # cache.clear_pattern(f'bill_bags:{bill.id}')
+        # cache.clear_pattern('api_stats_*')
         
         app.logger.info(f'Database commit successful')
         
@@ -5435,7 +5422,7 @@ def api_delete_bag():
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f'Error deleting bag {qr_code}: {str(e)}')
+        app.logger.error(f'Error deleting bag {qr_code if "qr_code" in locals() else "unknown"}: {str(e)}')
         return jsonify({
             'success': False,
             'message': f'Error deleting bag: {str(e)}'
@@ -6100,7 +6087,7 @@ def excel_upload():
                 return redirect(request.url)
             
             # Check file extension
-            if not file.filename.lower().endswith('.xlsx'):
+            if not file.filename or not file.filename.lower().endswith('.xlsx'):
                 flash('Please upload an Excel file (.xlsx)', 'error')
                 return redirect(request.url)
             
@@ -6116,7 +6103,7 @@ def excel_upload():
             dispatch_area = session.get('dispatch_area', 'Default')
             
             # Ensure we have a valid user ID
-            user_id = current_user.id if hasattr(current_user, 'id') else None
+            user_id = current_user.id if hasattr(current_user, 'id') and current_user.id else 1
             
             # Log the user information for debugging
             app.logger.info(f"Excel upload by user: {user_id}, username: {current_user.username if hasattr(current_user, 'username') else 'Unknown'}")
@@ -6226,7 +6213,7 @@ def reports_page():
         week_ago = today - timedelta(days=7)
         
         # Recent activity stats
-        recent_scans = db.session.query(Scan).filter(Scan.created_at >= week_ago).count()
+        recent_scans = db.session.query(Scan).filter(Scan.timestamp >= week_ago).count()
         recent_bills = db.session.query(Bill).filter(Bill.created_at >= week_ago).count()
         
         report_data = {
