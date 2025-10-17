@@ -72,6 +72,22 @@ The system is configured with Gunicorn and gevent for asynchronous workers to ac
   - Bill parent scanning enforces pre-existence rule with error popup
   - All buttons, forms, and navigation verified functional
 
+**Major Cleanup & Optimization (October 17, 2025):**
+- **File Cleanup**: Removed 45% of Python files (53→29) and 12% of templates (58→51)
+  - Deleted: test files, load test scripts, debug utilities, duplicate templates
+  - Removed: all test data files (*.txt, *.json, test_*.xlsx)
+  - Cleaned: test/debug routes, email stubs (not configured), camera-based scanning code
+- **Database Optimization**: Added 7 critical indexes for high-volume operations
+  - idx_link_parent, idx_link_child (parent-child joins)
+  - idx_bill_bag_bill, idx_bill_bag_bag (bill-bag associations)
+  - idx_scan_parent, idx_scan_child (scan queries)
+  - idx_bill_status (status filtering)
+- **Static Asset Optimization**: 97% reduction (3.4MB → 92KB)
+  - Removed unused camera libraries: jsQR.js (252KB), html5-qrcode (620KB)
+  - Removed warehouse-bg.png (1.4MB)
+  - System now exclusively uses Coconut wireless keyboard wedge mode
+- **Verification**: End-to-end scanner workflow tested and confirmed fully functional
+
 Real-time monitoring tracks response times, CPU, memory, throughput, and connection pool statistics.
 
 ### Security Features
