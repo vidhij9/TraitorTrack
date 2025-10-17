@@ -4320,8 +4320,8 @@ def scan_bill_parent(bill_id):
     # Check if bill is completed
     is_completed = bill.status == 'completed'
     
-    # Use the ultra scanner template with LiveQRScanner
-    return render_template('scan_bill_parent_ultra.html', bill=bill, linked_bags=linked_bags, is_completed=is_completed)
+    # Use the fast scanner template optimized for Coconut barcode scanner (keyboard wedge mode)
+    return render_template('scan_bill_parent_fast.html', bill=bill, linked_bags=linked_bags, is_completed=is_completed)
 
 
 # Removed redundant save_bill function - bills are automatically saved when parent bags are linked

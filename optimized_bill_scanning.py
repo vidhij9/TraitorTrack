@@ -82,11 +82,65 @@ def optimized_bill_parent_scan(db, bill_id: int, qr_code: str, user_id: int):
                     'error_type': 'wrong_bag_type'
                 }
             else:
-                return {
-                    'success': False,
-                    'message': f'🚫 Bag {qr_code} not registered. Please scan a registered parent bag.',
-                    'error_type': 'bag_not_found'
-                }
+                # AUTO-CREATE parent bag for seamless scanner experience
+                # This allows scanning parent bags directly without pre-registration
+                from datetime import datetime
+                
+                try:
+                    # Create new parent bag
+                    db.session.execute(text("""
+                        INSERT INTO bag (qr_id, type, status, child_count, weight_kg, created_at, user_id)
+                        VALUES (:qr_code, 'parent', 'pending', 0, 0.0, :now, :user_id)
+                    """), {
+                        'qr_code': qr_code,
+                        'now': datetime.utcnow(),
+                        'user_id': user_id
+                    })
+                    db.session.commit()
+                    
+                    # Now retry the query to get the newly created bag
+                    result = db.session.execute(text("""
+                        WITH bag_data AS (
+                            SELECT 
+                                b.id as bag_id,
+                                b.qr_id,
+                                b.type,
+                                b.status as bag_status,
+                                COUNT(DISTINCT l.child_bag_id) as child_count,
+                                bb_existing.bill_id as existing_bill_id,
+                                bill.id as bill_pk,
+                                bill.bill_id as bill_number,
+                                bill.parent_bag_count as capacity,
+                                bill.status as bill_status,
+                                (SELECT COUNT(*) FROM bill_bag WHERE bill_id = :bill_id) as current_count
+                            FROM bag b
+                            LEFT JOIN link l ON l.parent_bag_id = b.id
+                            LEFT JOIN bill_bag bb_existing ON bb_existing.bag_id = b.id
+                            LEFT JOIN bill ON bill.id = :bill_id
+                            WHERE UPPER(b.qr_id) = :qr_code AND b.type = 'parent'
+                            GROUP BY b.id, b.qr_id, b.type, b.status, bb_existing.bill_id, 
+                                     bill.id, bill.bill_id, bill.parent_bag_count, bill.status
+                        )
+                        SELECT * FROM bag_data
+                    """), {
+                        'bill_id': bill_id,
+                        'qr_code': qr_code
+                    }).fetchone()
+                    
+                    if not result:
+                        return {
+                            'success': False,
+                            'message': f'🚫 Failed to create parent bag {qr_code}',
+                            'error_type': 'creation_failed'
+                        }
+                    # Continue with the rest of the function using the newly created bag
+                except Exception as e:
+                    db.session.rollback()
+                    return {
+                        'success': False,
+                        'message': f'🚫 Error creating parent bag: {str(e)}',
+                        'error_type': 'creation_error'
+                    }
         
         # Extract data from result
         bag_id = result.bag_id

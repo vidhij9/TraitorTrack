@@ -1,12 +1,84 @@
 {% extends "layout.html" %}
 
-{% block title %}Create Bill - traitor track{% endblock %}
+{% block title %}Create Bill - TraceTrack{% endblock %}
+
+{% block head %}
+<style>
+.scanner-friendly-input {
+    font-size: 1.5rem;
+    padding: 15px;
+    text-align: center;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.number-input-large {
+    font-size: 1.5rem;
+    padding: 15px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.progress-container {
+    margin: 20px 0;
+}
+
+.progress-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-step {
+    text-align: center;
+    flex: 0 0 auto;
+}
+
+.progress-step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-weight: bold;
+    color: #6c757d;
+}
+
+.progress-step.active .progress-step-circle {
+    background: #0d6efd;
+    color: white;
+}
+
+.progress-step-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.progress-step.active .progress-step-label {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.progress-line {
+    height: 2px;
+    background: #e9ecef;
+    flex: 1;
+    margin: 0 10px;
+    align-self: start;
+    margin-top: 20px;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container mt-4">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card bg-light">
+            <div class="card bg-light border-0 shadow-sm">
                 <div class="card-body">
                     <h2 class="card-title mb-3">
                         <i class="fas fa-file-invoice me-2"></i>Create New Bill
@@ -31,48 +103,130 @@
                         </div>
                     </div>
                     
-                    <p class="card-text">Enter the bill ID to create a new bill and start scanning parent bags.</p>
+                    <p class="card-text">Enter bill details below. The Bill ID field supports barcode scanning.</p>
                 </div>
             </div>
         </div>
     </div>
     
     <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card">
-                <div class="card-header bg-primary bg-opacity-25 text-dark">
+        <div class="col-md-10 col-lg-8">
+            <div class="card border-0 shadow">
+                <div class="card-header bg-primary text-white">
                     <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Bill Information</h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('create_bill') }}">
+                    <form method="POST" action="{{ url_for('create_bill') }}" id="bill-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-                        
+                        <!-- Bill ID - Scanner friendly -->
                         <div class="mb-4">
-                            <label for="bill_id" class="form-label">Bill ID</label>
+                            <label for="bill_id" class="form-label fw-bold">
+                                <i class="fas fa-hashtag me-2"></i>Bill ID
+                                <span class="text-muted small">(Scannable)</span>
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">
+                                    <i class="fas fa-barcode"></i>
+                                </span>
+                                <input 
+                                    type="text" 
+                                    class="form-control scanner-friendly-input" 
+                                    id="bill_id" 
+                                    name="bill_id" 
+                                    value="{{ request.form.get('bill_id', '') }}" 
+                                    required 
+                                    autofocus
+                                    placeholder="SCAN OR TYPE HERE"
+                                >
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Scan a barcode or type a unique bill identifier
+                            </div>
+                        </div>
+
+                        <!-- Destination -->
+                        <div class="mb-4">
+                            <label for="destination" class="form-label fw-bold">
+                                <i class="fas fa-map-marker-alt me-2"></i>Destination
+                            </label>
                             <div class="input-group">
                                 <span class="input-group-text">
-                                    <i class="fas fa-hashtag"></i>
+                                    <i class="fas fa-location-arrow"></i>
                                 </span>
-                                <input type="text" class="form-control" id="bill_id" name="bill_id" 
-                                       value="{{ request.form.get('bill_id', '') }}" required autofocus>
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="destination" 
+                                    name="destination" 
+                                    value="{{ request.form.get('destination', '') }}"
+                                    placeholder="e.g., Delhi, Mumbai, Bangalore"
+                                >
                             </div>
-                            <div class="form-text">Enter a unique identifier for this bill.</div>
+                            <div class="form-text">Enter the destination city or location</div>
                         </div>
-                        
+
+                        <!-- Truck Number -->
                         <div class="mb-4">
-                            <label for="parent_bag_count" class="form-label">Number of Parent Bags</label>
+                            <label for="truck_number" class="form-label fw-bold">
+                                <i class="fas fa-truck me-2"></i>Truck Number
+                            </label>
                             <div class="input-group">
                                 <span class="input-group-text">
-                                    <i class="fas fa-boxes"></i>
+                                    <i class="fas fa-id-card"></i>
                                 </span>
-                                <input type="number" class="form-control" id="parent_bag_count" name="parent_bag_count" min="1" max="50" value="{{ request.form.get('parent_bag_count', '5') }}" required>
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="truck_number" 
+                                    name="truck_number" 
+                                    value="{{ request.form.get('truck_number', '') }}"
+                                    placeholder="e.g., MH-12-AB-1234"
+                                >
                             </div>
-                            <div class="form-text">How many parent bags should be linked to this bill?</div>
+                            <div class="form-text">Enter the truck registration number</div>
                         </div>
                         
+                        <!-- Parent Bag Count -->
+                        <div class="mb-4">
+                            <label for="parent_bag_count" class="form-label fw-bold">
+                                <i class="fas fa-boxes me-2"></i>Number of Parent Bags
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">
+                                    <i class="fas fa-sort-numeric-up"></i>
+                                </span>
+                                <input 
+                                    type="number" 
+                                    class="form-control number-input-large" 
+                                    id="parent_bag_count" 
+                                    name="parent_bag_count" 
+                                    min="1" 
+                                    max="50" 
+                                    value="{{ request.form.get('parent_bag_count', '5') }}" 
+                                    required
+                                >
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                How many parent bags should be linked to this bill? (1-50)
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-lightbulb me-2"></i>Quick Tips:</h6>
+                            <ul class="mb-0 small">
+                                <li>Bill ID field accepts barcode scanner input - just scan!</li>
+                                <li>Use Tab or Enter to move between fields quickly</li>
+                                <li>All fields except Destination and Truck are required</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Action Buttons -->
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary btn-lg">
                                 <i class="fas fa-arrow-right me-2"></i>Continue to Scan Parent Bags
                             </button>
                             <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary">
@@ -85,4 +239,89 @@
         </div>
     </div>
 </div>
+
+<!-- Toast notifications -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="form-toast" class="toast align-items-center text-white border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                <i class="fas fa-info-circle me-2"></i>Message
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const billIdInput = document.getElementById('bill_id');
+    const billForm = document.getElementById('bill-form');
+    
+    // Auto-uppercase bill ID for consistency
+    billIdInput.addEventListener('input', function(e) {
+        this.value = this.value.toUpperCase();
+    });
+    
+    // Handle barcode scanner input (which sends Enter)
+    billIdInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // Move to next field instead of submitting
+            document.getElementById('destination').focus();
+        }
+    });
+    
+    // Form validation
+    billForm.addEventListener('submit', function(e) {
+        const billId = billIdInput.value.trim();
+        const parentCount = parseInt(document.getElementById('parent_bag_count').value);
+        
+        if (!billId) {
+            e.preventDefault();
+            showToast('Bill ID is required', 'error');
+            billIdInput.focus();
+            return false;
+        }
+        
+        if (parentCount < 1 || parentCount > 50) {
+            e.preventDefault();
+            showToast('Parent bag count must be between 1 and 50', 'error');
+            document.getElementById('parent_bag_count').focus();
+            return false;
+        }
+    });
+    
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('form-toast');
+        const toastMessage = document.getElementById('toast-message');
+        
+        toast.className = 'toast align-items-center text-white border-0';
+        
+        let bgClass = 'bg-info';
+        let icon = 'info-circle';
+        
+        if (type === 'error') {
+            bgClass = 'bg-danger';
+            icon = 'exclamation-circle';
+        } else if (type === 'success') {
+            bgClass = 'bg-success';
+            icon = 'check-circle';
+        } else if (type === 'warning') {
+            bgClass = 'bg-warning';
+            icon = 'exclamation-triangle';
+        }
+        
+        toast.classList.add(bgClass);
+        toastMessage.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+        
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+    }
+    
+    // Focus bill ID field on load
+    billIdInput.focus();
+});
+</script>
 {% endblock %}

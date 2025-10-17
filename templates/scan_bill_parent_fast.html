@@ -1,0 +1,476 @@
+{% extends "layout.html" %}
+{% block title %}Link Parent Bags to Bill - TraceTrack{% endblock %}
+
+{% block head %}
+<style>
+/* Scanner Input - Large and prominent */
+.scanner-input-container {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    margin: 20px 0;
+}
+
+.scanner-input {
+    font-size: 2.5rem;
+    padding: 20px;
+    text-align: center;
+    border: 4px solid #fff;
+    border-radius: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.95);
+    transition: all 0.3s ease;
+}
+
+.scanner-input:focus {
+    border-color: #ffc107;
+    box-shadow: 0 0 20px rgba(255,193,7,0.5);
+    background: #fff;
+}
+
+.scanner-status {
+    text-align: center;
+    margin-top: 15px;
+    color: #fff;
+    font-size: 1.2rem;
+}
+
+.scanner-icon {
+    font-size: 4rem;
+    color: #fff;
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.toast {
+    min-width: 350px;
+    font-size: 1.1rem;
+}
+
+.bill-info-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.progress-wrapper {
+    margin-top: 20px;
+}
+
+.linked-bags-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.bag-item {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-file-invoice me-2"></i>Link Parent Bags to Bill
+                    </h4>
+                    <small>Using Coconut Wireless 2D Scanner</small>
+                </div>
+                <div class="card-body">
+                    <!-- Bill Information -->
+                    <div class="bill-info-card">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-hashtag me-2"></i>Bill ID</h6>
+                                <p class="mb-2"><strong>{{ bill.bill_id }}</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-map-marker-alt me-2"></i>Destination</h6>
+                                <p class="mb-2"><strong>{{ bill.destination or 'Not specified' }}</strong></p>
+                            </div>
+                        </div>
+                        
+                        <!-- Progress Section -->
+                        <div class="progress-wrapper">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-boxes me-2"></i>Linked Bags: <strong id="bag-count">{{ linked_bags|length }}</strong></span>
+                                <span>Target: <strong id="target-count">{{ bill.parent_bag_count or 'Unlimited' }}</strong></span>
+                            </div>
+                            {% if bill.parent_bag_count %}
+                            <div class="progress" style="height: 25px;">
+                                <div id="progress-bar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" 
+                                     style="width: {{ (linked_bags|length / bill.parent_bag_count * 100)|round }}%">
+                                    <span id="progress-text">{{ linked_bags|length }}/{{ bill.parent_bag_count }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Scanner Input Section -->
+                    <div class="scanner-input-container">
+                        <div class="text-center">
+                            <i class="fas fa-qrcode scanner-icon"></i>
+                            <h5 class="text-white mb-3">Point scanner at parent bag QR code and scan</h5>
+                        </div>
+                        
+                        <input 
+                            type="text" 
+                            id="scanner-input" 
+                            class="form-control scanner-input" 
+                            placeholder="Ready to scan..." 
+                            autocomplete="off"
+                            autofocus
+                        >
+                        
+                        <div class="scanner-status">
+                            <span id="status-text">
+                                <i class="fas fa-check-circle me-2"></i>Scanner ready - Scan parent bags
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Instructions -->
+                    <div class="alert alert-info mt-4">
+                        <h6><i class="fas fa-info-circle me-2"></i>How to use:</h6>
+                        <ol class="mb-0">
+                            <li>Make sure the input field above is highlighted (click it if not)</li>
+                            <li>Point your Coconut scanner at a parent bag QR code</li>
+                            <li>Press the scan button on your scanner</li>
+                            <li>The bag will be linked to this bill automatically!</li>
+                            <li>Continue scanning until all parent bags are linked</li>
+                        </ol>
+                    </div>
+
+                    <!-- Linked Bags List -->
+                    <div id="linked-bags-section" class="mt-4">
+                        <h6><i class="fas fa-check-circle text-success me-2"></i>Linked Parent Bags</h6>
+                        <div id="bags-list" class="list-group linked-bags-list">
+                            {% for bag in linked_bags %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center bag-item">
+                                <span>
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <strong>{{ bag.qr_id }}</strong>
+                                    <small class="text-muted ms-2">({{ bag.child_count or 0 }} children)</small>
+                                </span>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeBag('{{ bag.qr_id }}', {{ bag.id }})">
+                                    <i class="fas fa-times"></i> Remove
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-4 d-flex justify-content-between gap-2">
+                        <a href="{{ url_for('bill_management') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Bills
+                        </a>
+                        <button id="complete-bill-btn" class="btn btn-success btn-lg" onclick="completeBill()">
+                            <i class="fas fa-check-circle me-2"></i>Complete Bill
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for CSRF -->
+<form id="csrf-form" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<!-- Toast notifications -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="scan-toast" class="toast align-items-center text-white border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                <i class="fas fa-check-circle me-2"></i>Message
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scannerInput = document.getElementById('scanner-input');
+    const statusText = document.getElementById('status-text');
+    const bagsList = document.getElementById('bags-list');
+    const bagCount = document.getElementById('bag-count');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    
+    let isProcessing = false;
+    const billId = {{ bill.id }};
+    const targetCount = {{ bill.parent_bag_count or 0 }};
+    
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('scan-toast');
+        const toastMessage = document.getElementById('toast-message');
+        
+        toast.className = `toast align-items-center text-white border-0`;
+        
+        let bgClass = 'bg-success';
+        let icon = 'check-circle';
+        
+        if (type === 'error' || type === 'danger') {
+            bgClass = 'bg-danger';
+            icon = 'exclamation-circle';
+        } else if (type === 'warning') {
+            bgClass = 'bg-warning';
+            icon = 'exclamation-triangle';
+        } else if (type === 'info') {
+            bgClass = 'bg-info';
+            icon = 'info-circle';
+        }
+        
+        toast.classList.add(bgClass);
+        toastMessage.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+        
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+    }
+    
+    function updateStatus(message, icon = 'check-circle', color = '') {
+        statusText.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+        if (color) {
+            statusText.style.color = color;
+        }
+    }
+    
+    function updateProgress(currentCount) {
+        bagCount.textContent = currentCount;
+        
+        if (targetCount > 0 && progressBar) {
+            const percentage = Math.min((currentCount / targetCount) * 100, 100);
+            progressBar.style.width = percentage + '%';
+            if (progressText) {
+                progressText.textContent = `${currentCount}/${targetCount}`;
+            }
+        }
+    }
+    
+    function addBagToList(qrCode, childCount, bagId) {
+        const newItem = document.createElement('div');
+        newItem.className = 'list-group-item d-flex justify-content-between align-items-center bag-item';
+        newItem.innerHTML = `
+            <span>
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <strong>${qrCode}</strong>
+                <small class="text-muted ms-2">(${childCount || 0} children)</small>
+            </span>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeBag('${qrCode}', ${bagId})">
+                <i class="fas fa-times"></i> Remove
+            </button>
+        `;
+        bagsList.insertBefore(newItem, bagsList.firstChild);
+    }
+    
+    function processBarcode(barcode) {
+        if (isProcessing) {
+            console.log('Already processing, ignoring:', barcode);
+            return;
+        }
+        
+        if (!barcode || barcode.trim().length === 0) {
+            return;
+        }
+        
+        barcode = barcode.trim().toUpperCase();
+        console.log('Processing barcode:', barcode);
+        
+        isProcessing = true;
+        updateStatus('Processing...', 'spinner fa-spin', '#ffc107');
+        showToast(`Processing ${barcode}...`, 'info');
+        
+        // Call fast bill parent scan endpoint
+        fetch('/fast/bill_parent_scan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `bill_id=${billId}&qr_code=${encodeURIComponent(barcode)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            isProcessing = false;
+            
+            if (data.success) {
+                showToast(data.message, 'success');
+                
+                // Add to list
+                const childCount = data.child_count || 0;
+                addBagToList(barcode, childCount, data.bag_id || 0);
+                
+                // Update progress
+                const currentCount = parseInt(bagCount.textContent) + 1;
+                updateProgress(currentCount);
+                
+                updateStatus('Ready for next scan', 'check-circle', '');
+                
+                // Check if bill is complete
+                if (targetCount > 0 && currentCount >= targetCount) {
+                    showToast('✅ Bill complete! All parent bags linked.', 'success');
+                    updateStatus('Bill complete!', 'check-circle', '#28a745');
+                }
+            } else {
+                showToast(data.message || 'Scan failed', 'error');
+                updateStatus('Scan failed - try again', 'exclamation-circle', '#dc3545');
+                
+                // Re-enable after 1 second
+                setTimeout(() => {
+                    updateStatus('Ready for next scan', 'check-circle', '');
+                }, 1500);
+            }
+            
+            // Always refocus
+            scannerInput.focus();
+        })
+        .catch(error => {
+            isProcessing = false;
+            console.error('Error:', error);
+            showToast('Network error. Please try again.', 'error');
+            updateStatus('Network error', 'exclamation-circle', '#dc3545');
+            
+            setTimeout(() => {
+                updateStatus('Ready for next scan', 'check-circle', '');
+            }, 1500);
+            
+            scannerInput.focus();
+        });
+    }
+    
+    // Listen for Enter key (scanner sends Enter after data)
+    scannerInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const barcode = scannerInput.value.trim();
+            if (barcode) {
+                processBarcode(barcode);
+                scannerInput.value = '';
+            }
+        }
+    });
+    
+    // Auto-refocus input if it loses focus
+    scannerInput.addEventListener('blur', function() {
+        setTimeout(() => {
+            if (!isProcessing) {
+                scannerInput.focus();
+            }
+        }, 100);
+    });
+    
+    // Remove bag function
+    window.removeBag = function(qrCode, bagId) {
+        if (!confirm(`Remove ${qrCode} from this bill?`)) {
+            return;
+        }
+        
+        fetch('/remove_bag_from_bill', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `bill_id=${billId}&parent_qr=${encodeURIComponent(qrCode)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                
+                // Remove from UI
+                const items = document.querySelectorAll('.bag-item');
+                items.forEach(item => {
+                    if (item.textContent.includes(qrCode)) {
+                        item.remove();
+                    }
+                });
+                
+                // Update count
+                const currentCount = parseInt(bagCount.textContent) - 1;
+                updateProgress(currentCount);
+            } else {
+                showToast(data.message || 'Error removing bag', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Network error while removing bag', 'error');
+        });
+    };
+    
+    // Complete bill function
+    window.completeBill = function() {
+        const currentCount = parseInt(bagCount.textContent);
+        
+        if (currentCount === 0) {
+            showToast('Please link at least one parent bag before completing the bill.', 'warning');
+            return;
+        }
+        
+        if (confirm(`Complete this bill with ${currentCount} linked bags? This action cannot be undone.`)) {
+            fetch('/complete_bill', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `bill_id=${billId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Bill completed successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/bills';
+                    }, 1500);
+                } else {
+                    showToast(data.message || 'Error completing bill', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Network error while completing bill', 'error');
+            });
+        }
+    };
+    
+    // Ensure input is focused on page load
+    scannerInput.focus();
+    
+    // Show ready message
+    showToast('Scanner ready! Point and scan parent bags.', 'success');
+});
+</script>
+{% endblock %}
