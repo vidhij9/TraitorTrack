@@ -4135,10 +4135,15 @@ def view_bill(bill_id):
     parent_bag_ids = []
     for bag, child_count in parent_data:
         if bag:  # Null-safe check
+            # Load child bags for this parent
+            child_bags = db.session.query(Bag).join(
+                Link, Bag.id == Link.child_bag_id
+            ).filter(Link.parent_bag_id == bag.id).all()
+            
             parent_bags.append({
                 'parent_bag': bag,
                 'child_count': child_count or 0,  # Handle None
-                'child_bags': []  # Don't load all children initially
+                'child_bags': child_bags  # Load actual child bags
             })
             parent_bag_ids.append(bag.id)
     
