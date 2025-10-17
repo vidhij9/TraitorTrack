@@ -449,32 +449,16 @@ function completeScanning() {
     }, 1500);
 }
 
-// Initialize scanner with proper InstantDetectionScanner
-document.getElementById('start-camera').addEventListener('click', function() {
-    // Prevent starting if already complete
-    if (scannedCount === 30) {
-        showToast('Parent bag already complete with 30/30 child bags', 'info');
-        return;
-    }
-    
-    if (scanner) scanner.stop();
-    
-    scanner = new InstantDetectionScanner('child-scanner-container', onScanSuccess);
-    scanner.start();
-    
-    this.disabled = true;
-    document.getElementById('stop-camera').disabled = false;
-    showToast('Scanner started', 'success');
-});
+// Scanner buttons disabled - keyboard wedge mode only
+const startBtn = document.getElementById('start-camera');
+const stopBtn = document.getElementById('stop-camera');
 
-// Stop scanner
-document.getElementById('stop-camera').addEventListener('click', function() {
-    if (scanner) scanner.stop();
-    
-    this.disabled = true;
-    document.getElementById('start-camera').disabled = false;
-    showToast('Scanner stopped', 'info');
-});
+if (startBtn) {
+    startBtn.style.display = 'none';
+}
+if (stopBtn) {
+    stopBtn.style.display = 'none';
+}
 
 // Manual form submission
 document.getElementById('manual-form').addEventListener('submit', async function(e) {
@@ -509,30 +493,21 @@ document.getElementById('manual-form').addEventListener('submit', async function
     isProcessing = false;
 });
 
-// Auto-start scanner on page load
+// Auto-focus input and check completion on page load
 window.addEventListener('load', function() {
-    // CRITICAL FIX: Check if bag is already complete (exactly 30/30)
     console.log('Current scanned count:', scannedCount, 'Type:', typeof scannedCount);
     
-    // ONLY show completion if actually at 30 bags - not 0!
+    // ONLY show completion if actually at 30 bags
     if (scannedCount === 30) {
         console.log('COMPLETION: Showing completion section - bag has exactly 30 child bags');
         showCompletionSection();
         showToast('✅ This parent bag is already complete with 30/30 child bags', 'success');
-    } else if (scannedCount > 0 && scannedCount < 30) {
-        // Auto-start scanner for incomplete bags that have some children
-        console.log(`SCANNING: Starting scanner - bag has ${scannedCount}/30 child bags`);
-        setTimeout(() => {
-            document.getElementById('start-camera').click();
-        }, 500);
-    } else if (scannedCount === 0) {
-        // Auto-start scanner for empty bags
-        console.log('SCANNING: Starting scanner - bag has 0/30 child bags');
-        setTimeout(() => {
-            document.getElementById('start-camera').click();
-        }, 500);
     } else {
-        console.log('ERROR: Invalid scannedCount value:', scannedCount);
+        // Focus on input for keyboard wedge scanner
+        const manualInput = document.getElementById('manual-qr-input');
+        if (manualInput) {
+            manualInput.focus();
+        }
     }
     
     // Add completion button event listener

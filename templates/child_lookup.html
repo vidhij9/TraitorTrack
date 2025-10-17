@@ -412,136 +412,35 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update status to show manual input only
     if (scannerStatus) {
-        scannerStatus.innerHTML = '<i class="fas fa-info-circle me-1"></i>Use manual input or Coconut scanner';
-                throw new Error('Camera access denied. Please allow camera access and refresh.');
-            }
-            
-            // Stop any existing scanner first
-            if (window.lookupScanner && window.lookupScanner.stop) {
-                window.lookupScanner.stop();
-            }
-            
-            // Use Instant Detection Scanner for Google Lens-like performance (same as scan parent page)
-            lookupScanner = new InstantDetectionScanner('scanner-container', handleLookupScanSuccess);
-            window.lookupScanner = lookupScanner; // Store globally for cleanup
-            
-            // Monitor scanner status
-            setTimeout(() => {
-                updateScannerStatus('Ready', 'success');
-                resultContainer.className = 'alert alert-success';
-                resultContainer.innerHTML = '✅ Scanner ready - Point at QR code to search';
-            }, 2000);
-            
-        } catch (error) {
-            console.error('Scanner initialization error:', error);
-            updateScannerStatus('Error', 'danger');
-            resultContainer.className = 'alert alert-danger';
-            resultContainer.innerHTML = `❌ ${error.message || 'Check camera permissions and refresh'}`;
-            
-            // Try to provide helpful error messages
-            if (error.message.includes('getUserMedia')) {
-                resultContainer.innerHTML = '❌ Camera not available. Please check browser permissions.';
-            } else if (error.message.includes('https')) {
-                resultContainer.innerHTML = '❌ Camera requires secure connection (HTTPS).';
-            }
-        }
-    }
-    
-    // Update scanner status badge
-    function updateScannerStatus(text, type) {
-        const statusBadge = document.getElementById('lookup-scanner-status');
-        statusBadge.className = `badge bg-${type}`;
-        
-        let icon = '';
-        switch(type) {
-            case 'success':
-                icon = '<i class="fas fa-check-circle me-1"></i>';
-                break;
-            case 'danger':
-                icon = '<i class="fas fa-exclamation-circle me-1"></i>';
-                break;
-            case 'warning':
-                icon = '<i class="fas fa-exclamation-triangle me-1"></i>';
-                break;
-            case 'info':
-                icon = '<i class="fas fa-spinner fa-spin me-1"></i>';
-                break;
-        }
-        
-        statusBadge.innerHTML = icon + text;
-    }
-    
-    // Handle successful scan
-    function handleLookupScanSuccess(qrCode) {
-        if (isProcessing) {
-            return; // Prevent duplicate processing
-        }
-        
-        console.log('Lookup QR scanned:', qrCode);
-        isProcessing = true;
-        
-        // Haptic feedback
-        if (navigator.vibrate) {
-            navigator.vibrate(200);
-        }
-        
-        // Update UI
-        detectedQrValue.textContent = qrCode;
-        manualQrCode.value = qrCode;
-        
-        // Hide result container and show success
-        resultContainer.style.display = 'none';
-        searchSuccess.classList.remove('d-none');
-        searchSuccess.classList.add('scan-success');
-        
-        updateScannerStatus('Scan Complete', 'success');
-        
-        // Auto-submit the form after a short delay to show success message
-        setTimeout(() => {
-            console.log('Submitting search for:', qrCode);
-            manualEntryForm.submit();
-        }, 1000);
+        scannerStatus.innerHTML = '<i class="fas fa-keyboard me-1"></i>Manual input ready';
+        scannerStatus.className = 'badge bg-success';
     }
     
     // Handle manual entry form submission
     if (manualEntryForm) {
         manualEntryForm.addEventListener('submit', function(event) {
-            const qrCode = manualQrCode.value.trim();
+            const qrCode = manualQrCode.value.trim().toUpperCase();
             
             if (!qrCode) {
                 event.preventDefault();
-                resultContainer.className = 'alert alert-warning';
-                resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter or scan a QR code first.';
-                resultContainer.style.display = 'block';
-            }
-        });
-    }
-    
-    // Handle search detected button
-    if (searchDetectedBtn) {
-        searchDetectedBtn.addEventListener('click', function() {
-            const qrCode = detectedQrValue.textContent;
-            if (qrCode) {
-                console.log('Searching detected QR code:', qrCode);
+                const resultContainer = document.getElementById('result-container');
+                if (resultContainer) {
+                    resultContainer.className = 'alert alert-warning';
+                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter a QR code first.';
+                    resultContainer.style.display = 'block';
+                }
+            } else {
                 manualQrCode.value = qrCode;
-                manualEntryForm.submit();
             }
         });
     }
     
-    // Start scanner automatically
-    setTimeout(() => {
-        initializeLookupScanner();
-    }, 500);
+    // Focus on input for keyboard wedge scanner
+    if (manualQrCode) {
+        manualQrCode.focus();
+    }
     
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-        if (lookupScanner) {
-            lookupScanner.stop();
-        }
-    });
-    
-    console.log('Ultra-fast lookup scanner with InstantDetectionScanner ready!');
+    console.log('Bag lookup ready - keyboard wedge mode');
 });
 </script>
 {% endblock %}
