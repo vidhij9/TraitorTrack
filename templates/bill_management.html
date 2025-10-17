@@ -3,9 +3,6 @@
 {% block title %}Bill Management - traitor track{% endblock %}
 
 {% block head %}
-<!-- Extreme QR Scanning Library -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-
 <style>
 /* Scanner Modal Styles */
 .scanner-modal {
@@ -767,7 +764,4 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
-
-<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 {% endblock %}

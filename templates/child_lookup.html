@@ -3,10 +3,6 @@
 {% block title %}Bag Search - TraceTrack{% endblock %}
 
 {% block head %}
-<!-- QR Scanner Libraries -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="{{ url_for('static', filename='js/libs/html5-qrcode.min.js') }}"></script>
-
 <style>
 /* Ultra Compact UI Styles - Aggressive overrides */
 .container .card { margin-bottom: 0.4rem !important; }
@@ -407,39 +403,16 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Lightning Scanner for instant performance -->
-<script src="{{ url_for('static', filename='js/jsQR.js') }}"></script>
-<script src="{{ url_for('static', filename='js/instant-detection-scanner.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let lookupScanner = null;
-    let isProcessing = false;
-    
-    // Get UI elements
-    const searchSuccess = document.getElementById('search-success');
-    const detectedQrValue = document.getElementById('detected-qr-value');
-    const searchDetectedBtn = document.getElementById('search-detected-btn');
-    const resultContainer = document.getElementById('result-container');
+    // Camera scanning disabled - use Coconut wireless scanner or manual input
     const manualQrCode = document.getElementById('manual-qr-code');
     const manualEntryForm = document.getElementById('manual-entry-form');
     const scannerStatus = document.getElementById('lookup-scanner-status');
     
-    // Initialize Lookup Scanner
-    async function initializeLookupScanner() {
-        try {
-            updateScannerStatus('Starting...', 'info');
-            
-            // Check if jsQR is loaded
-            if (typeof jsQR === 'undefined') {
-                console.error('jsQR library not loaded');
-                throw new Error('QR scanning library not loaded');
-            }
-            
-            // Request camera permissions first
-            try {
-                await navigator.mediaDevices.getUserMedia({ video: true });
-            } catch (permError) {
-                console.error('Camera permission denied:', permError);
+    // Update status to show manual input only
+    if (scannerStatus) {
+        scannerStatus.innerHTML = '<i class="fas fa-info-circle me-1"></i>Use manual input or Coconut scanner';
                 throw new Error('Camera access denied. Please allow camera access and refresh.');
             }
             
