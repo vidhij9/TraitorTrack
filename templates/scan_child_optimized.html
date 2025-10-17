@@ -3,22 +3,6 @@
 
 {% block head %}
 <style>
-/* Enhanced Scanner Container - matching parent scan style */
-.scanner-container {
-    position: relative;
-    width: 100%;
-    height: 400px;
-    background-color: #000000;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-@media (max-width: 768px) {
-    .scanner-container {
-        height: 300px;
-    }
-}
-
 /* Toast styles */
 .toast {
     min-width: 300px;
@@ -69,44 +53,40 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-qrcode me-2"></i>Scan Child Bags
+                        <i class="fas fa-barcode me-2"></i>Scan Child Bags
                         <small class="text-muted ms-2">({{ 30 - scanned_child_count }} remaining)</small>
                     </h5>
                 </div>
                 <div class="card-body">
-                    <!-- Camera Scanner -->
-                    <div id="child-scanner-container" class="scanner-container mb-3"></div>
-                    
-                    <!-- Scanner Controls -->
-                    <div class="text-center mb-3">
-                        <button id="start-camera" class="btn btn-success">
-                            <i class="fas fa-play me-2"></i>Start Scanner
-                        </button>
-                        <button id="stop-camera" class="btn btn-secondary" disabled>
-                            <i class="fas fa-stop me-2"></i>Stop Scanner
-                        </button>
+                    <!-- Keyboard Wedge Scanner Input -->
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Scanner Ready:</strong> Use your Coconut wireless scanner to scan child bag QR codes. Each scan will be added automatically.
                     </div>
 
-                    <!-- Manual Entry Section -->
-                    <div class="card mt-3">
-                        <div class="card-body">
-                            <h6>Manual Entry</h6>
-                            <form id="manual-form">
-                                {{ form.hidden_tag() }}
-                                <div class="input-group">
-                                    <input type="text" 
-                                           id="manual-qr-input"
-                                           name="qr_code" 
-                                           class="form-control" 
-                                           placeholder="Enter child bag QR code manually"
-                                           autocomplete="off">
-                                    <button class="btn btn-primary" type="submit">
-                                        <i class="fas fa-plus me-2"></i>Add Child
-                                    </button>
-                                </div>
-                            </form>
+                    <!-- Scanner Entry Form -->
+                    <form id="manual-form">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            <label for="manual-qr-input" class="form-label">Scan or Enter Child Bag QR Code</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">
+                                    <i class="fas fa-barcode"></i>
+                                </span>
+                                <input type="text" 
+                                       id="manual-qr-input"
+                                       name="qr_code" 
+                                       class="form-control" 
+                                       placeholder="Scan with Coconut scanner or type QR code"
+                                       autocomplete="off"
+                                       autofocus
+                                       style="text-transform: uppercase;">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-plus me-2"></i>Add
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    </form>
 
                     <!-- Completion Section (Hidden initially via inline style) -->
                     <div id="completion-section" class="completion-section mt-4 p-3" style="display: none;">
@@ -449,16 +429,7 @@ function completeScanning() {
     }, 1500);
 }
 
-// Scanner buttons disabled - keyboard wedge mode only
-const startBtn = document.getElementById('start-camera');
-const stopBtn = document.getElementById('stop-camera');
-
-if (startBtn) {
-    startBtn.style.display = 'none';
-}
-if (stopBtn) {
-    stopBtn.style.display = 'none';
-}
+// Keyboard wedge mode - no camera buttons needed
 
 // Manual form submission
 document.getElementById('manual-form').addEventListener('submit', async function(e) {

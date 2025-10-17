@@ -97,47 +97,7 @@
 }
 .container hr { margin: 0.3rem 0 !important; }
 
-/* QR Scanner Styles */
-.scanner-main {
-    position: relative;
-    width: 100%;
-    min-height: 250px;
-    background-color: #1a1a1a;
-    border-radius: 6px;
-    overflow: hidden;
-    border: 2px solid #e5e5e5;
-}
-
-/* Scanner responsiveness */
-@media (max-width: 768px) {
-    .scanner-main {
-        min-height: 200px;
-    }
-}
-
-.scanner-controls {
-    display: flex;
-    gap: 8px;
-}
-
-.scanner-info {
-    font-size: 0.75rem;
-}
-
-/* Status indicator */
-.status-badge {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(40, 167, 69, 0.9);
-    color: white;
-    padding: 2px 6px;
-    border-radius: 8px;
-    font-size: 0.65rem;
-    font-weight: 500;
-    z-index: 100;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
+/* Keyboard wedge scanner - no camera styles needed */
 </style>
 {% endblock %}
 
@@ -162,66 +122,29 @@
     </div>
     
     <div class="row">
-        <div class="col-lg-6 mb-4 mb-lg-0">
+        <div class="col-lg-12">
             <div class="card">
                 <div class="card-header bg-primary bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>QR Scanner</h4>
-                </div>
-                <div class="card-body p-0">
-                    <div id="scanner-container" class="scanner-main">
-                        <!-- Scanner loads here -->
-                    </div>
-                    
-                    <!-- Scanner Status -->
-                    <div class="p-3" style="background: #f8f9fa;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="scanner-status">
-                                <span id="lookup-scanner-status" class="badge bg-info">
-                                    <i class="fas fa-spinner fa-spin me-1"></i>Starting...
-                                </span>
-                            </div>
-                            <div class="scanner-info">
-                                <small class="text-muted">Point at QR code to search</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header bg-success bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-search me-2"></i>Search Result</h4>
+                    <h4 class="mb-0"><i class="fas fa-search me-2"></i>Bag Search</h4>
                 </div>
                 <div class="card-body">
-                    <div id="result-container" class="alert alert-info mb-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        The result of the scan will appear here.
-                    </div>
-                    
-                    <div id="search-success" class="scan-result alert alert-success d-none">
-                        <h5><i class="fas fa-check-circle me-2"></i>QR Code Detected</h5>
-                        <p class="mb-3">QR Code: <span id="detected-qr-value" class="fw-bold"></span></p>
-                        <div class="d-grid">
-                            <button id="search-detected-btn" class="btn btn-success">
-                                <i class="fas fa-search me-2"></i>Search This Bag
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <form method="POST" action="{{ url_for('child_lookup') }}" id="manual-entry-form" class="mt-4">
+                    <form method="POST" action="{{ url_for('child_lookup') }}" id="manual-entry-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
-                            <label for="manual-qr-code" class="form-label">Manual QR Code Entry</label>
-                            <div class="input-group">
+                            <label for="manual-qr-code" class="form-label">Enter QR Code (Manual or Scanner)</label>
+                            <div class="input-group input-group-lg">
                                 <span class="input-group-text">
-                                    <i class="fas fa-keyboard"></i>
+                                    <i class="fas fa-barcode"></i>
                                 </span>
-                                <input type="text" class="form-control" id="manual-qr-code" name="qr_id" placeholder="e.g., P123-10 or C456-78">
-                                <button type="submit" class="btn btn-primary">Search</button>
+                                <input type="text" class="form-control" id="manual-qr-code" name="qr_id" placeholder="Scan with Coconut scanner or type QR code (e.g., P123-10)" autofocus autocomplete="off" style="text-transform: uppercase;">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-2"></i>Search
+                                </button>
                             </div>
-                            <div class="form-text">If scanning doesn't work, you can manually enter the bag QR code here.</div>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Use your Coconut wireless scanner to scan QR codes, or type manually.
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -405,15 +328,12 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Camera scanning disabled - use Coconut wireless scanner or manual input
     const manualQrCode = document.getElementById('manual-qr-code');
     const manualEntryForm = document.getElementById('manual-entry-form');
-    const scannerStatus = document.getElementById('lookup-scanner-status');
     
-    // Update status to show manual input only
-    if (scannerStatus) {
-        scannerStatus.innerHTML = '<i class="fas fa-keyboard me-1"></i>Manual input ready';
-        scannerStatus.className = 'badge bg-success';
+    // Focus on input for keyboard wedge scanner
+    if (manualQrCode) {
+        manualQrCode.focus();
     }
     
     // Handle manual entry form submission
@@ -423,24 +343,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (!qrCode) {
                 event.preventDefault();
-                const resultContainer = document.getElementById('result-container');
-                if (resultContainer) {
-                    resultContainer.className = 'alert alert-warning';
-                    resultContainer.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Please enter a QR code first.';
-                    resultContainer.style.display = 'block';
-                }
+                alert('Please enter or scan a QR code first.');
+                manualQrCode.focus();
             } else {
                 manualQrCode.value = qrCode;
             }
         });
     }
     
-    // Focus on input for keyboard wedge scanner
-    if (manualQrCode) {
-        manualQrCode.focus();
-    }
-    
-    console.log('Bag lookup ready - keyboard wedge mode');
+    console.log('Bag search ready - keyboard wedge mode');
 });
 </script>
 {% endblock %}
