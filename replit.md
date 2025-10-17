@@ -64,8 +64,13 @@ The system is configured with Gunicorn and gevent for asynchronous workers to ac
 - ✅ End-to-end Playwright testing completed (auth, scanning, bills, search, management)
 - ✅ Role-based access control verified (admin, biller, dispatcher)
 - ✅ Security measures validated (CSRF, protected routes, session management)
-- ✅ Performance benchmarks met (dashboard 127ms, search 99ms)
+- ✅ Performance benchmarks met (dashboard 127ms, search 99ms, bill scanning 110-220ms)
 - ✅ Null-safe edge cases handled (bags with no children, empty scans)
+- ✅ Scanner workflow verified (October 17, 2025):
+  - All scanner pages use keyboard wedge mode (no camera dependencies)
+  - Manual input and barcode scanner input both working
+  - Bill parent scanning enforces pre-existence rule with error popup
+  - All buttons, forms, and navigation verified functional
 
 Real-time monitoring tracks response times, CPU, memory, throughput, and connection pool statistics.
 
@@ -76,12 +81,13 @@ Security measures include CSRF protection on all forms, comprehensive input vali
 - **Scanner Integration**: Transitioned from camera-based scanning to Coconut wireless 2D barcode scanner (USB HID keyboard device) for instant, accurate input and auto-submission.
 - **Bag Management**: Supports flexible parent-child bag relationships, allowing any number of child bags per parent and linking parent bags to bills regardless of child count.
 - **Bill Management Scanner Optimization (October 17, 2025)**: 
-  - Unified scanner experience across scan management and bill management
-  - Bill parent scanning now uses keyboard wedge mode (no camera) matching scan_parent.html design
-  - Auto-creates parent bags when scanned during bill linking (seamless workflow)
+  - **CRITICAL BUSINESS RULE**: Parent bags MUST be created via Scan Management before linking to bills
+  - Bill parent scanning validates bag existence and shows error popup if not found
+  - Error message: "Parent bag {code} does not exist! Please create/scan this parent bag first in Scan Management"
+  - Unified scanner experience: all scanners use keyboard wedge mode (no camera)
   - Scanner-friendly bill creation form with large inputs, auto-uppercase, and keyboard navigation
   - Real-time progress tracking and toast notifications
-  - Fast response times using /fast/bill_parent_scan endpoint
+  - Fast response times using /fast/bill_parent_scan endpoint (110-220ms)
 - **Bill Generation**: Dynamic weight calculation based on actual child count.
 - **Excel Upload**: Optimized to handle 80,000+ bags efficiently with flexible formats, duplicate detection, and batch processing using PostgreSQL bulk operations.
 - **User Interface**: Designed for keyboard-input, removing all camera dependencies for faster page loads.
