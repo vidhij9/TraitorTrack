@@ -55,3 +55,71 @@ The backend is a modular Flask application using blueprint-based routing and SQL
 
 ### Monitoring and Analytics
 - **psutil**: System utility for process and system monitoring.
+
+## Deployment Configuration
+
+### Production Deployment
+The application is configured for Replit Autoscale Deployment with production-grade settings:
+
+**Production Server:** `start_production.sh`
+```bash
+gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gevent --worker-connections 1000 --timeout 120 main:app
+```
+
+**Configuration:**
+- **Workers**: 4 processes for concurrent request handling
+- **Worker Class**: gevent for asynchronous I/O operations
+- **Worker Connections**: 1000 connections per worker (4000 total)
+- **Timeout**: 120 seconds for long-running requests
+- **Port**: 5000 (Replit maps to external port 80)
+- **Preload**: App preloaded for faster startup
+
+### Deployment Requirements
+
+**Required Environment Variables:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `SESSION_SECRET` - Secret key for session management
+- `ADMIN_PASSWORD` - Admin user password
+
+**Optional Environment Variables:**
+- `CREATE_TEST_USERS=true` - Enable test user creation
+- `BILLER_PASSWORD` - Password for test biller user (if CREATE_TEST_USERS enabled)
+- `DISPATCHER_PASSWORD` - Password for test dispatcher user (if CREATE_TEST_USERS enabled)
+
+### Deployment Configuration Fix
+
+**⚠️ IMPORTANT:** The `.replit` file needs to be updated for successful deployment:
+
+**Current (Incorrect):**
+```toml
+run = ["sh", "-c", "python main.py"]
+```
+
+**Required (Correct):**
+```toml
+run = ["sh", "-c", "./start_production.sh"]
+```
+
+Or directly use:
+```toml
+run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gevent --worker-connections 1000 --timeout 120 main:app"]
+```
+
+**Why This Matters:**
+- `python main.py` doesn't use Gunicorn (production WSGI server)
+- Without Gunicorn, the app can't handle concurrent users properly
+- The application won't scale to support 100+ concurrent users
+- Performance will be severely degraded
+
+### Post-Deployment Verification
+
+After publishing, verify the deployment:
+
+1. **Health Check:** Visit `/api/health` - should return `{"status": "healthy"}`
+2. **Login Page:** Accessible at `/login`
+3. **Dashboard:** Login and verify statistics load correctly
+4. **Performance:** Test bag scanning and bill management workflows
+5. **Database:** Verify PostgreSQL connection works
+6. **Sessions:** Test login persistence
+
+See `DEPLOYMENT_INSTRUCTIONS.md` for detailed deployment guide.
