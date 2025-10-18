@@ -4806,7 +4806,8 @@ def bag_details(qr_id):
                 if bills and len(bills) > 0:
                     # Create a simple object to pass bill_id and created_at to template
                     link = {
-                        'bill_id': bills[0].bill_id,
+                        'id': bills[0].id,  # Numeric ID for url_for
+                        'bill_id': bills[0].bill_id,  # String ID for display
                         'created_at': bills[0].created_at
                     }
             except Exception as e:

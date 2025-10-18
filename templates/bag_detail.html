@@ -132,7 +132,7 @@
                         {% if link %}
                             <p>
                                 <strong>Linked to Bill:</strong> 
-                                <a href="{{ url_for('view_bill', bill_id=link.bill_id) }}" class="btn btn-sm btn-info">
+                                <a href="{{ url_for('view_bill', bill_id=link.id) }}" class="btn btn-sm btn-info">
                                     <i class="fas fa-receipt me-1"></i>{{ link.bill_id }}
                                 </a>
                             </p>
