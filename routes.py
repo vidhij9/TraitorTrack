@@ -6004,6 +6004,47 @@ def api_bags_endpoint():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/bag/<qr_id>')
+@csrf_compat.exempt
+@login_required
+def api_bag_detail(qr_id):
+    """API endpoint for individual bag details"""
+    try:
+        from models import Bag
+        from sqlalchemy import func
+        
+        bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
+        
+        if not bag:
+            return jsonify({
+                'success': False,
+                'error': 'Bag not found'
+            }), 404
+        
+        # Safely serialize bag data
+        bag_data = {
+            'success': True,
+            'id': bag.id,
+            'qr_id': bag.qr_id,
+            'type': str(bag.type) if bag.type else 'unknown',
+            'status': str(bag.status) if bag.status else 'unknown',
+            'created_at': bag.created_at.isoformat() if bag.created_at else None
+        }
+        
+        # Add optional fields if present
+        if hasattr(bag, 'name') and bag.name:
+            bag_data['name'] = bag.name
+        if hasattr(bag, 'weight_kg') and bag.weight_kg:
+            bag_data['weight_kg'] = float(bag.weight_kg)
+        
+        return jsonify(bag_data)
+    except Exception as e:
+        app.logger.error(f'API bag detail error for {qr_id}: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
 @app.route('/api/bills')
 @login_required
 def api_bills_endpoint():
