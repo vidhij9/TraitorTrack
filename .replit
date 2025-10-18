@@ -7,7 +7,7 @@ packages = ["cargo", "cyrus_sasl", "freetype", "glibcLocales", "libev", "libicon
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "./start_production.sh"]
+run = ["sh", "-c", "./deploy.sh"]
 
 [workflows]
 runButton = "Project"
