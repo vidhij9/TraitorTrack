@@ -60,7 +60,7 @@ The system is configured with Gunicorn and gevent for asynchronous workers to ac
 - **CRITICAL SECURITY FIX - Test Users**: Test users (biller1, dispatcher1) only created when CREATE_TEST_USERS=true environment variable is set. In production, leave CREATE_TEST_USERS unset to prevent automatic test user creation. Requires BILLER_PASSWORD and DISPATCHER_PASSWORD when test users are enabled. No fallback passwords - fails safely if passwords not provided.
 
 **Comprehensive Testing Completed:**
-- ✅ All 30 API endpoints tested (100% success rate)
+- ✅ All 30+ API endpoints tested (100% success rate)
 - ✅ End-to-end Playwright testing completed (auth, scanning, bills, search, management)
 - ✅ Role-based access control verified (admin, biller, dispatcher)
 - ✅ Security measures validated (CSRF, protected routes, session management)
@@ -71,6 +71,24 @@ The system is configured with Gunicorn and gevent for asynchronous workers to ac
   - Manual input and barcode scanner input both working
   - Bill parent scanning enforces pre-existence rule with error popup
   - All buttons, forms, and navigation verified functional
+
+**Recent Session (October 18, 2025):**
+- ✅ Full system verification completed (all 30+ pages and workflows tested)
+- ✅ **BUG FIX**: Bag details page crashing when viewing bags linked to bills
+  - Error: "invalid literal for int() with base 10: 'BILL-TEST-001'"
+  - Root cause: Template passing string Bill.bill_id to route expecting numeric Bill.id
+  - Fix: Updated bag_details route to pass both numeric ID and string ID; template now uses correct field for url_for
+  - Testing: Verified fix with end-to-end test - bag details and bill navigation working correctly
+- ✅ **NEW FEATURE**: Added /api/bag/<qr_id> endpoint for individual bag details
+  - Returns JSON with bag details: id, qr_id, type, status, created_at, name, weight_kg
+  - Case-insensitive QR ID lookup for flexibility
+  - CSRF-exempt for API consumers, secured with @login_required
+  - Safe serialization with str() to prevent enum serialization errors
+  - Generic error messages (no internal exception exposure)
+  - Consistent JSON structure: {success: bool, ...}
+  - Tested: GET /api/bag/SB99999 returns valid JSON; 404 errors return proper JSON
+- ✅ Architect review: All changes approved with "Pass" rating
+- ✅ Comprehensive testing: Dashboard, API endpoints, bag management, search, filters, navigation all verified working
 
 **Major Cleanup & Optimization (October 17, 2025):**
 - **File Cleanup**: Removed 45% of Python files (53→29) and 31% of templates (51→35)
