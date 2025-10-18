@@ -5338,6 +5338,17 @@ def api_delete_bag():
         from sqlalchemy import text
         
         if bag_type == 'parent':
+            # CRITICAL: Check if parent bag is linked to any bill before allowing deletion
+            bill_link = BillBag.query.filter_by(bag_id=bag_id).first()
+            if bill_link:
+                bill = Bill.query.get(bill_link.bill_id)
+                bill_id_str = bill.bill_id if bill else "unknown"
+                app.logger.warning(f"Deletion prevented: Parent bag {qr_code} is linked to bill {bill_id_str}")
+                return jsonify({
+                    'success': False,
+                    'message': f'Cannot delete. This parent bag is linked to bill "{bill_id_str}". Remove it from the bill first.'
+                }), 400
+            
             # Optimized parent bag deletion with bulk operations
             
             # Get child bag IDs for this parent

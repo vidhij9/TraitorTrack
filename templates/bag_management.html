@@ -302,3 +302,115 @@
 
 
 {% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle delete button clicks
+    const deleteButtons = document.querySelectorAll('.delete-bag-btn');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const qrCode = this.getAttribute('data-qr');
+            const bagType = this.getAttribute('data-type');
+            
+            // Confirmation dialog
+            if (!confirm(`Are you sure you want to delete bag ${qrCode}?\n\nThis action cannot be undone.${bagType === 'parent' ? '\n\nNote: Parent bags linked to bills cannot be deleted.' : ''}`)) {
+                return;
+            }
+            
+            // Show loading state
+            const originalHtml = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            // Send delete request
+            fetch('/api/delete_bag', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `qr_code=${encodeURIComponent(qrCode)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showToast('success', data.message || `Bag ${qrCode} deleted successfully!`);
+                    
+                    // Remove the row from table with animation
+                    const row = this.closest('tr');
+                    row.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        row.style.transition = 'opacity 0.5s';
+                        row.style.opacity = '0';
+                        setTimeout(() => {
+                            // Reload page to update counts and stats
+                            window.location.reload();
+                        }, 500);
+                    }, 500);
+                } else {
+                    // Show error message
+                    showToast('error', data.message || `Failed to delete bag ${qrCode}`);
+                    
+                    // Restore button
+                    this.disabled = false;
+                    this.innerHTML = originalHtml;
+                }
+            })
+            .catch(error => {
+                console.error('Delete error:', error);
+                showToast('error', `Error deleting bag: ${error.message}`);
+                
+                // Restore button
+                this.disabled = false;
+                this.innerHTML = originalHtml;
+            });
+        });
+    });
+    
+    // Toast notification function
+    function showToast(type, message) {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+        toast.style.cssText = 'min-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px;';
+        toast.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+            <strong>${type === 'success' ? 'Success!' : 'Error!'}</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 150);
+        }, 5000);
+    }
+    
+    // Clear filters function
+    window.clearFilters = function() {
+        window.location.href = "{{ url_for('bag_management') }}";
+    };
+    
+    // Auto-uppercase search input
+    const searchInput = document.getElementById('search');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+});
+</script>
+{% endblock %}
