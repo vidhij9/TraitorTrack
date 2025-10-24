@@ -15,6 +15,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import app as flask_app, db
 from models import User, Bag, Bill, Link, BillBag, Scan
 
+# Import routes to register them with the app
+import routes
+import api
+
 @pytest.fixture(scope='session')
 def app():
     """Create and configure a test Flask app instance"""
