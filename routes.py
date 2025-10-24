@@ -5079,6 +5079,114 @@ def api_dashboard_stats():
         }), 500
 
 
+@app.route('/api/system_health')
+@login_required
+def api_system_health():
+    """System health metrics - admin only"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        import psutil
+        import os
+        from datetime import datetime
+        from cache_utils import get_cache_stats
+        
+        # Database connection pool stats
+        pool_stats = {
+            'size': 0,
+            'checked_out': 0,
+            'overflow': 0,
+            'configured_max': 40  # 25 base + 15 overflow
+        }
+        
+        try:
+            pool = db.engine.pool
+            pool_stats['size'] = pool.size()
+            pool_stats['checked_out'] = pool.checkedout()
+            pool_stats['overflow'] = pool.overflow()
+        except:
+            pass
+        
+        # Cache statistics using proper helper function
+        cache_info = get_cache_stats()
+        cache_stats = {
+            'enabled': True,
+            'hit_rate': float(cache_info['hit_rate'].rstrip('%')),
+            'total_hits': cache_info['hits'],
+            'total_misses': cache_info['misses'],
+            'total_requests': cache_info['hits'] + cache_info['misses'],
+            'size': cache_info['entries']
+        }
+        
+        # Database size
+        db_stats = {}
+        try:
+            db_size_result = db.session.execute(text("""
+                SELECT 
+                    pg_database_size(current_database()) as db_size,
+                    pg_size_pretty(pg_database_size(current_database())) as db_size_pretty
+            """)).fetchone()
+            
+            if db_size_result:
+                db_stats = {
+                    'size_bytes': db_size_result.db_size,
+                    'size_pretty': db_size_result.db_size_pretty
+                }
+        except:
+            db_stats = {'size_bytes': 0, 'size_pretty': 'N/A'}
+        
+        # Process memory usage
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
+        
+        memory_stats = {
+            'rss_bytes': memory_info.rss,
+            'rss_mb': round(memory_info.rss / (1024 * 1024), 2),
+            'percent': round(process.memory_percent(), 2)
+        }
+        
+        # System uptime (process uptime)
+        uptime_seconds = time.time() - process.create_time()
+        uptime_hours = uptime_seconds / 3600
+        
+        # Recent errors (last hour) - with proper WHERE clause grouping
+        error_count = 0
+        try:
+            error_count_result = db.session.execute(text("""
+                SELECT COUNT(*) as error_count
+                FROM audit_log
+                WHERE (action LIKE '%error%' OR action LIKE '%fail%')
+                AND timestamp > NOW() - INTERVAL '1 hour'
+            """)).fetchone()
+            
+            if error_count_result:
+                error_count = error_count_result.error_count
+        except:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now().isoformat(),
+            'uptime_hours': round(uptime_hours, 2),
+            'database': {
+                'connection_pool': pool_stats,
+                'size': db_stats
+            },
+            'cache': cache_stats,
+            'memory': memory_stats,
+            'errors': {
+                'last_hour': error_count
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"System health API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/scans')
 @limiter.exempt  # Exempt from rate limiting for dashboard functionality
 def api_recent_scans():

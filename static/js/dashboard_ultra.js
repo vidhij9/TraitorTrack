@@ -274,13 +274,61 @@
     };
     
     /**
+     * Update system health metrics (admin only)
+     */
+    async function updateSystemHealth() {
+        const healthSection = document.getElementById('system-health-metrics');
+        if (!healthSection) return; // Not an admin or section not present
+        
+        try {
+            const data = await fetchWithRetry('/api/system_health');
+            
+            if (!data.success) {
+                throw new Error('Invalid health data');
+            }
+            
+            // Update connection pool
+            const poolUsage = data.database.connection_pool.checked_out;
+            const poolMax = data.database.connection_pool.configured_max;
+            updateElementText('db-connections', `${poolUsage}/${poolMax}`);
+            
+            // Update cache hit rate
+            const hitRate = data.cache.hit_rate || 0;
+            updateElementText('cache-hit-rate', `${hitRate}%`);
+            
+            // Update memory usage
+            const memoryMB = data.memory.rss_mb || 0;
+            updateElementText('memory-usage', `${memoryMB} MB`);
+            
+            // Update database size
+            const dbSize = data.database.size.size_pretty || 'N/A';
+            updateElementText('db-size', dbSize);
+            
+        } catch (error) {
+            console.error('Failed to update system health:', error);
+            // Silently fail for system health - not critical
+        }
+    }
+    
+    /**
+     * Update element text content without animation
+     */
+    function updateElementText(id, text) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = text;
+        }
+    }
+    
+    /**
      * Initialize dashboard
      */
     function initDashboard() {
         // Initial load
         Promise.all([
             updateStats(),
-            updateRecentScans()
+            updateRecentScans(),
+            updateSystemHealth()  // Load system health if admin
         ]).catch(error => {
             console.error('Dashboard initialization error:', error);
         });
@@ -296,7 +344,8 @@
                 
                 Promise.all([
                     updateStats(),
-                    updateRecentScans()
+                    updateRecentScans(),
+                    updateSystemHealth()
                 ]).finally(() => {
                     if (icon) {
                         icon.classList.remove('fa-spin');
@@ -309,6 +358,7 @@
         setInterval(() => {
             updateStats();
             updateRecentScans();
+            updateSystemHealth();
         }, API_CONFIG.refreshInterval);
         
         // Visibility change handler - refresh when tab becomes active
@@ -316,6 +366,7 @@
             if (!document.hidden && (Date.now() - dataCache.lastUpdate) > 60000) {
                 updateStats();
                 updateRecentScans();
+                updateSystemHealth();
             }
         });
     }

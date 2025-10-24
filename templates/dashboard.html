@@ -78,6 +78,43 @@
     </div>
 </div>
 
+<!-- System Health (Admin Only) -->
+{% if current_user.is_admin() %}
+<div class="card mb-2">
+    <div class="card-header py-2 bg-dark text-white">
+        <h6 class="mb-0"><i class="fas fa-heartbeat me-2"></i>System Health</h6>
+    </div>
+    <div class="card-body p-2">
+        <div class="row g-1" id="system-health-metrics" style="font-size: 11px;">
+            <div class="col-6">
+                <div class="border rounded p-1">
+                    <small class="text-muted d-block">DB Connections</small>
+                    <strong id="db-connections">-/-</strong>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="border rounded p-1">
+                    <small class="text-muted d-block">Cache Hit Rate</small>
+                    <strong id="cache-hit-rate">-</strong>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="border rounded p-1">
+                    <small class="text-muted d-block">Memory</small>
+                    <strong id="memory-usage">-</strong>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="border rounded p-1">
+                    <small class="text-muted d-block">DB Size</small>
+                    <strong id="db-size">-</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Compact Recent Scans -->
 <div class="card">
     <div class="card-header py-2">
