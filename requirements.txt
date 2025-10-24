@@ -23,3 +23,8 @@ beautifulsoup4>=4.13.4
 openpyxl>=3.1.2
 pandas>=2.0.0
 asyncpg>=0.29.0
+faker
+locust
+pytest
+pytest-cov
+pytest-flask
