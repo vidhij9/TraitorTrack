@@ -60,6 +60,12 @@ if not session_secret:
     raise ValueError("SESSION_SECRET environment variable is required for security")
 app.secret_key = session_secret
 
+# Detect production environment - only actual deployments, not dev workspaces
+is_production = (
+    os.environ.get('REPLIT_DEPLOYMENT') == '1' or
+    os.environ.get('ENVIRONMENT') == 'production'
+)
+
 # Session configuration - using filesystem (Redis causes port exhaustion under load)
 app.config.update(
     SESSION_TYPE='filesystem',
@@ -67,7 +73,7 @@ app.config.update(
     SESSION_PERMANENT=False,
     SESSION_USE_SIGNER=True,
     SESSION_FILE_THRESHOLD=500,
-    SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
+    SESSION_COOKIE_SECURE=is_production,  # Auto-enable HTTPS in production
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     SESSION_COOKIE_NAME='tracetrack_session',
@@ -77,8 +83,10 @@ app.config.update(
     WTF_CSRF_TIME_LIMIT=None,
     WTF_CSRF_CHECK_DEFAULT=True,
     WTF_CSRF_SSL_STRICT=False,
-    PREFERRED_URL_SCHEME='https'
+    PREFERRED_URL_SCHEME='https' if is_production else 'http'
 )
+
+logger.info(f"Environment: {'production' if is_production else 'development'} - HTTPS cookies: {is_production}")
 
 # Initialize Flask-Session
 os.makedirs('/tmp/flask_session', exist_ok=True)

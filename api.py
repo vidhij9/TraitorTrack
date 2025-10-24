@@ -10,19 +10,29 @@ from sqlalchemy import func, or_, desc, text
 from app import app, db, limiter
 from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
-# from optimized_cache import cached, invalidate_cache, cache
-# from query_optimizer import query_optimizer
+from cache_utils import cached_route, clear_cache, get_cache_stats
 
-# Simple placeholder decorators
+# API-compatible cache decorator wrapper
 def cached(ttl=60, prefix=''):
-    def decorator(f):
-        return f
-    return decorator
+    """Wrapper for cached_route to maintain API compatibility"""
+    return cached_route(seconds=ttl)
 
-def invalidate_cache():
-    pass
+def invalidate_cache(pattern=None):
+    """Clear all cache entries or entries matching pattern"""
+    clear_cache(pattern)
 
-cache = None
+# Cache stats accessor with proper method binding
+class CacheProxy:
+    """Compatibility wrapper for cache operations"""
+    @staticmethod
+    def stats():
+        return get_cache_stats()
+    
+    @staticmethod
+    def clear():
+        clear_cache()
+
+cache = CacheProxy()
 
 logger = logging.getLogger(__name__)
 
