@@ -203,13 +203,23 @@
                     </div>
 
                     <!-- Actions -->
-                    <div class="mt-4 d-flex justify-content-between gap-2">
-                        <a href="{{ url_for('bill_management') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Back to Bills
-                        </a>
-                        <button id="complete-bill-btn" class="btn btn-success btn-lg" onclick="completeBill()">
-                            <i class="fas fa-check-circle me-2"></i>Complete Bill
-                        </button>
+                    <div class="mt-4">
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle me-2"></i><strong>Next Step:</strong> After linking parent bags, scan child bags for each parent before completing the bill.
+                        </div>
+                        <div class="d-flex justify-content-between gap-2">
+                            <a href="{{ url_for('bill_management') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Bills
+                            </a>
+                            <div class="d-flex gap-2">
+                                <button id="scan-children-btn" class="btn btn-primary btn-lg" onclick="scanChildBags()" {% if linked_bags|length == 0 %}disabled{% endif %}>
+                                    <i class="fas fa-cubes me-2"></i>Scan Child Bags
+                                </button>
+                                <button id="complete-bill-btn" class="btn btn-success btn-lg" onclick="completeBill()">
+                                    <i class="fas fa-check-circle me-2"></i>Complete Bill
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -292,6 +302,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (progressText) {
                 progressText.textContent = `${currentCount}/${targetCount}`;
             }
+        }
+        
+        // Enable/disable scan children button based on bag count
+        const scanChildrenBtn = document.getElementById('scan-children-btn');
+        if (scanChildrenBtn) {
+            scanChildrenBtn.disabled = currentCount === 0;
         }
     }
     
@@ -447,6 +463,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
     
+    // Scan child bags function
+    window.scanChildBags = function() {
+        const currentCount = parseInt(bagCount.textContent);
+        
+        if (currentCount === 0) {
+            showToast('Please link at least one parent bag first.', 'warning');
+            return;
+        }
+        
+        // Redirect to child scanning page - session already has parent info
+        showToast('Redirecting to child bag scanning...', 'info');
+        setTimeout(() => {
+            window.location.href = '/scan_child';
+        }, 500);
+    };
+    
     // Complete bill function
     window.completeBill = function() {
         const currentCount = parseInt(bagCount.textContent);
@@ -456,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (confirm(`Complete this bill with ${currentCount} linked bags? This action cannot be undone.`)) {
+        if (confirm(`Complete this bill with ${currentCount} linked bags? Make sure you've scanned all child bags for each parent.`)) {
             fetch('/complete_bill', {
                 method: 'POST',
                 headers: {

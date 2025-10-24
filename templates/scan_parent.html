@@ -228,9 +228,38 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStatus('Processing...', 'spinner fa-spin', '#ffc107');
         showToast(`Processing ${barcode}...`, 'info');
         
-        // Set form data and submit normally (server handles redirect)
-        qrCodeInput.value = barcode;
-        submitForm.submit();
+        // Use fast API endpoint for instant processing and redirect
+        fetch('/api/fast_parent_scan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `qr_code=${encodeURIComponent(barcode)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`✓ ${data.message}`, 'success');
+                updateStatus('Success! Redirecting to child scanning...', 'check-circle', '#28a745');
+                
+                // Auto-redirect to child scanning page
+                setTimeout(() => {
+                    window.location.href = data.redirect;
+                }, 800);
+            } else {
+                isProcessing = false;
+                showToast(data.message || 'Scan failed', 'error');
+                updateStatus('Ready to scan', 'check-circle', '');
+                scannerInput.focus();
+            }
+        })
+        .catch(error => {
+            isProcessing = false;
+            console.error('Error:', error);
+            showToast('Network error. Please try again.', 'error');
+            updateStatus('Ready to scan', 'check-circle', '');
+            scannerInput.focus();
+        });
     }
     
     // Listen for Enter key (scanner sends Enter after data)
