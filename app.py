@@ -217,6 +217,15 @@ def after_request(response):
     
     return response
 
+# Add teardown handler for proper database session cleanup
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """Ensure database session is properly closed after each request"""
+    try:
+        db.session.remove()
+    except Exception as e:
+        logger.error(f"Error during session cleanup: {e}")
+
 # Add CSRF token and current_user to template context
 @app.context_processor
 def inject_csrf_token():

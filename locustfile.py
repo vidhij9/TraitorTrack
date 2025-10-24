@@ -1,6 +1,7 @@
 from locust import HttpUser, task, between
 import random
 import string
+import os
 
 class TraceTrackUser(HttpUser):
     wait_time = between(1, 3)
@@ -76,6 +77,3 @@ class HeavyLoadUser(HttpUser):
         self.client.post("/process_parent_scan", data={
             "qr_id": qr_id
         })
-
-# Import os for environment variables
-import os

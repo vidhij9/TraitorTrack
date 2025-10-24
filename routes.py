@@ -6145,52 +6145,9 @@ def excel_upload():
                 flash('Please upload an Excel file (.xlsx)', 'error')
                 return redirect(request.url)
             
-            # Use optimized Excel handler for large files
-            from optimized_excel_upload import excel_uploader
-            from io import BytesIO
-            from collections import defaultdict
-            
-            # Read file content
-            file_content = file.read()
-            
-            # Use optimized Excel processor for 80k+ bags
-            dispatch_area = session.get('dispatch_area', 'Default')
-            
-            # Ensure we have a valid user ID
-            user_id = current_user.id if hasattr(current_user, 'id') and current_user.id else 1
-            
-            # Log the user information for debugging
-            app.logger.info(f"Excel upload by user: {user_id}, username: {current_user.username if hasattr(current_user, 'username') else 'Unknown'}")
-            
-            stats = excel_uploader.process_excel_file(
-                file_content, 
-                user_id, 
-                dispatch_area
-            )
-            
-            
-            # Show results
-            if stats['successful_links'] > 0:
-                flash(f"✓ Processed {stats['total_rows']} rows: "
-                      f"{stats['successful_links']} new links, "
-                      f"{stats['parent_bags_created']} parent bags created, "
-                      f"{stats['child_bags_created']} child bags created", 'success')
-            
-            if stats['existing_links'] > 0:
-                flash(f"ℹ {stats['existing_links']} links already existed", 'info')
-            
-            # Removed skipped_full_parents warning as we now store all children
-            
-            if stats['duplicate_children'] > 0:
-                flash(f"⚠ Removed {stats['duplicate_children']} duplicate entries (kept each child once per parent)", 'info')
-            
-            if stats['errors']:
-                for error in stats['errors'][:3]:  # Show first 3 errors
-                    flash(error, 'error')
-                if len(stats['errors']) > 3:
-                    flash(f"... and {len(stats['errors']) - 3} more errors", 'error')
-            
-            return render_template('excel_upload_optimized.html', stats=stats)
+            # Excel upload feature disabled - optimized module not available
+            flash('Excel upload feature is currently unavailable. Please contact administrator.', 'error')
+            return redirect(request.url)
             
         except Exception as e:
             db.session.rollback()
