@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ feature_name }} - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas {{ icon }} fa-4x text-muted"></i>
+                    </div>
+                    <h2 class="mb-3">{{ feature_name }}</h2>
+                    <p class="lead text-muted">{{ message }}</p>
+                    
+                    {% if alternative_action %}
+                    <div class="mt-4">
+                        <p class="text-muted">{{ alternative_text }}</p>
+                        <a href="{{ alternative_url }}" class="btn btn-primary">
+                            <i class="fas {{ alternative_icon }}"></i> {{ alternative_action }}
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                    
+                    {% if note %}
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-info-circle"></i> {{ note }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

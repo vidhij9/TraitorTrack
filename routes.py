@@ -5914,11 +5914,16 @@ def eod_bill_summary():
 @app.route('/api/bill_summary/send_eod', methods=['POST'])
 @login_required
 def send_eod_summaries():
-    """Send EOD bill summaries - Email functionality removed"""
+    """Send EOD bill summaries - Email functionality not yet configured"""
     if not current_user.is_admin():
         return jsonify({'error': 'Admin access required'}), 403
     
-    return jsonify({'error': 'Email functionality not configured. Use EOD summary endpoint to view data.'}), 501
+    return jsonify({
+        'success': False,
+        'error': 'Email notifications are not configured.',
+        'message': 'Please use the EOD summary preview page to view and export data manually.',
+        'alternative_url': '/eod_summary_preview'
+    }), 501
 
 @app.route('/eod_summary_preview')
 @login_required  
@@ -6026,12 +6031,14 @@ def schedule_eod_summary():
         return jsonify({'error': 'Unauthorized'}), 401
     
     try:
-        # Email functionality removed
+        # Email functionality not yet configured
         app.logger.info("Scheduled EOD summary called - email functionality not configured")
         
         return jsonify({
             'success': False,
-            'message': 'Email functionality not configured. Use EOD summary endpoint to view data.'
+            'error': 'Email notifications are not configured.',
+            'message': 'Use the EOD summary preview endpoint to view and export data manually.',
+            'alternative_url': '/eod_summary_preview'
         }), 501
         
     except Exception as e:
@@ -6232,42 +6239,23 @@ def child_lookup_page():
 @login_required
 @csrf_compat.exempt
 def excel_upload():
-    """Excel file upload for bulk bag linking - ADMIN ONLY"""
+    """Excel file upload for bulk bag linking - Feature temporarily disabled"""
     # Check if user is admin
     if current_user.role != 'admin':
         flash('Access denied. This feature is only available to administrators.', 'error')
         return redirect(url_for('dashboard'))
-    if request.method == 'POST':
-        try:
-            # Check if file was uploaded
-            if 'excel_file' not in request.files:
-                flash('No file uploaded', 'error')
-                return redirect(request.url)
-            
-            file = request.files['excel_file']
-            
-            # Check if file was selected
-            if file.filename == '':
-                flash('No file selected', 'error')
-                return redirect(request.url)
-            
-            # Check file extension
-            if not file.filename or not file.filename.lower().endswith('.xlsx'):
-                flash('Please upload an Excel file (.xlsx)', 'error')
-                return redirect(request.url)
-            
-            # Excel upload feature disabled - optimized module not available
-            flash('Excel upload feature is currently unavailable. Please contact administrator.', 'error')
-            return redirect(request.url)
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Excel upload error: {str(e)}")
-            flash(f"Error processing file: {str(e)}", 'error')
-            return redirect(request.url)
     
-    # GET request - show upload form with optimized template
-    return render_template('excel_upload_optimized.html')
+    # Feature temporarily disabled - show professional message
+    return render_template('feature_disabled.html',
+        feature_name='Excel Upload',
+        icon='fa-file-excel',
+        message='Excel bulk upload is temporarily disabled for system optimization.',
+        alternative_action='Create Bags Manually',
+        alternative_text='You can still create and manage bags individually:',
+        alternative_url=url_for('scan_parent'),
+        alternative_icon='fa-plus',
+        note='Bulk upload will be re-enabled after optimization is complete. Contact your administrator for large imports.'
+    )
 
 # Monitoring endpoints are already defined in error_handlers.py and main.py
 
