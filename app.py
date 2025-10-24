@@ -261,6 +261,10 @@ def inject_current_user():
         
         def is_dispatcher(self):
             return self.role == 'dispatcher' if self.is_authenticated else False
+        
+        def can_edit_bills(self):
+            """Check if user can edit bills (billers and admins)"""
+            return self.role in ('biller', 'admin') if self.is_authenticated else False
     
     return dict(current_user=TemplateUser())
 

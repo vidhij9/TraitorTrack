@@ -1959,6 +1959,7 @@ def scan_parent():
     return render_template('scan_parent.html')
 
 @app.route('/api/fast_parent_scan', methods=['POST'])
+@csrf_compat.exempt
 def api_fast_parent_scan():
     """Ultra-fast parent scan API endpoint"""
     import time
