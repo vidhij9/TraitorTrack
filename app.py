@@ -218,6 +218,11 @@ def after_request(response):
     
     return response
 
+# Initialize high-performance query optimizer
+from query_optimizer import init_query_optimizer
+query_optimizer = init_query_optimizer(db)
+logger.info("Query optimizer initialized for high-performance operations")
+
 # Add teardown handler for proper database session cleanup
 @app.teardown_appcontext
 def shutdown_session(exception=None):

@@ -98,8 +98,12 @@ def query_optimizer_fallback():
             return True
     return FallbackOptimizer()
 
-# Set query_optimizer with fallback
-query_optimizer = query_optimizer_fallback()
+# Import the real query optimizer
+try:
+    from query_optimizer import query_optimizer
+except ImportError:
+    # Fallback if not available
+    query_optimizer = query_optimizer_fallback()
 
 # Using Flask-Login's login_required decorator directly
 
@@ -1601,13 +1605,11 @@ def link_to_bill(qr_id):
             ).first()
             
             if not existing_link:
-                bill_bag = BillBag()
-                bill_bag.bill_id = bill.id
-                bill_bag.bag_id = parent_bag.id
-                db.session.add(bill_bag)
-                
-                # Update bill count
-                bill.parent_bag_count = BillBag.query.filter_by(bill_id=bill.id).count() + 1
+                # OPTIMIZED: Use fast bill linking with automatic statistics update
+                success, message = query_optimizer.link_bag_to_bill_fast(bill.id, parent_bag.id)
+                if not success:
+                    flash(f'Failed to link bag: {message}', 'error')
+                    return render_template('link_to_bill.html', parent_bag=parent_bag)
                 
             db.session.commit()
             flash(f'Parent bag {qr_id} linked to bill {bill_id}', 'success')
@@ -2208,8 +2210,8 @@ def process_child_scan():
         if not parent_bag:
             return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
         
-        # Check if we've reached the 30 bags limit
-        current_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        # Check if we've reached the 30 bags limit - OPTIMIZED
+        current_child_count = query_optimizer.get_child_count_fast(parent_bag.id)
         
         if current_child_count >= 30:
             return jsonify({'success': False, 'message': 'Parent bag is full! Maximum 30 child bags allowed per parent.'})
@@ -2220,8 +2222,8 @@ def process_child_scan():
         if existing_bag:
             # CRITICAL: Prevent parent bags from being used as children
             if existing_bag.type == 'parent':
-                # Get details about this parent bag
-                child_count = Link.query.filter_by(parent_bag_id=existing_bag.id).count()
+                # Get details about this parent bag - OPTIMIZED
+                child_count = query_optimizer.get_child_count_fast(existing_bag.id)
                 return jsonify({
                     'success': False,
                     'message': f'QR code {qr_code} is already registered as a parent bag with {child_count} child bags linked. One bag can only have one role - either parent OR child, never both.'
