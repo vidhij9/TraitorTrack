@@ -93,18 +93,25 @@ if not app.config["SQLALCHEMY_DATABASE_URI"]:
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = False
 
-# Optimized connection pool settings
+# Optimized connection pool settings - SCALED FOR 100+ CONCURRENT USERS
+# CRITICAL: Pool size must account for multiple Gunicorn workers
+# Formula: (pool_size + max_overflow) * num_workers < postgres max_connections
+# With 2 workers: (25 + 15) * 2 = 80 connections (safe for max_connections=100)
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 20,
-    "max_overflow": 10,
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-    "pool_timeout": 30,
+    "pool_size": 25,  # Per-worker pool (25 * 2 workers = 50 base connections)
+    "max_overflow": 15,  # Per-worker overflow (15 * 2 = 30 overflow connections)
+    "pool_recycle": 300,  # Recycle connections every 5 minutes
+    "pool_pre_ping": True,  # Verify connections before use
+    "pool_timeout": 30,  # Wait up to 30s for connection
     "echo": False,
-    "echo_pool": False
+    "echo_pool": False,
+    "connect_args": {
+        "connect_timeout": 10,  # Database connection timeout
+        "application_name": "tracetrack_web"  # For monitoring
+    }
 }
 
-logger.info("Database connection pool configured: 20 base + 10 overflow")
+logger.info("Database connection pool configured: 25 base + 15 overflow per worker (80 total for 2 workers)")
 
 # Initialize extensions
 db.init_app(app)

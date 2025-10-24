@@ -268,6 +268,9 @@ class Scan(db.Model):
         db.Index('idx_scan_parent_bag', 'parent_bag_id'),
         db.Index('idx_scan_child_bag', 'child_bag_id'),
         db.Index('idx_scan_user', 'user_id'),
+        # OPTIMIZED FOR 1.8M+ BAGS: Composite indexes for common queries
+        db.Index('idx_scan_user_timestamp', 'user_id', 'timestamp'),  # User's scan history
+        db.Index('idx_scan_timestamp_user', 'timestamp', 'user_id'),  # Recent scans by user
     )
     
     def __repr__(self):
@@ -309,6 +312,9 @@ class AuditLog(db.Model):
         db.Index('idx_audit_user', 'user_id'),
         db.Index('idx_audit_action', 'action'),
         db.Index('idx_audit_entity', 'entity_type', 'entity_id'),
+        # OPTIMIZED FOR 1.8M+ BAGS: Composite indexes for audit queries
+        db.Index('idx_audit_user_timestamp', 'user_id', 'timestamp'),  # User audit history
+        db.Index('idx_audit_action_timestamp', 'action', 'timestamp'),  # Action timeline
     )
     
     def __repr__(self):
