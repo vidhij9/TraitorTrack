@@ -1,5 +1,5 @@
-# Import the working application with environment isolation
-from app_clean import app, db
+# Import the application
+from app import app, db
 import logging
 import time
 from flask import request, g

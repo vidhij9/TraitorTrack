@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timedelta
 from flask import jsonify, request, make_response
 from sqlalchemy import func, or_, desc, text
-from app_clean import app, db, limiter
+from app import app, db, limiter
 from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
 # from optimized_cache import cached, invalidate_cache, cache

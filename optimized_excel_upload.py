@@ -14,7 +14,7 @@ import psycopg2
 from psycopg2.extras import execute_values, execute_batch
 from flask import current_app
 from sqlalchemy import text
-from app_clean import db
+from app import db
 from models import Bag, Link, Scan, BagType
 from datetime import datetime
 

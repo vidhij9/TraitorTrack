@@ -149,7 +149,7 @@ def health_check():
 @monitoring_bp.route('/ready', methods=['GET'])
 def readiness_check():
     """Readiness check - verifies all dependencies are working"""
-    from app_clean import app, db
+    from app import app, db
     
     # Check database
     db_status = get_database_status(db)
@@ -170,7 +170,7 @@ def readiness_check():
 @monitoring_bp.route('/metrics', methods=['GET'])
 def metrics():
     """Comprehensive metrics endpoint"""
-    from app_clean import app, db
+    from app import app, db
     
     # Collect all metrics
     db_status = get_database_status(db)

@@ -123,7 +123,7 @@ def validate_qr_code(qr_id):
 from sqlalchemy import desc, func, and_, or_, text
 from datetime import datetime, timedelta
 
-from app_clean import app, db, limiter, csrf, csrf_compat
+from app import app, db, limiter, csrf, csrf_compat
 from forms import LoginForm, RegistrationForm, ChildLookupForm, ManualScanForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 # from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 # Define simple validation functions

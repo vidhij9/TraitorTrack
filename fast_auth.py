@@ -54,7 +54,7 @@ class FastAuth:
             # Update user's password hash
             user.password_hash = new_hash
             
-            from app_clean import db
+            from app import db
             db.session.commit()
             
             return True

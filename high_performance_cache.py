@@ -129,7 +129,7 @@ class OptimizedQueryEngine:
         """Get dashboard statistics with aggressive caching"""
         from models import Bag, Scan, Bill, BagType
         from sqlalchemy import func, text
-        from app_clean import db
+        from app import db
         
         # Use ultra-optimized single query with better indexing
         try:

@@ -150,7 +150,7 @@ def execute_query(query_info: Dict) -> Any:
         return cached['value']
     
     # Execute query (placeholder - integrate with actual DB)
-    from app_clean import db
+    from app import db
     result = db.session.execute(query, params).fetchall()
     
     # Cache result
@@ -212,7 +212,7 @@ def optimized_db_execute(query: str, params: Dict = None, cache_ttl: int = 300) 
         return cached_result['value']
     
     # Execute query
-    from app_clean import db
+    from app import db
     from sqlalchemy import text
     
     try:

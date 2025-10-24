@@ -66,7 +66,7 @@ def setup_error_handlers(app):
         
         # Rollback any database changes
         try:
-            from app_clean import db
+            from app import db
             db.session.rollback()
         except Exception as db_error:
             pass  # Logging disabled for performance
@@ -106,7 +106,7 @@ def setup_error_handlers(app):
         
         # Rollback any database changes
         try:
-            from app_clean import db
+            from app import db
             db.session.rollback()
         except Exception as db_error:
             pass  # Logging disabled for performance

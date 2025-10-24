@@ -3,7 +3,7 @@ import enum
 import os
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from app_clean import db
+from app import db
 
 # Schema-based isolation - no table prefixes needed
 # Tables will be isolated by PostgreSQL schemas (production/development)
