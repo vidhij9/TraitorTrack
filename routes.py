@@ -228,23 +228,7 @@ def log_audit(action, entity_type, entity_id=None, details=None):
     except Exception as e:
         app.logger.error(f'Audit logging failed: {str(e)}')
 
-@app.route('/health')
-@csrf_compat.exempt
-def system_health_check():
-    """Health check endpoint for production monitoring"""
-    try:
-        # Check database connectivity
-        db.session.execute(text('SELECT 1'))
-        db_status = 'healthy'
-    except:
-        db_status = 'unhealthy'
-    
-    return jsonify({
-        'status': 'healthy' if db_status == 'healthy' else 'degraded',
-        'database': db_status,
-        'timestamp': datetime.utcnow().isoformat(),
-        'version': '1.0.0'
-    }), 200 if db_status == 'healthy' else 503
+# Health check endpoint removed - using /api/health instead to avoid duplication
 
 # Analytics route removed as requested
 
@@ -1698,7 +1682,7 @@ def fix_admin_password():
 
 @app.route('/register', methods=['GET', 'POST'])
 @csrf_compat.exempt  # Temporarily exempt registration from CSRF for production access
-@limiter.limit("50 per minute")  # Further increased for development testing
+@limiter.limit("100 per minute")  # Increased for better concurrency with Redis backend
 def register():
     """User registration page with form validation"""
     if current_user.is_authenticated:
@@ -3611,7 +3595,7 @@ def bag_management():
 @app.route('/bills')
 @app.route('/bill_management')  # Alias for compatibility
 @login_required
-@limiter.limit("30 per minute")  # Add rate limiting to prevent overload
+@limiter.limit("200 per minute")  # Increased for 100+ concurrent users with Redis backend
 def bill_management():
     """Ultra-fast bill management with integrated summary generation"""
     if not (current_user.is_admin() or current_user.is_biller()):

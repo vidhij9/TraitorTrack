@@ -39,11 +39,11 @@ class CSRFExempt:
 
 csrf_compat = CSRFExempt()
 
-# Configure rate limiter with memory storage
+# Configure rate limiter with Redis storage for distributed rate limiting
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["2000 per day", "500 per hour"],
-    storage_uri="memory://",
+    storage_uri="redis://localhost:6379",
     strategy="fixed-window",
     swallow_errors=True
 )
@@ -60,13 +60,13 @@ if not session_secret:
     raise ValueError("SESSION_SECRET environment variable is required for security")
 app.secret_key = session_secret
 
-# Session configuration - using filesystem for compatibility
+# Session configuration - using Redis for distributed session storage
 app.config.update(
-    SESSION_TYPE='filesystem',
-    SESSION_FILE_DIR='/tmp/flask_session',
+    SESSION_TYPE='redis',
+    SESSION_REDIS=None,  # Will be set after creating Redis client
     SESSION_PERMANENT=False,
     SESSION_USE_SIGNER=True,
-    SESSION_FILE_THRESHOLD=500,
+    SESSION_KEY_PREFIX='tracetrack:',
     SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
@@ -80,8 +80,13 @@ app.config.update(
     PREFERRED_URL_SCHEME='https'
 )
 
-# Initialize Flask-Session
-os.makedirs('/tmp/flask_session', exist_ok=True)
+# Initialize Redis client for sessions
+import redis
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=False)
+app.config['SESSION_REDIS'] = redis_client
+logger.info("Redis session storage configured on localhost:6379")
+
+# Initialize Flask-Session with Redis
 Session(app)
 
 # Database configuration

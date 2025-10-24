@@ -28,3 +28,5 @@ locust
 pytest
 pytest-cov
 pytest-flask
+flask-session
+redis
