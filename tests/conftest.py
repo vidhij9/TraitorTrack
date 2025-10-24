@@ -164,6 +164,8 @@ def authenticated_client(client, admin_user):
     """Create an authenticated client"""
     with client.session_transaction() as sess:
         sess['user_id'] = admin_user.id
+        sess['username'] = admin_user.username
+        sess['user_role'] = admin_user.role
         sess['logged_in'] = True
         sess['authenticated'] = True
     return client

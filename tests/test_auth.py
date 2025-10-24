@@ -15,8 +15,11 @@ class TestAuthentication:
         }, follow_redirects=True)
         
         assert response.status_code == 200
-        # Check we're redirected to dashboard or home
-        assert b'admin' in response.data or b'Dashboard' in response.data
+        # After successful login, check session is created
+        with client.session_transaction() as sess:
+            assert sess.get('logged_in') == True or sess.get('authenticated') == True
+            assert sess.get('user_id') is not None
+            assert sess.get('username') == 'admin'
     
     def test_login_failure(self, client, admin_user):
         """Test failed login with wrong password"""

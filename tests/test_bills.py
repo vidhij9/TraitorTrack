@@ -17,7 +17,8 @@ class TestBillManagement:
     
     def test_view_bill(self, authenticated_client, bill):
         """Test viewing a bill"""
-        response = authenticated_client.get(f'/bill/{bill.bill_id}')
+        # Use bill.id (integer) not bill.bill_id (string)
+        response = authenticated_client.get(f'/bill/{bill.id}')
         assert response.status_code == 200
     
     def test_link_bag_to_bill(self, authenticated_client, bill, parent_bag, db_session):
