@@ -27,12 +27,16 @@ echo "✅ Environment variables verified"
 echo "✅ Starting Gunicorn with gevent workers"
 echo ""
 
+# Use PORT environment variable for Cloud Run compatibility (defaults to 5000 for local dev)
+PORT=${PORT:-5000}
+
 # Start Gunicorn with production settings
+# Reduced workers for Cloud Run autoscale to avoid resource exhaustion
 exec gunicorn \
-  --bind 0.0.0.0:5000 \
-  --workers 4 \
+  --bind 0.0.0.0:$PORT \
+  --workers 2 \
   --worker-class gevent \
-  --worker-connections 1000 \
+  --worker-connections 500 \
   --timeout 120 \
   --keep-alive 5 \
   --max-requests 1000 \

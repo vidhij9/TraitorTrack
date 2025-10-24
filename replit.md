@@ -164,15 +164,16 @@ See `TESTING.md` for comprehensive testing documentation.
 
 **Production Script:** `deploy.sh`
 ```bash
-gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gevent --worker-connections 1000 --timeout 120 --preload main:app
+PORT=${PORT:-5000}
+gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class gevent --worker-connections 500 --timeout 120 --preload main:app
 ```
 
 **Settings:**
-- Workers: 4 processes for concurrent requests
+- Port: Uses PORT environment variable (Cloud Run compatible, defaults to 5000 for local dev)
+- Workers: 2 processes (optimized for Cloud Run autoscale)
 - Worker Class: gevent for async I/O
-- Worker Connections: 1000 per worker (4000 total)
+- Worker Connections: 500 per worker (1000 total)
 - Timeout: 120 seconds for long-running requests
-- Port: 5000 (Replit maps to external port 80)
 
 ### Health Checks
 - `/health` - Simple health check returning `{"status": "healthy"}`
