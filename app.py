@@ -129,14 +129,16 @@ with app.app_context():
         # Create all tables
         db.create_all()
         
-        # Create admin user if it doesn't exist
+        # Create or update admin user
         from models import User
         
         admin = User.query.filter_by(username='admin').first()
+        
+        # SECURITY: Admin password must be provided via environment variable
+        admin_password = os.environ.get('ADMIN_PASSWORD')
+        
         if not admin:
-            # SECURITY: Admin password must be provided via environment variable
-            admin_password = os.environ.get('ADMIN_PASSWORD')
-            
+            # Create new admin user
             if not admin_password:
                 # Generate a secure random password
                 admin_password = secrets.token_urlsafe(16)
@@ -157,6 +159,13 @@ with app.app_context():
             db.session.add(admin)
             db.session.commit()
             logger.info("Admin user created successfully")
+        elif admin_password:
+            # Update existing admin password if ADMIN_PASSWORD is set
+            admin.set_password(admin_password)
+            admin.role = 'admin'
+            admin.verified = True
+            db.session.commit()
+            logger.info("Admin password synchronized with ADMIN_PASSWORD environment variable")
         
         logger.info("Database initialized successfully")
     except Exception as e:
