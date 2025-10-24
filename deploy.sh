@@ -1,6 +1,6 @@
 #!/bin/bash
 # Simplified production deployment for Replit
-# No virtual environment needed - Replit handles packages via pyproject.toml
+# No virtual environment needed - Replit handles packages via requirements.txt
 
 echo "==================================================="
 echo "TraceTrack - Production Deployment"

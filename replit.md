@@ -58,12 +58,18 @@ The backend is a modular Flask application using blueprint-based routing and SQL
 
 ## Deployment Configuration
 
+### Package Management
+The project uses pip for dependency management:
+- **`requirements.txt`**: Contains all Python dependencies
+- **Replit Auto-Install**: Replit automatically installs packages from `requirements.txt` during deployment
+- **No Manual Installation**: Never manually run `pip install` - Replit handles this automatically
+
 ### Production Deployment
 The application is configured for Replit Autoscale Deployment with production-grade settings:
 
-**Production Server:** `start_production.sh`
+**Deployment Script:** `deploy.sh`
 ```bash
-gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gevent --worker-connections 1000 --timeout 120 main:app
+gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gevent --worker-connections 1000 --timeout 120 --preload main:app
 ```
 
 **Configuration:**
@@ -86,30 +92,20 @@ gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gevent --worker-connecti
 - `BILLER_PASSWORD` - Password for test biller user (if CREATE_TEST_USERS enabled)
 - `DISPATCHER_PASSWORD` - Password for test dispatcher user (if CREATE_TEST_USERS enabled)
 
-### Deployment Configuration Fix
+### .replit Configuration
 
-**⚠️ IMPORTANT:** The `.replit` file needs to be updated for successful deployment:
+The `.replit` file is correctly configured for deployment:
 
-**Current (Incorrect):**
 ```toml
-run = ["sh", "-c", "python main.py"]
+[deployment]
+deploymentTarget = "autoscale"
+run = ["sh", "-c", "./deploy.sh"]
 ```
 
-**Required (Correct):**
-```toml
-run = ["sh", "-c", "./start_production.sh"]
-```
-
-Or directly use:
-```toml
-run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gevent --worker-connections 1000 --timeout 120 main:app"]
-```
-
-**Why This Matters:**
-- `python main.py` doesn't use Gunicorn (production WSGI server)
-- Without Gunicorn, the app can't handle concurrent users properly
-- The application won't scale to support 100+ concurrent users
-- Performance will be severely degraded
+**Important Notes:**
+- **No build command**: Replit automatically installs packages from `requirements.txt`
+- **Do NOT add** `build = [""]` or any build commands - this blocks automatic package installation
+- The deployment section should only have `deploymentTarget` and `run` fields
 
 ### Post-Deployment Verification
 
@@ -121,5 +117,3 @@ After publishing, verify the deployment:
 4. **Performance:** Test bag scanning and bill management workflows
 5. **Database:** Verify PostgreSQL connection works
 6. **Sessions:** Test login persistence
-
-See `DEPLOYMENT_INSTRUCTIONS.md` for detailed deployment guide.
