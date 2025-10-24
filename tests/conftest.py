@@ -3,17 +3,17 @@ import sys
 import pytest
 import tempfile
 
+# Set test environment variables BEFORE importing app
+os.environ['DATABASE_URL'] = os.environ.get('DATABASE_URL', 'sqlite:///test.db')
+os.environ['SESSION_SECRET'] = 'test-secret-key-for-testing-only'
+os.environ['ADMIN_PASSWORD'] = 'admin123'
+os.environ['TESTING'] = 'True'
+
 # Add parent directory to path so we can import app and models
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import app as flask_app, db
 from models import User, Bag, Bill, Link, BillBag, Scan
-
-# Set test environment variables
-os.environ['DATABASE_URL'] = os.environ.get('DATABASE_URL', 'sqlite:///test.db')
-os.environ['SESSION_SECRET'] = 'test-secret-key-for-testing-only'
-os.environ['ADMIN_PASSWORD'] = 'admin123'
-os.environ['TESTING'] = 'True'
 
 @pytest.fixture(scope='session')
 def app():
@@ -29,7 +29,11 @@ def app():
         db.create_all()
         yield flask_app
         db.session.remove()
-        db.drop_all()
+        # Skip drop_all to avoid cascade issues in SQLite
+        try:
+            db.drop_all()
+        except Exception:
+            pass  # Ignore teardown errors in test environment
 
 @pytest.fixture(scope='function')
 def client(app):
@@ -118,14 +122,17 @@ def child_bags(db_session, parent_bag):
         bag.name = f'Test Child Bag {i+1}'
         bag.parent_id = parent_bag.id
         db_session.add(bag)
-        
-        # Create link
+        bags.append(bag)
+    
+    # Commit bags first to get their IDs
+    db_session.commit()
+    
+    # Now create links with proper IDs
+    for bag in bags:
         link = Link()
         link.parent_bag_id = parent_bag.id
         link.child_bag_id = bag.id
         db_session.add(link)
-        
-        bags.append(bag)
     
     parent_bag.child_count = 5
     parent_bag.weight_kg = 5.0

@@ -26,7 +26,7 @@ class TraceTrackUser(HttpUser):
     @task(2)
     def view_bill_management(self):
         """View bill management page"""
-        self.client.get("/bill/manage")
+        self.client.get("/bill_management")
     
     @task(1)
     def scan_parent(self):
