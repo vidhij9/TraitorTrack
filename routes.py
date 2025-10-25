@@ -1776,6 +1776,15 @@ def register():
             db.session.add(user)
             db.session.commit()
             
+            # Send welcome email
+            try:
+                from email_utils import EmailService
+                success, error = EmailService.send_welcome_email(username, email)
+                if not success:
+                    app.logger.warning(f"Failed to send welcome email to {email}: {error}")
+            except Exception as e:
+                app.logger.warning(f"Welcome email error: {str(e)}")
+            
             flash('Registration successful! You can now log in.', 'success')
             return redirect(url_for('login'))
             
@@ -4016,6 +4025,24 @@ def create_bill():
             db.session.commit()
             
             app.logger.info(f'Bill created successfully: {bill_id} with {parent_bag_count} parent bags')
+            
+            # Send bill creation notification to admins
+            try:
+                from email_utils import EmailService
+                admin_users = User.query.filter_by(role='admin').all()
+                admin_emails = [u.email for u in admin_users if u.email]
+                
+                if admin_emails:
+                    sent, failed, errors = EmailService.send_bill_notification(
+                        bill_id=bill_id,
+                        parent_bags=parent_bag_count,
+                        created_by=current_user.username,
+                        admin_emails=admin_emails
+                    )
+                    if failed > 0:
+                        app.logger.warning(f"Failed to send {failed} bill notifications: {errors}")
+            except Exception as e:
+                app.logger.warning(f"Bill notification email error: {str(e)}")
             
             if is_api:
                 return jsonify({

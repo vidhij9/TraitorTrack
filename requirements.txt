@@ -34,3 +34,4 @@ psutil
 alembic
 flask-migrate
 openpyxl
+sendgrid
