@@ -11,10 +11,24 @@ from sqlalchemy import create_engine, text
 def verify_database_connection(db_url=None):
     """Verify database connection and print details"""
     if not db_url:
-        db_url = os.environ.get('DATABASE_URL')
+        # Auto-detect based on environment (same logic as app.py)
+        is_production = (
+            os.environ.get('REPLIT_DEPLOYMENT') == '1' or
+            os.environ.get('ENVIRONMENT') == 'production'
+        )
+        
+        if is_production:
+            db_url = os.environ.get('PRODUCTION_DATABASE_URL') or os.environ.get('DATABASE_URL')
+            db_source = "PRODUCTION_DATABASE_URL" if os.environ.get('PRODUCTION_DATABASE_URL') else "DATABASE_URL"
+        else:
+            db_url = os.environ.get('DATABASE_URL')
+            db_source = "DATABASE_URL"
+        
+        print(f"📍 Using: {db_source}")
     
     if not db_url:
-        print("❌ ERROR: DATABASE_URL not set")
+        print("❌ ERROR: No database URL found")
+        print("   Set DATABASE_URL (dev) or PRODUCTION_DATABASE_URL (prod)")
         return False
     
     # Parse and mask password for display
