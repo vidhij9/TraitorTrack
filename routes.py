@@ -19,7 +19,11 @@ from auth_utils import (
 )
 
 # Import caching and timezone utilities
-from cache_utils import cached_route, clear_cache, get_cache_stats, format_datetime_ist, get_ist_now, CACHE_TTL
+from cache_utils import (
+    cached_global, cached_user, invalidate_cache, invalidate_user_cache,
+    invalidate_bags_cache, invalidate_stats_cache, get_cache_stats,
+    format_datetime_ist, get_ist_now, CACHE_TTL
+)
 # Create a current_user proxy for compatibility
 class CurrentUserProxy:
     @property
@@ -239,7 +243,7 @@ def log_audit(action, entity_type, entity_id=None, details=None):
 @app.route('/user_management')
 @login_required
 @limiter.exempt  # Exempt from rate limiting for admin functionality
-@cached_route(seconds=CACHE_TTL['user_management'])
+@cached_user(seconds=CACHE_TTL['user_management'], prefix='user_management')
 def user_management():
     """Ultra-optimized user management dashboard for admins with caching"""
     try:
@@ -371,7 +375,7 @@ def get_user_details(user_id):
 @app.route('/admin/users/<int:user_id>/profile')
 @login_required
 @limiter.exempt  # Exempt admin functionality from rate limiting
-@cached_route(seconds=CACHE_TTL['user_profile'])
+@cached_user(seconds=CACHE_TTL['user_profile'], prefix='user_profile')
 def admin_user_profile(user_id):
     """Comprehensive user profile page for admins with caching and IST timezone"""
     if not current_user.is_admin():
@@ -1612,6 +1616,8 @@ def link_to_bill(qr_id):
                     return render_template('link_to_bill.html', parent_bag=parent_bag)
                 
             db.session.commit()
+            invalidate_bags_cache()  # Invalidate bags cache after bill linking
+            invalidate_stats_cache()  # Invalidate stats cache after bill linking
             flash(f'Parent bag {qr_id} linked to bill {bill_id}', 'success')
             return redirect(url_for('index'))
         
@@ -1655,6 +1661,7 @@ def log_scan():
         
         db.session.add(scan)
         db.session.commit()
+        invalidate_stats_cache()  # Invalidate stats cache after scan
         
         flash(f'Scan logged successfully for {bag.type} bag {qr_id}', 'success')
         return redirect(url_for('scan'))
@@ -2285,6 +2292,8 @@ def process_child_scan():
         
         db.session.add_all([link, scan])
         db.session.commit()
+        invalidate_bags_cache()  # Invalidate bags cache after link creation
+        invalidate_stats_cache()  # Invalidate stats cache after scan
         
         # Use cached count + 1 instead of querying again
         updated_count = current_child_count + 1
@@ -2531,6 +2540,8 @@ def process_child_scan_fast():
         
         # Single fast commit
         db.session.commit()
+        invalidate_bags_cache()  # Invalidate bags cache after link creation
+        invalidate_stats_cache()  # Invalidate stats cache after scan
         
         # Return current count after linking
         new_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
@@ -2541,6 +2552,7 @@ def process_child_scan_fast():
             parent_bag.child_count = 30
             parent_bag.weight_kg = 30.0  # 1kg per child bag
             db.session.commit()
+            invalidate_bags_cache()  # Invalidate bags cache after parent bag update
             app.logger.info(f'Parent bag {parent_qr} automatically marked as completed with 30 children')
         
         return jsonify({

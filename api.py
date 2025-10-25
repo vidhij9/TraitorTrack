@@ -10,16 +10,15 @@ from sqlalchemy import func, or_, desc, text
 from app import app, db, limiter
 from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
-from cache_utils import cached_route, clear_cache, get_cache_stats
+from cache_utils import (
+    cached_global, cached_user, invalidate_cache as clear_cache_util,
+    get_cache_stats, invalidate_bags_cache, invalidate_stats_cache
+)
 
-# API-compatible cache decorator wrapper
-def cached(ttl=60, prefix=''):
-    """Wrapper for cached_route to maintain API compatibility"""
-    return cached_route(seconds=ttl)
-
+# Invalidate cache wrapper for compatibility
 def invalidate_cache(pattern=None):
     """Clear all cache entries or entries matching pattern"""
-    clear_cache(pattern)
+    clear_cache_util(pattern)
 
 # Cache stats accessor with proper method binding
 class CacheProxy:
@@ -30,7 +29,7 @@ class CacheProxy:
     
     @staticmethod
     def clear():
-        clear_cache()
+        clear_cache_util()
 
 cache = CacheProxy()
 
@@ -43,7 +42,7 @@ logger = logging.getLogger(__name__)
 @app.route('/api/dashboard/analytics')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached(ttl=30, prefix='dashboard_analytics')
+@cached_user(seconds=30, prefix='dashboard_analytics')
 def get_dashboard_analytics():
     """Comprehensive dashboard analytics endpoint with role-based data"""
     try:
@@ -220,7 +219,7 @@ def get_dashboard_analytics():
 @app.route('/api/bags/parent/list')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached(ttl=30, prefix='parent_bags')
+@cached_global(seconds=30, prefix='parent_bags')
 def get_all_parent_bags():
     """Optimized parent bags listing with pagination and search"""
     try:
@@ -275,7 +274,7 @@ def get_all_parent_bags():
 @app.route('/api/bags/<int:bag_id>/children')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached(ttl=60, prefix='api')
+@cached_global(seconds=60, prefix='bag_children')
 def get_bag_children(bag_id):
     """Get all child bags for a specific parent bag"""
     try:
@@ -312,7 +311,7 @@ def get_bag_children(bag_id):
 @app.route('/api/dashboard/stats')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached(ttl=10, prefix='dashboard_stats')  # Shorter cache for real-time feel
+@cached_user(seconds=10, prefix='dashboard_stats')  # User-specific stats
 def get_dashboard_statistics():
     """Ultra-optimized dashboard stats using single aggregated query"""
     try:
@@ -402,7 +401,7 @@ def get_dashboard_statistics():
 @app.route('/api/scans/recent')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached(ttl=60, prefix='api')
+@cached_global(seconds=60, prefix='recent_scans')
 def get_recent_scans():
     """Get recent scans with filtering options"""
     try:
@@ -458,7 +457,7 @@ def get_recent_scans():
 @app.route('/api/bags/search')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached(ttl=30, prefix='bags_search')
+@cached_global(seconds=30, prefix='bags_search')
 def search_bags_api():
     """Fast bag search endpoint for load testing"""
     try:
