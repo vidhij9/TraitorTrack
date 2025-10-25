@@ -5774,23 +5774,75 @@ def api_delete_bag():
         from sqlalchemy import text
         
         if bag_type == 'parent':
-            # CRITICAL: Check if parent bag is linked to any bill before allowing deletion
+            # SAFETY CHECK 1: Check if parent bag is linked to any bill
             bill_link = BillBag.query.filter_by(bag_id=bag_id).first()
             if bill_link:
                 bill = Bill.query.get(bill_link.bill_id)
                 bill_id_str = bill.bill_id if bill else "unknown"
                 app.logger.warning(f"Deletion prevented: Parent bag {qr_code} is linked to bill {bill_id_str}")
+                
+                # Audit log the prevented deletion attempt
+                log_audit(
+                    'delete_bag_prevented',
+                    'bag',
+                    bag_id,
+                    {
+                        'qr_id': qr_code,
+                        'bag_type': bag_type,
+                        'reason': 'linked_to_bill',
+                        'bill_id': bill_id_str,
+                        'user_id': current_user.id
+                    }
+                )
+                
                 return jsonify({
                     'success': False,
                     'message': f'Cannot delete. This parent bag is linked to bill "{bill_id_str}". Remove it from the bill first.'
                 }), 400
             
-            # Optimized parent bag deletion with bulk operations
-            
-            # Get child bag IDs for this parent
+            # SAFETY CHECK 2: Get child bag IDs and validate cascade deletion
             child_bag_ids = db.session.query(Link.child_bag_id).filter_by(parent_bag_id=bag_id).all()
             child_ids = [id[0] for id in child_bag_ids]
             child_count = len(child_ids)
+            
+            # SAFETY CHECK 3: Prevent deletion if child bags are linked to other parents
+            if child_ids:
+                # Check if any child has multiple parent links (using ORM for type safety)
+                from sqlalchemy import func
+                multi_parent_children = db.session.query(
+                    Link.child_bag_id,
+                    func.count(func.distinct(Link.parent_bag_id)).label('parent_count')
+                ).filter(
+                    Link.child_bag_id.in_(child_ids)
+                ).group_by(
+                    Link.child_bag_id
+                ).having(
+                    func.count(func.distinct(Link.parent_bag_id)) > 1
+                ).all()
+                
+                if multi_parent_children:
+                    affected_children = [row[0] for row in multi_parent_children]
+                    app.logger.warning(f"Deletion prevented: Child bags {affected_children} are linked to multiple parents")
+                    
+                    # Audit log the prevented deletion
+                    log_audit(
+                        'delete_bag_prevented',
+                        'bag',
+                        bag_id,
+                        {
+                            'qr_id': qr_code,
+                            'bag_type': bag_type,
+                            'reason': 'children_have_multiple_parents',
+                            'affected_children': affected_children,
+                            'child_count': len(affected_children),
+                            'user_id': current_user.id
+                        }
+                    )
+                    
+                    return jsonify({
+                        'success': False,
+                        'message': f'Cannot delete. {len(affected_children)} child bag(s) are linked to multiple parents. Remove those links first.'
+                    }), 400
             
             # 1. Bulk delete all scans for child bags
             if child_ids:
@@ -5833,9 +5885,32 @@ def api_delete_bag():
             # Single commit for all operations
             db.session.commit()
             
+            # Audit log successful parent bag deletion
+            log_audit(
+                'delete_bag',
+                'bag',
+                bag_id,
+                {
+                    'qr_id': qr_code,
+                    'bag_type': bag_type,
+                    'child_bags_deleted': child_count,
+                    'cascade_deletion': True,
+                    'user_id': current_user.id
+                }
+            )
+            
             message = f'Parent bag {qr_code} and {child_count} linked child bags deleted successfully'
             
         else:
+            # SAFETY CHECK: Validate child bag before deletion
+            # Check if child is linked to a parent
+            parent_link = Link.query.filter_by(child_bag_id=bag_id).first()
+            parent_qr = None
+            
+            if parent_link:
+                parent_bag = Bag.query.get(parent_link.parent_bag_id)
+                parent_qr = parent_bag.qr_id if parent_bag else None
+            
             # Optimized child bag deletion
             
             # 1. Delete all scans for this child bag
@@ -5859,7 +5934,23 @@ def api_delete_bag():
             # Single commit for all operations
             db.session.commit()
             
+            # Audit log successful child bag deletion
+            log_audit(
+                'delete_bag',
+                'bag',
+                bag_id,
+                {
+                    'qr_id': qr_code,
+                    'bag_type': bag_type,
+                    'parent_qr': parent_qr,
+                    'was_linked': parent_link is not None,
+                    'user_id': current_user.id
+                }
+            )
+            
             message = f'Child bag {qr_code} deleted successfully'
+            if parent_qr:
+                message += f' (was linked to parent {parent_qr})'
         
         app.logger.info(f"Deleted bag {qr_code} ({bag_type}) - optimized operation")
         
