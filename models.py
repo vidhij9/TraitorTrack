@@ -185,6 +185,23 @@ class Bag(db.Model):
     def __repr__(self):
         return f"<Bag {self.qr_id} ({self.type})>"
 
+
+# SQLAlchemy event listeners for automatic QR code normalization
+from sqlalchemy import event
+
+@event.listens_for(Bag, 'before_insert')
+@event.listens_for(Bag, 'before_update')
+def normalize_qr_code(mapper, connection, target):
+    """
+    Automatically normalize QR codes to uppercase before saving to database.
+    
+    This ensures case-insensitive uniqueness and consistent data storage.
+    Works in conjunction with the database-level unique constraint on UPPER(qr_id).
+    """
+    if target.qr_id:
+        target.qr_id = target.qr_id.upper()
+
+
 class Link(db.Model):
     """Link model for associating parent and child bags"""
     __tablename__ = 'link'
