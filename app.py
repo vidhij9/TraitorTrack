@@ -242,6 +242,11 @@ setup_error_handlers(app)
 setup_request_logging(app)
 setup_health_monitoring(app)
 
+# Setup request tracking for distributed tracing
+from request_tracking import setup_request_tracking
+setup_request_tracking(app)
+logger.info("Request tracking middleware initialized - all requests now have unique IDs")
+
 # Add before_request handler for authentication
 @app.before_request
 def before_request():
