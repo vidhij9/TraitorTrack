@@ -3421,9 +3421,31 @@ def bag_management():
             for bill_link in bill_link_results:
                 bill_links[bill_link.bag_id] = bill_link
             
-            # Get last scans for all bags more efficiently
-            # Skip scan data to avoid import issues
+            # Get last scans for all bags in one query
             last_scans = {}
+            # Batch fetch scan timestamps for parent bags
+            parent_bag_ids = [bag.id for bag in bags_result if bag.type == 'parent']
+            if parent_bag_ids:
+                last_scan_results = db.session.query(
+                    Scan.parent_bag_id,
+                    func.max(Scan.timestamp).label('last_scan')
+                ).filter(
+                    Scan.parent_bag_id.in_(parent_bag_ids)
+                ).group_by(Scan.parent_bag_id).all()
+                for scan in last_scan_results:
+                    last_scans[scan.parent_bag_id] = scan.last_scan
+            
+            # Batch fetch scan timestamps for child bags
+            child_bag_ids = [bag.id for bag in bags_result if bag.type == 'child']
+            if child_bag_ids:
+                last_scan_results_child = db.session.query(
+                    Scan.child_bag_id,
+                    func.max(Scan.timestamp).label('last_scan')
+                ).filter(
+                    Scan.child_bag_id.in_(child_bag_ids)
+                ).group_by(Scan.child_bag_id).all()
+                for scan in last_scan_results_child:
+                    last_scans[scan.child_bag_id] = scan.last_scan
         
         # Create optimized bag data using batch-fetched relationships
         bags_data = []
