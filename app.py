@@ -138,6 +138,22 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 
 logger.info("Database connection pool configured: 25 base + 15 overflow per worker (80 total for 2 workers)")
 
+# Add database pool monitoring function
+def get_db_pool_stats():
+    """Get current database connection pool statistics for monitoring"""
+    try:
+        pool = db.engine.pool
+        return {
+            'size': pool.size(),
+            'checked_in': pool.checkedin(),
+            'checked_out': pool.checkedout(),
+            'overflow': pool.overflow(),
+            'total_connections': pool.checkedout() + pool.checkedin()
+        }
+    except Exception as e:
+        logger.error(f"Error getting pool stats: {e}")
+        return {}
+
 # Initialize extensions
 db.init_app(app)
 login_manager.init_app(app)
@@ -261,6 +277,9 @@ def shutdown_session(exception=None):
     """Ensure database session is properly closed after each request"""
     try:
         db.session.remove()
+        # Log session cleanup errors for monitoring
+        if exception:
+            logger.warning(f"Session cleanup after exception: {exception}")
     except Exception as e:
         logger.error(f"Error during session cleanup: {e}")
 

@@ -252,6 +252,98 @@ class QueryOptimizer:
         for key in expired_keys:
             self._bag_cache.pop(key, None)
             self._cache_timestamps.pop(key, None)
+    
+    def create_bag_optimized(self, qr_id, bag_type, user_id, dispatch_area=None, name=None, weight_kg=None):
+        """
+        Optimized bag creation using raw SQL
+        Target: <20ms
+        Returns: Bag object or None
+        """
+        from models import Bag
+        try:
+            # Use raw SQL for faster insert
+            result = self.db.session.execute(
+                text("""
+                    INSERT INTO bag (qr_id, type, user_id, dispatch_area, name, weight_kg, created_at)
+                    VALUES (:qr_id, :type, :user_id, :dispatch_area, :name, :weight_kg, NOW())
+                    RETURNING id
+                """),
+                {
+                    "qr_id": qr_id,
+                    "type": bag_type,
+                    "user_id": user_id,
+                    "dispatch_area": dispatch_area,
+                    "name": name,
+                    "weight_kg": weight_kg
+                }
+            )
+            bag_id = result.scalar()
+            
+            # Return the created bag object
+            bag = Bag.query.get(bag_id)
+            
+            # Update cache
+            cache_key = f"bag:{qr_id}"
+            self._bag_cache[cache_key] = bag
+            self._cache_timestamps[cache_key] = time.time()
+            
+            return bag
+        except Exception as e:
+            return None
+    
+    def create_scan_optimized(self, user_id, parent_bag_id=None, child_bag_id=None):
+        """
+        Optimized scan creation (alias for create_scan_fast for compatibility)
+        Target: <10ms
+        Returns: True/False
+        """
+        return self.create_scan_fast(user_id, parent_bag_id, child_bag_id)
+    
+    def create_link_optimized(self, parent_bag_id, child_bag_id):
+        """
+        Optimized link creation using raw SQL
+        Target: <15ms
+        Returns: (link_object, created_boolean)
+        """
+        from models import Link
+        try:
+            # Check if link already exists
+            if self.check_link_exists_fast(parent_bag_id, child_bag_id):
+                # Return existing link
+                link = Link.query.filter_by(
+                    parent_bag_id=parent_bag_id, 
+                    child_bag_id=child_bag_id
+                ).first()
+                return link, False
+            
+            # Create link using raw SQL
+            result = self.db.session.execute(
+                text("""
+                    INSERT INTO link (parent_bag_id, child_bag_id, created_at)
+                    VALUES (:parent_id, :child_id, NOW())
+                    RETURNING id
+                """),
+                {"parent_id": parent_bag_id, "child_id": child_bag_id}
+            )
+            link_id = result.scalar()
+            
+            # Get the created link object
+            link = Link.query.get(link_id)
+            return link, True
+        except Exception as e:
+            return None, False
+    
+    def bulk_commit(self):
+        """
+        Commit pending database changes
+        Returns: True on success, False on failure
+        """
+        try:
+            self.db.session.commit()
+            return True
+        except Exception as e:
+            self.db.session.rollback()
+            return False
 
 # Create singleton instance
 query_optimizer = None

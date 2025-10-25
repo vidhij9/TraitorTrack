@@ -33,13 +33,6 @@ with app.app_context():
     except Exception as e:
         logger.warning(f"Database warmup failed: {e}")
 
-
-# Simple health check endpoint for Docker
-@app.route('/health')
-def health():
-    """Simple health check for Docker and load balancers"""
-    return {'status': 'healthy'}, 200
-
 # Expose app for gunicorn
 application = app
 

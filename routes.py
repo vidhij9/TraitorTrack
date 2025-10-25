@@ -1158,6 +1158,10 @@ def execute_comprehensive_deletion():
     if not current_user.is_admin():
         return jsonify({'success': False, 'message': 'Admin access required'}), 403
     
+    # Initialize variables for error handling
+    username = 'unknown'
+    role = 'unknown'
+    
     try:
         username = request.form.get('username', '').strip()
         role = request.form.get('role', '').strip()
@@ -1457,16 +1461,12 @@ def dashboard():
     return render_template('dashboard.html')
 
 @app.route('/login', methods=['GET', 'POST'])
-@csrf_compat.exempt  # Temporarily exempt login from CSRF for high-concurrency testing
 def login():
     """User login endpoint with improved error handling"""
     if is_logged_in() and request.method == 'GET':
         return redirect(url_for('index'))
     
     if request.method == 'POST':
-        # Skip CSRF validation for login to avoid concurrency issues
-        # Note: In production, implement proper CSRF handling with session-based tokens
-            
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         
@@ -1705,7 +1705,6 @@ def fix_admin_password():
     return redirect(url_for('index'))
 
 @app.route('/register', methods=['GET', 'POST'])
-@csrf_compat.exempt  # Temporarily exempt registration from CSRF for production access
 @limiter.limit("100 per minute")  # Increased for better concurrency with Redis backend
 def register():
     """User registration page with form validation"""
@@ -1714,15 +1713,6 @@ def register():
     
     if request.method == 'POST':
         try:
-            # Skip CSRF validation for production access
-            # from flask_wtf.csrf import validate_csrf
-            # try:
-            #     validate_csrf(request.form.get('csrf_token'))
-            # except Exception as csrf_error:
-            #     app.logger.warning(f'CSRF validation failed for registration: {csrf_error}')
-            #     flash('Security token expired. Please refresh the page and try again.', 'error')
-            #     return render_template('register.html')
-            
             username = request.form.get('username', '').strip()
             email = request.form.get('email', '').strip().lower()
             password = request.form.get('password', '')
@@ -2202,6 +2192,10 @@ def process_child_scan():
     if request.method == 'GET':
         return redirect(url_for('scan_child'))
     
+    # Initialize variables for error handling
+    qr_code = 'unknown'
+    parent_qr = 'unknown'
+    
     try:
         qr_code = request.form.get('qr_code', '').strip()
         
@@ -2213,7 +2207,7 @@ def process_child_scan():
             return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
         
         # Get parent from session with fallback
-        parent_qr = session.get('current_parent_qr')
+        parent_qr = session.get('current_parent_qr', 'unknown')
         if not parent_qr:
             # Try to get from last_scan as fallback
             last_scan = session.get('last_scan')
@@ -5487,11 +5481,14 @@ def api_delete_bag():
             'message': 'Admin or biller access required'
         }), 403
     
+    # Initialize variables for error handling
+    qr_code = 'unknown'
+    
     try:
         # Import models locally to avoid circular imports
         # Models already imported globally
         
-        qr_code = request.form.get('qr_code')
+        qr_code = request.form.get('qr_code', 'unknown')
         if not qr_code:
             return jsonify({
                 'success': False,
