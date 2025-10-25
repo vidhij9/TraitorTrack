@@ -49,7 +49,9 @@ TraceTrack is fully tested and optimized for production deployment, supporting 1
 
 ### Required
 ```bash
-# Database (auto-configured in Replit)
+# Database Connection
+# DEVELOPMENT (workspace secrets): Uses Replit's built-in PostgreSQL
+# PRODUCTION (deployment secrets): Use your AWS RDS PostgreSQL
 DATABASE_URL=postgresql://user:pass@host:port/dbname
 
 # Session Security (REQUIRED - set to random 32+ character string)
@@ -58,6 +60,47 @@ SESSION_SECRET=<generate-random-secret>
 # Admin Account
 ADMIN_PASSWORD=<secure-admin-password>
 ```
+
+### AWS RDS PostgreSQL Configuration (Production)
+
+**For Production Deployments** using AWS RDS:
+
+1. **Create AWS RDS PostgreSQL Instance**:
+   - PostgreSQL version 12+ recommended
+   - Instance type based on load (db.t3.micro for testing, db.t3.medium+ for production)
+   - Enable automated backups
+   - Note the endpoint, port, database name, username, and password
+
+2. **Configure Security Group**:
+   - Allow inbound PostgreSQL (port 5432) from Replit IPs
+   - Or allow from 0.0.0.0/0 if using SSL/password authentication only
+   - Recommended: Use AWS RDS IAM authentication for enhanced security
+
+3. **Set Production DATABASE_URL**:
+   ```bash
+   # Format for AWS RDS
+   DATABASE_URL=postgresql://username:password@your-instance.region.rds.amazonaws.com:5432/tracetrack_production
+   
+   # Example
+   DATABASE_URL=postgresql://tracetrack_user:SecureP@ssw0rd@tracetrack-db.us-east-1.rds.amazonaws.com:5432/tracetrack_prod
+   ```
+
+4. **Deployment Configuration**:
+   - In Replit Deployments → Click "Deploy" button
+   - Go to deployment "Secrets" or "Environment Variables"
+   - Add/update `DATABASE_URL` with your AWS RDS connection string
+   - Keep workspace `DATABASE_URL` pointing to Replit database for development
+
+5. **Verify Connection** (before deploying):
+   ```bash
+   # Run verification script
+   python verify_db_connection.py
+   ```
+
+**Database Separation**:
+- ✅ **Development**: Workspace secrets → Replit built-in PostgreSQL
+- ✅ **Production**: Deployment secrets → AWS RDS PostgreSQL
+- ✅ Data remains completely separate between environments
 
 ### Optional
 ```bash
@@ -87,11 +130,19 @@ python3 -c "import secrets; print(secrets.token_urlsafe(24))"
 
 ### 1. Pre-Deployment Setup
 ```bash
-# Ensure all environment variables are set
+# Verify environment variables are configured
 echo $SESSION_SECRET  # Must be set
 echo $ADMIN_PASSWORD  # Must be set
-echo $DATABASE_URL    # Auto-configured in Replit
+echo $DATABASE_URL    # Check points to correct database (RDS for production)
+
+# Test database connection
+python verify_db_connection.py
 ```
+
+**Important**: 
+- Development workspace uses Replit's built-in PostgreSQL
+- Production deployment should use AWS RDS PostgreSQL (configured in deployment secrets)
+- Run `verify_db_connection.py` to confirm connectivity
 
 ### 2. Database Initialization
 The application automatically:
