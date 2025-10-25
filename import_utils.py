@@ -236,31 +236,53 @@ class BagImporter:
                 row[0] for row in db.session.execute(existing_query, {'qr_ids': qr_ids}).fetchall()
             )
             
-            # Process bags in batches for performance
+            # Process bags in batches with savepoint-based rollback for resilience
             batch_size = 100
             for i in range(0, len(bags), batch_size):
                 batch = bags[i:i + batch_size]
+                batch_start = imported
+                batch_qr_ids = []  # Track IDs added in this batch
                 
-                for bag_data in batch:
-                    qr_id = bag_data['qr_id']
-                    
-                    # Skip duplicates
-                    if qr_id in existing_qr_ids:
-                        skipped += 1
-                        errors.append(f"Skipped duplicate QR ID: {qr_id}")
-                        continue
-                    
-                    # Create bag
-                    new_bag = Bag(
-                        qr_id=qr_id,
-                        type=bag_data['type']
-                    )
-                    db.session.add(new_bag)
-                    existing_qr_ids.add(qr_id)  # Track newly added
-                    imported += 1
+                # Use nested transaction (savepoint) for batch-level rollback
+                savepoint = db.session.begin_nested()
                 
-                # Commit batch
-                db.session.flush()
+                try:
+                    for bag_data in batch:
+                        qr_id = bag_data['qr_id']
+                        
+                        # Skip duplicates
+                        if qr_id in existing_qr_ids:
+                            skipped += 1
+                            errors.append(f"Skipped duplicate QR ID: {qr_id}")
+                            continue
+                        
+                        # Create bag
+                        new_bag = Bag(
+                            qr_id=qr_id,
+                            type=bag_data['type']
+                        )
+                        db.session.add(new_bag)
+                        existing_qr_ids.add(qr_id)  # Track newly added
+                        batch_qr_ids.append(qr_id)  # Track for potential rollback cleanup
+                        imported += 1
+                    
+                    # Commit batch savepoint
+                    savepoint.commit()
+                    db.session.flush()
+                    # Batch succeeded - IDs are now permanent in existing_qr_ids
+                    
+                except Exception as batch_error:
+                    # Rollback only this batch, not entire import
+                    savepoint.rollback()
+                    
+                    # CRITICAL FIX: Remove batch IDs from tracking set since they were rolled back
+                    for qr_id in batch_qr_ids:
+                        existing_qr_ids.discard(qr_id)  # Remove rolled-back IDs
+                    
+                    batch_imported = imported - batch_start
+                    imported = batch_start  # Reset counter
+                    errors.append(f"Batch {i//batch_size + 1} failed: {str(batch_error)} ({batch_imported} bags lost)")
+                    logger.warning(f"Batch rollback at index {i}: {str(batch_error)}")
             
             # Handle child bag linkages after all bags are created
             for bag_data in bags:
@@ -377,27 +399,56 @@ class BillImporter:
                 row[0] for row in db.session.execute(existing_query, {'bill_ids': bill_ids}).fetchall()
             )
             
-            # Process bills
-            for bill_data in bills:
-                bill_id = bill_data['bill_id']
+            # Process bills in batches with savepoint-based rollback
+            batch_size = 100
+            for i in range(0, len(bills), batch_size):
+                batch = bills[i:i + batch_size]
+                batch_start = imported
+                batch_bill_ids = []  # Track IDs added in this batch
                 
-                # Skip duplicates
-                if bill_id in existing_bill_ids:
-                    skipped += 1
-                    errors.append(f"Skipped duplicate Bill ID: {bill_id}")
-                    continue
+                # Use nested transaction (savepoint) for batch-level rollback
+                savepoint = db.session.begin_nested()
                 
-                # Create bill
-                new_bill = Bill(
-                    bill_id=bill_id,
-                    description=bill_data.get('description'),
-                    parent_bag_count=bill_data.get('parent_bag_count', 1),
-                    expected_weight_kg=bill_data.get('expected_weight_kg', 0),
-                    created_by_id=user_id
-                )
-                db.session.add(new_bill)
-                existing_bill_ids.add(bill_id)
-                imported += 1
+                try:
+                    for bill_data in batch:
+                        bill_id = bill_data['bill_id']
+                        
+                        # Skip duplicates
+                        if bill_id in existing_bill_ids:
+                            skipped += 1
+                            errors.append(f"Skipped duplicate Bill ID: {bill_id}")
+                            continue
+                        
+                        # Create bill
+                        new_bill = Bill(
+                            bill_id=bill_id,
+                            description=bill_data.get('description'),
+                            parent_bag_count=bill_data.get('parent_bag_count', 1),
+                            expected_weight_kg=bill_data.get('expected_weight_kg', 0),
+                            created_by_id=user_id
+                        )
+                        db.session.add(new_bill)
+                        existing_bill_ids.add(bill_id)
+                        batch_bill_ids.append(bill_id)  # Track for potential rollback cleanup
+                        imported += 1
+                    
+                    # Commit batch savepoint
+                    savepoint.commit()
+                    db.session.flush()
+                    # Batch succeeded - IDs are now permanent in existing_bill_ids
+                    
+                except Exception as batch_error:
+                    # Rollback only this batch, not entire import
+                    savepoint.rollback()
+                    
+                    # CRITICAL FIX: Remove batch IDs from tracking set since they were rolled back
+                    for bill_id in batch_bill_ids:
+                        existing_bill_ids.discard(bill_id)  # Remove rolled-back IDs
+                    
+                    batch_imported = imported - batch_start
+                    imported = batch_start  # Reset counter
+                    errors.append(f"Batch {i//batch_size + 1} failed: {str(batch_error)} ({batch_imported} bills lost)")
+                    logger.warning(f"Bill batch rollback at index {i}: {str(batch_error)}")
             
             db.session.commit()
             
