@@ -6399,23 +6399,152 @@ def child_lookup_page():
 @login_required
 @csrf_compat.exempt
 def excel_upload():
-    """Excel file upload for bulk bag linking - Feature temporarily disabled"""
-    # Check if user is admin
-    if current_user.role != 'admin':
-        flash('Access denied. This feature is only available to administrators.', 'error')
+    """Redirect to new bulk import page"""
+    return redirect(url_for('import_bags'))
+
+
+# ============================================================================
+# BULK IMPORT ROUTES - CSV and Excel imports with validation
+# ============================================================================
+
+@app.route('/import/bags', methods=['GET', 'POST'])
+@login_required
+@csrf_compat.exempt
+def import_bags():
+    """Bulk import bags from CSV or Excel - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for bulk imports.', 'error')
         return redirect(url_for('dashboard'))
     
-    # Feature temporarily disabled - show professional message
-    return render_template('feature_disabled.html',
-        feature_name='Excel Upload',
-        icon='fa-file-excel',
-        message='Excel bulk upload is temporarily disabled for system optimization.',
-        alternative_action='Create Bags Manually',
-        alternative_text='You can still create and manage bags individually:',
-        alternative_url=url_for('scan_parent'),
-        alternative_icon='fa-plus',
-        note='Bulk upload will be re-enabled after optimization is complete. Contact your administrator for large imports.'
-    )
+    if request.method == 'GET':
+        return render_template('import_bags.html')
+    
+    # Handle POST - file upload
+    try:
+        from import_utils import BagImporter
+        
+        if 'file' not in request.files:
+            flash('No file uploaded.', 'error')
+            return redirect(url_for('import_bags'))
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            flash('No file selected.', 'error')
+            return redirect(url_for('import_bags'))
+        
+        # Determine file type and parse
+        filename = file.filename.lower()
+        
+        if filename.endswith('.csv'):
+            bags, parse_errors = BagImporter.parse_csv(file)
+        elif filename.endswith(('.xlsx', '.xls')):
+            bags, parse_errors = BagImporter.parse_excel(file)
+        else:
+            flash('Invalid file type. Please upload CSV or Excel file.', 'error')
+            return redirect(url_for('import_bags'))
+        
+        # Check for parsing errors
+        if parse_errors:
+            for error in parse_errors[:5]:  # Show first 5 errors
+                flash(error, 'error')
+            if len(parse_errors) > 5:
+                flash(f'... and {len(parse_errors) - 5} more errors', 'error')
+            return redirect(url_for('import_bags'))
+        
+        if not bags:
+            flash('No valid bags found in file.', 'warning')
+            return redirect(url_for('import_bags'))
+        
+        # Import bags
+        imported, skipped, import_errors = BagImporter.import_bags(db, bags, current_user.id)
+        
+        # Show results
+        if imported > 0:
+            flash(f'Successfully imported {imported} bags.', 'success')
+        if skipped > 0:
+            flash(f'Skipped {skipped} duplicate bags.', 'warning')
+        if import_errors:
+            for error in import_errors[:5]:
+                flash(error, 'warning')
+            if len(import_errors) > 5:
+                flash(f'... and {len(import_errors) - 5} more warnings', 'warning')
+        
+        return redirect(url_for('bag_management'))
+    
+    except Exception as e:
+        app.logger.error(f"Bag import error: {str(e)}")
+        flash(f'Error importing bags: {str(e)}', 'error')
+        return redirect(url_for('import_bags'))
+
+
+@app.route('/import/bills', methods=['GET', 'POST'])
+@login_required
+@csrf_compat.exempt
+def import_bills():
+    """Bulk import bills from CSV - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for bulk imports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'GET':
+        return render_template('import_bills.html')
+    
+    # Handle POST - file upload
+    try:
+        from import_utils import BillImporter
+        
+        if 'file' not in request.files:
+            flash('No file uploaded.', 'error')
+            return redirect(url_for('import_bills'))
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            flash('No file selected.', 'error')
+            return redirect(url_for('import_bills'))
+        
+        # Parse CSV only (bills import is simpler)
+        filename = file.filename.lower()
+        
+        if not filename.endswith('.csv'):
+            flash('Please upload a CSV file.', 'error')
+            return redirect(url_for('import_bills'))
+        
+        bills, parse_errors = BillImporter.parse_csv(file)
+        
+        # Check for parsing errors
+        if parse_errors:
+            for error in parse_errors[:5]:
+                flash(error, 'error')
+            if len(parse_errors) > 5:
+                flash(f'... and {len(parse_errors) - 5} more errors', 'error')
+            return redirect(url_for('import_bills'))
+        
+        if not bills:
+            flash('No valid bills found in file.', 'warning')
+            return redirect(url_for('import_bills'))
+        
+        # Import bills
+        imported, skipped, import_errors = BillImporter.import_bills(db, bills, current_user.id)
+        
+        # Show results
+        if imported > 0:
+            flash(f'Successfully imported {imported} bills.', 'success')
+        if skipped > 0:
+            flash(f'Skipped {skipped} duplicate bills.', 'warning')
+        if import_errors:
+            for error in import_errors[:5]:
+                flash(error, 'warning')
+            if len(import_errors) > 5:
+                flash(f'... and {len(import_errors) - 5} more warnings', 'warning')
+        
+        return redirect(url_for('bill_management'))
+    
+    except Exception as e:
+        app.logger.error(f"Bill import error: {str(e)}")
+        flash(f'Error importing bills: {str(e)}', 'error')
+        return redirect(url_for('import_bills'))
 
 # Monitoring endpoints are already defined in error_handlers.py and main.py
 
