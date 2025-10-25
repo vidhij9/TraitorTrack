@@ -1,5 +1,6 @@
 import datetime
 import enum
+import json
 import os
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -296,7 +297,7 @@ class PromotionRequest(db.Model):
         return f"<PromotionRequest {self.id}: {self.requested_by.username} - {self.status}>"
 
 class AuditLog(db.Model):
-    """Model for tracking all system changes and actions"""
+    """Model for tracking all system changes and actions with before/after snapshots"""
     __tablename__ = 'audit_log'
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
@@ -305,7 +306,10 @@ class AuditLog(db.Model):
     entity_type = db.Column(db.String(20), nullable=False)  # e.g., 'bill', 'bag', 'link'
     entity_id = db.Column(db.Integer, nullable=True)  # ID of the affected entity
     details = db.Column(db.Text, nullable=True)  # JSON string with additional details
+    before_state = db.Column(db.Text, nullable=True)  # JSON snapshot of entity state before change
+    after_state = db.Column(db.Text, nullable=True)  # JSON snapshot of entity state after change
     ip_address = db.Column(db.String(45), nullable=True)  # Support IPv6
+    request_id = db.Column(db.String(36), nullable=True)  # UUID from request tracking
     user = db.relationship('User', backref=db.backref('audit_logs', lazy='dynamic'))
     
     # Indexes for fast audit trail queries
@@ -317,7 +321,32 @@ class AuditLog(db.Model):
         # OPTIMIZED FOR 1.8M+ BAGS: Composite indexes for audit queries
         db.Index('idx_audit_user_timestamp', 'user_id', 'timestamp'),  # User audit history
         db.Index('idx_audit_action_timestamp', 'action', 'timestamp'),  # Action timeline
+        db.Index('idx_audit_request_id', 'request_id'),  # Request correlation
     )
     
     def __repr__(self):
         return f"<AuditLog {self.id}: {self.action} by user {self.user_id} at {self.timestamp}>"
+    
+    def get_changes(self):
+        """
+        Compare before and after states to identify what changed.
+        Returns a dict of field: (old_value, new_value) for changed fields.
+        """
+        if not self.before_state or not self.after_state:
+            return None
+        
+        try:
+            before = json.loads(self.before_state)
+            after = json.loads(self.after_state)
+            changes = {}
+            
+            all_keys = set(before.keys()) | set(after.keys())
+            for key in all_keys:
+                old_val = before.get(key)
+                new_val = after.get(key)
+                if old_val != new_val:
+                    changes[key] = (old_val, new_val)
+            
+            return changes
+        except (json.JSONDecodeError, AttributeError):
+            return None

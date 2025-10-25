@@ -25,6 +25,12 @@ from cache_utils import (
     invalidate_bags_cache, invalidate_stats_cache, get_cache_stats,
     format_datetime_ist, get_ist_now, CACHE_TTL
 )
+
+# Import enhanced audit logging utilities
+from audit_utils import (
+    log_audit, log_audit_with_snapshot, capture_entity_snapshot,
+    get_audit_trail, get_entity_history
+)
 # Create a current_user proxy for compatibility
 class CurrentUserProxy:
     @property
@@ -221,21 +227,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Helper function for audit logging
-def log_audit(action, entity_type, entity_id=None, details=None):
-    """Log an audit trail entry"""
-    try:
-        from models import AuditLog
-        audit = AuditLog()
-        audit.user_id = current_user.id
-        audit.action = action
-        audit.entity_type = entity_type
-        audit.entity_id = entity_id
-        audit.details = json.dumps(details) if details else None
-        audit.ip_address = request.remote_addr
-        db.session.add(audit)
-        # Note: commit should be done by the calling function
-    except Exception as e:
-        app.logger.error(f'Audit logging failed: {str(e)}')
+# log_audit is now imported from audit_utils
+# Legacy calls to log_audit() will use the backward-compatible wrapper
+# New code should use log_audit_with_snapshot() for enhanced tracking
 
 # Health check endpoint removed - using /api/health instead to avoid duplication
 
@@ -675,8 +669,8 @@ def change_user_role(user_id):
                 'self_change': True
             })
         
-        # Store old values for audit
-        old_dispatch_area = user.dispatch_area
+        # Capture state before changes for audit trail
+        before_state = capture_entity_snapshot(user)
         
         # Apply role change
         user.role = new_role
@@ -687,15 +681,20 @@ def change_user_role(user_id):
         else:
             user.dispatch_area = None  # Clear for non-dispatchers
         
-        # Log the role change
-        log_audit('role_change', 'user', user.id, {
-            'username': user.username,
-            'old_role': old_role,
-            'new_role': new_role,
-            'old_area': old_dispatch_area,
-            'new_area': user.dispatch_area,
-            'changed_by': current_user.username
-        })
+        # Log the role change with before/after snapshots
+        log_audit_with_snapshot(
+            action='role_change',
+            entity_type='user',
+            entity_id=user.id,
+            before_state=before_state,
+            after_state=user,
+            details={
+                'username': user.username,
+                'old_role': old_role,
+                'new_role': new_role,
+                'changed_by': current_user.username
+            }
+        )
         
         db.session.commit()
         
@@ -3166,12 +3165,23 @@ def delete_bag(bag_id):
         if scan_count > 0:
             app.logger.warning(f'Deleting bag {bag.qr_id} with {scan_count} scan records')
         
-        # Log audit before deletion
-        log_audit('delete_bag', 'bag', bag.id, {
-            'qr_id': bag.qr_id,
-            'type': bag.type,
-            'scan_count': scan_count
-        })
+        # Capture bag state before deletion for audit trail
+        before_state = capture_entity_snapshot(bag)
+        
+        # Log audit before deletion with snapshot
+        log_audit_with_snapshot(
+            action='delete_bag',
+            entity_type='bag',
+            entity_id=bag.id,
+            before_state=before_state,
+            after_state=None,  # No after state for deletions
+            details={
+                'qr_id': bag.qr_id,
+                'type': bag.type,
+                'scan_count': scan_count,
+                'deleted_by': current_user.username
+            }
+        )
         
         # Delete the bag (cascade will handle scan records)
         db.session.delete(bag)
