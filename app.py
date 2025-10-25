@@ -237,6 +237,19 @@ with app.app_context():
             except Exception as e:
                 logger.error(f"Failed to initialize pool monitoring: {e}")
             
+            # Initialize slow query logging (inside app context)
+            try:
+                from slow_query_logger import init_slow_query_logger
+                slow_query_threshold = int(os.environ.get('SLOW_QUERY_THRESHOLD_MS', '100'))
+                slow_query_enabled = os.environ.get('SLOW_QUERY_LOGGING_ENABLED', 'true').lower() == 'true'
+                init_slow_query_logger(db.engine, threshold_ms=slow_query_threshold, enabled=slow_query_enabled)
+                if slow_query_enabled:
+                    logger.info(f"Slow query logging initialized - threshold: {slow_query_threshold}ms")
+                else:
+                    logger.info("Slow query logging disabled")
+            except Exception as e:
+                logger.error(f"Failed to initialize slow query logging: {e}")
+            
         except Exception as e:
             # Tables might not exist yet if this is a fresh deployment
             # In that case, run: flask db upgrade

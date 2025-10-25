@@ -5177,6 +5177,42 @@ def api_dashboard_stats():
         }), 500
 
 
+@app.route('/api/slow_queries')
+@login_required
+def api_slow_queries():
+    """Slow query statistics and history - admin only"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        from slow_query_logger import get_slow_query_logger, analyze_slow_queries
+        
+        logger_inst = get_slow_query_logger()
+        
+        if not logger_inst:
+            return jsonify({
+                'success': False,
+                'error': 'Slow query logging not available'
+            }), 503
+        
+        # Get time window from query params (default: 60 minutes)
+        minutes = request.args.get('minutes', 60, type=int)
+        minutes = min(minutes, 1440)  # Cap at 24 hours
+        
+        # Get analysis
+        analysis = analyze_slow_queries(minutes=minutes)
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+    except Exception as e:
+        app.logger.error(f"Slow queries API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/pool_health')
 @login_required
 def api_pool_health():
