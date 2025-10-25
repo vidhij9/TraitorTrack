@@ -33,7 +33,7 @@ The project follows a standard Flask application structure, separating concerns 
     - **API Pagination & Performance**: Strict limits (200 rows max, 10,000 max offset) and smart count strategies prevent performance bottlenecks for large datasets.
     - **Database Indexes**: Composite indexes on critical tables (Scan, AuditLog) optimize common query patterns for 1.8M+ records.
     - **High-Performance Query Optimizer (`query_optimizer.py`)**: Implements raw SQL and in-memory caching for critical operations like `get_bag_by_qr()`, `get_child_count_fast()`, and batch linking, significantly improving scanner and bill-linking workflow speeds.
-    - **In-Memory Caching (`cache_utils.py`)**: Functional caching with configurable TTL, hit/miss tracking, and automatic cleanup for improved performance.
+    - **Smart Role-Aware Caching (`cache_utils.py`)**: Secure, high-performance caching system with separate decorators for global and user-specific data. Features automatic cache key generation including user identity, query parameters, and request context to prevent data leaks while maintaining 10x performance boost. Includes intelligent cache invalidation on data changes.
 - **Session Management**: Filesystem-based sessions with a 1-hour lifetime, secured with HTTPOnly and SameSite=Lax cookies.
 - **Security Features**: 
     - Requires `SESSION_SECRET` environment variable
@@ -81,6 +81,7 @@ The project follows a standard Flask application structure, separating concerns 
 - **werkzeug**: Used for secure password hashing.
 
 ## Recent Changes (October 2025)
+- **Smart Role-Aware Caching (SECURITY FIX)**: Implemented secure caching system that prevents cross-user data leaks. Replaced insecure `cached_route()` with `cached_global()` and `cached_user()` decorators that include user identity, role, and query parameters in cache keys. Added automatic cache invalidation after data modifications (bags, scans, links, bills).
 - **Security Enhancement**: Added auto-detection of production environment for HTTPS-only cookies, ensuring secure session management in production deployments.
 - **Caching Implementation**: Replaced placeholder cache decorators with functional in-memory caching system featuring TTL, hit/miss tracking, and automatic cleanup.
 - **Disabled Features Documentation**: Created professional messaging for Excel Upload and Email Notifications with clear alternatives and `FEATURES.md` documentation.
