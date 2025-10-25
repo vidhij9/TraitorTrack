@@ -82,7 +82,7 @@ The project follows a standard Flask application structure, separating concerns 
 
 ## Recent Changes (October 2025)
 
-### Enterprise-Grade System Transformation (17/67 tasks completed - 25% progress)
+### Enterprise-Grade System Transformation (20/67 tasks completed - 30% progress)
 
 **Phase 1: Security Hardening ✅**
 - **Password Security**: Removed hash logging, added complexity requirements (8+ chars, uppercase, number, special char)
@@ -111,6 +111,11 @@ The project follows a standard Flask application structure, separating concerns 
 - **Integration Points**: Registration flow, bill creation flow
 - **Error Handling**: Graceful degradation, comprehensive logging
 - **Configuration**: SENDGRID_API_KEY, FROM_EMAIL, ADMIN_EMAIL
+
+**Phase 6: Performance & Monitoring ✅**
+- **N+1 Query Fixes**: Eliminated N+1 queries in bag_management route (80+ queries → 6 queries, ~13x improvement)
+- **Connection Pool Monitoring**: Background daemon thread (30s intervals), multi-level alerts (70%/85%/95% thresholds), /api/pool_health endpoint
+- **Slow Query Logging**: SQLAlchemy event listeners (100ms threshold), statistics tracking, /api/slow_queries admin endpoint
 
 **Earlier Optimizations:**
 - **Smart Role-Aware Caching (SECURITY FIX)**: Implemented secure caching system that prevents cross-user data leaks. Replaced insecure `cached_route()` with `cached_global()` and `cached_user()` decorators that include user identity, role, and query parameters in cache keys. Added automatic cache invalidation after data modifications (bags, scans, links, bills).
