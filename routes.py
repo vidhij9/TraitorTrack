@@ -2250,7 +2250,13 @@ def process_child_scan():
         # Use query_optimizer for better performance
         parent_bag = query_optimizer.get_bag_by_qr(parent_qr, 'parent')
         if not parent_bag:
-            return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
+            # Clear invalid parent from session to prevent repeated errors
+            session.pop('current_parent_qr', None)
+            return jsonify({
+                'success': False, 
+                'message': f'Parent bag {parent_qr} not found in database. It may have been deleted or the session expired. Please scan a parent bag again.',
+                'clear_parent': True  # Signal frontend to clear parent selection
+            })
         
         # Check if we've reached the 30 bags limit - OPTIMIZED
         current_child_count = query_optimizer.get_child_count_fast(parent_bag.id)
@@ -2711,7 +2717,13 @@ def scan_child():
                     
                 if not parent_bag:
                     app.logger.error(f'Parent bag {parent_qr} not found in DB')
-                    return jsonify({'success': False, 'message': f'Parent bag {parent_qr} not found in database. Please scan parent bag again.'})
+                    # Clear invalid parent from session to prevent repeated errors
+                    session.pop('current_parent_qr', None)
+                    return jsonify({
+                        'success': False, 
+                        'message': f'Parent bag {parent_qr} not found in database. It may have been deleted or the session expired. Please scan a parent bag again.',
+                        'clear_parent': True
+                    })
                 
                 # Check if trying to scan the same QR code as parent
                 if qr_id == parent_qr:
