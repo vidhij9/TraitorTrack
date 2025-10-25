@@ -5475,6 +5475,66 @@ def api_system_health():
             'error': str(e)
         }), 500
 
+@app.route('/api/session/status')
+@login_required
+def api_session_status():
+    """
+    Get current session status including time remaining.
+    This endpoint allows frontend to display session warnings and handle auto-logout.
+    """
+    try:
+        from auth_utils import (
+            get_session_time_remaining,
+            should_show_timeout_warning,
+            SESSION_ABSOLUTE_TIMEOUT,
+            SESSION_INACTIVITY_TIMEOUT,
+            SESSION_WARNING_TIME
+        )
+        from datetime import datetime
+        
+        time_remaining = get_session_time_remaining()
+        show_warning = should_show_timeout_warning()
+        
+        # Get session timestamps
+        created_at_str = session.get('created_at')
+        last_activity_str = session.get('last_activity')
+        
+        created_at = None
+        last_activity = None
+        
+        if created_at_str:
+            try:
+                created_at = datetime.fromisoformat(created_at_str).isoformat()
+            except:
+                pass
+        
+        if last_activity_str:
+            try:
+                last_activity = datetime.fromisoformat(last_activity_str).isoformat()
+            except:
+                pass
+        
+        return jsonify({
+            'success': True,
+            'authenticated': True,
+            'time_remaining_seconds': int(time_remaining),
+            'show_warning': show_warning,
+            'session_info': {
+                'created_at': created_at,
+                'last_activity': last_activity,
+                'absolute_timeout': SESSION_ABSOLUTE_TIMEOUT,
+                'inactivity_timeout': SESSION_INACTIVITY_TIMEOUT,
+                'warning_time': SESSION_WARNING_TIME
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Session status API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'authenticated': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/scans')
 @limiter.exempt  # Exempt from rate limiting for dashboard functionality
 def api_recent_scans():

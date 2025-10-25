@@ -273,6 +273,47 @@ from request_tracking import setup_request_tracking
 setup_request_tracking(app)
 logger.info("Request tracking middleware initialized - all requests now have unique IDs")
 
+# Setup session timeout middleware
+@app.before_request
+def check_session_timeout_middleware():
+    """Check session timeout on every request and auto-logout if expired"""
+    from flask import request, flash, redirect, url_for
+    from auth_utils import check_session_timeout, update_session_activity, clear_session, is_authenticated
+    
+    # Skip timeout check for static files, login, logout, and API endpoints
+    if request.endpoint in ['static', 'login', 'logout', 'register']:
+        return None
+    
+    # Skip for API health checks
+    if request.path and (request.path.startswith('/static/') or request.path == '/health'):
+        return None
+    
+    # Check if session has expired
+    is_valid, reason = check_session_timeout()
+    
+    if not is_valid and is_authenticated():
+        # Session expired - clear it and redirect to login
+        username = session.get('username', 'unknown')
+        clear_session()
+        
+        # Set appropriate flash message
+        if reason == 'absolute':
+            flash('Your session has expired after 1 hour. Please log in again.', 'warning')
+            logger.info(f"Session expired (absolute timeout) for user {username}")
+        elif reason == 'inactivity':
+            flash('Your session has expired due to inactivity. Please log in again.', 'warning')
+            logger.info(f"Session expired (inactivity timeout) for user {username}")
+        
+        return redirect(url_for('login'))
+    
+    # Update last activity timestamp for valid sessions
+    if is_valid and is_authenticated():
+        update_session_activity()
+    
+    return None
+
+logger.info("Session timeout middleware initialized - checking timeout on every request")
+
 # Add before_request handler for authentication
 @app.before_request
 def before_request():

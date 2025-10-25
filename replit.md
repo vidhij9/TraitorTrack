@@ -34,7 +34,7 @@ The project follows a standard Flask application structure, separating concerns 
     - **Database Indexes**: Composite indexes on critical tables (Scan, AuditLog) optimize common query patterns for 1.8M+ records.
     - **High-Performance Query Optimizer (`query_optimizer.py`)**: Implements raw SQL and in-memory caching for critical operations like `get_bag_by_qr()`, `get_child_count_fast()`, and batch linking, significantly improving scanner and bill-linking workflow speeds.
     - **Smart Role-Aware Caching (`cache_utils.py`)**: Secure, high-performance caching system with separate decorators for global and user-specific data. Features automatic cache key generation including user identity, query parameters, and request context to prevent data leaks while maintaining 10x performance boost. Includes intelligent cache invalidation on data changes.
-- **Session Management**: Filesystem-based sessions with a 1-hour lifetime, secured with HTTPOnly and SameSite=Lax cookies.
+- **Session Management**: Filesystem-based sessions with dual timeout mechanism - 1-hour absolute timeout and 30-minute inactivity timeout. Includes automatic timeout detection, activity tracking on every request, and user warnings before session expiration. Secured with HTTPOnly and SameSite=Lax cookies.
 - **Security Features**: 
     - Requires `SESSION_SECRET` environment variable
     - Auto-detection of production environment (REPLIT_DEPLOYMENT=1 or ENVIRONMENT=production) enables HTTPS-only cookies
