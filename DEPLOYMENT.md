@@ -88,8 +88,9 @@ ADMIN_PASSWORD=<secure-admin-password>
 4. **Deployment Configuration**:
    - In Replit Deployments → Click "Deploy" button
    - Go to deployment "Secrets" or "Environment Variables"
-   - Add/update `DATABASE_URL` with your AWS RDS connection string
+   - Add/update `PRODUCTION_DATABASE_URL` with your AWS RDS connection string
    - Keep workspace `DATABASE_URL` pointing to Replit database for development
+   - The app will automatically use the correct database based on environment
 
 5. **Verify Connection** (before deploying):
    ```bash
@@ -97,10 +98,16 @@ ADMIN_PASSWORD=<secure-admin-password>
    python verify_db_connection.py
    ```
 
-**Database Separation**:
-- ✅ **Development**: Workspace secrets → Replit built-in PostgreSQL
-- ✅ **Production**: Deployment secrets → AWS RDS PostgreSQL
+**Automatic Database Selection**:
+The application automatically selects the correct database:
+- ✅ **Development** (workspace): Uses `DATABASE_URL` → Replit built-in PostgreSQL
+- ✅ **Production** (deployment): Uses `PRODUCTION_DATABASE_URL` → AWS RDS PostgreSQL
 - ✅ Data remains completely separate between environments
+- ✅ No code changes needed - environment detection is automatic
+
+**How It Works**:
+When `REPLIT_DEPLOYMENT=1` (production deployment), the app uses `PRODUCTION_DATABASE_URL`.
+Otherwise, it uses `DATABASE_URL` (development workspace).
 
 ### Optional
 ```bash

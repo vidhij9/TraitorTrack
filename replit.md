@@ -86,6 +86,7 @@ The project follows a standard Flask application structure, separating concerns 
 - **Disabled Features Documentation**: Created professional messaging for Excel Upload and Email Notifications with clear alternatives and `FEATURES.md` documentation.
 - **System Health Monitoring**: Added `/api/system_health` endpoint and admin dashboard displaying real-time database, cache, memory, and error metrics.
 - **Deployment Readiness**: Created comprehensive `DEPLOYMENT.md` with production checklist, environment variables, scaling guidelines, and monitoring recommendations.
+- **Automatic Database Selection**: App now automatically uses `PRODUCTION_DATABASE_URL` (AWS RDS) in production and `DATABASE_URL` (Replit PostgreSQL) in development - no manual configuration needed.
 
 ## Production Readiness Status
 **Status**: ✅ PRODUCTION-READY
