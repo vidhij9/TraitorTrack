@@ -1539,6 +1539,7 @@ def dashboard():
     return render_template('dashboard.html')
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")  # Strict rate limiting to prevent brute-force attacks
 def login():
     """User login endpoint with improved error handling"""
     if is_logged_in() and request.method == 'GET':
@@ -1773,6 +1774,7 @@ def scan():
 
 @app.route('/fix-admin-password')
 @login_required
+@limiter.limit("3 per hour")  # Strict rate limiting for password change operations
 def fix_admin_password():
     """Fix admin password - ADMIN ONLY endpoint"""
     if not current_user.is_admin():
@@ -1797,7 +1799,7 @@ def fix_admin_password():
     return redirect(url_for('index'))
 
 @app.route('/register', methods=['GET', 'POST'])
-@limiter.limit("100 per minute")  # Increased for better concurrency with Redis backend
+@limiter.limit("5 per minute")  # Strict rate limiting to prevent spam and account creation abuse
 def register():
     """User registration page with form validation"""
     if current_user.is_authenticated:
