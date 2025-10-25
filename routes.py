@@ -6535,3 +6535,153 @@ def upload():
     else:
         # GET request - redirect to excel_upload page
         return redirect(url_for('excel_upload'))
+
+
+# ============================================================================
+# DATA EXPORT ROUTES - CSV and Excel exports for bags, bills, and reports
+# ============================================================================
+
+@app.route('/export/bags/csv')
+@login_required
+def export_bags_csv():
+    """Export all bags to CSV - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for exports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from export_utils import BagExporter
+        bag_type = request.args.get('type')  # 'parent', 'child', or None for all
+        limit = request.args.get('limit', type=int)
+        return BagExporter.export_bags_csv(db, bag_type=bag_type, limit=limit)
+    except Exception as e:
+        app.logger.error(f"Bag CSV export error: {str(e)}")
+        flash(f'Error exporting bags: {str(e)}', 'error')
+        return redirect(url_for('bag_management'))
+
+
+@app.route('/export/bags/excel')
+@login_required
+def export_bags_excel():
+    """Export all bags to Excel - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for exports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from export_utils import BagExporter
+        bag_type = request.args.get('type')  # 'parent', 'child', or None for all
+        limit = request.args.get('limit', type=int)
+        return BagExporter.export_bags_excel(db, bag_type=bag_type, limit=limit)
+    except Exception as e:
+        app.logger.error(f"Bag Excel export error: {str(e)}")
+        flash(f'Error exporting bags: {str(e)}', 'error')
+        return redirect(url_for('bag_management'))
+
+
+@app.route('/export/bills/csv')
+@login_required
+def export_bills_csv():
+    """Export all bills to CSV - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for exports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from export_utils import BillExporter
+        status = request.args.get('status')  # Filter by status if provided
+        limit = request.args.get('limit', type=int)
+        return BillExporter.export_bills_csv(db, status=status, limit=limit)
+    except Exception as e:
+        app.logger.error(f"Bill CSV export error: {str(e)}")
+        flash(f'Error exporting bills: {str(e)}', 'error')
+        return redirect(url_for('bill_management'))
+
+
+@app.route('/export/bills/excel')
+@login_required
+def export_bills_excel():
+    """Export all bills to Excel - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for exports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from export_utils import BillExporter
+        status = request.args.get('status')  # Filter by status if provided
+        limit = request.args.get('limit', type=int)
+        return BillExporter.export_bills_excel(db, status=status, limit=limit)
+    except Exception as e:
+        app.logger.error(f"Bill Excel export error: {str(e)}")
+        flash(f'Error exporting bills: {str(e)}', 'error')
+        return redirect(url_for('bill_management'))
+
+
+@app.route('/export/reports/user-activity/csv')
+@login_required
+def export_user_activity_csv():
+    """Export user activity report to CSV - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for reports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from export_utils import ReportExporter
+        days = request.args.get('days', default=30, type=int)
+        return ReportExporter.export_user_activity_csv(db, days=days)
+    except Exception as e:
+        app.logger.error(f"User activity CSV export error: {str(e)}")
+        flash(f'Error exporting user activity: {str(e)}', 'error')
+        return redirect(url_for('user_management'))
+
+
+@app.route('/export/reports/user-activity/excel')
+@login_required
+def export_user_activity_excel():
+    """Export user activity report to Excel - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for reports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from export_utils import ReportExporter
+        days = request.args.get('days', default=30, type=int)
+        return ReportExporter.export_user_activity_excel(db, days=days)
+    except Exception as e:
+        app.logger.error(f"User activity Excel export error: {str(e)}")
+        flash(f'Error exporting user activity: {str(e)}', 'error')
+        return redirect(url_for('user_management'))
+
+
+@app.route('/export/reports/system-stats/csv')
+@login_required
+def export_system_stats_csv():
+    """Export system statistics to CSV - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for reports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from export_utils import ReportExporter
+        return ReportExporter.export_system_stats_csv(db)
+    except Exception as e:
+        app.logger.error(f"System stats CSV export error: {str(e)}")
+        flash(f'Error exporting system stats: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))
+
+
+@app.route('/export/reports/system-stats/excel')
+@login_required
+def export_system_stats_excel():
+    """Export system statistics to Excel - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for reports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        from export_utils import ReportExporter
+        return ReportExporter.export_system_stats_excel(db)
+    except Exception as e:
+        app.logger.error(f"System stats Excel export error: {str(e)}")
+        flash(f'Error exporting system stats: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))

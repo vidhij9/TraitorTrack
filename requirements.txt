@@ -33,3 +33,4 @@ redis
 psutil
 alembic
 flask-migrate
+openpyxl
