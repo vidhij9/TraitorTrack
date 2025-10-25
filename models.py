@@ -57,9 +57,6 @@ class User(UserMixin, db.Model):
         except ImportError:
             # Fallback to werkzeug
             self.password_hash = generate_password_hash(password)
-        # Log for debugging
-        import logging
-        logging.info(f"Password hash set for user {self.username}: {self.password_hash[:20]}...")
         
     def check_password(self, password):
         """Check password against stored hash"""

@@ -1,6 +1,7 @@
 """
 Optimized routes for TraceTrack application - consolidated and performance-optimized
 """
+import os
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, abort, make_response, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -1679,15 +1680,29 @@ def scan():
     return render_template('scan.html')
 
 @app.route('/fix-admin-password')
+@login_required
 def fix_admin_password():
-    """Fix admin password - temporary endpoint"""
-    from werkzeug.security import generate_password_hash
+    """Fix admin password - ADMIN ONLY endpoint"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    # Require admin to provide new password via environment variable for security
+    new_password = os.environ.get('NEW_ADMIN_PASSWORD')
+    if not new_password:
+        flash('NEW_ADMIN_PASSWORD environment variable must be set.', 'error')
+        return redirect(url_for('index'))
+    
     user = User.query.filter_by(username='admin').first()
     if user:
-        user.set_password('admin')
+        user.set_password(new_password)
         db.session.commit()
-        return "Admin password fixed. Username: admin, Password: admin"
-    return "Admin user not found"
+        flash('Admin password updated successfully.', 'success')
+        app.logger.info(f"Admin password updated by {current_user.username}")
+        return redirect(url_for('index'))
+    
+    flash('Admin user not found.', 'error')
+    return redirect(url_for('index'))
 
 @app.route('/register', methods=['GET', 'POST'])
 @csrf_compat.exempt  # Temporarily exempt registration from CSRF for production access
