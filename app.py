@@ -9,6 +9,7 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_session import Session
+from flask_migrate import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure logging properly
@@ -24,6 +25,7 @@ class Base(DeclarativeBase):
 
 # Initialize extensions
 db = SQLAlchemy(model_class=Base)
+migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
@@ -156,6 +158,7 @@ def get_db_pool_stats():
 
 # Initialize extensions
 db.init_app(app)
+migrate.init_app(app, db)
 login_manager.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
@@ -175,48 +178,60 @@ with app.app_context():
     try:
         # Import models to ensure they're registered
         import models
-        # Create all tables
-        db.create_all()
         
-        # Create or update admin user
-        from models import User
+        # NOTE: Schema management is now handled by Alembic migrations
+        # db.create_all() is disabled to avoid conflicts with migration system
+        # To initialize database schema on fresh deployment, run: flask db upgrade
+        # db.create_all()  # DISABLED: Use Flask-Migrate instead
         
-        admin = User.query.filter_by(username='admin').first()
-        
-        # SECURITY: Admin password must be provided via environment variable
-        admin_password = os.environ.get('ADMIN_PASSWORD')
-        
-        if not admin:
-            # Create new admin user
-            if not admin_password:
-                # Generate a secure random password
-                admin_password = secrets.token_urlsafe(16)
-                print('=' * 80)
-                print('WARNING: No ADMIN_PASSWORD environment variable set!')
-                print('Generated secure random password for admin user:')
-                print(f'USERNAME: admin')
-                print(f'PASSWORD: {admin_password}')
-                print('IMPORTANT: Save this password NOW! It will not be displayed again.')
-                print('=' * 80)
+        # Create or update admin user (only if tables exist)
+        try:
+            from models import User
             
-            admin = User()
-            admin.username = 'admin'
-            admin.email = 'admin@tracetrack.com'
-            admin.set_password(admin_password)
-            admin.role = 'admin'
-            admin.verified = True
-            db.session.add(admin)
-            db.session.commit()
-            logger.info("Admin user created successfully")
-        elif admin_password:
-            # Update existing admin password if ADMIN_PASSWORD is set
-            admin.set_password(admin_password)
-            admin.role = 'admin'
-            admin.verified = True
-            db.session.commit()
-            logger.info("Admin password synchronized with ADMIN_PASSWORD environment variable")
-        
-        logger.info("Database initialized successfully")
+            admin = User.query.filter_by(username='admin').first()
+            
+            # SECURITY: Admin password must be provided via environment variable
+            admin_password = os.environ.get('ADMIN_PASSWORD')
+            
+            if not admin:
+                # Create new admin user
+                if not admin_password:
+                    # Generate a secure random password
+                    admin_password = secrets.token_urlsafe(16)
+                    print('=' * 80)
+                    print('WARNING: No ADMIN_PASSWORD environment variable set!')
+                    print('Generated secure random password for admin user:')
+                    print(f'USERNAME: admin')
+                    print(f'PASSWORD: {admin_password}')
+                    print('IMPORTANT: Save this password NOW! It will not be displayed again.')
+                    print('=' * 80)
+                
+                admin = User()
+                admin.username = 'admin'
+                admin.email = 'admin@tracetrack.com'
+                admin.set_password(admin_password)
+                admin.role = 'admin'
+                admin.verified = True
+                db.session.add(admin)
+                db.session.commit()
+                logger.info("Admin user created successfully")
+            elif admin_password:
+                # Update existing admin password if ADMIN_PASSWORD is set
+                admin.set_password(admin_password)
+                admin.role = 'admin'
+                admin.verified = True
+                db.session.commit()
+                logger.info("Admin password synchronized with ADMIN_PASSWORD environment variable")
+            
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            # Tables might not exist yet if this is a fresh deployment
+            # In that case, run: flask db upgrade
+            if 'does not exist' in str(e) or 'relation' in str(e).lower():
+                logger.warning("Database tables not found. Run 'flask db upgrade' to initialize schema.")
+            else:
+                logger.error(f"Database initialization error: {e}")
+                raise
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
         raise

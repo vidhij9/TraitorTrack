@@ -31,3 +31,5 @@ pytest-flask
 flask-session
 redis
 psutil
+alembic
+flask-migrate
