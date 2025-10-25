@@ -48,6 +48,11 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     scans = db.relationship('Scan', backref='scanned_by', lazy='dynamic')
     
+    # Account lockout fields
+    failed_login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    last_failed_login = db.Column(db.DateTime, nullable=True)
+    
     def set_password(self, password):
         """Set user password hash"""
         # Use fast bcrypt hashing if available

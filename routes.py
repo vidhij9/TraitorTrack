@@ -1474,12 +1474,10 @@ def login():
             flash('Please enter both username and password.', 'error')
             return render_template('login.html')
         
-        # Account lockout functionality simplified for optimized version
-        # Note: Full account lockout can be re-implemented if needed
-        
         try:
             # Import models locally to avoid circular imports
             from models import User
+            from password_utils import is_account_locked, record_failed_login, record_successful_login
             
             # Find user
             user = User.query.filter_by(username=username).first()
@@ -1488,6 +1486,13 @@ def login():
             if not user:
                 app.logger.warning(f"LOGIN FAILED: User {username} not found")
                 flash('Invalid username or password.', 'error')
+                return render_template('login.html')
+            
+            # Check if account is locked (pass db to allow reset of expired locks)
+            is_locked, unlock_time, minutes_remaining = is_account_locked(user, db)
+            if is_locked:
+                app.logger.warning(f"LOGIN BLOCKED: Account {username} is locked for {minutes_remaining} more minutes")
+                flash(f'Account locked due to too many failed login attempts. Please try again in {minutes_remaining} minutes.', 'error')
                 return render_template('login.html')
             
             app.logger.info(f"USER FOUND: {user.username}, role: {user.role}, verified: {user.verified}")
@@ -1502,7 +1507,17 @@ def login():
                 
             if not password_valid:
                 app.logger.warning(f"LOGIN FAILED: Invalid password for {username}")
-                flash('Invalid username or password.', 'error')
+                
+                # Record failed login attempt
+                should_lock, attempts_remaining, lock_duration = record_failed_login(user, db)
+                
+                if should_lock:
+                    flash(f'Too many failed login attempts. Account locked for {lock_duration} minutes.', 'error')
+                elif attempts_remaining is not None:
+                    flash(f'Invalid username or password. {attempts_remaining} attempts remaining.', 'error')
+                else:
+                    flash('Invalid username or password.', 'error')
+                    
                 return render_template('login.html')
                 
             if not user.verified:
@@ -1510,10 +1525,9 @@ def login():
                 flash('Account not verified.', 'error')
                 return render_template('login.html')
             
-            # SUCCESS - Use simple authentication system
+            # SUCCESS - Reset failed attempts and create session
+            record_successful_login(user, db)
             create_session(user.id, user.username, user.role, user.dispatch_area if hasattr(user, 'dispatch_area') else None)
-            # Ensure user_role is saved (already done in create_session)
-            # session['user_role'] = user.role  # This is redundant now
             
             app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
             app.logger.info(f"Session after login: user_id={session.get('user_id')}, keys={list(session.keys())}")
@@ -1727,8 +1741,12 @@ def register():
                 flash('Username must be between 3 and 20 characters.', 'error')
                 return render_template('register.html')
             
-            # Password length constraint removed as requested
-            # Users can set any password length they want
+            # Validate password complexity
+            from password_utils import validate_password_complexity
+            is_valid, error_message = validate_password_complexity(password)
+            if not is_valid:
+                flash(error_message, 'error')
+                return render_template('register.html')
             
             if password != confirm_password:
                 flash('Passwords do not match.', 'error')
