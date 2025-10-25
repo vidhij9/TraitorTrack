@@ -74,16 +74,74 @@ class QueryOptimizer:
         ).scalar()
         return result is not None
     
+    def check_circular_relationship(self, parent_bag_id, child_bag_id, max_depth=50):
+        """
+        Check if creating a link would create a circular relationship
+        Returns: (is_circular, message)
+        
+        Validates:
+        1. Direct circular: A -> B -> A
+        2. Indirect circular: A -> B -> C -> A
+        3. Self-linking: A -> A
+        
+        Uses recursive CTE for efficient cycle detection
+        Target: <10ms
+        """
+        # Check self-linking
+        if parent_bag_id == child_bag_id:
+            return True, "Cannot link a bag to itself"
+        
+        # Use recursive CTE to check if child_bag_id is an ancestor of parent_bag_id
+        # If it is, creating the link would form a cycle
+        query = text("""
+            WITH RECURSIVE ancestors AS (
+                -- Start from the parent bag we want to link TO
+                SELECT parent_bag_id, child_bag_id, 1 AS depth
+                FROM link
+                WHERE child_bag_id = :parent_bag_id
+                
+                UNION ALL
+                
+                -- Recursively find ancestors
+                SELECT l.parent_bag_id, l.child_bag_id, a.depth + 1
+                FROM link l
+                INNER JOIN ancestors a ON l.child_bag_id = a.parent_bag_id
+                WHERE a.depth < :max_depth
+            )
+            SELECT 1 FROM ancestors 
+            WHERE parent_bag_id = :child_bag_id
+            LIMIT 1
+        """)
+        
+        result = self.db.session.execute(
+            query,
+            {
+                "parent_bag_id": parent_bag_id,
+                "child_bag_id": child_bag_id,
+                "max_depth": max_depth
+            }
+        ).scalar()
+        
+        if result:
+            return True, "This link would create a circular relationship (parent-child cycle)"
+        
+        return False, ""
+    
     def create_link_fast(self, parent_bag_id, child_bag_id, user_id):
         """
-        Ultra-fast link creation using raw SQL
-        Target: <15ms total
+        Ultra-fast link creation using raw SQL with circular relationship validation
+        Target: <25ms total (includes circular check)
         Returns: (success, message)
         """
         try:
             # Check if link already exists (fast)
             if self.check_link_exists_fast(parent_bag_id, child_bag_id):
                 return False, "Link already exists"
+            
+            # CRITICAL: Check for circular relationships before creating link
+            is_circular, circular_message = self.check_circular_relationship(parent_bag_id, child_bag_id)
+            if is_circular:
+                return False, circular_message
             
             # Create link using raw SQL
             self.db.session.execute(
@@ -301,9 +359,10 @@ class QueryOptimizer:
     
     def create_link_optimized(self, parent_bag_id, child_bag_id):
         """
-        Optimized link creation using raw SQL
-        Target: <15ms
+        Optimized link creation using raw SQL with circular relationship validation
+        Target: <25ms (includes circular check)
         Returns: (link_object, created_boolean)
+        Raises: ValueError if circular relationship detected
         """
         from models import Link
         try:
@@ -315,6 +374,11 @@ class QueryOptimizer:
                     child_bag_id=child_bag_id
                 ).first()
                 return link, False
+            
+            # CRITICAL: Check for circular relationships before creating link
+            is_circular, circular_message = self.check_circular_relationship(parent_bag_id, child_bag_id)
+            if is_circular:
+                raise ValueError(circular_message)
             
             # Create link using raw SQL
             result = self.db.session.execute(
@@ -330,6 +394,9 @@ class QueryOptimizer:
             # Get the created link object
             link = Link.query.get(link_id)
             return link, True
+        except ValueError:
+            # Re-raise validation errors
+            raise
         except Exception as e:
             return None, False
     

@@ -2870,7 +2870,12 @@ def scan_child():
                 # Create new link
                 if parent_bag and child_bag:
                     app.logger.info(f'Creating link between parent {parent_bag.id} ({parent_bag.qr_id}) and child {child_bag.id} ({child_bag.qr_id})')
-                    link, created = query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
+                    try:
+                        link, created = query_optimizer.create_link_optimized(parent_bag.id, child_bag.id)
+                    except ValueError as validation_error:
+                        # Circular relationship detected
+                        return jsonify({'success': False, 'message': str(validation_error)})
+                    
                     if not created:
                         # This shouldn't happen since we checked above, but handle gracefully
                         current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
