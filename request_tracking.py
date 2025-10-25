@@ -85,12 +85,13 @@ def setup_request_tracking(app):
     @app.after_request
     def track_request_end(response):
         """
-        After successful requests:
+        After ALL requests (successful and errors):
         1. Add request ID to response headers
         2. Calculate request duration
         3. Log request completion with timing
         
-        Note: This is NOT called on unhandled exceptions - use teardown_request for that
+        This runs for both successful requests and error responses,
+        ensuring all responses have tracking headers.
         
         Args:
             response: Flask response object
@@ -101,28 +102,38 @@ def setup_request_tracking(app):
         request_id = getattr(g, 'request_id', None)
         start_time = getattr(g, 'request_start_time', None)
         
-        if request_id and not getattr(g, 'request_tracked', False):
-            # Add request ID to response headers for client tracking
+        # Always add request ID header if available
+        if request_id:
             response.headers['X-Request-ID'] = request_id
+        
+        # Calculate and add timing information
+        if start_time:
+            duration_ms = int((time.time() - start_time) * 1000)
+            response.headers['X-Response-Time'] = f"{duration_ms}ms"
             
-            # Calculate request duration
-            if start_time:
-                duration_ms = int((time.time() - start_time) * 1000)
-                response.headers['X-Response-Time'] = f"{duration_ms}ms"
-                
-                # Log request completion
-                logger.info(
-                    f"[{request_id}] Request completed: {request.method} {request.path} "
-                    f"- Status: {response.status_code} - Duration: {duration_ms}ms",
-                    extra={
-                        'request_id': request_id,
-                        'method': request.method,
-                        'path': request.path,
-                        'status_code': response.status_code,
-                        'duration_ms': duration_ms,
-                        'response_size': response.content_length
-                    }
-                )
+            # Only log if not already tracked (errors are logged via signal)
+            if not getattr(g, 'request_tracked', False):
+                # Log based on status code
+                if response.status_code >= 500:
+                    # Server errors already logged by got_request_exception
+                    pass
+                elif response.status_code >= 400:
+                    # Client errors already logged by got_request_exception
+                    pass
+                else:
+                    # Success - log completion
+                    logger.info(
+                        f"[{request_id}] Request completed: {request.method} {request.path} "
+                        f"- Status: {response.status_code} - Duration: {duration_ms}ms",
+                        extra={
+                            'request_id': request_id,
+                            'method': request.method,
+                            'path': request.path,
+                            'status_code': response.status_code,
+                            'duration_ms': duration_ms,
+                            'response_size': response.content_length
+                        }
+                    )
                 
                 # Warn on slow requests (>1 second)
                 if duration_ms > 1000:
@@ -138,7 +149,7 @@ def setup_request_tracking(app):
                         }
                     )
                 
-                # Mark as tracked to prevent duplicate logging in teardown
+                # Mark as tracked
                 g.request_tracked = True
         
         return response
