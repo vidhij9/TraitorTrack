@@ -224,6 +224,19 @@ with app.app_context():
                 logger.info("Admin password synchronized with ADMIN_PASSWORD environment variable")
             
             logger.info("Database initialized successfully")
+            
+            # Initialize pool monitoring with alerts (inside app context)
+            try:
+                from pool_monitor import init_pool_monitor
+                pool_monitoring_enabled = os.environ.get('POOL_MONITORING_ENABLED', 'true').lower() == 'true'
+                init_pool_monitor(db.engine, enabled=pool_monitoring_enabled)
+                if pool_monitoring_enabled:
+                    logger.info("Database connection pool monitoring started with alert thresholds: 70%/85%/95%")
+                else:
+                    logger.info("Database connection pool monitoring disabled")
+            except Exception as e:
+                logger.error(f"Failed to initialize pool monitoring: {e}")
+            
         except Exception as e:
             # Tables might not exist yet if this is a fresh deployment
             # In that case, run: flask db upgrade

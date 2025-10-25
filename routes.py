@@ -5177,6 +5177,50 @@ def api_dashboard_stats():
         }), 500
 
 
+@app.route('/api/pool_health')
+@login_required
+def api_pool_health():
+    """Database connection pool health metrics - admin only"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        from pool_monitor import get_pool_monitor
+        
+        monitor = get_pool_monitor()
+        
+        if not monitor:
+            return jsonify({
+                'success': False,
+                'error': 'Pool monitoring not available'
+            }), 503
+        
+        # Get comprehensive health summary
+        health_summary = monitor.get_health_summary()
+        
+        # Get stats history (last 10 minutes)
+        stats_history = monitor.get_stats_history(minutes=10)
+        
+        return jsonify({
+            'success': True,
+            'health': health_summary,
+            'history': [
+                {
+                    'timestamp': stats.get('timestamp').isoformat() if stats.get('timestamp') else None,
+                    'usage_percent': stats.get('usage_percent'),
+                    'checked_out': stats.get('checked_out'),
+                    'configured_max': stats.get('configured_max')
+                }
+                for stats in stats_history
+            ]
+        })
+    except Exception as e:
+        app.logger.error(f"Pool health API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/system_health')
 @login_required
 def api_system_health():
@@ -5189,20 +5233,32 @@ def api_system_health():
         import os
         from datetime import datetime
         from cache_utils import get_cache_stats
+        from pool_monitor import get_pool_monitor
         
-        # Database connection pool stats
+        # Database connection pool stats from monitor
         pool_stats = {
             'size': 0,
             'checked_out': 0,
             'overflow': 0,
-            'configured_max': 40  # 25 base + 15 overflow
+            'configured_max': 40,  # 25 base + 15 overflow
+            'usage_percent': 0,
+            'health_status': 'unknown'
         }
         
         try:
-            pool = db.engine.pool
-            pool_stats['size'] = pool.size()
-            pool_stats['checked_out'] = pool.checkedout()
-            pool_stats['overflow'] = pool.overflow()
+            monitor = get_pool_monitor()
+            if monitor:
+                current_stats = monitor.get_pool_stats()
+                if current_stats:
+                    pool_stats.update(current_stats)
+                    health_summary = monitor.get_health_summary()
+                    pool_stats['health_status'] = health_summary.get('status', 'unknown')
+            else:
+                # Fallback to direct pool access
+                pool = db.engine.pool
+                pool_stats['size'] = pool.size()
+                pool_stats['checked_out'] = pool.checkedout()
+                pool_stats['overflow'] = pool.overflow()
         except:
             pass
         
