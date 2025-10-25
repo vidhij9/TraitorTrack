@@ -247,6 +247,60 @@ class Bill(db.Model):
     
     def __repr__(self):
         return f"<Bill {self.bill_id}>"
+    
+    def recalculate_weights(self):
+        """
+        Recalculate bill weights from scratch based on current linked bags.
+        Fixes edge cases like deleted parent bags or modified child weights.
+        
+        Returns:
+            tuple: (actual_weight, expected_weight, parent_count, child_count)
+        """
+        from sqlalchemy import text
+        
+        # Calculate actual weight from all child bags
+        actual_weight_result = db.session.execute(
+            text("""
+                SELECT COALESCE(SUM(child.weight_kg), 0)
+                FROM bill_bag bb
+                JOIN bag parent ON bb.bag_id = parent.id
+                LEFT JOIN link l ON parent.id = l.parent_bag_id
+                LEFT JOIN bag child ON l.child_bag_id = child.id
+                WHERE bb.bill_id = :bill_id AND parent.type = 'parent'
+            """),
+            {'bill_id': self.id}
+        ).scalar()
+        
+        actual_weight = float(actual_weight_result or 0)
+        
+        # Count linked parent bags
+        parent_count = BillBag.query.filter_by(bill_id=self.id).count()
+        
+        # Count total child bags
+        child_count_result = db.session.execute(
+            text("""
+                SELECT COUNT(DISTINCT child.id)
+                FROM bill_bag bb
+                JOIN bag parent ON bb.bag_id = parent.id
+                LEFT JOIN link l ON parent.id = l.parent_bag_id
+                LEFT JOIN bag child ON l.child_bag_id = child.id
+                WHERE bb.bill_id = :bill_id AND parent.type = 'parent' AND child.id IS NOT NULL
+            """),
+            {'bill_id': self.id}
+        ).scalar()
+        
+        child_count = int(child_count_result or 0)
+        
+        # Expected weight is 30kg per parent bag
+        expected_weight = parent_count * 30.0
+        
+        # Update ALL bill fields to fix stale data
+        self.parent_bag_count = parent_count  # FIX: Update parent count
+        self.total_weight_kg = actual_weight
+        self.expected_weight_kg = expected_weight
+        self.total_child_bags = child_count
+        
+        return (actual_weight, expected_weight, parent_count, child_count)
 
 class BillBag(db.Model):
     """Association model for linking bills to parent bags"""

@@ -1274,6 +1274,85 @@ def execute_comprehensive_deletion():
         
         return jsonify({'success': False, 'message': f'Error during deletion: {str(e)}'})
 
+@app.route('/admin/recalculate-bill-weights', methods=['POST'])
+@login_required
+def admin_recalculate_bill_weights():
+    """Admin endpoint to recalculate weights for all bills or a specific bill"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        bill_id = request.form.get('bill_id')
+        
+        if bill_id:
+            # Recalculate single bill
+            bill = Bill.query.filter_by(bill_id=bill_id).first()
+            if not bill:
+                return jsonify({'success': False, 'message': f'Bill {bill_id} not found'})
+            
+            actual, expected, parent_count, child_count = bill.recalculate_weights()
+            db.session.commit()
+            
+            log_audit('bill_weight_recalculated', 'bill', bill.id, {
+                'bill_id': bill_id,
+                'actual_weight': actual,
+                'expected_weight': expected,
+                'parent_count': parent_count,
+                'child_count': child_count,
+                'recalculated_by': current_user.username
+            })
+            
+            return jsonify({
+                'success': True,
+                'message': f'Bill {bill_id} weights recalculated successfully',
+                'bill': {
+                    'bill_id': bill_id,
+                    'actual_weight': actual,
+                    'expected_weight': expected,
+                    'parent_count': parent_count,
+                    'child_count': child_count
+                }
+            })
+        else:
+            # Recalculate all bills
+            bills = Bill.query.all()
+            recalculated_count = 0
+            errors = []
+            
+            for bill in bills:
+                try:
+                    bill.recalculate_weights()
+                    recalculated_count += 1
+                except Exception as e:
+                    errors.append(f'Bill {bill.bill_id}: {str(e)}')
+            
+            db.session.commit()
+            
+            log_audit('all_bill_weights_recalculated', 'system', None, {
+                'bills_recalculated': recalculated_count,
+                'errors': len(errors),
+                'recalculated_by': current_user.username
+            })
+            
+            if errors:
+                return jsonify({
+                    'success': True,
+                    'message': f'Recalculated {recalculated_count} bills with {len(errors)} errors',
+                    'recalculated': recalculated_count,
+                    'errors': errors[:10]  # Return first 10 errors
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'message': f'All {recalculated_count} bills recalculated successfully',
+                    'recalculated': recalculated_count
+                })
+    
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error recalculating bill weights: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
 @app.route('/create_user', methods=['POST'])
 @login_required
 def create_user():
@@ -6103,18 +6182,20 @@ def manual_parent_entry():
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
-        # Update bill weights - both actual and expected
-        app.logger.info(f'Updating bill weights - current actual: {bill.total_weight_kg}kg, adding: {parent_bag.weight_kg}kg')
-        bill.total_weight_kg = (bill.total_weight_kg or 0) + parent_bag.weight_kg
+        # Update bill weights - both actual and expected (with null safety)
+        parent_weight = parent_bag.weight_kg or 0.0  # Null-safe weight
+        app.logger.info(f'Updating bill weights - current actual: {bill.total_weight_kg}kg, adding: {parent_weight}kg')
+        bill.total_weight_kg = (bill.total_weight_kg or 0.0) + parent_weight
         
         # Update expected weight (30kg per parent bag)
         if hasattr(bill, 'expected_weight_kg'):
-            bill.expected_weight_kg = (bill.expected_weight_kg or 0) + 30.0
+            bill.expected_weight_kg = (bill.expected_weight_kg or 0.0) + 30.0
             app.logger.info(f'Updated expected weight: {bill.expected_weight_kg}kg')
         
-        # Only update total_child_bags if the column exists
+        # Only update total_child_bags if the column exists (with null safety)
         if hasattr(bill, 'total_child_bags'):
-            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + (parent_bag.child_count or 0)
+            child_count = parent_bag.child_count or 0
+            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + child_count
         
         db.session.add(bill_bag)
         db.session.commit()
