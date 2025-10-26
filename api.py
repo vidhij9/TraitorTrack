@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, desc, text
 from app import app, db, limiter
 from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
+from validation_utils import InputValidator
 from cache_utils import (
     cached_global, cached_user, invalidate_cache as clear_cache_util,
     get_cache_stats, invalidate_bags_cache, invalidate_stats_cache
@@ -226,6 +227,10 @@ def get_all_parent_bags():
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 50, type=int), 100)
         search = request.args.get('search', '').strip()
+        
+        # Sanitize search input to prevent XSS
+        if search:
+            search = InputValidator.sanitize_search_query(search)
         
         # Use direct query
         query = Bag.query.filter_by(type=BagType.PARENT.value)

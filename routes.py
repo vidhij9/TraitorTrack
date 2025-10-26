@@ -140,6 +140,7 @@ from datetime import datetime, timedelta
 
 from app import app, db, limiter, csrf, csrf_compat
 from forms import LoginForm, RegistrationForm, ChildLookupForm, ManualScanForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
+from validation_utils import InputValidator
 # from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
 # Define simple validation functions
 def validate_parent_qr_id(qr_id):
@@ -3371,6 +3372,10 @@ def scan_history():
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '').strip()
     
+    # Sanitize search query to prevent XSS
+    if search_query:
+        search_query = InputValidator.sanitize_search_query(search_query)
+    
     # Build query
     query = Scan.query
     
@@ -3504,6 +3509,14 @@ def bag_management():
     linked_status = request.args.get('linked_status', 'all')
     bill_status = request.args.get('bill_status', 'all')
     user_filter = request.args.get('user_filter', 'all')  # New user filter parameter
+    
+    # Sanitize all search and filter inputs to prevent XSS
+    if search_query:
+        search_query = InputValidator.sanitize_search_query(search_query)
+    if date_from:
+        date_from = InputValidator.sanitize_html(date_from, max_length=20)
+    if date_to:
+        date_to = InputValidator.sanitize_html(date_to, max_length=20)
     
     # Date validation
     date_error = None
@@ -3989,11 +4002,23 @@ def bill_management():
         search_bill_id = request.args.get('search_bill_id', '').strip()
         status_filter = request.args.get('status_filter', 'all').strip()
         
+        # Sanitize search and filter inputs to prevent XSS
+        if search_bill_id:
+            search_bill_id = InputValidator.sanitize_search_query(search_bill_id)
+        if status_filter and status_filter != 'all':
+            status_filter = InputValidator.sanitize_html(status_filter, max_length=20)
+        
         # Summary generation parameters
         generate_summary = request.args.get('generate_summary', '') == 'true'
         summary_date_from = request.args.get('date_from', '')
         summary_date_to = request.args.get('date_to', '')
         summary_user_id = request.args.get('user_id', '')
+        
+        # Sanitize summary parameters
+        if summary_date_from:
+            summary_date_from = InputValidator.sanitize_html(summary_date_from, max_length=20)
+        if summary_date_to:
+            summary_date_to = InputValidator.sanitize_html(summary_date_to, max_length=20)
         
         # Initialize summary data
         summary_data = None
@@ -4215,6 +4240,12 @@ def bill_management():
             # Get search parameters from request
             search_bill_id = request.args.get('search_bill_id', '').strip()
             status_filter = request.args.get('status_filter', 'all')
+            
+            # Sanitize inputs to prevent XSS
+            if search_bill_id:
+                search_bill_id = InputValidator.sanitize_search_query(search_bill_id)
+            if status_filter and status_filter != 'all':
+                status_filter = InputValidator.sanitize_html(status_filter, max_length=20)
             
             # Get basic bill list without problematic columns
             bills_query = Bill.query.order_by(Bill.created_at.desc())
@@ -6982,6 +7013,12 @@ def api_bags_endpoint():
         # Get filtering parameters
         bag_type = request.args.get('type', '')
         search = request.args.get('search', '')
+        
+        # Sanitize inputs to prevent XSS
+        if bag_type:
+            bag_type = InputValidator.sanitize_html(bag_type, max_length=10)
+        if search:
+            search = InputValidator.sanitize_search_query(search)
         
         # Build query with filters
         query = Bag.query

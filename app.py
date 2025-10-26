@@ -53,6 +53,10 @@ limiter = Limiter(
 # Create Flask application
 app = Flask(__name__)
 
+# SECURITY: Enable Jinja2 autoescape for XSS protection
+# This ensures all template variables are HTML-escaped by default
+app.jinja_env.autoescape = True
+
 # Proxy fix for correct URL generation
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
