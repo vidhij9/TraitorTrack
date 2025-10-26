@@ -5276,6 +5276,7 @@ def edit_profile():
 
 @app.route('/2fa/setup')
 @login_required
+@limiter.limit("10 per minute")  # Prevent excessive 2FA setup attempts
 def two_fa_setup():
     """Display 2FA setup page with QR code (Admin only)"""
     from models import User
@@ -5311,6 +5312,7 @@ def two_fa_setup():
 
 @app.route('/2fa/enable', methods=['POST'])
 @login_required
+@limiter.limit("5 per minute")  # Strict limit to prevent TOTP brute force
 def two_fa_enable():
     """Enable 2FA after verifying TOTP code"""
     from models import User
@@ -5341,6 +5343,7 @@ def two_fa_enable():
 
 @app.route('/2fa/disable', methods=['POST'])
 @login_required
+@limiter.limit("5 per minute")  # Prevent password brute force during disable
 def two_fa_disable():
     """Disable 2FA after password verification"""
     from models import User
@@ -5371,6 +5374,7 @@ def two_fa_disable():
     return redirect(url_for('user_profile'))
 
 @app.route('/2fa/verify', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")  # CRITICAL: Prevent TOTP brute force attacks during login
 def two_fa_verify():
     """Verify TOTP code during login"""
     from models import User
