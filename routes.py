@@ -1604,8 +1604,17 @@ def login():
                 flash('Account not verified.', 'error')
                 return render_template('login.html')
             
-            # SUCCESS - Reset failed attempts and create session
+            # SUCCESS - Reset failed attempts
             record_successful_login(user, db)
+            
+            # Check if 2FA is enabled
+            if user.two_fa_enabled and user.totp_secret:
+                # Redirect to 2FA verification instead of logging in directly
+                session['pending_2fa_user_id'] = user.id
+                app.logger.info(f"2FA required for user {username}, redirecting to verification")
+                return redirect(url_for('two_fa_verify'))
+            
+            # No 2FA - create session and login normally
             create_session(user.id, user.username, user.role, user.dispatch_area if hasattr(user, 'dispatch_area') else None)
             
             app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
@@ -5259,6 +5268,143 @@ def edit_profile():
         flash('Failed to update profile. Please try again.', 'error')
     
     return redirect(url_for('user_profile'))
+
+# ============================================================================
+# TWO-FACTOR AUTHENTICATION (TOTP) ROUTES
+# ============================================================================
+
+@app.route('/2fa/setup')
+@login_required
+def two_fa_setup():
+    """Display 2FA setup page with QR code (Admin only)"""
+    from models import User
+    from two_fa_utils import TwoFactorAuth
+    
+    # Only admins can enable 2FA
+    if not current_user.is_admin():
+        flash('Two-Factor Authentication is only available for admin users.', 'error')
+        return redirect(url_for('user_profile'))
+    
+    user = User.query.get(current_user.id)
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('user_profile'))
+    
+    # If 2FA already enabled, redirect to profile
+    if user.two_fa_enabled:
+        flash('Two-Factor Authentication is already enabled.', 'info')
+        return redirect(url_for('user_profile'))
+    
+    # Generate or retrieve TOTP secret
+    if not user.totp_secret:
+        secret, qr_code = TwoFactorAuth.setup_2fa_for_user(user)
+        user.totp_secret = secret
+        db.session.commit()
+    else:
+        secret = user.totp_secret
+        _, qr_code = TwoFactorAuth.setup_2fa_for_user(user, secret)
+    
+    return render_template('two_fa_setup.html', 
+                         secret=secret, 
+                         qr_code=qr_code)
+
+@app.route('/2fa/enable', methods=['POST'])
+@login_required
+def two_fa_enable():
+    """Enable 2FA after verifying TOTP code"""
+    from models import User
+    from two_fa_utils import TwoFactorAuth
+    
+    # Only admins can enable 2FA
+    if not current_user.is_admin():
+        flash('Two-Factor Authentication is only available for admin users.', 'error')
+        return redirect(url_for('user_profile'))
+    
+    user = User.query.get(current_user.id)
+    if not user or not user.totp_secret:
+        flash('Please set up 2FA first.', 'error')
+        return redirect(url_for('two_fa_setup'))
+    
+    token = request.form.get('token', '').strip()
+    
+    # Verify the TOTP code
+    if TwoFactorAuth.verify_totp(user.totp_secret, token):
+        user.two_fa_enabled = True
+        db.session.commit()
+        flash('Two-Factor Authentication enabled successfully!', 'success')
+        app.logger.info(f'2FA enabled for admin user: {user.username}')
+        return redirect(url_for('user_profile'))
+    else:
+        flash('Invalid verification code. Please try again.', 'error')
+        return redirect(url_for('two_fa_setup'))
+
+@app.route('/2fa/disable', methods=['POST'])
+@login_required
+def two_fa_disable():
+    """Disable 2FA after password verification"""
+    from models import User
+    
+    # Only admins can have 2FA
+    if not current_user.is_admin():
+        flash('Access denied.', 'error')
+        return redirect(url_for('user_profile'))
+    
+    user = User.query.get(current_user.id)
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('user_profile'))
+    
+    password = request.form.get('password', '').strip()
+    
+    # Verify password before disabling 2FA
+    if not password or not user.check_password(password):
+        flash('Incorrect password. Cannot disable 2FA.', 'error')
+        return redirect(url_for('user_profile'))
+    
+    # Disable 2FA and clear secret
+    user.two_fa_enabled = False
+    user.totp_secret = None
+    db.session.commit()
+    flash('Two-Factor Authentication has been disabled.', 'info')
+    app.logger.info(f'2FA disabled for admin user: {user.username}')
+    return redirect(url_for('user_profile'))
+
+@app.route('/2fa/verify', methods=['GET', 'POST'])
+def two_fa_verify():
+    """Verify TOTP code during login"""
+    from models import User
+    from two_fa_utils import TwoFactorAuth
+    
+    # Check if user is in the middle of 2FA verification
+    if 'pending_2fa_user_id' not in session:
+        flash('Invalid session. Please log in again.', 'error')
+        return redirect(url_for('login'))
+    
+    user_id = session.get('pending_2fa_user_id')
+    user = User.query.get(user_id)
+    
+    if not user or not user.two_fa_enabled:
+        session.pop('pending_2fa_user_id', None)
+        flash('Invalid 2FA session.', 'error')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        token = request.form.get('token', '').strip()
+        
+        # Verify TOTP code
+        if TwoFactorAuth.verify_totp(user.totp_secret, token):
+            # 2FA successful, complete login
+            session.pop('pending_2fa_user_id', None)
+            from auth_utils import create_session
+            create_session(user.id, user.username, user.role, user.dispatch_area)
+            flash(f'Welcome back, {user.username}!', 'success')
+            app.logger.info(f'2FA login successful for user: {user.username}')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid verification code. Please try again.', 'error')
+            app.logger.warning(f'Failed 2FA attempt for user: {user.username}')
+    
+    return render_template('two_fa_verify.html', username=user.username)
 
 # API endpoints for dashboard data - Redirect to ultra-fast version
 # Simple in-memory cache for stats
