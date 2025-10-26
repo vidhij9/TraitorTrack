@@ -338,9 +338,61 @@ def before_request():
 # Add after_request handler for security headers
 @app.after_request
 def after_request(response):
-    """Add security headers and cache control"""
+    """Add comprehensive security headers including CSP"""
     
-    # Security headers
+    # Content Security Policy (CSP) - Comprehensive XSS protection
+    csp_directives = [
+        "default-src 'self'",
+        # Allow scripts from self, CDN, and inline (for Bootstrap functionality)
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+        # Allow styles from self, CDNs, and inline
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+        # Allow fonts from self, CDN, and data URIs
+        "font-src 'self' https://cdnjs.cloudflare.com data:",
+        # Allow images from self and data URIs (for inline SVG/base64)
+        "img-src 'self' data:",
+        # Restrict AJAX/fetch to self only
+        "connect-src 'self'",
+        # Prevent framing (clickjacking protection)
+        "frame-ancestors 'none'",
+        # Restrict base tag (prevents base tag injection attacks)
+        "base-uri 'self'",
+        # Restrict form submissions to self only
+        "form-action 'self'",
+        # Upgrade insecure requests in production
+        "upgrade-insecure-requests" if os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('ENVIRONMENT') == 'production' else ""
+    ]
+    # Filter out empty directives and join with semicolons
+    csp_policy = "; ".join([directive for directive in csp_directives if directive])
+    response.headers['Content-Security-Policy'] = csp_policy
+    
+    # Strict Transport Security (HSTS) - Force HTTPS in production
+    # Tells browsers to only connect via HTTPS for 1 year (31536000 seconds)
+    if os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('ENVIRONMENT') == 'production':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    
+    # Referrer Policy - Control referrer information leakage
+    # 'strict-origin-when-cross-origin' sends full URL for same-origin, only origin for cross-origin
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    # Permissions Policy - Disable unnecessary browser features
+    # Restricts camera, microphone, geolocation, payment, and other sensitive APIs
+    permissions_policies = [
+        "camera=()",
+        "microphone=()",
+        "geolocation=()",
+        "payment=()",
+        "usb=()",
+        "magnetometer=()",
+        "accelerometer=()",
+        "gyroscope=()"
+    ]
+    response.headers['Permissions-Policy'] = ", ".join(permissions_policies)
+    
+    # X-Download-Options - Prevent IE from executing downloads in site context
+    response.headers['X-Download-Options'] = 'noopen'
+    
+    # Basic security headers (existing)
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
