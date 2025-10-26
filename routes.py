@@ -6918,6 +6918,14 @@ def import_bags():
             flash('No file selected.', 'error')
             return redirect(url_for('import_bags'))
         
+        # Validate file upload with enhanced security
+        from validation_utils import InputValidator
+        allowed_extensions = ['.csv', '.xlsx', '.xls']
+        is_valid, error_msg = InputValidator.validate_file_upload(file.filename, allowed_extensions)
+        if not is_valid:
+            flash(error_msg, 'error')
+            return redirect(url_for('import_bags'))
+        
         # Determine file type and parse
         filename = (file.filename or '').lower()
         

@@ -361,3 +361,35 @@ def validate_api_input(data: dict, required_fields: dict, optional_fields: dict 
                     validated[field] = value
     
     return True, validated, ""
+
+def get_validated_request_data(request_obj) -> dict:
+    """
+    Extract and sanitize data from Flask request object
+    Supports form data, JSON, and query parameters
+    
+    Args:
+        request_obj: Flask request object (must be passed explicitly)
+        
+    Returns:
+        Dictionary of sanitized request data
+    """
+    data = {}
+    
+    # Get data from appropriate source (use passed request_obj)
+    if request_obj.json:
+        data = dict(request_obj.json)
+    elif request_obj.form:
+        data = dict(request_obj.form)
+    elif request_obj.args:
+        data = dict(request_obj.args)
+    
+    # Sanitize all string values to prevent XSS
+    sanitized_data = {}
+    for key, value in data.items():
+        if isinstance(value, str):
+            # Basic HTML sanitization for all string inputs
+            sanitized_data[key] = InputValidator.sanitize_html(value)
+        else:
+            sanitized_data[key] = value
+    
+    return sanitized_data

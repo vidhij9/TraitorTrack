@@ -69,20 +69,32 @@ class PromotionRequestForm(FlaskForm):
             reason.data = sanitized.strip()
 
 class AdminPromotionForm(FlaskForm):
-    """Form for admins to promote users directly."""
+    """Form for admins to promote users directly with enhanced validation."""
     user_id = SelectField('User to Promote', coerce=int, validators=[DataRequired()])
     notes = TextAreaField('Admin Notes', validators=[
         Length(max=300, message="Notes must be 300 characters or less.")
     ])
     submit = SubmitField('Promote to Admin')
+    
+    def validate_notes(self, notes):
+        """Sanitize admin notes to prevent XSS."""
+        if notes.data:
+            sanitized = InputValidator.sanitize_html(notes.data, max_length=300)
+            notes.data = sanitized.strip()
 
 class PromotionRequestActionForm(FlaskForm):
-    """Form for admins to approve/reject promotion requests."""
+    """Form for admins to approve/reject promotion requests with enhanced validation."""
     action = SelectField('Action', choices=[('approve', 'Approve'), ('reject', 'Reject')], validators=[DataRequired()])
     admin_notes = TextAreaField('Admin Notes', validators=[
         Length(max=300, message="Notes must be 300 characters or less.")
     ])
     submit = SubmitField('Process Request')
+    
+    def validate_admin_notes(self, admin_notes):
+        """Sanitize admin notes to prevent XSS."""
+        if admin_notes.data:
+            sanitized = InputValidator.sanitize_html(admin_notes.data, max_length=300)
+            admin_notes.data = sanitized.strip()
 
 
 
