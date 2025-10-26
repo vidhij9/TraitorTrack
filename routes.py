@@ -7432,6 +7432,223 @@ def admin_dashboard():
         flash(f'Error loading admin dashboard: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
 
+
+@app.route('/admin/user-activity')
+@admin_required
+@limiter.exempt  # Exempt from rate limiting for admin functionality
+def user_activity_dashboard():
+    """
+    Comprehensive user activity dashboard for admins
+    Shows login history, active sessions, security events, and user statistics
+    """
+    try:
+        from datetime import datetime, timedelta
+        from sqlalchemy import func, text, and_, or_
+        
+        # Get filter parameters
+        days = request.args.get('days', 7, type=int)  # Default 7 days
+        user_filter = request.args.get('user')
+        action_filter = request.args.get('action')
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        
+        # Calculate date range
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        # ===== SECTION 1: RECENT LOGIN ACTIVITY =====
+        login_actions = ['login_success', 'login_failed_user_not_found', 
+                        'login_failed_invalid_password', 'login_blocked_account_locked',
+                        'login_password_success_pending_2fa', '2fa_verify_success_login_complete']
+        
+        recent_logins_query = AuditLog.query.filter(
+            and_(
+                AuditLog.timestamp >= start_date,
+                AuditLog.action.in_(login_actions)
+            )
+        )
+        
+        if user_filter:
+            recent_logins_query = recent_logins_query.join(User).filter(User.username.ilike(f'%{user_filter}%'))
+        
+        recent_logins = recent_logins_query.order_by(AuditLog.timestamp.desc()).limit(50).all()
+        
+        # ===== SECTION 2: LOGIN STATISTICS =====
+        login_stats_query = text("""
+            WITH login_events AS (
+                SELECT 
+                    user_id,
+                    action,
+                    COUNT(*) as count
+                FROM audit_log
+                WHERE timestamp >= :start_date
+                AND action IN ('login_success', 'login_failed_invalid_password', 
+                              'login_blocked_account_locked', '2fa_verify_success_login_complete')
+                GROUP BY user_id, action
+            ),
+            user_login_stats AS (
+                SELECT 
+                    u.id,
+                    u.username,
+                    u.role,
+                    COALESCE(MAX(CASE WHEN le.action IN ('login_success', '2fa_verify_success_login_complete') 
+                                     THEN le.count END), 0) as successful_logins,
+                    COALESCE(MAX(CASE WHEN le.action = 'login_failed_invalid_password' 
+                                     THEN le.count END), 0) as failed_logins,
+                    COALESCE(MAX(CASE WHEN le.action = 'login_blocked_account_locked' 
+                                     THEN le.count END), 0) as locked_attempts
+                FROM "user" u
+                LEFT JOIN login_events le ON u.id = le.user_id
+                GROUP BY u.id, u.username, u.role
+                HAVING COALESCE(MAX(CASE WHEN le.action IN ('login_success', '2fa_verify_success_login_complete') 
+                                        THEN le.count END), 0) > 0
+                   OR COALESCE(MAX(CASE WHEN le.action = 'login_failed_invalid_password' 
+                                        THEN le.count END), 0) > 0
+            )
+            SELECT * FROM user_login_stats
+            ORDER BY successful_logins DESC
+            LIMIT 20
+        """)
+        
+        login_stats = db.session.execute(
+            login_stats_query,
+            {'start_date': start_date}
+        ).fetchall()
+        
+        # ===== SECTION 3: CURRENTLY ACTIVE USERS =====
+        # Consider users active if they have ANY audit log activity in last hour
+        active_threshold = datetime.utcnow() - timedelta(hours=1)
+        
+        active_users_query = text("""
+            SELECT DISTINCT ON (u.id)
+                u.id,
+                u.username,
+                u.role,
+                u.dispatch_area,
+                al.timestamp as last_activity,
+                al.ip_address,
+                al.action as last_action
+            FROM "user" u
+            INNER JOIN audit_log al ON u.id = al.user_id
+            WHERE al.timestamp >= :active_threshold
+            ORDER BY u.id, al.timestamp DESC
+        """)
+        
+        active_users = db.session.execute(
+            active_users_query,
+            {'active_threshold': active_threshold}
+        ).fetchall()
+        
+        # ===== SECTION 4: SECURITY EVENTS =====
+        security_actions = ['password_changed', '2fa_enabled', '2fa_disabled', 
+                           'role_change', 'user_deleted', 'account_locked', 'account_unlocked']
+        
+        security_events_query = AuditLog.query.filter(
+            and_(
+                AuditLog.timestamp >= start_date,
+                AuditLog.action.in_(security_actions)
+            )
+        ).order_by(AuditLog.timestamp.desc()).limit(50)
+        
+        security_events = security_events_query.all()
+        
+        # ===== SECTION 5: FAILED LOGIN ATTEMPTS SUMMARY =====
+        failed_logins_query = text("""
+            SELECT 
+                u.username,
+                u.role,
+                COUNT(*) as failed_count,
+                MAX(al.timestamp) as last_failed,
+                STRING_AGG(DISTINCT al.ip_address, ', ') as ip_addresses
+            FROM audit_log al
+            LEFT JOIN "user" u ON al.user_id = u.id
+            WHERE al.timestamp >= :start_date
+            AND al.action IN ('login_failed_invalid_password', 'login_blocked_account_locked')
+            GROUP BY u.username, u.role
+            ORDER BY failed_count DESC
+            LIMIT 20
+        """)
+        
+        failed_logins_summary = db.session.execute(
+            failed_logins_query,
+            {'start_date': start_date}
+        ).fetchall()
+        
+        # ===== SECTION 6: 2FA EVENTS =====
+        twofa_events_query = AuditLog.query.filter(
+            and_(
+                AuditLog.timestamp >= start_date,
+                AuditLog.action.in_(['2fa_enabled', '2fa_disabled', '2fa_verify_success', '2fa_verify_failed'])
+            )
+        ).order_by(AuditLog.timestamp.desc()).limit(30)
+        
+        twofa_events = twofa_events_query.all()
+        
+        # ===== SECTION 7: AGGREGATE STATISTICS =====
+        total_logins_today = AuditLog.query.filter(
+            and_(
+                AuditLog.timestamp >= datetime.utcnow() - timedelta(days=1),
+                AuditLog.action.in_(['login_success', '2fa_verify_success_login_complete'])
+            )
+        ).count()
+        
+        total_failed_today = AuditLog.query.filter(
+            and_(
+                AuditLog.timestamp >= datetime.utcnow() - timedelta(days=1),
+                AuditLog.action == 'login_failed_invalid_password'
+            )
+        ).count()
+        
+        unique_active_users = len(active_users)
+        
+        # ===== SECTION 8: ALL ACTIVITY EVENTS (PAGINATED) =====
+        all_events_query = AuditLog.query.filter(AuditLog.timestamp >= start_date)
+        
+        if user_filter:
+            all_events_query = all_events_query.join(User).filter(User.username.ilike(f'%{user_filter}%'))
+        
+        if action_filter:
+            all_events_query = all_events_query.filter(AuditLog.action.ilike(f'%{action_filter}%'))
+        
+        all_events_paginated = all_events_query.order_by(
+            AuditLog.timestamp.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        
+        # Prepare template context
+        context = {
+            'days': days,
+            'start_date': start_date,
+            'end_date': end_date,
+            'user_filter': user_filter,
+            'action_filter': action_filter,
+            
+            # Activity data
+            'recent_logins': recent_logins,
+            'login_stats': login_stats,
+            'active_users': active_users,
+            'security_events': security_events,
+            'failed_logins_summary': failed_logins_summary,
+            'twofa_events': twofa_events,
+            
+            # Aggregate stats
+            'total_logins_today': total_logins_today,
+            'total_failed_today': total_failed_today,
+            'unique_active_users': unique_active_users,
+            
+            # Paginated all events
+            'all_events': all_events_paginated,
+            
+            # Helper function for template
+            'format_datetime': format_datetime_ist
+        }
+        
+        return render_template('user_activity_dashboard.html', **context)
+        
+    except Exception as e:
+        app.logger.error(f"User activity dashboard error: {str(e)}", exc_info=True)
+        flash(f'Error loading user activity dashboard: {str(e)}', 'error')
+        return redirect(url_for('admin_dashboard'))
+
 @app.route('/reports')
 @login_required
 def reports_page():

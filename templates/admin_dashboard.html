@@ -1,6 +1,6 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
 
-{% block title %}Admin Dashboard - TraceTrack{% endblock %}
+{% block title %} - Admin Dashboard{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -87,8 +87,11 @@
                     <a href="/user_management" class="btn btn-outline-primary btn-block mb-2">
                         <i class="fas fa-users"></i> Manage Users
                     </a>
+                    <a href="/admin/user-activity" class="btn btn-outline-warning btn-block mb-2">
+                        <i class="fas fa-chart-line"></i> User Activity Dashboard
+                    </a>
                     <a href="/performance/dashboard" class="btn btn-outline-info btn-block mb-2">
-                        <i class="fas fa-chart-line"></i> Performance Monitor
+                        <i class="fas fa-chart-area"></i> Performance Monitor
                     </a>
                     <a href="/reports" class="btn btn-outline-success btn-block mb-2">
                         <i class="fas fa-chart-bar"></i> System Reports

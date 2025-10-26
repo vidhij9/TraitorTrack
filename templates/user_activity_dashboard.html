@@ -1,0 +1,498 @@
+{% extends "layout.html" %}
+
+{% block title %} - User Activity Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-chart-line"></i> User Activity Dashboard</h2>
+            <p class="text-muted">Comprehensive view of user logins, sessions, and security events</p>
+        </div>
+    </div>
+    
+    <!-- ===== STATISTICS CARDS ===== -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ total_logins_today }}</h4>
+                            <p class="mb-0">Logins Today</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-sign-in-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ unique_active_users }}</h4>
+                            <p class="mb-0">Active Users (1h)</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ total_failed_today }}</h4>
+                            <p class="mb-0">Failed Logins Today</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ security_events|length }}</h4>
+                            <p class="mb-0">Security Events</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-shield-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== FILTERS ===== -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{{ url_for('user_activity_dashboard') }}" class="form-inline">
+                        <div class="form-group mr-3">
+                            <label for="days" class="mr-2">Time Range:</label>
+                            <select name="days" id="days" class="form-control">
+                                <option value="1" {% if days == 1 %}selected{% endif %}>Last 24 Hours</option>
+                                <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 Days</option>
+                                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 Days</option>
+                                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 Days</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group mr-3">
+                            <label for="user" class="mr-2">User:</label>
+                            <input type="text" name="user" id="user" class="form-control" placeholder="Username" value="{{ user_filter or '' }}">
+                        </div>
+                        
+                        <div class="form-group mr-3">
+                            <label for="action" class="mr-2">Action:</label>
+                            <input type="text" name="action" id="action" class="form-control" placeholder="Action type" value="{{ action_filter or '' }}">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Apply Filters
+                        </button>
+                        
+                        <a href="{{ url_for('user_activity_dashboard') }}" class="btn btn-secondary ml-2">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== CURRENTLY ACTIVE USERS ===== -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-user-check"></i> Currently Active Users (Last Hour)</h5>
+                </div>
+                <div class="card-body">
+                    {% if active_users %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Dispatch Area</th>
+                                    <th>Last Activity</th>
+                                    <th>Last Action</th>
+                                    <th>IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in active_users %}
+                                <tr>
+                                    <td><strong>{{ user.username }}</strong></td>
+                                    <td>
+                                        <span class="badge badge-{{ 'danger' if user.role == 'admin' else ('info' if user.role == 'biller' else 'secondary') }}">
+                                            {{ user.role|upper }}
+                                        </span>
+                                    </td>
+                                    <td>{{ user.dispatch_area or '-' }}</td>
+                                    <td>
+                                        <span class="text-success">
+                                            <i class="fas fa-clock"></i> {{ format_datetime(user.last_activity) }}
+                                        </span>
+                                    </td>
+                                    <td><code>{{ user.last_action }}</code></td>
+                                    <td><small>{{ user.ip_address }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No users active in the last hour.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== LOGIN STATISTICS BY USER ===== -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-chart-bar"></i> Login Statistics (Last {{ days }} Days)</h5>
+                </div>
+                <div class="card-body">
+                    {% if login_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th><span class="text-success">Successful</span></th>
+                                    <th><span class="text-danger">Failed</span></th>
+                                    <th><span class="text-warning">Locked</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in login_stats %}
+                                <tr>
+                                    <td><strong>{{ stat.username }}</strong></td>
+                                    <td><span class="badge badge-sm badge-secondary">{{ stat.role }}</span></td>
+                                    <td><span class="badge badge-success">{{ stat.successful_logins }}</span></td>
+                                    <td><span class="badge badge-danger">{{ stat.failed_logins }}</span></td>
+                                    <td><span class="badge badge-warning">{{ stat.locked_attempts }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No login activity in selected period.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- ===== FAILED LOGIN ATTEMPTS ===== -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Failed Login Attempts</h5>
+                </div>
+                <div class="card-body">
+                    {% if failed_logins_summary %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Failed Count</th>
+                                    <th>Last Failed</th>
+                                    <th>IP Addresses</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fail in failed_logins_summary %}
+                                <tr>
+                                    <td><strong>{{ fail.username or 'Unknown' }}</strong></td>
+                                    <td><span class="badge badge-danger">{{ fail.failed_count }}</span></td>
+                                    <td><small>{{ format_datetime(fail.last_failed) }}</small></td>
+                                    <td><small>{{ fail.ip_addresses }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No failed login attempts in selected period.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== RECENT LOGIN ACTIVITY ===== -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history"></i> Recent Login Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_logins %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Username</th>
+                                    <th>Action</th>
+                                    <th>IP Address</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in recent_logins %}
+                                <tr class="{{ 'table-danger' if 'failed' in event.action or 'blocked' in event.action else ('table-success' if 'success' in event.action else '') }}">
+                                    <td><small>{{ format_datetime(event.timestamp) }}</small></td>
+                                    <td>
+                                        {% if event.user %}
+                                        <strong>{{ event.user.username }}</strong>
+                                        {% else %}
+                                        <em>Unknown</em>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <code>{{ event.action }}</code>
+                                        {% if 'success' in event.action %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                        {% elif 'failed' in event.action or 'blocked' in event.action %}
+                                        <i class="fas fa-times-circle text-danger"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td><small>{{ event.ip_address }}</small></td>
+                                    <td><small>{{ event.details or '-' }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No login activity in selected period.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== SECURITY EVENTS ===== -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="fas fa-shield-alt"></i> Security Events</h5>
+                </div>
+                <div class="card-body">
+                    {% if security_events %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>User</th>
+                                    <th>Event</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in security_events %}
+                                <tr>
+                                    <td><small>{{ format_datetime(event.timestamp) }}</small></td>
+                                    <td>
+                                        {% if event.user %}
+                                        <strong>{{ event.user.username }}</strong>
+                                        {% else %}
+                                        <em>System</em>
+                                        {% endif %}
+                                    </td>
+                                    <td><code>{{ event.action }}</code></td>
+                                    <td><small>{{ event.details or '-' }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No security events in selected period.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- ===== 2FA EVENTS ===== -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5><i class="fas fa-lock"></i> Two-Factor Authentication Events</h5>
+                </div>
+                <div class="card-body">
+                    {% if twofa_events %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>User</th>
+                                    <th>Event</th>
+                                    <th>IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in twofa_events %}
+                                <tr class="{{ 'table-success' if 'enabled' in event.action else ('table-warning' if 'disabled' in event.action else '') }}">
+                                    <td><small>{{ format_datetime(event.timestamp) }}</small></td>
+                                    <td>
+                                        {% if event.user %}
+                                        <strong>{{ event.user.username }}</strong>
+                                        {% else %}
+                                        <em>Unknown</em>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <code>{{ event.action }}</code>
+                                        {% if 'success' in event.action or 'enabled' in event.action %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                        {% elif 'failed' in event.action or 'disabled' in event.action %}
+                                        <i class="fas fa-times-circle text-warning"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td><small>{{ event.ip_address }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No 2FA events in selected period.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== ALL ACTIVITY EVENTS (PAGINATED) ===== -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list"></i> All Activity Events</h5>
+                </div>
+                <div class="card-body">
+                    {% if all_events.items %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Entity</th>
+                                    <th>IP Address</th>
+                                    <th>Request ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in all_events.items %}
+                                <tr>
+                                    <td><small>{{ format_datetime(event.timestamp) }}</small></td>
+                                    <td>
+                                        {% if event.user %}
+                                        {{ event.user.username }}
+                                        {% else %}
+                                        <em>System</em>
+                                        {% endif %}
+                                    </td>
+                                    <td><code>{{ event.action }}</code></td>
+                                    <td>
+                                        <small>
+                                            {{ event.entity_type }}
+                                            {% if event.entity_id %}#{{ event.entity_id }}{% endif %}
+                                        </small>
+                                    </td>
+                                    <td><small>{{ event.ip_address }}</small></td>
+                                    <td><small><code>{{ event.request_id[:8] if event.request_id else '-' }}</code></small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if all_events.pages > 1 %}
+                    <nav aria-label="Activity pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if all_events.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('user_activity_dashboard', page=all_events.prev_num, days=days, user=user_filter, action=action_filter) }}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in range(1, all_events.pages + 1) %}
+                            {% if page_num <= 3 or page_num > all_events.pages - 3 or (page_num >= all_events.page - 1 and page_num <= all_events.page + 1) %}
+                            <li class="page-item {{ 'active' if page_num == all_events.page else '' }}">
+                                <a class="page-link" href="{{ url_for('user_activity_dashboard', page=page_num, days=days, user=user_filter, action=action_filter) }}">{{ page_num }}</a>
+                            </li>
+                            {% elif page_num == 4 or page_num == all_events.pages - 3 %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if all_events.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('user_activity_dashboard', page=all_events.next_num, days=days, user=user_filter, action=action_filter) }}">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <p class="text-center text-muted">Page {{ all_events.page }} of {{ all_events.pages }} ({{ all_events.total }} total events)</p>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-muted">No activity events found for the selected filters.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+.card-header {
+    font-weight: 600;
+}
+.table-sm td, .table-sm th {
+    padding: 0.5rem;
+}
+</style>
+{% endblock %}
