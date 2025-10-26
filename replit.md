@@ -82,11 +82,12 @@ The project follows a standard Flask application structure, separating concerns 
 
 ## Recent Changes (October 2025)
 
-### Enterprise-Grade System Transformation (27/67 tasks completed - 40% progress)
+### Enterprise-Grade System Transformation (30/67 tasks completed - 45% progress)
 
 **Phase 1: Security Hardening ✅**
 - **Password Security**: Removed hash logging, added complexity requirements (8+ chars, uppercase, number, special char)
 - **Account Protection**: 5-attempt lockout system with automatic unlock tracking
+- **Password Reset**: Secure token-based email flow (1-hour expiration, CSPRNG tokens, email enumeration protection, rate limiting 3/min forgot + 5/min reset)
 - **CSRF Protection**: Re-enabled across all forms, no bypass paths
 - **Admin Security**: Secured /fix-admin-password endpoint with proper authentication
 - **Rate Limiting**: Strict limits on authentication endpoints (Login: 10/min, Register: 5/min, Fix-admin-password: 3/hour) to prevent brute-force and spam attacks
