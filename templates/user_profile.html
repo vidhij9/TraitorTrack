@@ -80,9 +80,105 @@
                             {% endif %}
                         </div>
                     </div>
+                    
+                    {% if user.role == 'admin' %}
+                    <div class="mt-4">
+                        <h5><i class="fas fa-shield-alt me-2"></i>Security Settings</h5>
+                        <hr>
+                        
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h6 class="mb-2">
+                                            <i class="fas fa-mobile-alt me-2"></i>Two-Factor Authentication (2FA)
+                                        </h6>
+                                        <p class="text-muted small mb-0">
+                                            Add an extra layer of security to your account by requiring a verification code from your phone.
+                                        </p>
+                                        <div class="mt-2">
+                                            {% if user.two_fa_enabled %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle me-1"></i>Enabled
+                                                </span>
+                                                <small class="text-muted ms-2">Your account is protected with 2FA</small>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-times-circle me-1"></i>Disabled
+                                                </span>
+                                                <small class="text-muted ms-2">2FA is not enabled on your account</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        {% if user.two_fa_enabled %}
+                                            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#disable2FAModal">
+                                                <i class="fas fa-times me-1"></i>Disable 2FA
+                                            </button>
+                                        {% else %}
+                                            <a href="{{ url_for('two_fa_setup') }}" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-shield-alt me-1"></i>Enable 2FA
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% if user.role == 'admin' and user.two_fa_enabled %}
+<!-- Disable 2FA Modal -->
+<div class="modal fade" id="disable2FAModal" tabindex="-1" aria-labelledby="disable2FAModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="disable2FAModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Disable Two-Factor Authentication
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('two_fa_disable') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Warning:</strong> Disabling 2FA will make your account less secure. You'll only need your password to log in.
+                    </div>
+                    
+                    <p>Please enter your password to confirm:</p>
+                    
+                    <div class="mb-3">
+                        <label for="disable-2fa-password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="disable-2fa-password" 
+                                   name="password" 
+                                   placeholder="Enter your password"
+                                   required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-shield-alt me-1"></i>Disable 2FA
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

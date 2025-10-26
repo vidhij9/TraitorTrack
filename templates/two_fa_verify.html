@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block title %}Two-Factor Authentication - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header bg-primary bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Two-Factor Authentication</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <p class="mb-0">Welcome back, <strong>{{ username }}</strong>! Please enter the verification code from your authenticator app to complete login.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('two_fa_verify') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="mb-4">
+                            <label for="token" class="form-label">Verification Code</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">
+                                    <i class="fas fa-hashtag"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control text-center font-monospace" 
+                                       id="token" 
+                                       name="token" 
+                                       placeholder="000000" 
+                                       maxlength="6"
+                                       pattern="[0-9]{6}"
+                                       inputmode="numeric"
+                                       autocomplete="off"
+                                       required 
+                                       autofocus>
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-clock me-1"></i>Enter the 6-digit code from your authenticator app
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Verify & Login
+                            </button>
+                            <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel & Logout
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer bg-light">
+                    <p class="mb-0 text-center text-muted small">
+                        <i class="fas fa-lock me-1"></i>Your account is protected by Two-Factor Authentication
+                    </p>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Lost access?</strong> If you can't access your authenticator app, please contact your system administrator.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-submit when 6 digits are entered (UX enhancement)
+document.getElementById('token').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '').substring(0, 6);
+    e.target.value = value;
+    
+    // Auto-submit when 6 digits entered
+    if (value.length === 6) {
+        // Small delay for better UX
+        setTimeout(() => {
+            e.target.form.submit();
+        }, 300);
+    }
+});
+
+// Focus on input when page loads
+window.addEventListener('load', function() {
+    document.getElementById('token').focus();
+});
+</script>
+{% endblock %}

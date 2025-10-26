@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+
+{% block title %}Two-Factor Authentication Setup - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary bg-opacity-25 text-dark">
+                    <h4 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Two-Factor Authentication Setup</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Enhanced Security</strong>
+                        <p class="mb-0">Two-Factor Authentication adds an extra layer of security to your admin account. You'll need your password and a verification code from your authenticator app to log in.</p>
+                    </div>
+
+                    <h5 class="mt-4 mb-3"><i class="fas fa-mobile-alt me-2"></i>Step 1: Scan QR Code</h5>
+                    <p class="text-muted">Use an authenticator app (Google Authenticator, Authy, Microsoft Authenticator, etc.) to scan this QR code:</p>
+                    
+                    <div class="text-center my-4">
+                        <div class="border rounded p-3 bg-white d-inline-block">
+                            <img src="{{ qr_code }}" alt="2FA QR Code" class="img-fluid" style="max-width: 250px;">
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3"><i class="fas fa-key me-2"></i>Step 2: Manual Entry (Alternative)</h5>
+                    <p class="text-muted">If you can't scan the QR code, manually enter this secret key in your authenticator app:</p>
+                    
+                    <div class="alert alert-secondary">
+                        <div class="input-group">
+                            <input type="text" class="form-control font-monospace" id="secret-key" value="{{ secret }}" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copySecret()">
+                                <i class="fas fa-copy me-1"></i>Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3"><i class="fas fa-check-circle me-2"></i>Step 3: Verify & Enable</h5>
+                    <p class="text-muted">Enter the 6-digit code from your authenticator app to complete setup:</p>
+
+                    <form method="POST" action="{{ url_for('two_fa_enable') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="mb-3">
+                            <label for="token" class="form-label">Verification Code</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-hashtag"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control form-control-lg text-center font-monospace" 
+                                       id="token" 
+                                       name="token" 
+                                       placeholder="000000" 
+                                       maxlength="6"
+                                       pattern="[0-9]{6}"
+                                       inputmode="numeric"
+                                       autocomplete="off"
+                                       required 
+                                       autofocus>
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-clock me-1"></i>The code refreshes every 30 seconds
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-shield-alt me-2"></i>Enable Two-Factor Authentication
+                            </button>
+                            <a href="{{ url_for('user_profile') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Important:</strong> Keep your authenticator app secure. If you lose access to it, you may not be able to log into your account.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copySecret() {
+    const secretInput = document.getElementById('secret-key');
+    secretInput.select();
+    secretInput.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        const btn = event.target.closest('button');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-secondary');
+        }, 2000);
+    } catch (err) {
+        alert('Failed to copy. Please manually select and copy the secret key.');
+    }
+}
+
+// Auto-format token input (add space every 3 digits for readability)
+document.getElementById('token').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '').substring(0, 6);
+    e.target.value = value;
+});
+</script>
+{% endblock %}
