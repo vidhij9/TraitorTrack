@@ -5463,6 +5463,7 @@ def api_system_health():
     try:
         import psutil
         import os
+        import time
         from datetime import datetime
         from cache_utils import get_cache_stats
         from pool_monitor import get_pool_monitor
@@ -6907,7 +6908,8 @@ def import_bags():
         return redirect(url_for('dashboard'))
     
     if request.method == 'GET':
-        return render_template('import_bags.html')
+        max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024) / (1024 * 1024)
+        return render_template('import_bags.html', max_file_size_mb=max_size_mb)
     
     # Handle POST - file upload
     try:
@@ -6986,7 +6988,8 @@ def import_bills():
         return redirect(url_for('dashboard'))
     
     if request.method == 'GET':
-        return render_template('import_bills.html')
+        max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024) / (1024 * 1024)
+        return render_template('import_bills.html', max_file_size_mb=max_size_mb)
     
     # Handle POST - file upload
     try:

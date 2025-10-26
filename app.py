@@ -88,6 +88,19 @@ app.config.update(
     PREFERRED_URL_SCHEME='https' if is_production else 'http'
 )
 
+# File upload size limits (for security and performance)
+# MAX_FILE_UPLOAD_SIZE must be in bytes (integer). Default: 16MB
+try:
+    max_upload_size = int(os.environ.get('MAX_FILE_UPLOAD_SIZE', str(16 * 1024 * 1024)))
+    if max_upload_size < 1024:  # Minimum 1KB
+        raise ValueError("MAX_FILE_UPLOAD_SIZE must be at least 1024 bytes")
+    if max_upload_size > 100 * 1024 * 1024:  # Maximum 100MB
+        raise ValueError("MAX_FILE_UPLOAD_SIZE cannot exceed 100MB (104857600 bytes)")
+    app.config['MAX_CONTENT_LENGTH'] = max_upload_size
+    logger.info(f"File upload size limit: {max_upload_size / (1024 * 1024):.1f}MB")
+except ValueError as e:
+    raise ValueError(f"Invalid MAX_FILE_UPLOAD_SIZE environment variable. Must be an integer in bytes. Error: {e}")
+
 logger.info(f"Environment: {'production' if is_production else 'development'} - HTTPS cookies: {is_production}")
 
 # Initialize Flask-Session

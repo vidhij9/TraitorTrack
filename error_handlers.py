@@ -59,6 +59,34 @@ def setup_error_handlers(app):
                              error_title='Page Not Found',
                              error_message='The page you are looking for could not be found.'), 404
 
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        """Handle file upload size exceeded errors"""
+        try:
+            max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024) / (1024 * 1024)
+        except Exception:
+            max_size_mb = 16  # Fallback
+        
+        # Check if client expects JSON (API endpoints or Accept header)
+        is_api_client = (
+            request.is_json or 
+            request.path.startswith('/api/') or
+            'application/json' in request.headers.get('Accept', '')
+        )
+        
+        if is_api_client:
+            return jsonify({
+                'success': False,
+                'error': 'File too large',
+                'message': f'File size exceeds maximum allowed size of {max_size_mb:.0f}MB.'
+            }), 413
+        
+        flash(f'File is too large. Maximum file size is {max_size_mb:.0f}MB.', 'error')
+        return render_template('error.html',
+                             error_code=413,
+                             error_title='File Too Large',
+                             error_message=f'The uploaded file exceeds the maximum allowed size of {max_size_mb:.0f}MB. Please upload a smaller file.'), 413
+
     @app.errorhandler(500)
     def internal_server_error(error):
         """Handle internal server errors"""

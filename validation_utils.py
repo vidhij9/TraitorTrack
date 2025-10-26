@@ -294,12 +294,12 @@ class InputValidator:
     def validate_file_upload(filename: str, allowed_extensions: list, 
                             max_size_mb: int = 10) -> Tuple[bool, str]:
         """
-        Validate file upload
+        Validate file upload filename and extension
         
         Args:
             filename: Name of uploaded file
             allowed_extensions: List of allowed file extensions (e.g., ['.csv', '.xlsx'])
-            max_size_mb: Maximum file size in MB
+            max_size_mb: Maximum file size in MB (not enforced by this method - use validate_file_size)
             
         Returns:
             Tuple of (is_valid, error_message)
@@ -315,6 +315,36 @@ class InputValidator:
         # Prevent path traversal
         if '..' in filename or '/' in filename or '\\' in filename:
             return False, "Invalid filename"
+        
+        return True, ""
+    
+    @staticmethod
+    def validate_file_size(file_obj, max_size_mb: int = 16) -> Tuple[bool, str]:
+        """
+        Validate file size by reading file object
+        
+        Args:
+            file_obj: FileStorage object from Flask request.files
+            max_size_mb: Maximum file size in MB
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not file_obj:
+            return False, "No file provided"
+        
+        # Save current position
+        file_obj.seek(0, 2)  # Seek to end
+        file_size = file_obj.tell()  # Get position (file size)
+        file_obj.seek(0)  # Reset to beginning
+        
+        max_size_bytes = max_size_mb * 1024 * 1024
+        
+        if file_size > max_size_bytes:
+            return False, f"File size ({file_size / (1024 * 1024):.1f}MB) exceeds maximum allowed size of {max_size_mb}MB"
+        
+        if file_size == 0:
+            return False, "File is empty"
         
         return True, ""
 

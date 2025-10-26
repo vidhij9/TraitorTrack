@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block title %}Import Bags - TraceTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-file-import"></i> Bulk Import Bags
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Upload CSV or Excel file</strong> to import multiple bags at once.
+                        Maximum file size: <strong>{{ max_file_size_mb|int }}MB</strong>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" id="importForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="mb-3">
+                            <label for="file" class="form-label">
+                                <i class="fas fa-file-csv"></i> Select File
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="file" 
+                                   name="file" 
+                                   accept=".csv,.xlsx,.xls"
+                                   required>
+                            <div class="form-text">
+                                Accepted formats: CSV (.csv), Excel (.xlsx, .xls) - Max {{ max_file_size_mb|int }}MB
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>Required Columns:</h6>
+                            <ul class="small text-muted">
+                                <li><code>qr_id</code> - Unique QR code identifier</li>
+                                <li><code>type</code> - "parent" or "child"</li>
+                            </ul>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>Example CSV Format:</h6>
+                            <pre class="bg-light p-2 rounded"><code>qr_id,type
+BAG001,parent
+BAG002,child
+BAG003,parent</code></pre>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                            <a href="{{ url_for('bag_management') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload"></i> Upload & Import
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-4 alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Note:</strong> Duplicate QR codes will be skipped. Only valid bags will be imported.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('importForm').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('file');
+    const file = fileInput.files[0];
+    const maxSizeMB = {{ max_file_size_mb|int }};
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    
+    if (file && file.size > maxSizeBytes) {
+        e.preventDefault();
+        alert('File size exceeds ' + maxSizeMB + 'MB limit. Please upload a smaller file.');
+        return false;
+    }
+});
+</script>
+{% endblock %}

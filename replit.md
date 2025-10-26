@@ -1,7 +1,7 @@
 # TraceTrack - Bag Tracking System
 
 ## Overview
-TraceTrack is a high-performance web-based bag tracking system designed for warehouse and logistics operations. It efficiently manages parent-child bag relationships, scanning processes, and bill generation. The system is built to support over 100 concurrent users and handle more than 1.8 million bags, providing a production-ready interface for dispatchers, billers, and administrators with real-time tracking capabilities. Its core purpose is to streamline logistics, enhance operational efficiency, and provide robust, scalable bag management.
+TraceTrack is a high-performance, production-ready web-based bag tracking system designed for warehouse and logistics operations. It efficiently manages parent-child bag relationships, scanning processes, and bill generation. The system is built to support over 100 concurrent users and handle more than 1.8 million bags, providing real-time tracking capabilities for dispatchers, billers, and administrators. Its core purpose is to streamline logistics, enhance operational efficiency, and provide robust, scalable bag management.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -27,24 +27,12 @@ The project follows a standard Flask application structure, separating concerns 
 - AJAX-powered dashboard for real-time statistics.
 
 **System Design Choices:**
-- **Production-Scale Optimizations**:
-    - **Statistics Cache System**: `statistics_cache` table with comprehensive database triggers ensures real-time, sub-10ms dashboard stats at any scale by avoiding expensive `COUNT(*)` queries.
-    - **Connection Pool Optimization**: Configured for multi-worker environments (25 base + 15 overflow per worker, 80 total for 2 workers), ensuring high concurrency without exceeding database limits.
-    - **API Pagination & Performance**: Strict limits (200 rows max, 10,000 max offset) and smart count strategies prevent performance bottlenecks for large datasets.
-    - **Database Indexes**: Composite indexes on critical tables (Scan, AuditLog) optimize common query patterns for 1.8M+ records.
-    - **High-Performance Query Optimizer (`query_optimizer.py`)**: Implements raw SQL and in-memory caching for critical operations like `get_bag_by_qr()`, `get_child_count_fast()`, and batch linking, significantly improving scanner and bill-linking workflow speeds.
-    - **Smart Role-Aware Caching (`cache_utils.py`)**: Secure, high-performance caching system with separate decorators for global and user-specific data. Features automatic cache key generation including user identity, query parameters, and request context to prevent data leaks while maintaining 10x performance boost. Includes intelligent cache invalidation on data changes.
-- **Session Management**: Filesystem-based sessions with dual timeout mechanism - 1-hour absolute timeout and 30-minute inactivity timeout. Includes automatic timeout detection, activity tracking on every request, and user warnings before session expiration. Secured with HTTPOnly and SameSite=Lax cookies.
-- **Security Features**: 
-    - Requires `SESSION_SECRET` environment variable
-    - Auto-detection of production environment (REPLIT_DEPLOYMENT=1 or ENVIRONMENT=production) enables HTTPS-only cookies
-    - Secure password hashing (scrypt), CSRF protection, session validation, and security headers
-    - In-memory rate limiting to prevent abuse
-- **System Health Monitoring**:
-    - Real-time metrics endpoint (`/api/system_health`) for admin users
-    - Tracks database connection pool, cache performance, memory usage, database size, and error counts
-    - Admin dashboard displays key system health indicators
-- **Deployment**: Utilizes `gunicorn` with sync workers for efficient resource management, designed for cloud environments with environment variable-driven configuration.
+- **Production-Scale Optimizations**: Includes a statistics cache system, optimized connection pooling, API pagination limits, database indexing on critical tables, a high-performance query optimizer, and smart role-aware caching with invalidation.
+- **Session Management**: Filesystem-based sessions with dual timeout mechanism (1-hour absolute, 30-minute inactivity), activity tracking, user warnings, and secure HTTPOnly/SameSite=Lax cookies.
+- **Security Features**: Secure password hashing (scrypt), CSRF protection, session validation, security headers, in-memory rate limiting, and auto-detection of production environment for HTTPS-only cookies.
+- **System Health Monitoring**: Real-time metrics endpoint and admin dashboard tracking database connection pool, cache performance, memory usage, database size, and error counts.
+- **Deployment**: Utilizes `gunicorn` with sync workers, designed for cloud environments with environment variable-driven configuration.
+- **Validation Framework**: Comprehensive input validation utilities (`validation_utils.py`) for QR codes, search queries, HTML sanitization, pagination, email/username, numeric ranges, choice/enum, and file uploads (size, type, path traversal).
 
 ### Feature Specifications
 
@@ -57,17 +45,18 @@ The project follows a standard Flask application structure, separating concerns 
 - **System Health Dashboard**: Admin-only interface showing database connections, cache hit rate, memory usage, and database size.
 - **Audit Logging**: Complete tracking of all user actions with timestamp and user information.
 - **Search & Filtering**: Fast search across bags, bills, and users with pagination.
+- **Data Import/Export**: Optimized CSV/Excel export (10K record limit) and bulk import with validation.
 
 **Disabled Features:**
-- **Excel Upload**: Temporarily disabled for system optimization. Users can create bags individually or use API batch creation. Will be re-enabled after optimization. Alternative documented in `templates/feature_disabled.html`.
-- **Email Notifications**: Not yet configured. Requires SENDGRID_API_KEY. Users can view EOD summaries manually via `/eod_summary_preview`. See `FEATURES.md` for details.
+- **Excel Upload**: Temporarily disabled for system optimization, with API batch creation as an alternative.
+- **Email Notifications**: Not yet configured, requires `SENDGRID_API_KEY`. Manual EOD summaries are available.
 
 ### Database Models
 - **User**: Manages users with roles (admin, biller, dispatcher) and authentication.
 - **Bag**: Represents individual bags with unique QR IDs, type (parent/child), and relationships.
 - **Scan**: Records bag scanning events by users.
 - **AuditLog**: Tracks user actions for auditing purposes.
-- **StatisticsCache**: A single-row table automatically updated via database triggers to provide fast, real-time statistics for the dashboard.
+- **StatisticsCache**: Single-row table updated via database triggers for fast dashboard statistics.
 - **Bill**: Manages bill generation, including parent bag counts and total weights.
 - **Link**: Defines parent-child bag relationships.
 
@@ -79,91 +68,3 @@ The project follows a standard Flask application structure, separating concerns 
 - **Flask-WTF**: Integration with WTForms for web forms and CSRF protection.
 - **Flask-Limiter**: Provides rate limiting functionality (in-memory).
 - **werkzeug**: Used for secure password hashing.
-
-## Recent Changes (October 2025)
-
-### Enterprise-Grade System Transformation (30/67 tasks completed - 45% progress)
-
-**Phase 1: Security Hardening ✅**
-- **Password Security**: Removed hash logging, added complexity requirements (8+ chars, uppercase, number, special char)
-- **Account Protection**: 5-attempt lockout system with automatic unlock tracking
-- **Password Reset**: Secure token-based email flow (1-hour expiration, CSPRNG tokens, email enumeration protection, rate limiting 3/min forgot + 5/min reset)
-- **CSRF Protection**: Re-enabled across all forms, no bypass paths
-- **Admin Security**: Secured /fix-admin-password endpoint with proper authentication
-- **Rate Limiting**: Strict limits on authentication endpoints (Login: 10/min, Register: 5/min, Fix-admin-password: 3/hour) to prevent brute-force and spam attacks
-
-**Phase 2: Database & Infrastructure ✅**
-- **Migration System**: Flask-Migrate/Alembic integration for safe schema changes
-- **Connection Pool**: Optimized for 100+ concurrent users (25 base + 15 overflow per worker)
-- **Query Optimizer**: Fixed fallback methods with parameterized SQL
-- **Session Monitoring**: Enhanced teardown with pool statistics
-
-**Phase 3: Observability & Tracking ✅**
-- **Request Tracking**: UUID-based distributed tracing with X-Request-ID headers
-- **Audit Logging**: Before/after snapshots for all critical operations
-- **Session Documentation**: Redis migration guide for production scalability
-
-**Phase 4: Data Import/Export ✅**
-- **CSV/Excel Export**: Optimized queries (CTEs/JOINs), 10K record limit, SQL injection protection
-- **Bulk Import**: Comprehensive validation, duplicate detection, transaction safety
-- **Performance**: 132ms export time at 1.8M+ bag scale
-
-**Phase 5: Email Notifications ✅**
-- **SendGrid Integration**: Professional HTML templates for welcome emails, password reset, bill notifications, admin alerts
-- **Integration Points**: Registration flow, bill creation flow
-- **Error Handling**: Graceful degradation, comprehensive logging
-- **Configuration**: SENDGRID_API_KEY, FROM_EMAIL, ADMIN_EMAIL
-
-**Phase 6: Performance & Monitoring ✅**
-- **N+1 Query Fixes**: Eliminated N+1 queries in bag_management route (80+ queries → 6 queries, ~13x improvement)
-- **Enhanced Connection Pool Monitoring**: Background daemon thread (configurable intervals), multi-level alerts with email notifications (CRITICAL/DANGER), trend analysis and prediction, configurable thresholds via env vars (POOL_WARNING_THRESHOLD, POOL_CRITICAL_THRESHOLD, POOL_DANGER_THRESHOLD), /api/pool_health endpoint with historical analysis
-- **Slow Query Logging**: SQLAlchemy event listeners (100ms threshold), statistics tracking, /api/slow_queries admin endpoint
-
-**Phase 7: Comprehensive Input Validation ✅**
-- **Validation Framework (`validation_utils.py`)**: Enterprise-grade validation utilities module with 8 core validators:
-  - QR Code Validation (type-specific, pattern matching, XSS prevention)
-  - Search Query Sanitization (SQL injection + XSS prevention using bleach library)
-  - HTML Sanitization (strips all HTML tags, prevents script injection)
-  - Pagination Validation (bounds checking, max 200 items, max 10K offset)
-  - Email/Username/URL Validation (RFC-compliant regex patterns)
-  - Numeric Range Validation (type-safe conversion, min/max bounds)
-  - Choice/Enum Validation (whitelist validation)
-  - File Upload Validation (extension whitelist, path traversal prevention)
-- **Forms Enhanced (10/10)**: All forms have comprehensive validation
-  - 5 forms enhanced with new validation utilities (LoginForm, BillCreationForm, PromotionRequestForm, ChildLookupForm, ManualScanForm)
-  - 5 forms already had strong validation (RegistrationForm, AdminPromotionForm, PromotionRequestActionForm, ForgotPasswordForm, ResetPasswordForm)
-  - Auto-normalization (QR codes uppercase, whitespace trimming)
-  - HTML sanitization on all text inputs
-- **API Endpoints Enhanced**: Critical search and file upload endpoints secured
-  - `/api/bags/search`: Search query sanitization, bounds checking
-  - `/api/search`: Entity type validation, search query sanitization
-  - `/import/bags`: File upload validation, extension whitelist, path traversal prevention
-- **Security Improvements**:
-  - XSS Prevention: HTML sanitization blocks script injection attacks
-  - SQL Injection Prevention: Search sanitization removes SQL keywords (DROP, DELETE, INSERT, etc.)
-  - Input Normalization: Consistent data format (QR codes uppercase, trimmed whitespace)
-  - Bounds Checking: All numeric inputs validated against min/max ranges
-  - Framework available for incremental application to remaining endpoints
-
-**Earlier Optimizations:**
-- **Smart Role-Aware Caching (SECURITY FIX)**: Implemented secure caching system that prevents cross-user data leaks. Replaced insecure `cached_route()` with `cached_global()` and `cached_user()` decorators that include user identity, role, and query parameters in cache keys. Added automatic cache invalidation after data modifications (bags, scans, links, bills).
-- **Security Enhancement**: Added auto-detection of production environment for HTTPS-only cookies, ensuring secure session management in production deployments.
-- **Caching Implementation**: Replaced placeholder cache decorators with functional in-memory caching system featuring TTL, hit/miss tracking, and automatic cleanup.
-- **Disabled Features Documentation**: Created professional messaging for Excel Upload and Email Notifications with clear alternatives and `FEATURES.md` documentation.
-- **System Health Monitoring**: Added `/api/system_health` endpoint and admin dashboard displaying real-time database, cache, memory, and error metrics.
-- **Deployment Readiness**: Created comprehensive `DEPLOYMENT.md` with production checklist, environment variables, scaling guidelines, and monitoring recommendations.
-- **Automatic Database Selection**: App now automatically uses `PRODUCTION_DATABASE_URL` (AWS RDS) in production and `DATABASE_URL` (Replit PostgreSQL) in development - no manual configuration needed.
-
-## Production Readiness Status
-**Status**: ✅ PRODUCTION-READY
-
-All core features are fully functional and tested for production deployment:
-- Handles 1.8M+ bags efficiently
-- Supports 100+ concurrent users
-- Sub-50ms dashboard performance
-- Sub-200ms list operations
-- Mobile-optimized interface
-- Complete security features
-- Real-time system health monitoring
-
-See `DEPLOYMENT.md` for full deployment checklist and procedures.
