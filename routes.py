@@ -5705,54 +5705,7 @@ def api_slow_queries():
             'error': str(e)
         }), 500
 
-@app.route('/api/pool_health')
-@login_required
-def api_pool_health():
-    """Database connection pool health metrics - admin only"""
-    if not current_user.is_admin():
-        return jsonify({'error': 'Admin access required'}), 403
-    
-    try:
-        from pool_monitor import get_pool_monitor
-        
-        monitor = get_pool_monitor()
-        
-        if not monitor:
-            return jsonify({
-                'success': False,
-                'error': 'Pool monitoring not available'
-            }), 503
-        
-        # Get comprehensive health summary (now includes trend analysis and thresholds)
-        health_summary = monitor.get_health_summary()
-        
-        # Get stats history (last 10 minutes)
-        stats_history = monitor.get_stats_history(minutes=10)
-        
-        return jsonify({
-            'success': True,
-            'health': health_summary,  # Now includes trend_analysis and thresholds
-            'history': [
-                {
-                    'timestamp': stats.get('timestamp').isoformat() if stats.get('timestamp') else None,
-                    'usage_percent': stats.get('usage_percent'),
-                    'checked_out': stats.get('checked_out'),
-                    'configured_max': stats.get('configured_max')
-                }
-                for stats in stats_history
-            ],
-            'monitoring': {
-                'check_interval': monitor.CHECK_INTERVAL,
-                'alert_cooldown': monitor.ALERT_COOLDOWN,
-                'email_alerts_enabled': os.environ.get('POOL_EMAIL_ALERTS', 'true').lower() == 'true'
-            }
-        })
-    except Exception as e:
-        app.logger.error(f"Pool health API error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+# Removed /api/pool_health - pool metrics now included in /api/system_health
 
 @app.route('/api/system_health')
 @login_required
@@ -7162,38 +7115,8 @@ def api_users_endpoint():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/health')
-def api_health_check():
-    """Public API health check - basic status"""
-    return jsonify({
-        'status': 'healthy',
-        'service': 'TraceTrack',
-        'version': '2.0',
-        'timestamp': datetime.now().isoformat()
-    })
-
-@app.route('/api/health/detailed')
-@login_required
-def api_health_detailed():
-    """Detailed component-level health check - admin only"""
-    if not current_user.is_admin():
-        return jsonify({'error': 'Admin access required'}), 403
-    
-    try:
-        from health_check import get_health_checker
-        
-        health_checker = get_health_checker(app, db)
-        health_status = health_checker.get_comprehensive_health()
-        
-        return jsonify(health_status)
-    except Exception as e:
-        app.logger.error(f"Detailed health check error: {str(e)}")
-        return jsonify({
-            'status': 'unhealthy',
-            'message': 'Health check failed',
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 500
+# Removed duplicate /api/health and /api/health/detailed endpoints
+# Use /health (public) or /api/system_health (admin) instead
 
 @app.route('/child_lookup', methods=['GET', 'POST'])
 @login_required
@@ -7696,10 +7619,7 @@ def statistics_api():
     except Exception as e:
         return jsonify({'error': str(e), 'status': 'error'}), 500
 
-@app.route('/db/health')
-def db_health():
-    """Database health check - redirect to existing endpoint"""
-    return redirect(url_for('health_check'))
+# Removed /db/health redirect - use /health with ?check_db=true instead
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required

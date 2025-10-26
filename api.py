@@ -638,39 +638,7 @@ def clear_api_cache():
         logger.error(f"Cache clear error: {str(e)}")
         return jsonify({'success': False, 'error': 'Cache clear failed'}), 500
 
-@app.route('/api/system/health')
-@require_auth
-@limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-def system_health():
-    """System health check endpoint"""
-    try:
-        # Database connectivity test
-        db_healthy = True
-        try:
-            from sqlalchemy import text
-            db.session.execute(text('SELECT 1'))
-        except Exception:
-            db_healthy = False
-        
-        # Cache statistics
-        cache_info = {
-            'hits': 0,
-            'misses': 0,
-            'size': 0
-        }
-        
-        return jsonify({
-            'success': True,
-            'health': {
-                'database': 'healthy' if db_healthy else 'unhealthy',
-                'cache': cache_info,
-                'timestamp': time.time()
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Health check error: {str(e)}")
-        return jsonify({'success': False, 'error': 'Health check failed'}), 500
+# Removed duplicate /api/system/health endpoint - use /api/system_health in routes.py instead
 
 
 # =============================================================================
