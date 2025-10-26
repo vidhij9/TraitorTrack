@@ -21,6 +21,7 @@ The project follows a standard Flask application structure, separating concerns 
 - **Flask-Login**: Session-based authentication.
 - **Flask-WTF**: Form validation and CSRF protection.
 - **Flask-Limiter**: In-memory rate limiting.
+- **ujson**: High-performance JSON parsing (2-5x faster than stdlib) for audit logging.
 
 **UI/UX Decisions:**
 - Clean, production-ready web interface for dispatchers, billers, and administrators.

@@ -1,6 +1,6 @@
 import datetime
 import enum
-import json
+import ujson as json  # Use ujson for faster JSON parsing (3-5x faster than stdlib)
 import os
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash

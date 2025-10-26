@@ -2,7 +2,7 @@
 Enhanced Audit Logging Utilities
 Provides comprehensive before/after snapshots for entity changes
 """
-import json
+import ujson as json  # Use ujson for faster JSON serialization (2-5x faster than stdlib)
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Any, Union

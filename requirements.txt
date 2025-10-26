@@ -38,3 +38,4 @@ sendgrid
 bleach
 pyotp
 qrcode[pil]
+ujson
