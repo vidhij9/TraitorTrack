@@ -5422,7 +5422,7 @@ def api_pool_health():
                 'error': 'Pool monitoring not available'
             }), 503
         
-        # Get comprehensive health summary
+        # Get comprehensive health summary (now includes trend analysis and thresholds)
         health_summary = monitor.get_health_summary()
         
         # Get stats history (last 10 minutes)
@@ -5430,7 +5430,7 @@ def api_pool_health():
         
         return jsonify({
             'success': True,
-            'health': health_summary,
+            'health': health_summary,  # Now includes trend_analysis and thresholds
             'history': [
                 {
                     'timestamp': stats.get('timestamp').isoformat() if stats.get('timestamp') else None,
@@ -5439,7 +5439,12 @@ def api_pool_health():
                     'configured_max': stats.get('configured_max')
                 }
                 for stats in stats_history
-            ]
+            ],
+            'monitoring': {
+                'check_interval': monitor.CHECK_INTERVAL,
+                'alert_cooldown': monitor.ALERT_COOLDOWN,
+                'email_alerts_enabled': os.environ.get('POOL_EMAIL_ALERTS', 'true').lower() == 'true'
+            }
         })
     except Exception as e:
         app.logger.error(f"Pool health API error: {str(e)}")

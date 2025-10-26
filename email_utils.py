@@ -352,3 +352,29 @@ class EmailService:
         
         recipients = [(email, subject, html_content) for email in admin_emails]
         return EmailService.send_batch_emails(recipients)
+
+
+# Convenience function for pool monitoring and other alert systems
+def send_admin_alert_email(subject: str, message: str, details: Optional[Dict] = None, 
+                           admin_emails: Optional[List[str]] = None) -> Tuple[bool, Optional[str]]:
+    """
+    Send alert email to admins (convenience wrapper for EmailService.send_admin_alert)
+    
+    Args:
+        subject: Email subject (will be used as title)
+        message: HTML message content
+        details: Optional dictionary of additional details
+        admin_emails: Optional list of admin emails (uses config default if not provided)
+        
+    Returns:
+        Tuple of (success, error_message)
+    """
+    try:
+        sent, failed, errors = EmailService.send_admin_alert(subject, message, details, admin_emails)
+        if sent > 0:
+            return True, None
+        else:
+            return False, ', '.join(errors) if errors else "No emails sent"
+    except Exception as e:
+        logger.error(f"Error in send_admin_alert_email: {e}")
+        return False, str(e)

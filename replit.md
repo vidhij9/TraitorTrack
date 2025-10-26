@@ -116,7 +116,7 @@ The project follows a standard Flask application structure, separating concerns 
 
 **Phase 6: Performance & Monitoring ✅**
 - **N+1 Query Fixes**: Eliminated N+1 queries in bag_management route (80+ queries → 6 queries, ~13x improvement)
-- **Connection Pool Monitoring**: Background daemon thread (30s intervals), multi-level alerts (70%/85%/95% thresholds), /api/pool_health endpoint
+- **Enhanced Connection Pool Monitoring**: Background daemon thread (configurable intervals), multi-level alerts with email notifications (CRITICAL/DANGER), trend analysis and prediction, configurable thresholds via env vars (POOL_WARNING_THRESHOLD, POOL_CRITICAL_THRESHOLD, POOL_DANGER_THRESHOLD), /api/pool_health endpoint with historical analysis
 - **Slow Query Logging**: SQLAlchemy event listeners (100ms threshold), statistics tracking, /api/slow_queries admin endpoint
 
 **Phase 7: Comprehensive Input Validation ✅**
