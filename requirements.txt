@@ -36,3 +36,5 @@ flask-migrate
 openpyxl
 sendgrid
 bleach
+pyotp
+qrcode[pil]

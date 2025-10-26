@@ -58,6 +58,10 @@ class User(UserMixin, db.Model):
     password_reset_token = db.Column(db.String(100), nullable=True)
     password_reset_token_expires = db.Column(db.DateTime, nullable=True)
     
+    # Two-Factor Authentication (TOTP) fields
+    totp_secret = db.Column(db.String(32), nullable=True)  # Base32-encoded TOTP secret
+    two_fa_enabled = db.Column(db.Boolean, default=False)
+    
     def set_password(self, password):
         """Set user password hash"""
         # Use fast bcrypt hashing if available
