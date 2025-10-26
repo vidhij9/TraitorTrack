@@ -1611,6 +1611,7 @@ def login():
             if user.two_fa_enabled and user.totp_secret:
                 # Redirect to 2FA verification instead of logging in directly
                 session['pending_2fa_user_id'] = user.id
+                session.modified = True  # Ensure session is saved before redirect
                 app.logger.info(f"2FA required for user {username}, redirecting to verification")
                 return redirect(url_for('two_fa_verify'))
             

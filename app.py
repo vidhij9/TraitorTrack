@@ -69,13 +69,15 @@ is_production = (
 )
 
 # Session configuration - using filesystem (Redis causes port exhaustion under load)
+# IMPORTANT: SESSION_COOKIE_SECURE must be False in development to allow session persistence
+# across HTTP requests (Gunicorn serves HTTP even though Replit proxy may set X-Forwarded-Proto)
 app.config.update(
     SESSION_TYPE='filesystem',
     SESSION_FILE_DIR='/tmp/flask_session',
     SESSION_PERMANENT=False,
     SESSION_USE_SIGNER=True,
     SESSION_FILE_THRESHOLD=500,
-    SESSION_COOKIE_SECURE=is_production,  # Auto-enable HTTPS in production
+    SESSION_COOKIE_SECURE=False,  # Always False - let Replit proxy handle HTTPS
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     SESSION_COOKIE_NAME='tracetrack_session',
@@ -415,6 +417,26 @@ def after_request(response):
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+    
+    # CRITICAL FIX: Force session cookies to NOT be Secure in development
+    # Flask overrides SESSION_COOKIE_SECURE based on X-Forwarded-Proto from Replit proxy
+    # This causes cookies to be Secure=true even though gunicorn serves HTTP
+    # Browsers then refuse to send Secure cookies over HTTP, breaking session persistence
+    if not (os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('ENVIRONMENT') == 'production'):
+        # Get all Set-Cookie headers
+        cookies = response.headers.getlist('Set-Cookie')
+        if cookies:
+            # Filter out old session cookies and rebuild without Secure flag
+            new_cookies = []
+            for cookie in cookies:
+                if 'tracetrack_session=' in cookie:
+                    # Remove Secure flag from session cookie
+                    cookie = cookie.replace('; Secure', '').replace(';Secure', '')
+                new_cookies.append(cookie)
+            # Replace all Set-Cookie headers
+            response.headers.remove('Set-Cookie')
+            for cookie in new_cookies:
+                response.headers.add('Set-Cookie', cookie)
     
     return response
 
