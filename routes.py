@@ -1564,6 +1564,12 @@ def login():
             
             if not user:
                 app.logger.warning(f"LOGIN FAILED: User {username} not found")
+                # Audit log: Failed login attempt (user not found)
+                log_audit('login_failed_user_not_found', 'auth', None, {
+                    'username': username,
+                    'ip_address': request.remote_addr,
+                    'reason': 'user_not_found'
+                })
                 flash('Invalid username or password.', 'error')
                 return render_template('login.html')
             
@@ -1571,6 +1577,13 @@ def login():
             is_locked, unlock_time, minutes_remaining = is_account_locked(user, db)
             if is_locked:
                 app.logger.warning(f"LOGIN BLOCKED: Account {username} is locked for {minutes_remaining} more minutes")
+                # Audit log: Blocked login attempt (account locked)
+                log_audit('login_blocked_account_locked', 'auth', user.id, {
+                    'username': username,
+                    'ip_address': request.remote_addr,
+                    'minutes_remaining': minutes_remaining,
+                    'reason': 'account_locked'
+                })
                 flash(f'Account locked due to too many failed login attempts. Please try again in {minutes_remaining} minutes.', 'error')
                 return render_template('login.html')
             
@@ -1590,6 +1603,15 @@ def login():
                 # Record failed login attempt
                 should_lock, attempts_remaining, lock_duration = record_failed_login(user, db)
                 
+                # Audit log: Failed login attempt (invalid password)
+                log_audit('login_failed_invalid_password', 'auth', user.id, {
+                    'username': username,
+                    'ip_address': request.remote_addr,
+                    'should_lock': should_lock,
+                    'attempts_remaining': attempts_remaining,
+                    'reason': 'invalid_password'
+                })
+                
                 if should_lock:
                     flash(f'Too many failed login attempts. Account locked for {lock_duration} minutes.', 'error')
                 elif attempts_remaining is not None:
@@ -1601,6 +1623,12 @@ def login():
                 
             if not user.verified:
                 app.logger.warning(f"LOGIN FAILED: User {username} not verified")
+                # Audit log: Failed login attempt (not verified)
+                log_audit('login_failed_not_verified', 'auth', user.id, {
+                    'username': username,
+                    'ip_address': request.remote_addr,
+                    'reason': 'not_verified'
+                })
                 flash('Account not verified.', 'error')
                 return render_template('login.html')
             
@@ -1613,6 +1641,13 @@ def login():
                 session['pending_2fa_user_id'] = user.id
                 session.modified = True  # Ensure session is saved before redirect
                 app.logger.info(f"2FA required for user {username}, redirecting to verification")
+                # Audit log: Password authenticated, pending 2FA
+                log_audit('login_password_success_pending_2fa', 'auth', user.id, {
+                    'username': username,
+                    'ip_address': request.remote_addr,
+                    'role': user.role,
+                    'next_step': '2fa_verification'
+                })
                 return redirect(url_for('two_fa_verify'))
             
             # No 2FA - create session and login normally
@@ -1620,6 +1655,14 @@ def login():
             
             app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
             app.logger.info(f"Session after login: user_id={session.get('user_id')}, keys={list(session.keys())}")
+            
+            # Audit log: Successful login
+            log_audit('login_success', 'auth', user.id, {
+                'username': username,
+                'ip_address': request.remote_addr,
+                'role': user.role,
+                'dispatch_area': user.dispatch_area if hasattr(user, 'dispatch_area') else None
+            })
             
             flash('Login successful!', 'success')
             return redirect(url_for('index'))
@@ -1636,6 +1679,16 @@ def login():
 def logout():
     """User logout endpoint"""
     username = session.get('username', 'unknown')
+    user_id = session.get('user_id')
+    user_role = session.get('user_role')
+    
+    # Audit log: Logout
+    log_audit('logout', 'auth', user_id, {
+        'username': username,
+        'role': user_role,
+        'ip_address': request.remote_addr
+    })
+    
     clear_session()
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
@@ -1848,11 +1901,25 @@ def register():
             # Check if user already exists
             existing_user = User.query.filter_by(username=username).first()
             if existing_user:
+                # Audit log: Failed registration (username exists)
+                log_audit('registration_failed_username_exists', 'auth', None, {
+                    'username': username,
+                    'email': email,
+                    'ip_address': request.remote_addr,
+                    'reason': 'username_already_exists'
+                })
                 flash('Username already exists. Please choose a different one.', 'error')
                 return render_template('register.html')
                 
             existing_email = User.query.filter_by(email=email).first()
             if existing_email:
+                # Audit log: Failed registration (email exists)
+                log_audit('registration_failed_email_exists', 'auth', None, {
+                    'username': username,
+                    'email': email,
+                    'ip_address': request.remote_addr,
+                    'reason': 'email_already_registered'
+                })
                 flash('Email already registered. Please use a different email.', 'error')
                 return render_template('register.html')
             
@@ -1866,6 +1933,15 @@ def register():
             
             db.session.add(user)
             db.session.commit()
+            
+            # Audit log: Successful registration
+            log_audit('registration_success', 'auth', user.id, {
+                'username': username,
+                'email': email,
+                'ip_address': request.remote_addr,
+                'role': 'dispatcher',
+                'verified': True
+            })
             
             # Send welcome email
             try:
@@ -5246,6 +5322,12 @@ def edit_profile():
             db.session.add(user)  # Explicitly mark user for update
             changes_made = True
             app.logger.info(f'Password changed for user {user.username} (ID: {user.id})')
+            # Audit log: Password changed
+            log_audit('password_changed', 'auth', user.id, {
+                'username': user.username,
+                'ip_address': request.remote_addr,
+                'changed_via': 'user_profile'
+            })
             flash('Password changed successfully.', 'success')
         
         # Save changes if any were made
@@ -5336,8 +5418,20 @@ def two_fa_enable():
         db.session.commit()
         flash('Two-Factor Authentication enabled successfully!', 'success')
         app.logger.info(f'2FA enabled for admin user: {user.username}')
+        # Audit log: 2FA enabled
+        log_audit('2fa_enabled', 'auth', user.id, {
+            'username': user.username,
+            'ip_address': request.remote_addr,
+            'role': user.role
+        })
         return redirect(url_for('user_profile'))
     else:
+        # Audit log: Failed 2FA enable attempt
+        log_audit('2fa_enable_failed', 'auth', user.id, {
+            'username': user.username,
+            'ip_address': request.remote_addr,
+            'reason': 'invalid_totp_code'
+        })
         flash('Invalid verification code. Please try again.', 'error')
         return redirect(url_for('two_fa_setup'))
 
@@ -5362,6 +5456,12 @@ def two_fa_disable():
     
     # Verify password before disabling 2FA
     if not password or not user.check_password(password):
+        # Audit log: Failed 2FA disable attempt (wrong password)
+        log_audit('2fa_disable_failed', 'auth', user.id, {
+            'username': user.username,
+            'ip_address': request.remote_addr,
+            'reason': 'incorrect_password'
+        })
         flash('Incorrect password. Cannot disable 2FA.', 'error')
         return redirect(url_for('user_profile'))
     
@@ -5371,6 +5471,12 @@ def two_fa_disable():
     db.session.commit()
     flash('Two-Factor Authentication has been disabled.', 'info')
     app.logger.info(f'2FA disabled for admin user: {user.username}')
+    # Audit log: 2FA disabled
+    log_audit('2fa_disabled', 'auth', user.id, {
+        'username': user.username,
+        'ip_address': request.remote_addr,
+        'role': user.role
+    })
     return redirect(url_for('user_profile'))
 
 @app.route('/2fa/verify', methods=['GET', 'POST'])
@@ -5404,8 +5510,21 @@ def two_fa_verify():
             create_session(user.id, user.username, user.role, user.dispatch_area)
             flash(f'Welcome back, {user.username}!', 'success')
             app.logger.info(f'2FA login successful for user: {user.username}')
+            # Audit log: Successful 2FA verification (complete login)
+            log_audit('2fa_verify_success_login_complete', 'auth', user.id, {
+                'username': user.username,
+                'ip_address': request.remote_addr,
+                'role': user.role,
+                'dispatch_area': user.dispatch_area
+            })
             return redirect(url_for('index'))
         else:
+            # Audit log: Failed 2FA verification
+            log_audit('2fa_verify_failed', 'auth', user.id, {
+                'username': user.username,
+                'ip_address': request.remote_addr,
+                'reason': 'invalid_totp_code'
+            })
             flash('Invalid verification code. Please try again.', 'error')
             app.logger.warning(f'Failed 2FA attempt for user: {user.username}')
     
