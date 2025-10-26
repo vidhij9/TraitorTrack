@@ -2353,7 +2353,7 @@ def process_parent_scan():
         db.session.add(scan)
         db.session.commit()
         
-        # Store minimal session data - ensure it persists
+        # Store minimal session data
         session['current_parent_qr'] = qr_code
         session['parent_scan_time'] = datetime.utcnow().isoformat()
         session['last_scan'] = {
@@ -2361,7 +2361,7 @@ def process_parent_scan():
             'qr_id': qr_code,
             'timestamp': datetime.utcnow().isoformat()
         }
-        session.permanent = True
+        # session.permanent is False (set at login) to ensure logout on browser close
         session.modified = True  # Force session save
         
         # Log for debugging

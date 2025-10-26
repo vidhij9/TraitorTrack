@@ -27,7 +27,8 @@ def create_session(user_id, username, role, dispatch_area=None):
     session['dispatch_area'] = dispatch_area
     session['logged_in'] = True
     session['authenticated'] = True
-    session.permanent = True
+    # Session is non-permanent (expires on browser close) - security feature
+    session.permanent = False
     
     # Session timeout tracking
     now = datetime.utcnow()
