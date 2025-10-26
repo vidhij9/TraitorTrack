@@ -671,3 +671,151 @@ def system_health():
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
         return jsonify({'success': False, 'error': 'Health check failed'}), 500
+
+
+# =============================================================================
+# NOTIFICATION ENDPOINTS - Real-time in-app notifications
+# =============================================================================
+
+@app.route('/api/notifications')
+@require_auth
+@limiter.limit("10000 per minute")  # High limit for polling
+def get_notifications():
+    """Get user's notifications (supports pagination)"""
+    try:
+        from notification_utils import NotificationManager
+        
+        # Get query parameters
+        unread_only = request.args.get('unread_only', 'false').lower() == 'true'
+        limit = min(int(request.args.get('limit', 50)), 100)  # Max 100
+        
+        # Get notifications
+        notifications = NotificationManager.get_user_notifications(
+            db,
+            current_user.id,
+            unread_only=unread_only,
+            limit=limit
+        )
+        
+        # Convert to dict
+        notifications_data = [notif.to_dict() for notif in notifications]
+        
+        # Get unread count
+        unread_count = NotificationManager.get_unread_count(db, current_user.id)
+        
+        return jsonify({
+            'success': True,
+            'notifications': notifications_data,
+            'unread_count': unread_count,
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Get notifications error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to fetch notifications'}), 500
+
+
+@app.route('/api/notifications/unread-count')
+@require_auth
+@limiter.limit("10000 per minute")  # High limit for polling
+def get_unread_count():
+    """Get count of unread notifications (lightweight endpoint for polling)"""
+    try:
+        from notification_utils import NotificationManager
+        
+        count = NotificationManager.get_unread_count(db, current_user.id)
+        
+        return jsonify({
+            'success': True,
+            'unread_count': count,
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Get unread count error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to fetch unread count'}), 500
+
+
+@app.route('/api/notifications/<int:notification_id>/mark-read', methods=['POST'])
+@require_auth
+@limiter.limit("5000 per minute")
+def mark_notification_read(notification_id):
+    """Mark a single notification as read"""
+    try:
+        from notification_utils import NotificationManager
+        
+        success = NotificationManager.mark_as_read(db, notification_id, current_user.id)
+        
+        if success:
+            # Get updated unread count
+            unread_count = NotificationManager.get_unread_count(db, current_user.id)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Notification marked as read',
+                'unread_count': unread_count,
+                'timestamp': time.time()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Notification not found or access denied'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Mark notification read error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to mark notification as read'}), 500
+
+
+@app.route('/api/notifications/mark-all-read', methods=['POST'])
+@require_auth
+@limiter.limit("5000 per minute")
+def mark_all_notifications_read():
+    """Mark all notifications as read for current user"""
+    try:
+        from notification_utils import NotificationManager
+        
+        count = NotificationManager.mark_all_as_read(db, current_user.id)
+        
+        return jsonify({
+            'success': True,
+            'message': f'{count} notifications marked as read',
+            'count': count,
+            'unread_count': 0,  # All marked as read
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Mark all notifications read error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to mark all notifications as read'}), 500
+
+
+@app.route('/api/notifications/<int:notification_id>', methods=['DELETE'])
+@require_auth
+@limiter.limit("5000 per minute")
+def delete_notification(notification_id):
+    """Delete a notification"""
+    try:
+        from notification_utils import NotificationManager
+        
+        success = NotificationManager.delete_notification(db, notification_id, current_user.id)
+        
+        if success:
+            # Get updated unread count
+            unread_count = NotificationManager.get_unread_count(db, current_user.id)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Notification deleted',
+                'unread_count': unread_count,
+                'timestamp': time.time()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Notification not found or access denied'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Delete notification error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to delete notification'}), 500

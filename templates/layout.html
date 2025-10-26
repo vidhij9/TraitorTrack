@@ -207,6 +207,30 @@
                 
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
+                        <!-- Notifications Dropdown -->
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-bell fa-lg"></i>
+                                <span id="unread-notification-badge" class="badge bg-danger rounded-pill notifications-badge d-none" style="position: absolute; top: 0; right: 0; font-size: 0.7rem;">0</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end p-0" aria-labelledby="notificationsDropdown" style="min-width: 350px; max-width: 400px;">
+                                <div class="p-3 border-bottom bg-light">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Notifications</h6>
+                                        <button class="btn btn-sm btn-link text-decoration-none" id="mark-all-read-btn">
+                                            Mark all as read
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="notifications-list" style="max-height: 400px; overflow-y: auto;">
+                                    <div class="text-center p-4 text-muted">
+                                        <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                                        <p>Loading notifications...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                        
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <div class="d-flex align-items-center">
@@ -346,6 +370,204 @@
                     }
                 });
             }, 8000);
+            
+            // =================================================================
+            // NOTIFICATIONS SYSTEM
+            // =================================================================
+            
+            {% if current_user.is_authenticated %}
+            // Notification polling and management
+            let notificationPolling = null;
+            
+            // Get notification icon color based on type
+            function getNotificationIcon(type) {
+                const icons = {
+                    'success': '<i class="fas fa-check-circle text-success me-2"></i>',
+                    'warning': '<i class="fas fa-exclamation-triangle text-warning me-2"></i>',
+                    'error': '<i class="fas fa-times-circle text-danger me-2"></i>',
+                    'info': '<i class="fas fa-info-circle text-info me-2"></i>'
+                };
+                return icons[type] || icons['info'];
+            }
+            
+            // Format relative time
+            function formatRelativeTime(isoString) {
+                const date = new Date(isoString);
+                const now = new Date();
+                const diff = Math.floor((now - date) / 1000); // seconds
+                
+                if (diff < 60) return 'Just now';
+                if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+                if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+                return date.toLocaleDateString();
+            }
+            
+            // Update unread count badge
+            function updateUnreadCount(count) {
+                const badge = document.getElementById('unread-notification-badge');
+                if (badge) {
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.classList.remove('d-none');
+                    } else {
+                        badge.classList.add('d-none');
+                    }
+                }
+            }
+            
+            // Fetch unread count (lightweight endpoint)
+            async function fetchUnreadCount() {
+                try {
+                    const response = await fetch('/api/notifications/unread-count');
+                    if (response.ok) {
+                        const data = await response.json();
+                        updateUnreadCount(data.unread_count);
+                    }
+                } catch (error) {
+                    console.error('Error fetching unread count:', error);
+                }
+            }
+            
+            // Load notifications into dropdown
+            async function loadNotifications() {
+                const notificationsList = document.getElementById('notifications-list');
+                if (!notificationsList) return;
+                
+                // Show loading state
+                notificationsList.innerHTML = `
+                    <div class="text-center p-4 text-muted">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 mb-0">Loading notifications...</p>
+                    </div>
+                `;
+                
+                try {
+                    const response = await fetch('/api/notifications?limit=20');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const notifications = data.notifications;
+                        
+                        if (notifications.length === 0) {
+                            notificationsList.innerHTML = `
+                                <div class="text-center p-4 text-muted">
+                                    <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                                    <p class="mb-0">No notifications</p>
+                                </div>
+                            `;
+                        } else {
+                            notificationsList.innerHTML = notifications.map(notif => `
+                                <div class="notification-item border-bottom p-3 ${notif.is_read ? 'bg-light' : 'bg-white'}" data-id="${notif.id}">
+                                    <div class="d-flex">
+                                        <div class="flex-shrink-0">
+                                            ${getNotificationIcon(notif.type)}
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <h6 class="mb-1 fw-bold">${notif.title}</h6>
+                                                <small class="text-muted">${formatRelativeTime(notif.created_at)}</small>
+                                            </div>
+                                            <p class="mb-1 small text-muted">${notif.message}</p>
+                                            ${notif.link ? `<a href="${notif.link}" class="btn btn-sm btn-link p-0">View details</a>` : ''}
+                                            <div class="mt-2">
+                                                ${!notif.is_read ? `<button class="btn btn-sm btn-outline-primary mark-read-btn" data-id="${notif.id}">Mark as read</button>` : ''}
+                                                <button class="btn btn-sm btn-outline-danger delete-notif-btn" data-id="${notif.id}">Delete</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+                            
+                            // Attach event listeners
+                            attachNotificationListeners();
+                        }
+                        
+                        updateUnreadCount(data.unread_count);
+                    }
+                } catch (error) {
+                    console.error('Error loading notifications:', error);
+                    notificationsList.innerHTML = `
+                        <div class="text-center p-4 text-danger">
+                            <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                            <p class="mb-0">Failed to load notifications</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Attach event listeners to notification action buttons
+            function attachNotificationListeners() {
+                // Mark as read buttons
+                document.querySelectorAll('.mark-read-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const notifId = this.dataset.id;
+                        try {
+                            const response = await fetch(`/api/notifications/${notifId}/mark-read`, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'}
+                            });
+                            if (response.ok) {
+                                await loadNotifications(); // Reload
+                            }
+                        } catch (error) {
+                            console.error('Error marking as read:', error);
+                        }
+                    });
+                });
+                
+                // Delete buttons
+                document.querySelectorAll('.delete-notif-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        if (confirm('Delete this notification?')) {
+                            const notifId = this.dataset.id;
+                            try {
+                                const response = await fetch(`/api/notifications/${notifId}`, {
+                                    method: 'DELETE'
+                                });
+                                if (response.ok) {
+                                    await loadNotifications(); // Reload
+                                }
+                            } catch (error) {
+                                console.error('Error deleting notification:', error);
+                            }
+                        }
+                    });
+                });
+            }
+            
+            // Mark all as read
+            document.getElementById('mark-all-read-btn')?.addEventListener('click', async function() {
+                try {
+                    const response = await fetch('/api/notifications/mark-all-read', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'}
+                    });
+                    if (response.ok) {
+                        await loadNotifications(); // Reload
+                    }
+                } catch (error) {
+                    console.error('Error marking all as read:', error);
+                }
+            });
+            
+            // Load notifications when dropdown is opened
+            document.getElementById('notificationsDropdown')?.addEventListener('shown.bs.dropdown', function() {
+                loadNotifications();
+            });
+            
+            // Start polling for unread count (every 30 seconds)
+            fetchUnreadCount(); // Initial fetch
+            notificationPolling = setInterval(fetchUnreadCount, 30000);
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                if (notificationPolling) {
+                    clearInterval(notificationPolling);
+                }
+            });
+            {% endif %}
         });
     </script>
 </body>
