@@ -1890,7 +1890,7 @@ def forgot_password():
     
     if form.validate_on_submit():
         try:
-            email = form.email.data.strip().lower()
+            email = (form.email.data or '').strip().lower()
             
             # Find user by email
             user = User.query.filter_by(email=email).first()
@@ -2607,6 +2607,7 @@ def ajax_scan_parent_bag():
                     parent_bag = query_optimizer.create_bag_optimized(
                         qr_id=qr_id,
                         bag_type='parent',
+                        user_id=current_user.id,
                         dispatch_area=current_user.dispatch_area if current_user.is_dispatcher() else None
                     )
                 except ValueError as e:
@@ -2933,6 +2934,7 @@ def scan_child():
                         child_bag = query_optimizer.create_bag_optimized(
                             qr_id=qr_id,
                             bag_type='child',
+                            user_id=current_user.id,
                             dispatch_area=parent_bag.dispatch_area
                         )
                     except ValueError as e:
@@ -3539,14 +3541,14 @@ def bag_management():
             # If filtered, do exact count (smaller result set)
             total_filtered = db.session.query(func.count()).select_from(query.subquery()).scalar() or 0
         else:
-            # For unfiltered queries on large datasets, estimate from stats
+            # For unfiltered queries on large datasets, use optimized count
             # This avoids expensive COUNT(*) on 1.8M+ rows
             if bag_type == 'parent':
-                total_filtered = parent_bags if 'parent_bags' in locals() else db.session.query(func.count(Bag.id)).filter(Bag.type == 'parent').scalar()
+                total_filtered = db.session.query(func.count(Bag.id)).filter(Bag.type == 'parent').scalar() or 0
             elif bag_type == 'child':
-                total_filtered = child_bags if 'child_bags' in locals() else db.session.query(func.count(Bag.id)).filter(Bag.type == 'child').scalar()
+                total_filtered = db.session.query(func.count(Bag.id)).filter(Bag.type == 'child').scalar() or 0
             else:
-                total_filtered = total_bags if 'total_bags' in locals() else db.session.query(func.count(Bag.id)).scalar()
+                total_filtered = db.session.query(func.count(Bag.id)).scalar() or 0
         
         # Order by creation date (newest first)
         query = query.order_by(Bag.created_at.desc())
@@ -4121,6 +4123,9 @@ def bill_management():
         
         # Try a simplified version without expected_weight_kg column
         try:
+            # Import models for fallback (in case import failed in main try block)
+            from models import Bill, User
+            
             # Get search parameters from request
             search_bill_id = request.args.get('search_bill_id', '').strip()
             status_filter = request.args.get('status_filter', 'all')
@@ -6909,12 +6914,12 @@ def import_bags():
         
         file = request.files['file']
         
-        if file.filename == '':
+        if not file.filename or file.filename == '':
             flash('No file selected.', 'error')
             return redirect(url_for('import_bags'))
         
         # Determine file type and parse
-        filename = file.filename.lower()
+        filename = (file.filename or '').lower()
         
         if filename.endswith('.csv'):
             bags, parse_errors = BagImporter.parse_csv(file)
@@ -6980,12 +6985,12 @@ def import_bills():
         
         file = request.files['file']
         
-        if file.filename == '':
+        if not file.filename or file.filename == '':
             flash('No file selected.', 'error')
             return redirect(url_for('import_bills'))
         
         # Parse CSV only (bills import is simpler)
-        filename = file.filename.lower()
+        filename = (file.filename or '').lower()
         
         if not filename.endswith('.csv'):
             flash('Please upload a CSV file.', 'error')
