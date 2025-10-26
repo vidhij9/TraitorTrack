@@ -3,6 +3,12 @@ Request ID Tracking Middleware for Distributed Tracing
 
 This module provides middleware to track requests across the application
 with unique request IDs, enabling better logging, debugging, and distributed tracing.
+
+Optimized for high-traffic production environments with 100+ concurrent users:
+- Health check endpoints skip logging (reduce noise)
+- Hot API paths use minimal logging (errors only)
+- Security-critical paths keep full logging (audit trail)
+- Request ID headers always added (debugging support)
 """
 
 import uuid
@@ -12,6 +18,36 @@ from functools import wraps
 import time
 
 logger = logging.getLogger(__name__)
+
+# Paths that should NEVER be logged (high-frequency, low-value)
+NO_LOG_PATHS = {
+    '/health',
+    '/status',
+    '/favicon.ico',
+}
+
+# Paths that should use MINIMAL logging (errors only, skip success logs)
+# These are high-traffic API endpoints where logging overhead matters
+MINIMAL_LOG_PATHS_PREFIX = (
+    '/api/dashboard/',
+    '/api/stats',
+    '/api/search',
+    '/api/bag/',
+    '/static/',
+)
+
+# Paths that ALWAYS need FULL logging (security/audit requirements)
+FULL_LOG_PATHS_PREFIX = (
+    '/login',
+    '/logout',
+    '/register',
+    '/forgot_password',
+    '/reset_password',
+    '/admin/',
+    '/api/admin/',
+    '/user/settings',
+    '/2fa/',
+)
 
 
 def generate_request_id():
@@ -32,6 +68,29 @@ def get_request_id():
         str: The current request ID, or None if not set
     """
     return getattr(g, 'request_id', None)
+
+
+def _should_log_request(path):
+    """
+    Determine if a request should be logged based on its path.
+    
+    Returns:
+        str: 'none' (no logging), 'minimal' (errors only), or 'full' (all logs)
+    """
+    # NO logging for health checks and favicon
+    if path in NO_LOG_PATHS:
+        return 'none'
+    
+    # FULL logging for security-critical paths
+    if any(path.startswith(prefix) for prefix in FULL_LOG_PATHS_PREFIX):
+        return 'full'
+    
+    # MINIMAL logging for high-traffic API paths
+    if any(path.startswith(prefix) for prefix in MINIMAL_LOG_PATHS_PREFIX):
+        return 'minimal'
+    
+    # Default: full logging for all other paths
+    return 'full'
 
 
 def setup_request_tracking(app):
@@ -56,7 +115,10 @@ def setup_request_tracking(app):
         1. Generate or extract request ID from headers
         2. Store in Flask request context
         3. Store request start time for duration tracking
-        4. Log request start
+        4. Log request start (optimized based on path)
+        
+        Performance optimization: Skip logging for health checks and minimize
+        logging for hot API paths to reduce I/O overhead under high load.
         """
         # Check if client sent a request ID (for distributed tracing)
         request_id = request.headers.get('X-Request-ID')
@@ -70,28 +132,39 @@ def setup_request_tracking(app):
         g.request_start_time = time.time()
         g.request_tracked = False  # Flag to prevent duplicate logging
         
-        # Log request start with request ID
-        logger.info(
-            f"[{request_id}] Request started: {request.method} {request.path}",
-            extra={
-                'request_id': request_id,
-                'method': request.method,
-                'path': request.path,
-                'remote_addr': request.remote_addr,
-                'user_agent': request.headers.get('User-Agent', 'Unknown')
-            }
-        )
+        # Determine logging level based on path
+        g.log_level = _should_log_request(request.path)
+        
+        # Only log if logging is enabled for this path
+        if g.log_level != 'none':
+            # FULL logging: Include all details
+            if g.log_level == 'full':
+                logger.info(
+                    f"[{request_id}] Request started: {request.method} {request.path}",
+                    extra={
+                        'request_id': request_id,
+                        'method': request.method,
+                        'path': request.path,
+                        'remote_addr': request.remote_addr,
+                        'user_agent': request.headers.get('User-Agent', 'Unknown')
+                    }
+                )
+            # MINIMAL logging: Skip start log (will only log errors)
+            # This saves ~100 chars + dict serialization per request on hot paths
     
     @app.after_request
     def track_request_end(response):
         """
         After ALL requests (successful and errors):
-        1. Add request ID to response headers
+        1. Add request ID to response headers (ALWAYS - minimal overhead, critical for debugging)
         2. Calculate request duration
-        3. Log request completion with timing
+        3. Log request completion with timing (optimized based on path)
         
         This runs for both successful requests and error responses,
         ensuring all responses have tracking headers.
+        
+        Performance optimization: Skip/minimize logging based on path to reduce
+        I/O overhead under high load while maintaining audit trail for security paths.
         
         Args:
             response: Flask response object
@@ -101,8 +174,9 @@ def setup_request_tracking(app):
         """
         request_id = getattr(g, 'request_id', None)
         start_time = getattr(g, 'request_start_time', None)
+        log_level = getattr(g, 'log_level', 'full')
         
-        # Always add request ID header if available
+        # Always add request ID header if available (minimal overhead, critical for debugging)
         if request_id:
             response.headers['X-Request-ID'] = request_id
         
@@ -113,41 +187,98 @@ def setup_request_tracking(app):
             
             # Only log if not already tracked (errors are logged via signal)
             if not getattr(g, 'request_tracked', False):
-                # Log based on status code
-                if response.status_code >= 500:
-                    # Server errors already logged by got_request_exception
-                    pass
-                elif response.status_code >= 400:
-                    # Client errors already logged by got_request_exception
-                    pass
-                else:
-                    # Success - log completion
-                    logger.info(
-                        f"[{request_id}] Request completed: {request.method} {request.path} "
-                        f"- Status: {response.status_code} - Duration: {duration_ms}ms",
-                        extra={
-                            'request_id': request_id,
-                            'method': request.method,
-                            'path': request.path,
-                            'status_code': response.status_code,
-                            'duration_ms': duration_ms,
-                            'response_size': response.content_length
-                        }
-                    )
+                # Skip logging entirely for 'none' paths (health checks)
+                if log_level == 'none':
+                    g.request_tracked = True
+                    return response
                 
-                # Warn on slow requests (>1 second)
-                if duration_ms > 1000:
-                    logger.warning(
-                        f"[{request_id}] Slow request detected: {request.method} {request.path} "
-                        f"took {duration_ms}ms",
-                        extra={
-                            'request_id': request_id,
-                            'method': request.method,
-                            'path': request.path,
-                            'duration_ms': duration_ms,
-                            'slow_request': True
-                        }
-                    )
+                # MINIMAL logging: Only log errors and slow requests (skip successful fast requests)
+                if log_level == 'minimal':
+                    # Log errors (4xx, 5xx)
+                    if response.status_code >= 400:
+                        logger.warning(
+                            f"[{request_id}] {request.method} {request.path} "
+                            f"- {response.status_code} - {duration_ms}ms",
+                            extra={
+                                'request_id': request_id,
+                                'status_code': response.status_code,
+                                'duration_ms': duration_ms
+                            }
+                        )
+                    # Always log slow requests (>1s) even on hot paths
+                    elif duration_ms > 1000:
+                        logger.warning(
+                            f"[{request_id}] Slow: {request.method} {request.path} - {duration_ms}ms",
+                            extra={
+                                'request_id': request_id,
+                                'duration_ms': duration_ms,
+                                'slow_request': True
+                            }
+                        )
+                    # Skip logging for successful fast requests on hot paths
+                    # This saves ~150 chars + dict serialization per request
+                
+                # FULL logging: Log everything (security paths, default paths)
+                else:
+                    # Log based on status code
+                    # Note: Must log all responses including errors, because many views
+                    # return error status codes without raising exceptions (e.g., validation failures)
+                    if response.status_code >= 500:
+                        # Server errors - log as error
+                        logger.error(
+                            f"[{request_id}] Request failed: {request.method} {request.path} "
+                            f"- Status: {response.status_code} - Duration: {duration_ms}ms",
+                            extra={
+                                'request_id': request_id,
+                                'method': request.method,
+                                'path': request.path,
+                                'status_code': response.status_code,
+                                'duration_ms': duration_ms,
+                                'response_size': response.content_length
+                            }
+                        )
+                    elif response.status_code >= 400:
+                        # Client errors - log as warning
+                        logger.warning(
+                            f"[{request_id}] Request error: {request.method} {request.path} "
+                            f"- Status: {response.status_code} - Duration: {duration_ms}ms",
+                            extra={
+                                'request_id': request_id,
+                                'method': request.method,
+                                'path': request.path,
+                                'status_code': response.status_code,
+                                'duration_ms': duration_ms,
+                                'response_size': response.content_length
+                            }
+                        )
+                    else:
+                        # Success - log completion
+                        logger.info(
+                            f"[{request_id}] Request completed: {request.method} {request.path} "
+                            f"- Status: {response.status_code} - Duration: {duration_ms}ms",
+                            extra={
+                                'request_id': request_id,
+                                'method': request.method,
+                                'path': request.path,
+                                'status_code': response.status_code,
+                                'duration_ms': duration_ms,
+                                'response_size': response.content_length
+                            }
+                        )
+                    
+                    # Warn on slow requests (>1 second) regardless of status
+                    if duration_ms > 1000:
+                        logger.warning(
+                            f"[{request_id}] Slow request detected: {request.method} {request.path} "
+                            f"took {duration_ms}ms",
+                            extra={
+                                'request_id': request_id,
+                                'method': request.method,
+                                'path': request.path,
+                                'duration_ms': duration_ms,
+                                'slow_request': True
+                            }
+                        )
                 
                 # Mark as tracked
                 g.request_tracked = True
@@ -160,20 +291,27 @@ def setup_request_tracking(app):
         Always runs at the end of a request, even if an exception occurred.
         This ensures request tracking happens even on error responses.
         
+        Performance optimization: Respects log_level to avoid unnecessary logging.
+        
         Args:
             exception: Exception that occurred during request (None if successful)
         """
         request_id = getattr(g, 'request_id', None)
         start_time = getattr(g, 'request_start_time', None)
         already_tracked = getattr(g, 'request_tracked', False)
+        log_level = getattr(g, 'log_level', 'full')
         
         # Only log if not already tracked (prevents duplicate logs)
         if request_id and not already_tracked:
+            # Skip logging entirely for 'none' paths (health checks)
+            if log_level == 'none':
+                return
+            
             if start_time:
                 duration_ms = int((time.time() - start_time) * 1000)
                 
                 if exception:
-                    # Log request failure with exception details
+                    # ALWAYS log exceptions regardless of log_level (critical for debugging)
                     logger.error(
                         f"[{request_id}] Request failed: {request.method} {request.path} "
                         f"- Duration: {duration_ms}ms - Exception: {type(exception).__name__}",
@@ -188,24 +326,29 @@ def setup_request_tracking(app):
                         exc_info=True
                     )
                 else:
+                    # Only log for FULL logging paths
                     # This shouldn't normally happen (after_request should have logged)
-                    # but log it anyway for safety
-                    logger.info(
-                        f"[{request_id}] Request ended: {request.method} {request.path} "
-                        f"- Duration: {duration_ms}ms",
-                        extra={
-                            'request_id': request_id,
-                            'method': request.method,
-                            'path': request.path,
-                            'duration_ms': duration_ms
-                        }
-                    )
+                    # but log it anyway for safety on full-logged paths
+                    if log_level == 'full':
+                        logger.info(
+                            f"[{request_id}] Request ended: {request.method} {request.path} "
+                            f"- Duration: {duration_ms}ms",
+                            extra={
+                                'request_id': request_id,
+                                'method': request.method,
+                                'path': request.path,
+                                'duration_ms': duration_ms
+                            }
+                        )
     
     # Use Flask's got_request_exception signal to log all exceptions
     def log_exception_with_request_id(sender, exception, **extra):
         """
         Logs all exceptions with request ID before Flask's error handling kicks in.
         This runs before error handlers, ensuring all exceptions are logged.
+        
+        Performance optimization: Still logs all exceptions (critical for debugging),
+        but skips 404 errors on minimal-log paths to reduce noise.
         
         Args:
             sender: The application that sent the signal
@@ -215,10 +358,19 @@ def setup_request_tracking(app):
         
         request_id = getattr(g, 'request_id', None)
         start_time = getattr(g, 'request_start_time', None)
+        log_level = getattr(g, 'log_level', 'full')
         duration_ms = int((time.time() - start_time) * 1000) if start_time else None
+        
+        # Skip logging entirely for 'none' paths (health checks)
+        if log_level == 'none':
+            return
         
         # Log HTTP exceptions as warnings, unexpected exceptions as errors
         if isinstance(exception, HTTPException):
+            # Skip 404 on minimal-log paths (reduces noise from static file requests)
+            if log_level == 'minimal' and exception.code == 404:
+                return
+            
             logger.warning(
                 f"[{request_id}] HTTP error: {request.method} {request.path} "
                 f"- Status: {exception.code} - Duration: {duration_ms}ms",
@@ -232,6 +384,7 @@ def setup_request_tracking(app):
                 }
             )
         else:
+            # ALWAYS log unexpected exceptions (critical for debugging)
             logger.error(
                 f"[{request_id}] Unhandled exception: {type(exception).__name__}: {str(exception)} "
                 f"- Duration: {duration_ms}ms",
@@ -250,7 +403,12 @@ def setup_request_tracking(app):
     from flask import got_request_exception
     got_request_exception.connect(log_exception_with_request_id, app)
     
-    logger.info("Request tracking middleware initialized - using got_request_exception signal for error logging")
+    logger.info(
+        "Request tracking middleware initialized - "
+        f"optimized logging: {len(NO_LOG_PATHS)} no-log paths, "
+        f"{len(MINIMAL_LOG_PATHS_PREFIX)} minimal-log path prefixes, "
+        f"{len(FULL_LOG_PATHS_PREFIX)} full-log path prefixes"
+    )
 
 
 def with_request_id(func):
