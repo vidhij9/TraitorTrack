@@ -293,6 +293,12 @@ from request_tracking import setup_request_tracking
 setup_request_tracking(app)
 logger.info("Request tracking middleware initialized - all requests now have unique IDs")
 
+# Setup graceful shutdown handling for zero-downtime deployments
+from shutdown_handler import init_graceful_shutdown
+shutdown_timeout = int(os.environ.get('GRACEFUL_SHUTDOWN_TIMEOUT', '30'))
+shutdown_handler = init_graceful_shutdown(app, db, timeout=shutdown_timeout)
+logger.info(f"Graceful shutdown handler initialized - timeout: {shutdown_timeout}s")
+
 # Setup session timeout middleware
 @app.before_request
 def check_session_timeout_middleware():
