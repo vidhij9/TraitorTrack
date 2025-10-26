@@ -19,62 +19,94 @@ def is_logged_in():
     """Alias for is_authenticated"""
     return is_authenticated()
 
-def create_session(user_id, username, role, dispatch_area=None):
-    """Create a new user session with activity tracking"""
+def create_session(user_id, username, role, dispatch_area=None, email=None):
+    """
+    Create a new user session with activity tracking.
+    
+    Optimized to use Unix timestamps (floats) instead of ISO strings
+    for better performance (avoids datetime parsing overhead).
+    """
+    import time
+    
     session['user_id'] = user_id
     session['username'] = username
     session['user_role'] = role
     session['dispatch_area'] = dispatch_area
-    session['logged_in'] = True
     session['authenticated'] = True
+    session['logged_in'] = True  # Backward compatibility (some routes still check this)
+    
+    # Store email in session to avoid DB queries (optimization)
+    if email:
+        session['email'] = email
+    
     # Session is non-permanent (expires on browser close) - security feature
     session.permanent = False
     
-    # Session timeout tracking
-    now = datetime.utcnow()
-    session['created_at'] = now.isoformat()
-    session['last_activity'] = now.isoformat()
+    # Session timeout tracking (using Unix timestamps for performance)
+    now_timestamp = time.time()  # Float seconds since epoch (faster than ISO)
+    session['created_at'] = now_timestamp
+    session['last_activity'] = now_timestamp
 
 def update_session_activity():
-    """Update the last activity timestamp"""
+    """
+    Update the last activity timestamp.
+    
+    Optimized to use Unix timestamp (float) instead of ISO string.
+    """
+    import time
     if is_authenticated():
-        session['last_activity'] = datetime.utcnow().isoformat()
+        session['last_activity'] = time.time()
 
 def check_session_timeout():
     """
     Check if session has expired due to absolute timeout or inactivity.
+    
+    Optimized to use Unix timestamps (floats) instead of ISO string parsing.
+    This avoids expensive datetime.fromisoformat() calls on every auth check.
+    
     Returns (is_valid, reason) tuple.
     - is_valid: True if session is still valid, False if expired
     - reason: None if valid, 'absolute' or 'inactivity' if expired
     """
+    import time
     if not is_authenticated():
         return True, None  # No session to check
     
-    now = datetime.utcnow()
+    now = time.time()
     
-    # Check absolute timeout
-    created_at_str = session.get('created_at')
-    if created_at_str:
+    # Check absolute timeout (using Unix timestamps for speed)
+    created_at = session.get('created_at')
+    if created_at:
         try:
-            created_at = datetime.fromisoformat(created_at_str)
-            session_age = (now - created_at).total_seconds()
+            # Handle both new (float) and legacy (ISO string) formats for compatibility
+            if isinstance(created_at, str):
+                # Legacy format - convert once and update
+                created_at = datetime.fromisoformat(created_at).timestamp()
+                session['created_at'] = created_at  # Upgrade to new format
+            
+            session_age = now - created_at
             
             if session_age > SESSION_ABSOLUTE_TIMEOUT:
                 return False, 'absolute'
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             # Invalid timestamp, treat as expired
             return False, 'absolute'
     
-    # Check inactivity timeout
-    last_activity_str = session.get('last_activity')
-    if last_activity_str:
+    # Check inactivity timeout (using Unix timestamps for speed)
+    last_activity = session.get('last_activity')
+    if last_activity:
         try:
-            last_activity = datetime.fromisoformat(last_activity_str)
-            inactive_time = (now - last_activity).total_seconds()
+            # Handle both new (float) and legacy (ISO string) formats for compatibility
+            if isinstance(last_activity, str):
+                # Legacy format - convert once and update
+                last_activity = datetime.fromisoformat(last_activity).timestamp()
+                session['last_activity'] = last_activity  # Upgrade to new format
+            
+            inactive_time = now - last_activity
             
             if inactive_time > SESSION_INACTIVITY_TIMEOUT:
                 return False, 'inactivity'
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             # Invalid timestamp, treat as expired
             return False, 'inactivity'
     
@@ -83,33 +115,44 @@ def check_session_timeout():
 def get_session_time_remaining():
     """
     Get time remaining until session expires (in seconds).
+    
+    Optimized to use Unix timestamps (floats) instead of ISO string parsing.
     Returns the minimum of absolute timeout and inactivity timeout.
     """
+    import time
     if not is_authenticated():
         return 0
     
-    now = datetime.utcnow()
+    now = time.time()
     
-    # Calculate time remaining for absolute timeout
-    created_at_str = session.get('created_at')
+    # Calculate time remaining for absolute timeout (using Unix timestamps)
+    created_at = session.get('created_at')
     absolute_remaining = SESSION_ABSOLUTE_TIMEOUT
-    if created_at_str:
+    if created_at:
         try:
-            created_at = datetime.fromisoformat(created_at_str)
-            session_age = (now - created_at).total_seconds()
+            # Handle both new (float) and legacy (ISO string) formats
+            if isinstance(created_at, str):
+                created_at = datetime.fromisoformat(created_at).timestamp()
+                session['created_at'] = created_at  # Upgrade to new format
+            
+            session_age = now - created_at
             absolute_remaining = max(0, SESSION_ABSOLUTE_TIMEOUT - session_age)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             absolute_remaining = 0
     
-    # Calculate time remaining for inactivity timeout
-    last_activity_str = session.get('last_activity')
+    # Calculate time remaining for inactivity timeout (using Unix timestamps)
+    last_activity = session.get('last_activity')
     inactivity_remaining = SESSION_INACTIVITY_TIMEOUT
-    if last_activity_str:
+    if last_activity:
         try:
-            last_activity = datetime.fromisoformat(last_activity_str)
-            inactive_time = (now - last_activity).total_seconds()
+            # Handle both new (float) and legacy (ISO string) formats
+            if isinstance(last_activity, str):
+                last_activity = datetime.fromisoformat(last_activity).timestamp()
+                session['last_activity'] = last_activity  # Upgrade to new format
+            
+            inactive_time = now - last_activity
             inactivity_remaining = max(0, SESSION_INACTIVITY_TIMEOUT - inactive_time)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             inactivity_remaining = 0
     
     # Return the minimum (whichever expires first)
@@ -145,11 +188,13 @@ def login_required(f):
     return require_auth(f)
 
 def is_authenticated():
-    """Unified authentication check - single source of truth"""
-    return (
-        session.get('logged_in', False) or 
-        session.get('authenticated', False)
-    ) and session.get('user_id') is not None
+    """
+    Unified authentication check - single source of truth.
+    
+    Optimized to use single 'authenticated' key (removed redundant 'logged_in' check)
+    for faster session lookups.
+    """
+    return session.get('authenticated', False) and session.get('user_id') is not None
 
 def require_auth(f):
     """Decorator to require authentication - unified version"""
@@ -188,13 +233,27 @@ def get_dispatch_area():
     return session.get('dispatch_area')
 
 def get_email():
-    """Get current user's email from database"""
+    """
+    Get current user's email.
+    
+    Optimized to use session storage instead of database query.
+    Email is now stored in session during login (see create_session).
+    """
+    # Try session first (optimization - avoids DB query)
+    email = session.get('email')
+    if email:
+        return email
+    
+    # Fallback to database query for legacy sessions
     user_id = get_user_id()
     if user_id:
         from models import User
         user = User.query.get(user_id)
-        if user:
+        if user and user.email:
+            # Cache in session for future requests
+            session['email'] = user.email
             return user.email
+    
     return None
 
 def is_admin():

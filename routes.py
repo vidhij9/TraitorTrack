@@ -1651,8 +1651,14 @@ def login():
                 })
                 return redirect(url_for('two_fa_verify'))
             
-            # No 2FA - create session and login normally
-            create_session(user.id, user.username, user.role, user.dispatch_area if hasattr(user, 'dispatch_area') else None)
+            # No 2FA - create session and login normally (with email optimization)
+            create_session(
+                user.id, 
+                user.username, 
+                user.role, 
+                user.dispatch_area if hasattr(user, 'dispatch_area') else None,
+                user.email  # Pass email to avoid future DB queries
+            )
             
             app.logger.info(f"LOGIN SUCCESS: {username} logged in with role {user.role}, user_id={user.id}")
             app.logger.info(f"Session after login: user_id={session.get('user_id')}, keys={list(session.keys())}")
@@ -5535,10 +5541,10 @@ def two_fa_verify():
         
         # Verify TOTP code
         if TwoFactorAuth.verify_totp(user.totp_secret, token):
-            # 2FA successful, complete login
+            # 2FA successful, complete login (with email optimization)
             session.pop('pending_2fa_user_id', None)
             from auth_utils import create_session
-            create_session(user.id, user.username, user.role, user.dispatch_area)
+            create_session(user.id, user.username, user.role, user.dispatch_area, user.email)
             flash(f'Welcome back, {user.username}!', 'success')
             app.logger.info(f'2FA login successful for user: {user.username}')
             # Audit log: Successful 2FA verification (complete login)

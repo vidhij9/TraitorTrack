@@ -190,8 +190,30 @@ login_manager.login_message_category = 'info'
 
 @login_manager.user_loader
 def load_user(user_id):
+    """
+    Optimized user loader with request-level caching.
+    
+    Caches user object in Flask's request context (g) to avoid
+    repeated database queries within the same request lifecycle.
+    This is critical for performance as Flask-Login calls this function
+    on every authenticated request to check user session validity.
+    """
+    from flask import g
     from models import User
-    return User.query.get(int(user_id))
+    
+    # Check if user is already cached in request context
+    cached_user = getattr(g, '_login_user', None)
+    if cached_user is not None and str(cached_user.id) == str(user_id):
+        return cached_user
+    
+    # Load user from database (only if not cached)
+    user = User.query.get(int(user_id))
+    
+    # Cache in request context for subsequent auth checks in same request
+    if user:
+        g._login_user = user
+    
+    return user
 
 # Initialize database tables and admin user
 with app.app_context():
