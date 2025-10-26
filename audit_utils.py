@@ -9,6 +9,12 @@ from typing import Optional, Dict, Any, Union
 from flask import request, g
 from flask_login import current_user
 from app import db
+from anonymization_utils import (
+    anonymize_ip_address,
+    anonymize_pii_in_dict,
+    get_anonymization_config,
+    ANONYMIZE_AUDIT_LOGS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +134,16 @@ def log_audit_with_snapshot(
             if after_state and not isinstance(after_state, dict):
                 after_state = serialize_entity(after_state)
         
+        # GDPR Compliance: Anonymize PII in snapshots if enabled
+        if ANONYMIZE_AUDIT_LOGS:
+            anonymization_config = get_anonymization_config()
+            if before_state and isinstance(before_state, dict):
+                before_state = anonymize_pii_in_dict(before_state, anonymization_config)
+            if after_state and isinstance(after_state, dict):
+                after_state = anonymize_pii_in_dict(after_state, anonymization_config)
+            if details and isinstance(details, dict):
+                details = anonymize_pii_in_dict(details, anonymization_config)
+        
         audit = AuditLog()
         # Handle current_user safely (may be None outside request context)
         try:
@@ -140,7 +156,15 @@ def log_audit_with_snapshot(
         audit.details = json.dumps(details) if details else None
         audit.before_state = json.dumps(before_state) if before_state else None
         audit.after_state = json.dumps(after_state) if after_state else None
-        audit.ip_address = request.remote_addr if request else None
+        
+        # GDPR Compliance: Anonymize IP address if enabled
+        if request and request.remote_addr:
+            if ANONYMIZE_AUDIT_LOGS:
+                audit.ip_address = anonymize_ip_address(request.remote_addr)
+            else:
+                audit.ip_address = request.remote_addr
+        else:
+            audit.ip_address = None
         audit.request_id = get_request_id() if hasattr(g, 'request_id') else None
         
         db.session.add(audit)
