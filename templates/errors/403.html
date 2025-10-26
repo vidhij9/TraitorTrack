@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %} - Page Not Found{% endblock %}
+{% block title %} - Forbidden{% endblock %}
 
 {% block content %}
 <div class="container py-5">
@@ -8,18 +8,17 @@
         <div class="col-md-8 text-center">
             <div class="error-container mb-5">
                 <div class="error-code">
-                    <span class="display-1 fw-bold text-success">404</span>
+                    <span class="display-1 fw-bold text-danger">403</span>
                 </div>
                 <div class="error-icon my-4">
                     <div class="d-inline-block position-relative">
-                        <i class="fas fa-seedling fa-5x text-success opacity-25"></i>
-                        <i class="fas fa-search position-absolute top-50 start-50 translate-middle text-success"></i>
+                        <i class="fas fa-shield-alt fa-5x text-danger opacity-25"></i>
+                        <i class="fas fa-ban position-absolute top-50 start-50 translate-middle text-danger"></i>
                     </div>
                 </div>
-                <h1 class="mb-4">Page Not Found</h1>
+                <h1 class="mb-4">Access Forbidden</h1>
                 <p class="lead text-muted mb-5">
-                    We couldn't find the page you were looking for. 
-                    It might have been removed, had its name changed, or is temporarily unavailable.
+                    You don't have permission to access this resource. This area is restricted to authorized users only.
                 </p>
                 <div class="d-flex justify-content-center gap-3">
                     <a href="/" class="btn btn-success">
@@ -31,12 +30,19 @@
                 </div>
             </div>
             
-            <div class="card bg-dark border-success">
+            <div class="card bg-dark border-danger">
                 <div class="card-body">
-                    <h5 class="card-title">Need Help?</h5>
+                    <h5 class="card-title text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Access Denied
+                    </h5>
                     <p class="card-text text-muted mb-3">
-                        The page you're looking for doesn't exist. If you think this is an error, please contact support with the Request ID above.
+                        If you believe you should have access to this resource, please contact your administrator or request the appropriate permissions.
                     </p>
+                    {% if current_user and current_user.is_authenticated and current_user.role %}
+                    <small class="text-muted">
+                        Current role: <span class="badge bg-secondary">{{ current_user.role }}</span>
+                    </small>
+                    {% endif %}
                 </div>
             </div>
             

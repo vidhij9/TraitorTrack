@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block title %} - Server Error{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="error-container mb-5">
+                <div class="error-code">
+                    <span class="display-1 fw-bold text-danger">500</span>
+                </div>
+                <div class="error-icon my-4">
+                    <div class="d-inline-block position-relative">
+                        <i class="fas fa-server fa-5x text-danger opacity-25"></i>
+                        <i class="fas fa-exclamation-triangle position-absolute top-50 start-50 translate-middle text-danger"></i>
+                    </div>
+                </div>
+                <h1 class="mb-4">Internal Server Error</h1>
+                <p class="lead text-muted mb-5">
+                    Something went wrong on our end. We're working to fix the issue. Please try again in a few moments.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <button onclick="location.reload()" class="btn btn-danger">
+                        <i class="fas fa-redo me-2"></i>Try Again
+                    </button>
+                    <a href="/" class="btn btn-outline-secondary">
+                        <i class="fas fa-home me-2"></i>Return Home
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card bg-dark border-danger">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">
+                        <i class="fas fa-tools me-2"></i>What happened?
+                    </h5>
+                    <p class="card-text text-muted mb-3">
+                        Our server encountered an unexpected error while processing your request. 
+                        The technical team has been notified and is investigating the issue.
+                    </p>
+                    <div class="text-start text-muted small">
+                        <p class="mb-2"><strong>What can you do?</strong></p>
+                        <ul class="mb-0">
+                            <li>Wait a few moments and try again</li>
+                            <li>Return to the homepage and navigate back</li>
+                            <li>If the problem persists, contact your administrator</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            {% if request_id %}
+            <div class="card bg-dark border-warning mt-3">
+                <div class="card-body">
+                    <p class="mb-2 text-warning">
+                        <i class="fas fa-bug me-1"></i>
+                        <strong>For support, please provide this information:</strong>
+                    </p>
+                    <small class="text-muted">
+                        Request ID: <code class="text-white">{{ request_id }}</code><br>
+                        Time: <code class="text-white">{{ timestamp }}</code>
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.error-container {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}

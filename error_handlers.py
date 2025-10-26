@@ -10,54 +10,118 @@ from werkzeug.exceptions import HTTPException
 import os
 
 def setup_error_handlers(app):
-    """Setup comprehensive error handlers for the application"""
+    """Setup comprehensive error handlers for the application with request ID tracking"""
     
     @app.errorhandler(400)
     def bad_request(error):
-        """Handle bad request errors"""
-        pass  # Logging disabled for performance
-        if request.is_json:
+        """Handle bad request errors (including CSRF)"""
+        from request_tracking import get_request_id
+        from datetime import datetime
+        
+        request_id = get_request_id()
+        
+        # CSRF-specific handling
+        if 'CSRF' in str(error) or 'csrf' in str(error.description or '').lower():
+            if request.is_json or request.path.startswith('/api/') or request.path.startswith('/process_'):
+                return jsonify({
+                    'success': False,
+                    'message': 'Security token expired. Please refresh the page and try again.',
+                    'error_code': 400,
+                    'request_id': request_id
+                }), 400
+        
+        # Generic bad request handling
+        if request.is_json or request.path.startswith('/api/'):
             return jsonify({
                 'success': False,
                 'error': 'Invalid request format',
-                'message': 'Please check your request and try again.'
+                'message': 'Please check your request and try again.',
+                'error_code': 400,
+                'request_id': request_id
             }), 400
+        
         flash('Invalid request. Please check your input and try again.', 'error')
         return render_template('error.html', 
                              error_code=400,
                              error_title='Bad Request',
-                             error_message='The request could not be understood. Please check your input and try again.'), 400
+                             error_message='The request could not be understood. Please check your input and try again.',
+                             request_id=request_id,
+                             timestamp=datetime.utcnow().isoformat()), 400
+
+    @app.errorhandler(401)
+    def unauthorized(error):
+        """Handle 401 Unauthorized errors"""
+        from request_tracking import get_request_id
+        from datetime import datetime
+        
+        request_id = get_request_id()
+        app.logger.warning(f"[{request_id}] 401 Unauthorized: {request.path}")
+        
+        # If it's an AJAX/API request, return JSON
+        if request.is_json or request.path.startswith('/api/'):
+            return jsonify({
+                'success': False,
+                'message': 'Authentication required. Please log in to continue.',
+                'error_code': 401,
+                'request_id': request_id
+            }), 401
+        
+        # Render error page for web requests
+        return render_template(
+            'errors/401.html',
+            request_id=request_id,
+            timestamp=datetime.utcnow().isoformat()
+        ), 401
 
     @app.errorhandler(403)
     def forbidden(error):
-        """Handle forbidden access errors"""
-        pass  # Logging disabled for performance
-        if request.is_json:
+        """Handle 403 Forbidden errors"""
+        from request_tracking import get_request_id
+        from datetime import datetime
+        
+        request_id = get_request_id()
+        app.logger.warning(f"[{request_id}] 403 Forbidden: {request.path}")
+        
+        # If it's an AJAX/API request, return JSON
+        if request.is_json or request.path.startswith('/api/'):
             return jsonify({
                 'success': False,
-                'error': 'Access forbidden',
-                'message': 'You do not have permission to access this resource.'
+                'message': 'Access forbidden. You do not have permission to access this resource.',
+                'error_code': 403,
+                'request_id': request_id
             }), 403
-        flash('Access denied. You do not have permission to view this page.', 'error')
-        return render_template('error.html',
-                             error_code=403,
-                             error_title='Access Forbidden',
-                             error_message='You do not have permission to access this resource.'), 403
+        
+        # Render error page for web requests
+        return render_template(
+            'errors/403.html',
+            request_id=request_id,
+            timestamp=datetime.utcnow().isoformat()
+        ), 403
 
     @app.errorhandler(404)
     def not_found(error):
-        """Handle not found errors"""
-        pass  # Logging disabled for performance
-        if request.is_json:
+        """Handle 404 Not Found errors"""
+        from request_tracking import get_request_id
+        from datetime import datetime
+        
+        request_id = get_request_id()
+        app.logger.info(f"[{request_id}] 404 Not Found: {request.path}")
+        
+        # If it's an AJAX/API request, return JSON
+        if request.is_json or request.path.startswith('/api/'):
             return jsonify({
                 'success': False,
-                'error': 'Resource not found',
-                'message': 'The requested resource could not be found.'
+                'message': 'Resource not found.',
+                'error_code': 404,
+                'request_id': request_id
             }), 404
-        return render_template('error.html',
-                             error_code=404,
-                             error_title='Page Not Found',
-                             error_message='The page you are looking for could not be found.'), 404
+        
+        # Render error page for web requests
+        return render_template(
+            'errors/404.html',
+            request_id=request_id,
+            timestamp=datetime.utcnow().isoformat()
+        ), 404
 
     @app.errorhandler(413)
     def request_entity_too_large(error):
@@ -89,28 +153,35 @@ def setup_error_handlers(app):
 
     @app.errorhandler(500)
     def internal_server_error(error):
-        """Handle internal server errors"""
-        pass  # Logging disabled for performance
+        """Handle 500 Internal Server errors"""
+        from request_tracking import get_request_id
+        from datetime import datetime
         
-        # Rollback any database changes
+        request_id = get_request_id()
+        app.logger.error(f"[{request_id}] 500 Internal Server Error: {request.path} - {str(error)}", exc_info=True)
+        
+        # Rollback any pending database transactions
         try:
             from app import db
             db.session.rollback()
-        except Exception as db_error:
-            pass  # Logging disabled for performance
+        except Exception:
+            pass
         
-        if request.is_json:
+        # If it's an AJAX/API request, return JSON
+        if request.is_json or request.path.startswith('/api/'):
             return jsonify({
                 'success': False,
-                'error': 'Internal server error',
-                'message': 'An unexpected error occurred. Please try again later.'
+                'message': 'An internal server error occurred. Please try again later.',
+                'error_code': 500,
+                'request_id': request_id
             }), 500
         
-        flash('An unexpected error occurred. Please try again later.', 'error')
-        return render_template('error.html',
-                             error_code=500,
-                             error_title='Server Error',
-                             error_message='An unexpected error occurred. Our team has been notified.'), 500
+        # Render error page for web requests
+        return render_template(
+            'errors/500.html',
+            request_id=request_id,
+            timestamp=datetime.utcnow().isoformat()
+        ), 500
 
     @app.errorhandler(503)
     def service_unavailable(error):

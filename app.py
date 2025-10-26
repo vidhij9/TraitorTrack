@@ -509,26 +509,5 @@ def inject_current_user():
     
     return dict(current_user=TemplateUser())
 
-# Handle CSRF errors
-@app.errorhandler(400)
-def handle_csrf_error(e):
-    from flask import jsonify
-    
-    # If it's an AJAX request or API endpoint, return JSON
-    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
-        request.headers.get('Accept', '').find('application/json') != -1 or
-        request.path.startswith('/process_') or 
-        request.path.startswith('/api/')):
-        
-        if 'CSRF' in str(e) or 'csrf' in str(e.description or '').lower():
-            return jsonify({
-                'success': False, 
-                'message': 'Security token expired. Please refresh the page and try again.'
-            }), 400
-        
-        return jsonify({
-            'success': False, 
-            'message': 'Bad request. Please check your input and try again.'
-        }), 400
-    
-    return e
+# Note: Comprehensive error handlers are defined in error_handlers.py
+# and registered via setup_error_handlers(app) call above
