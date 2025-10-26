@@ -321,7 +321,7 @@ def before_request():
     from auth_utils import is_authenticated
     
     # Skip validation for public paths
-    excluded_paths = ['/login', '/register', '/static', '/logout', '/health', '/api/health']
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/health', '/api/health', '/forgot_password', '/reset_password']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     

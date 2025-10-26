@@ -54,6 +54,10 @@ class User(UserMixin, db.Model):
     locked_until = db.Column(db.DateTime, nullable=True)
     last_failed_login = db.Column(db.DateTime, nullable=True)
     
+    # Password reset fields
+    password_reset_token = db.Column(db.String(100), nullable=True)
+    password_reset_token_expires = db.Column(db.DateTime, nullable=True)
+    
     def set_password(self, password):
         """Set user password hash"""
         # Use fast bcrypt hashing if available

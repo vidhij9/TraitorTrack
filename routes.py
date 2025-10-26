@@ -1876,6 +1876,94 @@ def register():
     
     return render_template('register.html')
 
+@app.route('/forgot_password', methods=['GET', 'POST'])
+@limiter.limit("3 per minute")  # Strict rate limiting to prevent abuse
+def forgot_password():
+    """Handle forgot password requests"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    from forms import ForgotPasswordForm
+    from password_reset_utils import create_password_reset_token, send_password_reset_email
+    
+    form = ForgotPasswordForm()
+    
+    if form.validate_on_submit():
+        try:
+            email = form.email.data.strip().lower()
+            
+            # Find user by email
+            user = User.query.filter_by(email=email).first()
+            
+            # Always show success message (don't reveal if email exists)
+            # This prevents email enumeration attacks
+            flash('If an account exists with that email, a password reset link has been sent.', 'success')
+            
+            if user:
+                # Generate reset token
+                token = create_password_reset_token(user)
+                
+                if token:
+                    # Send reset email
+                    success, error = send_password_reset_email(user, token, request.host)
+                    
+                    if success:
+                        app.logger.info(f"Password reset email sent to: {email}")
+                    else:
+                        app.logger.error(f"Failed to send password reset email: {error}")
+                else:
+                    app.logger.error(f"Failed to create reset token for: {email}")
+            else:
+                # User not found - log for security monitoring
+                app.logger.warning(f"Password reset attempted for non-existent email: {email}")
+            
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            app.logger.error(f"Forgot password error: {str(e)}")
+            flash('An error occurred. Please try again later.', 'error')
+    
+    return render_template('forgot_password.html', form=form)
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")  # Rate limiting for password reset
+def reset_password(token):
+    """Handle password reset with token"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    from forms import ResetPasswordForm
+    from password_reset_utils import validate_reset_token, reset_password as reset_user_password
+    
+    # Validate token
+    user, error_message = validate_reset_token(token)
+    
+    if not user:
+        flash(error_message or 'Invalid or expired reset link.', 'error')
+        return redirect(url_for('forgot_password'))
+    
+    form = ResetPasswordForm()
+    
+    if form.validate_on_submit():
+        try:
+            new_password = form.password.data
+            
+            # Reset password
+            success, error = reset_user_password(user, new_password)
+            
+            if success:
+                flash('Your password has been reset successfully. You can now log in.', 'success')
+                app.logger.info(f"Password reset successful for user: {user.username}")
+                return redirect(url_for('login'))
+            else:
+                flash(error or 'Failed to reset password. Please try again.', 'error')
+                
+        except Exception as e:
+            app.logger.error(f"Password reset error: {str(e)}")
+            flash('An error occurred. Please try again.', 'error')
+    
+    return render_template('reset_password.html', form=form, token=token)
+
 @app.route('/request_promotion', methods=['GET', 'POST'])
 @login_required
 def request_promotion():

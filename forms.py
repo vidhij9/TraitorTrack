@@ -98,3 +98,23 @@ class ManualScanForm(FlaskForm):
     qr_code = StringField('QR Code', validators=[DataRequired()])
     submit = SubmitField('Add Child')
 
+class ForgotPasswordForm(FlaskForm):
+    """Form for requesting a password reset."""
+    email = StringField('Email Address', validators=[
+        DataRequired(),
+        Email(message="Please enter a valid email address.")
+    ])
+    submit = SubmitField('Send Reset Link')
+
+class ResetPasswordForm(FlaskForm):
+    """Form for resetting password with a token."""
+    password = PasswordField('New Password', validators=[
+        DataRequired(),
+        Length(min=8, message="Password must be at least 8 characters long.")
+    ])
+    confirm_password = PasswordField('Confirm New Password', validators=[
+        DataRequired(),
+        EqualTo('password', message="Passwords must match.")
+    ])
+    submit = SubmitField('Reset Password')
+
