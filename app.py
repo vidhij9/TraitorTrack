@@ -69,15 +69,16 @@ is_production = (
 )
 
 # Session configuration - using filesystem (Redis causes port exhaustion under load)
-# IMPORTANT: SESSION_COOKIE_SECURE must be False in development to allow session persistence
-# across HTTP requests (Gunicorn serves HTTP even though Replit proxy may set X-Forwarded-Proto)
+# SECURITY: SESSION_COOKIE_SECURE=True in production for HTTPS-only session cookies
+# In development, it's set to True but the after_request handler strips the Secure flag
+# to allow session persistence across HTTP (Gunicorn serves HTTP internally)
 app.config.update(
     SESSION_TYPE='filesystem',
     SESSION_FILE_DIR='/tmp/flask_session',
     SESSION_PERMANENT=False,
     SESSION_USE_SIGNER=True,
     SESSION_FILE_THRESHOLD=500,
-    SESSION_COOKIE_SECURE=False,  # Always False - let Replit proxy handle HTTPS
+    SESSION_COOKIE_SECURE=True,  # True for production HTTPS security
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     SESSION_COOKIE_NAME='tracetrack_session',
