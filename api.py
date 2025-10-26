@@ -459,13 +459,23 @@ def get_recent_scans():
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached_global(seconds=30, prefix='bags_search')
 def search_bags_api():
-    """Fast bag search endpoint for load testing"""
+    """Fast bag search endpoint with enhanced input validation"""
     try:
-        query_text = request.args.get('q', '').strip()
-        limit = min(request.args.get('limit', 50, type=int), 100)
+        from validation_utils import InputValidator
         
+        # Get and validate query text
+        query_text = request.args.get('q', '').strip()
         if not query_text:
             return jsonify({'success': True, 'bags': [], 'count': 0})
+        
+        # Sanitize search query to prevent SQL injection and XSS
+        query_text = InputValidator.sanitize_search_query(query_text)
+        if not query_text:  # If sanitization removed everything
+            return jsonify({'success': True, 'bags': [], 'count': 0, 'warning': 'Invalid search query'})
+        
+        # Validate limit parameter
+        limit = request.args.get('limit', 50, type=int)
+        limit = max(1, min(limit, 100))  # Bounds check: 1-100
         
         # Optimized bag search query
         bags = Bag.query.filter(
@@ -502,14 +512,30 @@ def search_bags_api():
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 def search_unified():
-    """Unified search endpoint for all entities"""
+    """Unified search endpoint with enhanced input validation"""
     try:
-        query_text = request.args.get('q', '').strip()
-        entity_type = request.args.get('type', 'all').lower()
-        limit = min(request.args.get('limit', 20, type=int), 50)
+        from validation_utils import InputValidator
         
+        # Get and sanitize query text
+        query_text = request.args.get('q', '').strip()
         if not query_text:
             return jsonify({'success': False, 'error': 'Search query required'}), 400
+        
+        # Sanitize search query
+        query_text = InputValidator.sanitize_search_query(query_text)
+        if not query_text:
+            return jsonify({'success': False, 'error': 'Invalid search query'}), 400
+        
+        # Validate entity type
+        entity_type = request.args.get('type', 'all').lower()
+        allowed_types = ['all', 'bags', 'bag', 'bills', 'bill', 'users', 'user']
+        is_valid, error_msg = InputValidator.validate_choice(entity_type, allowed_types, "Entity type")
+        if not is_valid:
+            return jsonify({'success': False, 'error': error_msg}), 400
+        
+        # Validate limit
+        limit = request.args.get('limit', 20, type=int)
+        limit = max(1, min(limit, 50))  # Bounds check: 1-50
         
         results = {
             'bags': [],

@@ -35,3 +35,4 @@ alembic
 flask-migrate
 openpyxl
 sendgrid
+bleach
