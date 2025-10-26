@@ -5,6 +5,7 @@ Provides comprehensive error handling with user-friendly messages and logging.
 
 import logging
 import traceback
+from datetime import datetime
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from werkzeug.exceptions import HTTPException
 import os
@@ -250,12 +251,62 @@ def setup_health_monitoring(app):
     
     @app.route('/health')
     def health_check():
-        """Fast health check endpoint without database query"""
-        # Return healthy immediately without database check for performance
-        return jsonify({
+        """
+        Health check endpoint with optional database check
+        
+        Query Parameters:
+            check_db (bool): If 'true', performs database connectivity check
+        
+        Returns:
+            200: System healthy
+            503: System unhealthy (if check_db=true and DB fails)
+        """
+        from flask import request
+        
+        # Check if database check is requested
+        check_db = request.args.get('check_db', 'false').lower() == 'true'
+        
+        response_data = {
             'status': 'healthy',
-            'message': 'Application is running normally'
-        }), 200
+            'message': 'Application is running normally',
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        if check_db:
+            # Perform database connectivity check
+            try:
+                from app import db
+                from sqlalchemy import text
+                import time
+                
+                start_time = time.time()
+                result = db.session.execute(text("SELECT 1")).scalar()
+                query_time_ms = (time.time() - start_time) * 1000
+                
+                if result == 1:
+                    response_data['database'] = {
+                        'connected': True,
+                        'query_time_ms': round(query_time_ms, 2)
+                    }
+                else:
+                    response_data['status'] = 'unhealthy'
+                    response_data['message'] = 'Database query returned unexpected result'
+                    response_data['database'] = {
+                        'connected': False
+                    }
+                    return jsonify(response_data), 503
+                    
+            except Exception as e:
+                app.logger.error(f"Database health check failed: {e}")
+                response_data['status'] = 'unhealthy'
+                response_data['message'] = 'Database connection failed'
+                response_data['database'] = {
+                    'connected': False,
+                    'error': str(e)
+                }
+                return jsonify(response_data), 503
+        
+        return jsonify(response_data), 200
     
     @app.route('/status')
     def status_check():
@@ -263,6 +314,7 @@ def setup_health_monitoring(app):
         # Return operational immediately without database queries for performance
         return jsonify({
             'status': 'operational',
-            'timestamp': os.environ.get('REPL_ID', 'development'),
+            'timestamp': datetime.now().isoformat(),
+            'environment': os.environ.get('REPL_ID', 'development'),
             'message': 'All systems operational'
         }), 200

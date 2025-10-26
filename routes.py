@@ -7164,13 +7164,36 @@ def api_users_endpoint():
 
 @app.route('/api/health')
 def api_health_check():
-    """Public API health check"""
+    """Public API health check - basic status"""
     return jsonify({
         'status': 'healthy',
-        'service': 'Traitor Track',
-        'version': '1.0',
+        'service': 'TraceTrack',
+        'version': '2.0',
         'timestamp': datetime.now().isoformat()
     })
+
+@app.route('/api/health/detailed')
+@login_required
+def api_health_detailed():
+    """Detailed component-level health check - admin only"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        from health_check import get_health_checker
+        
+        health_checker = get_health_checker(app, db)
+        health_status = health_checker.get_comprehensive_health()
+        
+        return jsonify(health_status)
+    except Exception as e:
+        app.logger.error(f"Detailed health check error: {str(e)}")
+        return jsonify({
+            'status': 'unhealthy',
+            'message': 'Health check failed',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 @app.route('/child_lookup', methods=['GET', 'POST'])
 @login_required

@@ -304,8 +304,8 @@ def check_session_timeout_middleware():
     if request.endpoint in ['static', 'login', 'logout', 'register']:
         return None
     
-    # Skip for API health checks
-    if request.path and (request.path.startswith('/static/') or request.path == '/health'):
+    # Skip for health check endpoints and static files
+    if request.path and (request.path.startswith('/static/') or request.path == '/health' or request.path == '/status'):
         return None
     
     # Check if session has expired
@@ -340,8 +340,8 @@ def before_request():
     """Validate authentication before each request"""
     from auth_utils import is_authenticated
     
-    # Skip validation for public paths
-    excluded_paths = ['/login', '/register', '/static', '/logout', '/health', '/api/health', '/forgot_password', '/reset_password']
+    # Skip validation for public paths (including health check endpoints)
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/health', '/status', '/api/health', '/forgot_password', '/reset_password']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     
