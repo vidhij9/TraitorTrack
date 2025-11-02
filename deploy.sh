@@ -3,7 +3,7 @@
 # No virtual environment needed - Replit handles packages via requirements.txt
 
 echo "==================================================="
-echo "TraceTrack - Production Deployment"
+echo "TraitorTrack - Production Deployment"
 echo "Optimized for 100+ concurrent users"
 echo "==================================================="
 

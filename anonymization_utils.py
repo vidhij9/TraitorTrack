@@ -73,8 +73,8 @@ def anonymize_email(email: Optional[str], method: str = 'mask') -> Optional[str]
     Examples:
         >>> anonymize_email('john.doe@example.com', 'mask')
         'j***@example.com'
-        >>> anonymize_email('admin@tracetrack.com', 'domain_only')
-        '***@tracetrack.com'
+        >>> anonymize_email('admin@traitortrack.com', 'domain_only')
+        '***@traitortrack.com'
     """
     if not email:
         return None

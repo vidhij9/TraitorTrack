@@ -1,5 +1,5 @@
 """
-Notification Utilities for TraceTrack
+Notification Utilities for TraitorTrack
 Handles creation, management, and delivery of in-app notifications
 """
 

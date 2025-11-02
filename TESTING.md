@@ -1,8 +1,8 @@
-# TraceTrack Testing Documentation
+# TraitorTrack Testing Documentation
 
 ## Test Suite Overview
 
-TraceTrack includes a comprehensive testing suite covering unit tests, integration tests, and load testing.
+TraitorTrack includes a comprehensive testing suite covering unit tests, integration tests, and load testing.
 
 ## Running Tests
 
@@ -58,7 +58,7 @@ locust -f locustfile.py --host=http://localhost:5000 --users 100 --spawn-rate 10
 
 ### Load Test Scenarios
 
-**TraceTrackUser** (70% of traffic):
+**TraitorTrackUser** (70% of traffic):
 - View dashboard (high frequency)
 - Browse bag management
 - Browse bill management

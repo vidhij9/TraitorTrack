@@ -1,5 +1,5 @@
 """
-Password Reset Utilities for TraceTrack
+Password Reset Utilities for TraitorTrack
 
 Provides secure password reset functionality with time-limited tokens
 """

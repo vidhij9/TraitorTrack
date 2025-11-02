@@ -1,5 +1,5 @@
 """
-Password validation and account lockout utilities for TraceTrack
+Password validation and account lockout utilities for TraitorTrack
 """
 import re
 from datetime import datetime, timedelta

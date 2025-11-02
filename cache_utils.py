@@ -128,19 +128,6 @@ def cached_user(seconds=60, prefix=''):
         return wrapper
     return decorator
 
-def cached_route(seconds=60):
-    """
-    DEPRECATED: Legacy insecure caching - use cached_global() or cached_user() instead
-    This function now redirects to cached_user() for safety
-    """
-    import warnings
-    warnings.warn(
-        "cached_route() is deprecated and insecure. Use cached_global() or cached_user() instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    return cached_user(seconds=seconds, prefix='legacy')
-
 def _cleanup_cache(cache_dict):
     """Clean up expired entries from cache"""
     now = datetime.utcnow()

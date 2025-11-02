@@ -1,7 +1,7 @@
-# AWS RDS PostgreSQL Setup for TraceTrack Production
+# AWS RDS PostgreSQL Setup for TraitorTrack Production
 
 ## Overview
-This guide explains how to set up AWS RDS PostgreSQL as the production database for your TraceTrack deployment on Replit, while keeping the development environment separate.
+This guide explains how to set up AWS RDS PostgreSQL as the production database for your TraitorTrack deployment on Replit, while keeping the development environment separate.
 
 ---
 
@@ -42,8 +42,8 @@ This guide explains how to set up AWS RDS PostgreSQL as the production database 
 
 4. **Settings**:
    ```
-   DB instance identifier: tracetrack-production
-   Master username: tracetrack_admin
+   DB instance identifier: traitortrack-production
+   Master username: traitortrack_admin
    Master password: <generate-secure-password>
    ```
 
@@ -70,7 +70,7 @@ This guide explains how to set up AWS RDS PostgreSQL as the production database 
    - Or IAM database authentication (more secure)
 
 9. **Additional Configuration**:
-   - Initial database name: `tracetrack_production`
+   - Initial database name: `traitortrack_production`
    - Backup retention: 7 days (recommended)
    - Enable automated backups
    - Backup window: Choose off-peak hours
@@ -90,7 +90,7 @@ This guide explains how to set up AWS RDS PostgreSQL as the production database 
    - Port: 5432
    - Source: **Custom** → `0.0.0.0/0` (allows all IPs - use with strong password)
    - OR: Specific Replit IPs if known
-   - Description: "TraceTrack Replit access"
+   - Description: "TraitorTrack Replit access"
 
 4. **Save rules**
 
@@ -106,7 +106,7 @@ This guide explains how to set up AWS RDS PostgreSQL as the production database 
 
 2. **Copy Endpoint** (from Connectivity & security):
    ```
-   Example: tracetrack-production.abc123.us-east-1.rds.amazonaws.com
+   Example: traitortrack-production.abc123.us-east-1.rds.amazonaws.com
    ```
 
 3. **Note Port**: Usually `5432`
@@ -116,7 +116,7 @@ This guide explains how to set up AWS RDS PostgreSQL as the production database 
    postgresql://[username]:[password]@[endpoint]:[port]/[database]
    
    Example:
-   postgresql://tracetrack_admin:YourSecureP@ss123@tracetrack-production.abc123.us-east-1.rds.amazonaws.com:5432/tracetrack_production
+   postgresql://traitortrack_admin:YourSecureP@ss123@traitortrack-production.abc123.us-east-1.rds.amazonaws.com:5432/traitortrack_production
    ```
 
 ### Step 4: Test Connection Locally
@@ -134,8 +134,8 @@ DATABASE_URL="postgresql://username:password@endpoint:5432/database" python veri
 Expected output:
 ```
 ✅ Connection successful!
-   Database: tracetrack_production
-   User: tracetrack_admin
+   Database: traitortrack_production
+   User: traitortrack_admin
    Size: 8192 kB
    PostgreSQL: PostgreSQL 14.x on x86_64-pc-linux-gnu
    Tables: 0
@@ -146,7 +146,7 @@ Expected output:
 
 ### Step 5: Configure Replit Deployment
 
-1. **In Replit**, open your TraceTrack project
+1. **In Replit**, open your TraitorTrack project
 
 2. **Go to Deployments**:
    - Click the "Deploy" button
@@ -156,7 +156,7 @@ Expected output:
    - Click on deployment settings/secrets
    - Add or update `DATABASE_URL`:
      ```
-     DATABASE_URL=postgresql://tracetrack_admin:YourSecureP@ss123@tracetrack-production.abc123.us-east-1.rds.amazonaws.com:5432/tracetrack_production
+     DATABASE_URL=postgresql://traitortrack_admin:YourSecureP@ss123@traitortrack-production.abc123.us-east-1.rds.amazonaws.com:5432/traitortrack_production
      ```
 
 4. **Keep Development Separate**:
@@ -337,7 +337,7 @@ DATABASE_URL="rds-connection-string" python verify_db_connection.py
 - **AWS RDS Documentation**: https://docs.aws.amazon.com/rds/
 - **PostgreSQL Documentation**: https://www.postgresql.org/docs/
 - **Replit Deployments**: Replit documentation
-- **TraceTrack Docs**: See `DEPLOYMENT.md`
+- **TraitorTrack Docs**: See `DEPLOYMENT.md`
 
 ---
 

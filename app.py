@@ -85,7 +85,7 @@ app.config.update(
     SESSION_COOKIE_SECURE=True,  # True for production HTTPS security
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_NAME='tracetrack_session',
+    SESSION_COOKIE_NAME='traitortrack_session',
     PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
     SEND_FILE_MAX_AGE_DEFAULT=0,
     WTF_CSRF_ENABLED=True,
@@ -154,7 +154,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "echo_pool": False,
     "connect_args": {
         "connect_timeout": 10,  # Database connection timeout
-        "application_name": "tracetrack_web"  # For monitoring
+        "application_name": "traitortrack_web"  # For monitoring
     }
 }
 
@@ -250,7 +250,7 @@ with app.app_context():
                 
                 admin = User()
                 admin.username = 'admin'
-                admin.email = 'admin@tracetrack.com'
+                admin.email = 'admin@traitortrack.com'
                 admin.set_password(admin_password)
                 admin.role = 'admin'
                 admin.verified = True
@@ -462,7 +462,7 @@ def after_request(response):
             # Filter out old session cookies and rebuild without Secure flag
             new_cookies = []
             for cookie in cookies:
-                if 'tracetrack_session=' in cookie:
+                if 'traitortrack_session=' in cookie:
                     # Remove Secure flag from session cookie
                     cookie = cookie.replace('; Secure', '').replace(';Secure', '')
                 new_cookies.append(cookie)

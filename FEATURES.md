@@ -1,4 +1,4 @@
-# TraceTrack Feature Status
+# TraitorTrack Feature Status
 
 ## ✅ Production-Ready Features
 

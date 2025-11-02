@@ -3,7 +3,7 @@ import random
 import string
 import os
 
-class TraceTrackUser(HttpUser):
+class TraitorTrackUser(HttpUser):
     wait_time = between(1, 3)
     
     def on_start(self):

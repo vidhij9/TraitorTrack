@@ -2,7 +2,7 @@
 
 ## ✅ Configuration Complete
 
-Your TraceTrack application now automatically uses the correct database based on the environment:
+Your TraitorTrack application now automatically uses the correct database based on the environment:
 
 ### Development Environment (Workspace)
 - **Uses**: `DATABASE_URL` environment variable

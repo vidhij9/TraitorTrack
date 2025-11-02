@@ -1,5 +1,5 @@
 """
-High-Performance Query Optimizer for TraceTrack
+High-Performance Query Optimizer for TraitorTrack
 Optimizes critical scanner and linking operations for sub-50ms response times
 """
 from flask import session

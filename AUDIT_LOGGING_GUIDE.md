@@ -1,7 +1,7 @@
 # Enhanced Audit Logging System
 
 ## Overview
-TraceTrack's enhanced audit logging system provides comprehensive change tracking with before/after snapshots, enabling complete audit trails for compliance, debugging, and forensics.
+TraitorTrack's enhanced audit logging system provides comprehensive change tracking with before/after snapshots, enabling complete audit trails for compliance, debugging, and forensics.
 
 ## Key Features ✅
 - **Before/After Snapshots**: Automatic state capture for all entity changes

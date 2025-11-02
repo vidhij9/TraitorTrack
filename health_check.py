@@ -1,6 +1,6 @@
 """
 Comprehensive Health Check System
-Provides detailed component-level health monitoring for TraceTrack
+Provides detailed component-level health monitoring for TraitorTrack
 """
 
 import logging
@@ -336,7 +336,7 @@ class ComponentHealthChecker:
             'status': overall_status.value,
             'message': overall_message,
             'timestamp': datetime.now().isoformat(),
-            'service': 'TraceTrack',
+            'service': 'TraitorTrack',
             'version': '2.0',
             'components': components
         }

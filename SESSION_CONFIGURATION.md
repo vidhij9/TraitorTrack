@@ -2,7 +2,7 @@
 
 ## Current Configuration: Filesystem-Based Sessions
 
-TraceTrack currently uses **filesystem-based sessions** stored in `/tmp/flask_session` for optimal performance and stability under high concurrent load.
+TraitorTrack currently uses **filesystem-based sessions** stored in `/tmp/flask_session` for optimal performance and stability under high concurrent load.
 
 ### Why Filesystem Sessions?
 
@@ -109,7 +109,7 @@ app.config.update(
     SESSION_REDIS=redis_client,
     SESSION_PERMANENT=False,
     SESSION_USE_SIGNER=True,
-    SESSION_KEY_PREFIX='tracetrack:session:',
+    SESSION_KEY_PREFIX='traitortrack:session:',
     SESSION_COOKIE_SECURE=is_production,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
@@ -206,7 +206,7 @@ redis-cli INFO clients
 
 **Monitor session keys**:
 ```bash
-redis-cli KEYS "tracetrack:session:*" | wc -l
+redis-cli KEYS "traitortrack:session:*" | wc -l
 ```
 
 **Monitor memory usage**:
@@ -227,6 +227,6 @@ redis-cli INFO memory | grep used_memory_human
 | External deps | None | Redis server |
 | Max users | 1000 | 10,000+ |
 
-**Current Status**: TraceTrack uses filesystem sessions optimized for 100+ concurrent users on single-server deployments.
+**Current Status**: TraitorTrack uses filesystem sessions optimized for 100+ concurrent users on single-server deployments.
 
 **When to Migrate**: Switch to Redis when deploying to multiple servers or exceeding 1000 concurrent users.

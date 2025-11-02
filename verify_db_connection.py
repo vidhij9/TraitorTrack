@@ -94,7 +94,7 @@ def verify_database_connection(db_url=None):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TraceTrack - Database Connection Verification")
+    print("TraitorTrack - Database Connection Verification")
     print("=" * 60)
     
     # Check environment

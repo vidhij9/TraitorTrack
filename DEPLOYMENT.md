@@ -1,8 +1,8 @@
-# TraceTrack Production Deployment Checklist
+# TraitorTrack Production Deployment Checklist
 
 ## System Status: ✅ PRODUCTION-READY
 
-TraceTrack is fully tested and optimized for production deployment, supporting 100+ concurrent users and 1.8M+ bags.
+TraitorTrack is fully tested and optimized for production deployment, supporting 100+ concurrent users and 1.8M+ bags.
 
 ---
 
@@ -79,10 +79,10 @@ ADMIN_PASSWORD=<secure-admin-password>
 3. **Set Production DATABASE_URL**:
    ```bash
    # Format for AWS RDS
-   DATABASE_URL=postgresql://username:password@your-instance.region.rds.amazonaws.com:5432/tracetrack_production
+   DATABASE_URL=postgresql://username:password@your-instance.region.rds.amazonaws.com:5432/traitortrack_production
    
    # Example
-   DATABASE_URL=postgresql://tracetrack_user:SecureP@ssw0rd@tracetrack-db.us-east-1.rds.amazonaws.com:5432/tracetrack_prod
+   DATABASE_URL=postgresql://traitortrack_user:SecureP@ssw0rd@traitortrack-db.us-east-1.rds.amazonaws.com:5432/traitortrack_prod
    ```
 
 4. **Deployment Configuration**:

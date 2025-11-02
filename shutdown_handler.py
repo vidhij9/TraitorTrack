@@ -1,5 +1,5 @@
 """
-Graceful Shutdown Handler for TraceTrack
+Graceful Shutdown Handler for TraitorTrack
 Ensures zero-downtime deployments by properly cleaning up resources
 """
 

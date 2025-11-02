@@ -1,7 +1,7 @@
-# TraceTrack - Bag Tracking System
+# TraitorTrack - Bag Tracking System
 
 ## Overview
-TraceTrack is a high-performance, production-ready web-based bag tracking system designed for warehouse and logistics operations. It efficiently manages parent-child bag relationships, scanning processes, and bill generation. The system is built to support over 100 concurrent users and handle more than 1.8 million bags, providing real-time tracking capabilities for dispatchers, billers, and administrators. Its core purpose is to streamline logistics, enhance operational efficiency, and provide robust, scalable bag management.
+TraitorTrack is a high-performance, production-ready web-based bag tracking system designed for warehouse and logistics operations. It efficiently manages parent-child bag relationships, scanning processes, and bill generation. The system is built to support over 100 concurrent users and handle more than 1.8 million bags, providing real-time tracking capabilities for dispatchers, billers, and administrators. Its core purpose is to streamline logistics, enhance operational efficiency, and provide robust, scalable bag management.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

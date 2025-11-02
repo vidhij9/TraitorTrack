@@ -1,6 +1,6 @@
 # Database Migration Guide
 
-TraceTrack uses **Flask-Migrate** (built on Alembic) for database schema management. This provides version control for your database, automatic migration generation, and safe schema evolution.
+TraitorTrack uses **Flask-Migrate** (built on Alembic) for database schema management. This provides version control for your database, automatic migration generation, and safe schema evolution.
 
 ## Quick Start
 

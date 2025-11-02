@@ -122,7 +122,7 @@
   </rect>
   
   <!-- Text labels -->
-  <text x="500" y="180" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#333">TraceTrack</text>
+  <text x="500" y="180" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#333">TraitorTrack</text>
   <text x="500" y="220" font-family="Arial, sans-serif" font-size="18" fill="#555">Agricultural Traceability System</text>
   
   <!-- Product Journey Line -->

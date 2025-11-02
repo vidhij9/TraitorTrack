@@ -178,7 +178,7 @@ class PoolMonitor:
             from email_utils import send_admin_alert_email
             
             # Prepare email content
-            subject = f"[{level}] TraceTrack Database Connection Pool Alert"
+            subject = f"[{level}] TraitorTrack Database Connection Pool Alert"
             
             # Build detailed message with recommendations
             recommendations = []
@@ -215,7 +215,7 @@ class PoolMonitor:
             {''.join(f'<li>{rec}</li>' for rec in recommendations)}
             </ol>
             
-            <p><em>This is an automated alert from TraceTrack pool monitoring system.</em></p>
+            <p><em>This is an automated alert from TraitorTrack pool monitoring system.</em></p>
             """
             
             send_admin_alert_email(subject, message)

@@ -1,5 +1,5 @@
 """
-Enhanced error handling and alerting system for TraceTrack application.
+Enhanced error handling and alerting system for TraitorTrack application.
 Provides comprehensive error handling with user-friendly messages and logging.
 """
 

@@ -1,5 +1,5 @@
 """
-Email Notification System for TraceTrack
+Email Notification System for TraitorTrack
 Provides SendGrid-based email notifications with templates
 
 FEATURES:
@@ -13,7 +13,7 @@ FEATURES:
 
 CONFIGURATION:
 - Requires SENDGRID_API_KEY environment variable
-- Optional FROM_EMAIL (defaults to noreply@tracetrack.app)
+- Optional FROM_EMAIL (defaults to noreply@traitortrack.app)
 - Optional ADMIN_EMAIL for admin notifications
 """
 import os
@@ -36,9 +36,9 @@ except ImportError:
 class EmailConfig:
     """Email configuration"""
     API_KEY = os.environ.get('SENDGRID_API_KEY')
-    FROM_EMAIL = os.environ.get('FROM_EMAIL', 'noreply@tracetrack.app')
-    FROM_NAME = os.environ.get('FROM_NAME', 'TraceTrack')
-    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@tracetrack.app')
+    FROM_EMAIL = os.environ.get('FROM_EMAIL', 'noreply@traitortrack.app')
+    FROM_NAME = os.environ.get('FROM_NAME', 'TraitorTrack')
+    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@traitortrack.app')
     
     @staticmethod
     def is_configured() -> bool:
@@ -57,7 +57,7 @@ class EmailTemplate:
         Returns:
             Tuple of (subject, html_content)
         """
-        subject = "Welcome to TraceTrack"
+        subject = "Welcome to TraitorTrack"
         
         html_content = f"""
         <html>
@@ -73,18 +73,18 @@ class EmailTemplate:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>Welcome to TraceTrack</h1>
+                    <h1>Welcome to TraitorTrack</h1>
                 </div>
                 <div class="content">
                     <p>Hello {username},</p>
-                    <p>Thank you for joining TraceTrack! Your account has been successfully created.</p>
+                    <p>Thank you for joining TraitorTrack! Your account has been successfully created.</p>
                     <p><strong>Username:</strong> {username}</p>
                     <p><strong>Email:</strong> {email}</p>
                     <p>You can now log in and start managing your warehouse operations.</p>
                     <p>If you have any questions, please contact your administrator.</p>
                 </div>
                 <div class="footer">
-                    <p>© {datetime.now().year} TraceTrack. All rights reserved.</p>
+                    <p>© {datetime.now().year} TraitorTrack. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -101,7 +101,7 @@ class EmailTemplate:
         Returns:
             Tuple of (subject, html_content)
         """
-        subject = "TraceTrack Password Reset Request"
+        subject = "TraitorTrack Password Reset Request"
         
         html_content = f"""
         <html>
@@ -123,7 +123,7 @@ class EmailTemplate:
                 </div>
                 <div class="content">
                     <p>Hello {username},</p>
-                    <p>We received a request to reset your TraceTrack password.</p>
+                    <p>We received a request to reset your TraitorTrack password.</p>
                     <p>Click the button below to reset your password:</p>
                     <p><a href="{reset_link}" class="button">Reset Password</a></p>
                     <p>Or copy and paste this link into your browser:</p>
@@ -132,7 +132,7 @@ class EmailTemplate:
                     <p>This link will expire in 1 hour for security reasons.</p>
                 </div>
                 <div class="footer">
-                    <p>© {datetime.now().year} TraceTrack. All rights reserved.</p>
+                    <p>© {datetime.now().year} TraitorTrack. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -169,17 +169,17 @@ class EmailTemplate:
                     <h1>New Bill Created</h1>
                 </div>
                 <div class="content">
-                    <p>A new bill has been created in TraceTrack:</p>
+                    <p>A new bill has been created in TraitorTrack:</p>
                     <div class="info-box">
                         <p><strong>Bill ID:</strong> {bill_id}</p>
                         <p><strong>Parent Bags:</strong> {parent_bags}</p>
                         <p><strong>Created By:</strong> {created_by}</p>
                         <p><strong>Created At:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
                     </div>
-                    <p>You can view and manage this bill in the TraceTrack system.</p>
+                    <p>You can view and manage this bill in the TraitorTrack system.</p>
                 </div>
                 <div class="footer">
-                    <p>© {datetime.now().year} TraceTrack. All rights reserved.</p>
+                    <p>© {datetime.now().year} TraitorTrack. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -196,7 +196,7 @@ class EmailTemplate:
         Returns:
             Tuple of (subject, html_content)
         """
-        subject = f"TraceTrack Alert: {title}"
+        subject = f"TraitorTrack Alert: {title}"
         
         details_html = ""
         if details:
@@ -233,7 +233,7 @@ class EmailTemplate:
                     <p>Please review and take appropriate action if necessary.</p>
                 </div>
                 <div class="footer">
-                    <p>© {datetime.now().year} TraceTrack. All rights reserved.</p>
+                    <p>© {datetime.now().year} TraitorTrack. All rights reserved.</p>
                 </div>
             </div>
         </body>

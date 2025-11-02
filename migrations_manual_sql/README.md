@@ -1,6 +1,6 @@
 # Database Migrations
 
-This directory contains SQL migration scripts for TraceTrack database schema changes.
+This directory contains SQL migration scripts for TraitorTrack database schema changes.
 
 ## Migration Files
 

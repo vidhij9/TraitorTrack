@@ -1,5 +1,5 @@
 """
-Two-Factor Authentication (TOTP) utilities for TraceTrack.
+Two-Factor Authentication (TOTP) utilities for TraitorTrack.
 Provides TOTP secret generation, QR code creation, and verification.
 """
 
@@ -24,14 +24,14 @@ class TwoFactorAuth:
         return pyotp.random_base32()
     
     @staticmethod
-    def get_totp_uri(secret: str, username: str, issuer: str = "TraceTrack") -> str:
+    def get_totp_uri(secret: str, username: str, issuer: str = "TraitorTrack") -> str:
         """
         Generate a TOTP provisioning URI for QR code.
         
         Args:
             secret: Base32-encoded TOTP secret
             username: User's username
-            issuer: Application name (default: "TraceTrack")
+            issuer: Application name (default: "TraitorTrack")
             
         Returns:
             TOTP provisioning URI
