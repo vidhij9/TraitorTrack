@@ -31,6 +31,9 @@ from audit_utils import (
     log_audit, log_audit_with_snapshot, capture_entity_snapshot,
     get_audit_trail, get_entity_history
 )
+
+# Import email notification utilities
+from email_utils import EmailService, EmailConfig
 # Create a current_user proxy for compatibility
 class CurrentUserProxy:
     @property
@@ -6827,16 +6830,108 @@ def eod_bill_summary():
 @app.route('/api/bill_summary/send_eod', methods=['POST'])
 @login_required
 def send_eod_summaries():
-    """Send EOD bill summaries - Email functionality not yet configured"""
+    """Send EOD bill summaries via email to admins and billers"""
     if not current_user.is_admin():
         return jsonify({'error': 'Admin access required'}), 403
     
-    return jsonify({
-        'success': False,
-        'error': 'Email notifications are not configured.',
-        'message': 'Please use the EOD summary preview page to view and export data manually.',
-        'alternative_url': '/eod_summary_preview'
-    }), 501
+    try:
+        # Check if email is configured
+        if not EmailConfig.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'Email service not configured',
+                'message': 'SendGrid API key is not configured. Please configure SENDGRID_API_KEY environment variable.',
+                'alternative_url': '/eod_summary_preview'
+            }), 503
+        
+        # Get EOD data using same logic as eod_bill_summary endpoint
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
+        
+        bills = Bill.query.filter(
+            Bill.created_at >= today,
+            Bill.created_at < tomorrow
+        ).all()
+        
+        # Compile EOD report data
+        eod_data = {
+            'report_date': format_datetime_ist(today, 'date'),
+            'generated_at': datetime.now().isoformat(),
+            'total_bills': len(bills),
+            'bills_by_status': {},
+            'bills_by_user': {},
+            'total_parent_bags': 0,
+            'total_child_bags': 0,
+            'total_weight_kg': 0,
+            'detailed_bills': []
+        }
+        
+        # Process each bill
+        for bill in bills:
+            creator = User.query.get(bill.created_by_id) if bill.created_by_id else None
+            creator_name = creator.username if creator else 'Unknown'
+            parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
+            
+            eod_data['total_parent_bags'] += parent_count
+            eod_data['total_child_bags'] += getattr(bill, 'total_child_bags', 0) or 0
+            eod_data['total_weight_kg'] += bill.total_weight_kg or 0
+            
+            status = bill.status or 'new'
+            eod_data['bills_by_status'][status] = eod_data['bills_by_status'].get(status, 0) + 1
+            eod_data['bills_by_user'][creator_name] = eod_data['bills_by_user'].get(creator_name, 0) + 1
+            
+            eod_data['detailed_bills'].append({
+                'bill_id': bill.bill_id,
+                'created_by': creator_name,
+                'created_at': bill.created_at.isoformat(),
+                'status': status,
+                'parent_bags': parent_count,
+                'expected_bags': bill.parent_bag_count,
+                'child_bags': getattr(bill, 'total_child_bags', 0) or 0,
+                'weight_kg': bill.total_weight_kg or 0
+            })
+        
+        # Get recipient list: all admins and billers
+        recipients = User.query.filter(
+            User.role.in_(['admin', 'biller'])
+        ).all()
+        
+        recipient_emails = [user.email for user in recipients if user.email]
+        
+        if not recipient_emails:
+            return jsonify({
+                'success': False,
+                'error': 'No recipients found',
+                'message': 'No admin or biller users with valid email addresses found.'
+            }), 400
+        
+        # Send EOD summary emails
+        sent_count, failed_count, error_messages = EmailService.send_eod_summary(
+            recipient_emails=recipient_emails,
+            report_date=eod_data['report_date'],
+            eod_data=eod_data
+        )
+        
+        app.logger.info(f'EOD summary sent: {sent_count} successful, {failed_count} failed')
+        
+        return jsonify({
+            'success': True,
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'total_recipients': len(recipient_emails),
+            'recipients': recipient_emails,
+            'errors': error_messages if error_messages else None,
+            'report_date': eod_data['report_date'],
+            'total_bills': eod_data['total_bills']
+        })
+        
+    except Exception as e:
+        app.logger.error(f'Error sending EOD summaries: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': 'Error sending EOD summaries',
+            'message': str(e)
+        }), 500
 
 @app.route('/eod_summary_preview')
 @login_required  
@@ -6941,22 +7036,111 @@ def schedule_eod_summary():
     expected_secret = os.environ.get('EOD_SECRET_KEY', 'default-eod-secret-2025')
     
     if secret_key != expected_secret:
+        app.logger.warning(f"Unauthorized EOD schedule attempt - invalid secret key")
         return jsonify({'error': 'Unauthorized'}), 401
     
     try:
-        # Email functionality not yet configured
-        app.logger.info("Scheduled EOD summary called - email functionality not configured")
+        # Check if email is configured
+        if not EmailConfig.is_configured():
+            app.logger.warning("Scheduled EOD summary called but email not configured")
+            return jsonify({
+                'success': False,
+                'error': 'Email service not configured',
+                'message': 'SendGrid API key is not configured. Please configure SENDGRID_API_KEY environment variable.'
+            }), 503
+        
+        app.logger.info("Scheduled EOD summary triggered")
+        
+        # Get EOD data using same logic as eod_bill_summary endpoint
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
+        
+        bills = Bill.query.filter(
+            Bill.created_at >= today,
+            Bill.created_at < tomorrow
+        ).all()
+        
+        # Compile EOD report data
+        eod_data = {
+            'report_date': format_datetime_ist(today, 'date'),
+            'generated_at': datetime.now().isoformat(),
+            'total_bills': len(bills),
+            'bills_by_status': {},
+            'bills_by_user': {},
+            'total_parent_bags': 0,
+            'total_child_bags': 0,
+            'total_weight_kg': 0,
+            'detailed_bills': []
+        }
+        
+        # Process each bill
+        for bill in bills:
+            creator = User.query.get(bill.created_by_id) if bill.created_by_id else None
+            creator_name = creator.username if creator else 'Unknown'
+            parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
+            
+            eod_data['total_parent_bags'] += parent_count
+            eod_data['total_child_bags'] += getattr(bill, 'total_child_bags', 0) or 0
+            eod_data['total_weight_kg'] += bill.total_weight_kg or 0
+            
+            status = bill.status or 'new'
+            eod_data['bills_by_status'][status] = eod_data['bills_by_status'].get(status, 0) + 1
+            eod_data['bills_by_user'][creator_name] = eod_data['bills_by_user'].get(creator_name, 0) + 1
+            
+            eod_data['detailed_bills'].append({
+                'bill_id': bill.bill_id,
+                'created_by': creator_name,
+                'created_at': bill.created_at.isoformat(),
+                'status': status,
+                'parent_bags': parent_count,
+                'expected_bags': bill.parent_bag_count,
+                'child_bags': getattr(bill, 'total_child_bags', 0) or 0,
+                'weight_kg': bill.total_weight_kg or 0
+            })
+        
+        # Get recipient list: all admins and billers
+        recipients = User.query.filter(
+            User.role.in_(['admin', 'biller'])
+        ).all()
+        
+        recipient_emails = [user.email for user in recipients if user.email]
+        
+        if not recipient_emails:
+            app.logger.warning("No recipients found for scheduled EOD summary")
+            return jsonify({
+                'success': False,
+                'error': 'No recipients found',
+                'message': 'No admin or biller users with valid email addresses found.'
+            }), 400
+        
+        # Send EOD summary emails
+        sent_count, failed_count, error_messages = EmailService.send_eod_summary(
+            recipient_emails=recipient_emails,
+            report_date=eod_data['report_date'],
+            eod_data=eod_data
+        )
+        
+        app.logger.info(f'Scheduled EOD summary sent: {sent_count} successful, {failed_count} failed to {len(recipient_emails)} recipients')
         
         return jsonify({
-            'success': False,
-            'error': 'Email notifications are not configured.',
-            'message': 'Use the EOD summary preview endpoint to view and export data manually.',
-            'alternative_url': '/eod_summary_preview'
-        }), 501
+            'success': True,
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'total_recipients': len(recipient_emails),
+            'recipients': recipient_emails,
+            'errors': error_messages if error_messages else None,
+            'report_date': eod_data['report_date'],
+            'total_bills': eod_data['total_bills'],
+            'scheduled': True
+        })
         
     except Exception as e:
-        app.logger.error(f'Scheduled EOD error: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f'Error in scheduled EOD summary: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': 'Error sending scheduled EOD summaries',
+            'message': str(e)
+        }), 500
 
 
 # Add missing API endpoints that were causing 404s

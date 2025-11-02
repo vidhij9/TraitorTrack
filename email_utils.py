@@ -241,6 +241,168 @@ class EmailTemplate:
         """
         
         return subject, html_content
+    
+    @staticmethod
+    def eod_bill_summary(report_date: str, eod_data: Dict) -> Tuple[str, str]:
+        """
+        Generate End of Day (EOD) bill summary email.
+        
+        Args:
+            report_date: Date of the report (formatted string)
+            eod_data: Dictionary containing EOD summary data
+            
+        Returns:
+            Tuple of (subject, html_content)
+        """
+        subject = f"TraitorTrack EOD Bill Summary - {report_date}"
+        
+        # Build bills by status section
+        status_rows = ""
+        for status, count in eod_data.get('bills_by_status', {}).items():
+            status_rows += f"<tr><td style='padding: 8px; border: 1px solid #ddd;'>{status.title()}</td><td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{count}</td></tr>"
+        
+        if not status_rows:
+            status_rows = "<tr><td colspan='2' style='padding: 8px; border: 1px solid #ddd; text-align: center; color: #999;'>No bills created today</td></tr>"
+        
+        # Build bills by user section
+        user_rows = ""
+        for username, count in eod_data.get('bills_by_user', {}).items():
+            user_rows += f"<tr><td style='padding: 8px; border: 1px solid #ddd;'>{username}</td><td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{count}</td></tr>"
+        
+        if not user_rows:
+            user_rows = "<tr><td colspan='2' style='padding: 8px; border: 1px solid #ddd; text-align: center; color: #999;'>No bills created today</td></tr>"
+        
+        # Build detailed bills table
+        detail_rows = ""
+        for bill in eod_data.get('detailed_bills', []):
+            detail_rows += f"""
+            <tr>
+                <td style='padding: 8px; border: 1px solid #ddd;'>{bill.get('bill_id', 'N/A')}</td>
+                <td style='padding: 8px; border: 1px solid #ddd;'>{bill.get('created_by', 'Unknown')}</td>
+                <td style='padding: 8px; border: 1px solid #ddd;'>{bill.get('status', 'N/A').title()}</td>
+                <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{bill.get('parent_bags', 0)}</td>
+                <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{bill.get('child_bags', 0)}</td>
+                <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{bill.get('weight_kg', 0):.2f}</td>
+            </tr>
+            """
+        
+        if not detail_rows:
+            detail_rows = "<tr><td colspan='6' style='padding: 8px; border: 1px solid #ddd; text-align: center; color: #999;'>No bills created today</td></tr>"
+        
+        html_content = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 800px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: #1976D2; color: white; padding: 20px; text-align: center; }}
+                .content {{ padding: 20px; background: #f9f9f9; }}
+                .summary-box {{ background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+                .stats-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }}
+                .stat-card {{ background: #E3F2FD; padding: 15px; border-radius: 8px; border-left: 4px solid #1976D2; }}
+                .stat-value {{ font-size: 24px; font-weight: bold; color: #1976D2; margin: 5px 0; }}
+                .stat-label {{ font-size: 12px; color: #666; text-transform: uppercase; }}
+                .section-title {{ color: #1976D2; border-bottom: 2px solid #1976D2; padding-bottom: 8px; margin: 20px 0 15px 0; }}
+                table {{ width: 100%; border-collapse: collapse; margin: 15px 0; background: white; }}
+                th {{ background: #1976D2; color: white; padding: 12px 8px; text-align: left; font-weight: 600; }}
+                .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+                @media only screen and (max-width: 600px) {{
+                    .stats-grid {{ grid-template-columns: 1fr; }}
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>📊 End of Day Bill Summary</h1>
+                    <p style="margin: 5px 0; font-size: 16px;">{report_date}</p>
+                </div>
+                <div class="content">
+                    <div class="summary-box">
+                        <h2 style="margin-top: 0; color: #1976D2;">Overview</h2>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-label">Total Bills</div>
+                                <div class="stat-value">{eod_data.get('total_bills', 0)}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Parent Bags</div>
+                                <div class="stat-value">{eod_data.get('total_parent_bags', 0)}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Child Bags</div>
+                                <div class="stat-value">{eod_data.get('total_child_bags', 0)}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Total Weight (kg)</div>
+                                <div class="stat-value">{eod_data.get('total_weight_kg', 0):.2f}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <h3 class="section-title">Bills by Status</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {status_rows}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <h3 class="section-title">Bills by User</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th style="text-align: right;">Bills Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {user_rows}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <h3 class="section-title">Detailed Bill List</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Bill ID</th>
+                                    <th>Created By</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Parent Bags</th>
+                                    <th style="text-align: right;">Child Bags</th>
+                                    <th style="text-align: right;">Weight (kg)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {detail_rows}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <p style="margin-top: 20px; padding: 15px; background: #FFF3E0; border-left: 4px solid #FF9800; border-radius: 4px;">
+                        <strong>Note:</strong> This is an automated End of Day summary report generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+                    </p>
+                </div>
+                <div class="footer">
+                    <p>© {datetime.now().year} TraitorTrack. All rights reserved.</p>
+                    <p style="color: #999; font-size: 11px;">This is an automated email. Please do not reply.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return subject, html_content
 
 
 class EmailService:
@@ -352,6 +514,44 @@ class EmailService:
         
         recipients = [(email, subject, html_content) for email in admin_emails]
         return EmailService.send_batch_emails(recipients)
+    
+    @staticmethod
+    def send_eod_summary(recipient_emails: List[str], report_date: str, eod_data: Dict) -> Tuple[int, int, List[str]]:
+        """
+        Send End of Day bill summary to recipients.
+        
+        Args:
+            recipient_emails: List of email addresses to send to
+            report_date: Date of the report (formatted string)
+            eod_data: Dictionary containing EOD summary data
+            
+        Returns:
+            Tuple of (sent_count, failed_count, error_messages)
+        """
+        if not EmailConfig.is_configured():
+            logger.error("SendGrid not configured - cannot send EOD summary")
+            return 0, len(recipient_emails), ["Email service not configured"]
+        
+        if not recipient_emails:
+            logger.warning("No recipients provided for EOD summary")
+            return 0, 0, ["No recipients provided"]
+        
+        try:
+            # Generate email content from template
+            subject, html_content = EmailTemplate.eod_bill_summary(report_date, eod_data)
+            
+            # Create recipients list for batch sending
+            recipients = [(email, subject, html_content) for email in recipient_emails]
+            
+            # Send emails in batch
+            sent, failed, errors = EmailService.send_batch_emails(recipients)
+            
+            logger.info(f"EOD summary sent: {sent} successful, {failed} failed to {len(recipient_emails)} recipients")
+            return sent, failed, errors
+        
+        except Exception as e:
+            logger.error(f"Error sending EOD summary: {str(e)}")
+            return 0, len(recipient_emails), [f"Error generating email: {str(e)}"]
 
 
 # Convenience function for pool monitoring and other alert systems
