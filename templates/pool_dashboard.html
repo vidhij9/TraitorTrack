@@ -1,0 +1,691 @@
+{% extends "layout.html" %}
+
+{% block title %}Connection Pool Monitor - Traitor Track{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pool-card {
+        border-left: 4px solid #3498db;
+        transition: all 0.3s ease;
+    }
+    
+    .pool-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .status-healthy {
+        border-left-color: #28a745 !important;
+    }
+    
+    .status-warning {
+        border-left-color: #ffc107 !important;
+    }
+    
+    .status-critical {
+        border-left-color: #fd7e14 !important;
+    }
+    
+    .status-danger {
+        border-left-color: #dc3545 !important;
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .health-badge {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+    }
+    
+    .progress {
+        height: 30px;
+        font-size: 0.875rem;
+    }
+    
+    .trend-icon {
+        font-size: 1.5rem;
+    }
+    
+    .recommendation-item {
+        border-left: 3px solid #3498db;
+        padding-left: 1rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .last-updated {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    
+    .connection-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    
+    #poolUsageChart {
+        max-height: 300px;
+    }
+    
+    .alert-dismissible {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.15em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-database text-primary"></i> 
+                        Connection Pool Monitor
+                    </h2>
+                    <p class="text-muted mb-0">Real-time database connection pool health monitoring</p>
+                </div>
+                <div class="text-end">
+                    <div class="last-updated">
+                        <i class="fas fa-sync-alt me-1" id="refresh-icon"></i>
+                        Last updated: <span id="last-updated-time">Loading...</span>
+                    </div>
+                    <small class="text-muted d-block mt-1">Auto-refresh: 5 seconds</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Area -->
+    <div id="alert-area"></div>
+
+    <!-- Main Metrics Row -->
+    <div class="row mb-4">
+        <!-- Overall Health Status -->
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card pool-card h-100" id="health-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="connection-icon bg-light text-primary me-3">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <div>
+                            <div class="metric-label">Health Status</div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <span id="health-status" class="health-badge badge bg-secondary">
+                            <i class="fas fa-spinner fa-spin me-1"></i> Loading...
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pool Usage Percentage -->
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card pool-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="connection-icon bg-light text-info me-3">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div>
+                            <div class="metric-label">Usage</div>
+                        </div>
+                    </div>
+                    <div class="metric-value text-center" id="usage-percent">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Connections -->
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card pool-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="connection-icon bg-light text-success me-3">
+                            <i class="fas fa-plug"></i>
+                        </div>
+                        <div>
+                            <div class="metric-label">Active Connections</div>
+                        </div>
+                    </div>
+                    <div class="metric-value text-center">
+                        <span id="checked-out">-</span>
+                        <span class="text-muted" style="font-size: 1.5rem;">/</span>
+                        <span id="configured-max" class="text-muted" style="font-size: 1.5rem;">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overflow Connections -->
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card pool-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="connection-icon bg-light text-warning me-3">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div>
+                            <div class="metric-label">Overflow</div>
+                        </div>
+                    </div>
+                    <div class="metric-value text-center" id="overflow">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Pool Visualization -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card pool-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Connection Pool Usage
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-2">
+                        <div id="usage-bar" class="progress-bar" role="progressbar" 
+                             style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            0%
+                        </div>
+                    </div>
+                    <div class="row text-center small text-muted">
+                        <div class="col">
+                            <i class="fas fa-circle text-success me-1"></i> Healthy (0-70%)
+                        </div>
+                        <div class="col">
+                            <i class="fas fa-circle text-warning me-1"></i> Warning (70-85%)
+                        </div>
+                        <div class="col">
+                            <i class="fas fa-circle text-orange me-1"></i> Critical (85-95%)
+                        </div>
+                        <div class="col">
+                            <i class="fas fa-circle text-danger me-1"></i> Danger (95%+)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details and History Row -->
+    <div class="row">
+        <!-- Connection Details -->
+        <div class="col-lg-6 mb-4">
+            <div class="card pool-card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Connection Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted">Pool Size:</td>
+                                <td class="text-end fw-bold" id="pool-size">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Checked Out:</td>
+                                <td class="text-end fw-bold text-primary" id="checked-out-detail">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Checked In:</td>
+                                <td class="text-end fw-bold text-success" id="checked-in">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Overflow Connections:</td>
+                                <td class="text-end fw-bold text-warning" id="overflow-detail">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Total Connections:</td>
+                                <td class="text-end fw-bold" id="total-connections">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Configured Max:</td>
+                                <td class="text-end fw-bold" id="configured-max-detail">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Usage Trend:</td>
+                                <td class="text-end" id="usage-trend">
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-spinner fa-spin me-1"></i> Analyzing...
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Usage History Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="card pool-card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Usage History (Last 30 Data Points)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="poolUsageChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card pool-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Recommendations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="recommendations">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-spinner fa-spin me-2"></i>
+                            Loading recommendations...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Chart.js instance
+let poolChart = null;
+let usageHistory = [];
+const MAX_HISTORY_POINTS = 30;
+
+// Initialize chart
+function initChart() {
+    const ctx = document.getElementById('poolUsageChart').getContext('2d');
+    poolChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Pool Usage %',
+                data: [],
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Update chart with new data
+function updateChart(usagePercent) {
+    const now = new Date();
+    const timeLabel = now.toLocaleTimeString();
+    
+    // Add new data point
+    usageHistory.push({
+        time: timeLabel,
+        usage: usagePercent
+    });
+    
+    // Keep only last 30 points
+    if (usageHistory.length > MAX_HISTORY_POINTS) {
+        usageHistory.shift();
+    }
+    
+    // Update chart
+    poolChart.data.labels = usageHistory.map(d => d.time);
+    poolChart.data.datasets[0].data = usageHistory.map(d => d.usage);
+    
+    // Update line color based on usage
+    if (usagePercent >= 95) {
+        poolChart.data.datasets[0].borderColor = '#dc3545';
+        poolChart.data.datasets[0].backgroundColor = 'rgba(220, 53, 69, 0.1)';
+    } else if (usagePercent >= 85) {
+        poolChart.data.datasets[0].borderColor = '#fd7e14';
+        poolChart.data.datasets[0].backgroundColor = 'rgba(253, 126, 20, 0.1)';
+    } else if (usagePercent >= 70) {
+        poolChart.data.datasets[0].borderColor = '#ffc107';
+        poolChart.data.datasets[0].backgroundColor = 'rgba(255, 193, 7, 0.1)';
+    } else {
+        poolChart.data.datasets[0].borderColor = '#28a745';
+        poolChart.data.datasets[0].backgroundColor = 'rgba(40, 167, 69, 0.1)';
+    }
+    
+    poolChart.update();
+}
+
+// Get status color class
+function getStatusColorClass(status) {
+    const statusMap = {
+        'healthy': 'success',
+        'warning': 'warning',
+        'critical': 'orange',
+        'danger': 'danger',
+        'unknown': 'secondary'
+    };
+    return statusMap[status] || 'secondary';
+}
+
+// Get status icon
+function getStatusIcon(status) {
+    const iconMap = {
+        'healthy': 'fa-check-circle',
+        'warning': 'fa-exclamation-circle',
+        'critical': 'fa-exclamation-triangle',
+        'danger': 'fa-times-circle',
+        'unknown': 'fa-question-circle'
+    };
+    return iconMap[status] || 'fa-question-circle';
+}
+
+// Get trend display
+function getTrendDisplay(trend) {
+    if (!trend) return '<span class="badge bg-secondary">Unknown</span>';
+    
+    const trendMap = {
+        'increasing': {
+            icon: 'fa-arrow-up',
+            color: 'danger',
+            text: 'Increasing'
+        },
+        'decreasing': {
+            icon: 'fa-arrow-down',
+            color: 'success',
+            text: 'Decreasing'
+        },
+        'stable': {
+            icon: 'fa-minus',
+            color: 'info',
+            text: 'Stable'
+        },
+        'insufficient_data': {
+            icon: 'fa-question',
+            color: 'secondary',
+            text: 'Insufficient Data'
+        }
+    };
+    
+    const t = trendMap[trend] || trendMap['insufficient_data'];
+    return `<span class="badge bg-${t.color}"><i class="fas ${t.icon} me-1"></i>${t.text}</span>`;
+}
+
+// Fetch and update pool stats
+async function updatePoolStats() {
+    try {
+        // Rotate refresh icon
+        const refreshIcon = document.getElementById('refresh-icon');
+        refreshIcon.classList.add('fa-spin');
+        
+        const response = await fetch('/api/system_health');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const pool = data.database.connection_pool;
+        
+        if (!pool) {
+            throw new Error('No pool stats in response');
+        }
+        
+        // Update metrics
+        const usagePercent = pool.usage_percent || 0;
+        document.getElementById('usage-percent').textContent = usagePercent.toFixed(1) + '%';
+        document.getElementById('checked-out').textContent = pool.checked_out || 0;
+        document.getElementById('configured-max').textContent = pool.configured_max || 40;
+        document.getElementById('overflow').textContent = pool.overflow || 0;
+        
+        // Update details table
+        document.getElementById('pool-size').textContent = pool.size || 0;
+        document.getElementById('checked-out-detail').textContent = pool.checked_out || 0;
+        document.getElementById('checked-in').textContent = (pool.size || 0) - (pool.checked_out || 0);
+        document.getElementById('overflow-detail').textContent = pool.overflow || 0;
+        document.getElementById('total-connections').textContent = pool.total_connections || 0;
+        document.getElementById('configured-max-detail').textContent = pool.configured_max || 40;
+        
+        // Update health status
+        const healthStatus = pool.health_status || 'unknown';
+        const statusColor = getStatusColorClass(healthStatus);
+        const statusIcon = getStatusIcon(healthStatus);
+        const healthBadge = document.getElementById('health-status');
+        healthBadge.className = `health-badge badge bg-${statusColor}`;
+        healthBadge.innerHTML = `<i class="fas ${statusIcon} me-1"></i>${healthStatus.toUpperCase()}`;
+        
+        // Update health card border
+        const healthCard = document.getElementById('health-card');
+        healthCard.className = `card pool-card h-100 status-${healthStatus}`;
+        
+        // Update progress bar
+        const usageBar = document.getElementById('usage-bar');
+        usageBar.style.width = usagePercent + '%';
+        usageBar.setAttribute('aria-valuenow', usagePercent);
+        usageBar.textContent = usagePercent.toFixed(1) + '%';
+        
+        // Update progress bar color
+        if (usagePercent >= 95) {
+            usageBar.className = 'progress-bar bg-danger';
+        } else if (usagePercent >= 85) {
+            usageBar.className = 'progress-bar bg-warning';
+        } else if (usagePercent >= 70) {
+            usageBar.className = 'progress-bar';
+            usageBar.style.backgroundColor = '#fd7e14'; // Orange
+        } else {
+            usageBar.className = 'progress-bar bg-success';
+        }
+        
+        // Update chart
+        updateChart(usagePercent);
+        
+        // Update trend
+        const trendAnalysis = pool.trend_analysis || {};
+        const trend = trendAnalysis.trend || 'insufficient_data';
+        document.getElementById('usage-trend').innerHTML = getTrendDisplay(trend);
+        
+        // Update recommendations
+        updateRecommendations(pool.recommendations || [], healthStatus);
+        
+        // Update last updated time
+        document.getElementById('last-updated-time').textContent = new Date().toLocaleTimeString();
+        
+        // Show alerts if needed
+        showAlerts(healthStatus, usagePercent);
+        
+        // Clear any previous error alerts
+        clearErrorAlerts();
+        
+        refreshIcon.classList.remove('fa-spin');
+        
+    } catch (error) {
+        console.error('Error fetching pool stats:', error);
+        document.getElementById('refresh-icon').classList.remove('fa-spin');
+        showErrorAlert('Failed to fetch pool statistics: ' + error.message);
+    }
+}
+
+// Show health alerts
+function showAlerts(status, usagePercent) {
+    const alertArea = document.getElementById('alert-area');
+    
+    // Clear existing alerts
+    alertArea.innerHTML = '';
+    
+    if (status === 'danger') {
+        alertArea.innerHTML = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-times-circle me-2"></i>
+                <strong>DANGER:</strong> Connection pool nearly exhausted (${usagePercent.toFixed(1)}%)! 
+                New connections may fail. Immediate action required.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    } else if (status === 'critical') {
+        alertArea.innerHTML = `
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>CRITICAL:</strong> Connection pool usage is very high (${usagePercent.toFixed(1)}%). 
+                Consider scaling or optimizing queries.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    } else if (status === 'warning') {
+        alertArea.innerHTML = `
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Warning:</strong> Connection pool usage is elevated (${usagePercent.toFixed(1)}%). 
+                Monitor for continued growth.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    }
+}
+
+// Show error alert
+function showErrorAlert(message) {
+    const alertArea = document.getElementById('alert-area');
+    alertArea.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong>Error:</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+}
+
+// Clear error alerts
+function clearErrorAlerts() {
+    // Error alerts are handled by showAlerts now
+}
+
+// Update recommendations
+function updateRecommendations(recommendations, status) {
+    const recommendationsDiv = document.getElementById('recommendations');
+    
+    if (!recommendations || recommendations.length === 0) {
+        recommendationsDiv.innerHTML = `
+            <div class="text-center text-success">
+                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                <p class="mb-0">No recommendations - pool is operating normally</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const statusIcons = {
+        'danger': 'fa-times-circle text-danger',
+        'critical': 'fa-exclamation-triangle text-warning',
+        'warning': 'fa-info-circle text-info',
+        'healthy': 'fa-check-circle text-success'
+    };
+    
+    const icon = statusIcons[status] || 'fa-info-circle text-info';
+    
+    let html = '<ul class="list-unstyled mb-0">';
+    recommendations.forEach(rec => {
+        html += `
+            <li class="recommendation-item">
+                <i class="fas ${icon} me-2"></i>
+                ${rec}
+            </li>
+        `;
+    });
+    html += '</ul>';
+    
+    recommendationsDiv.innerHTML = html;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initChart();
+    updatePoolStats();
+    
+    // Auto-refresh every 5 seconds
+    setInterval(updatePoolStats, 5000);
+});
+</script>
+{% endblock %}

@@ -245,7 +245,7 @@ def user_management():
     try:
         if not current_user.is_admin():
             flash('Admin access required.', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         # Single optimized query for all user data with joins
         user_data_query = text("""
@@ -332,7 +332,7 @@ def user_management():
     except Exception as e:
         app.logger.error(f"User management error: {e}")
         flash('Error loading user management. Please try again.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/admin/users/<int:user_id>')
 @login_required
@@ -733,7 +733,7 @@ def edit_user(user_id):
         current_user_obj = User.query.get(user_id_from_session)
         if not current_user_obj or current_user_obj.role != 'admin':
             flash('Admin access required', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         user = User.query.get(user_id)
         if not user:
@@ -1046,7 +1046,7 @@ def comprehensive_user_deletion():
     """Admin-only page for comprehensive user and scan deletion"""
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     # Get all users for the selection dropdown
     users = User.query.order_by(User.username).all()
@@ -1418,7 +1418,7 @@ def admin_system_integrity():
     """View system integrity report and duplicate prevention status (admin only)"""
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     try:
         # Get comprehensive system integrity report
@@ -1429,7 +1429,7 @@ def admin_system_integrity():
     except Exception as e:
         app.logger.error(f'System integrity report error: {str(e)}')
         flash('Error generating system integrity report.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/seed_sample_data')
 @login_required
@@ -1437,7 +1437,7 @@ def seed_sample_data():
     """Create sample data for testing analytics (admin only)"""
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     try:
         # Create sample bags if few exist
@@ -1544,7 +1544,7 @@ def dashboard():
 def login():
     """User login endpoint with improved error handling"""
     if is_logged_in() and request.method == 'GET':
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -1672,7 +1672,7 @@ def login():
             })
             
             flash('Login successful!', 'success')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
                 
         except Exception as e:
             app.logger.error(f"LOGIN EXCEPTION: {e}")
@@ -1720,14 +1720,14 @@ def fix_session():
                 flash(f'Session refreshed for user {user.username} with role {user.role}', 'success')
                 import logging
                 logging.info(f"Session fixed for user {user.username}, role: {user.role}")
-                return redirect(url_for('index'))
+                return redirect(url_for('dashboard'))
         
         flash('Could not fix session - user not found', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
         
     except Exception as e:
         flash(f'Error fixing session: {str(e)}', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/link_to_bill/<qr_id>', methods=['GET', 'POST'])
 @login_required
@@ -1740,7 +1740,7 @@ def link_to_bill(qr_id):
         ).first()
         if not parent_bag:
             flash('Parent bag not found', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         if request.method == 'POST':
             bill_id = request.form.get('bill_id', '').strip()
@@ -1783,7 +1783,7 @@ def link_to_bill(qr_id):
             invalidate_bags_cache()  # Invalidate bags cache after bill linking
             invalidate_stats_cache()  # Invalidate stats cache after bill linking
             flash(f'Parent bag {qr_id} linked to bill {bill_id}', 'success')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         return render_template('link_to_bill.html', parent_bag=parent_bag)
         
@@ -1791,7 +1791,7 @@ def link_to_bill(qr_id):
         db.session.rollback()
         logging.error(f"Link to bill error: {e}")
         flash('Failed to link to bill', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/log_scan', methods=['POST'])
 @login_required
@@ -1849,13 +1849,13 @@ def fix_admin_password():
     """Fix admin password - ADMIN ONLY endpoint"""
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     # Require admin to provide new password via environment variable for security
     new_password = os.environ.get('NEW_ADMIN_PASSWORD')
     if not new_password:
         flash('NEW_ADMIN_PASSWORD environment variable must be set.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     user = User.query.filter_by(username='admin').first()
     if user:
@@ -1863,17 +1863,17 @@ def fix_admin_password():
         db.session.commit()
         flash('Admin password updated successfully.', 'success')
         app.logger.info(f"Admin password updated by {current_user.username}")
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     flash('Admin user not found.', 'error')
-    return redirect(url_for('index'))
+    return redirect(url_for('dashboard'))
 
 @app.route('/register', methods=['GET', 'POST'])
 @limiter.limit("5 per minute")  # Strict rate limiting to prevent spam and account creation abuse
 def register():
     """User registration page with form validation"""
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         try:
@@ -1974,7 +1974,7 @@ def register():
 def forgot_password():
     """Handle forgot password requests"""
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     from forms import ForgotPasswordForm
     from password_reset_utils import create_password_reset_token, send_password_reset_email
@@ -2023,7 +2023,7 @@ def forgot_password():
 def reset_password(token):
     """Handle password reset with token"""
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     from forms import ResetPasswordForm
     from password_reset_utils import validate_reset_token, reset_password as reset_user_password
@@ -2075,7 +2075,7 @@ def request_promotion():
         # Check if user is already an admin - prevent access to promotion page
         if user.role == 'admin':
             flash('You are already an admin.', 'info')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         # Check if user already has a pending request
         existing_request = PromotionRequest.query.filter_by(
@@ -2104,7 +2104,7 @@ def request_promotion():
                 
                 app.logger.info(f'Promotion request created by {user.username}')
                 flash('Your promotion request has been submitted for admin review.', 'success')
-                return redirect(url_for('index'))
+                return redirect(url_for('dashboard'))
                 
             except Exception as e:
                 db.session.rollback()
@@ -2118,7 +2118,7 @@ def request_promotion():
         import traceback
         traceback.print_exc()
         flash('An error occurred loading the promotion page. Please try again.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/admin/promotions')
 @login_required
@@ -2130,7 +2130,7 @@ def admin_promotions():
     
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     pending_requests = PromotionRequest.query.filter_by(
         status=PromotionRequestStatus.PENDING.value
@@ -2150,7 +2150,7 @@ def admin_promote_user():
     """Admin can directly promote users"""
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     form = AdminPromotionForm()
     
@@ -2184,7 +2184,7 @@ def process_promotion_request(request_id):
     """Admin can approve or reject promotion requests"""
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     promotion_request = PromotionRequest.query.get_or_404(request_id)
     
@@ -2909,7 +2909,7 @@ def complete_parent_scan():
             return jsonify({
                 'success': True,
                 'message': f'Parent bag {parent_qr} completed with 30 children (30kg)',
-                'redirect': url_for('index')
+                'redirect': url_for('dashboard')
             })
         else:
             return jsonify({
@@ -3186,7 +3186,7 @@ def scan_complete():
         parent_qr = session.get('current_parent_qr')
         if not parent_qr:
             flash('No recent scan found.', 'info')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         # Get parent bag details
         parent_bag = Bag.query.filter(
@@ -3195,7 +3195,7 @@ def scan_complete():
         ).first()
         if not parent_bag:
             flash('Parent bag not found.', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         
         # Get all child bags linked to this parent through Link table
         child_bags = db.session.query(Bag).join(
@@ -3248,7 +3248,7 @@ def scan_complete():
     except Exception as e:
         app.logger.error(f'Scan complete error: {str(e)}')
         flash('Error loading scan summary.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 @app.route('/scan/finish', methods=['GET', 'POST'])
 @login_required
@@ -3257,7 +3257,7 @@ def finish_scanning():
     # Clear session data
     session.pop('last_scan', None)
     flash('Scanning session completed.', 'success')
-    return redirect(url_for('index'))
+    return redirect(url_for('dashboard'))
 
 # Bag lookup and management routes
 
@@ -3997,7 +3997,7 @@ def bill_management():
     """Ultra-fast bill management with integrated summary generation"""
     if not (current_user.is_admin() or current_user.is_biller()):
         flash('Access restricted to admin and biller users.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     try:
         # Import models locally
@@ -4291,7 +4291,7 @@ def bill_management():
         except Exception as fallback_error:
             app.logger.error(f"Bill management fallback error: {str(fallback_error)}")
             flash('Error loading bill management. Please contact support.', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
 
 @app.route('/bill/create', methods=['GET', 'POST'])
 @csrf_compat.exempt
@@ -4300,7 +4300,7 @@ def create_bill():
     """Create a new bill - admin and employee access"""
     if not (current_user.is_admin() or current_user.role == 'biller'):
         flash('Access restricted to admin and employee users.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     if request.method == 'GET':
         # Display the create bill form
         return render_template('create_bill.html')
@@ -4674,7 +4674,7 @@ def scan_bill_parent(bill_id):
     if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller', 'dispatcher']):
         flash('Access restricted to admin and employee users.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     # Import models locally to avoid circular imports
     from models import Bill, Bag, BillBag
@@ -5295,7 +5295,7 @@ def user_profile():
     user = User.query.get(current_user.id)
     if not user:
         flash('User not found.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     return render_template('user_profile.html', user=user)
 
 @app.route('/profile/edit', methods=['POST'])
@@ -5554,7 +5554,7 @@ def two_fa_verify():
                 'role': user.role,
                 'dispatch_area': user.dispatch_area
             })
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         else:
             # Audit log: Failed 2FA verification
             log_audit('2fa_verify_failed', 'auth', user.id, {
@@ -5746,6 +5746,8 @@ def api_system_health():
                     pool_stats.update(current_stats)
                     health_summary = monitor.get_health_summary()
                     pool_stats['health_status'] = health_summary.get('status', 'unknown')
+                    pool_stats['recommendations'] = health_summary.get('recommendations', [])
+                    pool_stats['trend_analysis'] = health_summary.get('trend_analysis', {})
             else:
                 # Fallback to direct pool access
                 pool = db.engine.pool
@@ -6842,7 +6844,7 @@ def eod_summary_preview():
     """Preview EOD summary that will be sent to users"""
     if not current_user.is_admin():
         flash('Admin access required to preview EOD summaries', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     try:
         # Email functionality removed - show simple message
@@ -7576,6 +7578,22 @@ def user_activity_dashboard():
     except Exception as e:
         app.logger.error(f"User activity dashboard error: {str(e)}", exc_info=True)
         flash(f'Error loading user activity dashboard: {str(e)}', 'error')
+        return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/pool_dashboard')
+@login_required
+@limiter.exempt
+def pool_dashboard():
+    """Connection pool monitoring dashboard - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        return render_template('pool_dashboard.html')
+    except Exception as e:
+        app.logger.error(f"Pool dashboard error: {str(e)}", exc_info=True)
+        flash(f'Error loading pool dashboard: {str(e)}', 'error')
         return redirect(url_for('admin_dashboard'))
 
 @app.route('/reports')
