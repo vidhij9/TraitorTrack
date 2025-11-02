@@ -41,16 +41,7 @@ class CSRFExempt:
 
 csrf_compat = CSRFExempt()
 
-# Configure rate limiter - fallback to memory if Redis unavailable
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["2000 per day", "500 per hour"],
-    storage_uri="memory://",  # Using memory for now due to Redis connection pool limits
-    strategy="fixed-window",
-    swallow_errors=True
-)
-
-# Create Flask application
+# Create Flask application (moved before Redis configuration)
 app = Flask(__name__)
 
 # SECURITY: Enable Jinja2 autoescape for XSS protection
@@ -72,28 +63,76 @@ is_production = (
     os.environ.get('ENVIRONMENT') == 'production'
 )
 
-# Session configuration - using filesystem (Redis causes port exhaustion under load)
+# Redis Configuration - for sessions and rate limiting
+# REDIS_URL format: redis://[[username]:[password]]@host:port/db
+# Default: redis://localhost:6379/0
+redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+redis_available = False
+redis_client = None
+
+# Try to connect to Redis if URL is provided
+if redis_url and redis_url != 'redis://localhost:6379/0':
+    try:
+        import redis
+        redis_client = redis.from_url(redis_url, socket_connect_timeout=2)
+        # Test connection
+        redis_client.ping()
+        redis_available = True
+        logger.info(f"✅ Redis connected successfully: {redis_url.split('@')[-1] if '@' in redis_url else redis_url}")
+    except Exception as e:
+        logger.warning(f"⚠️  Redis connection failed, falling back to filesystem/memory: {str(e)}")
+        redis_available = False
+        redis_client = None
+else:
+    logger.info("ℹ️  REDIS_URL not configured, using filesystem/memory storage (development mode)")
+
+# Session configuration - Redis with filesystem fallback
 # SECURITY: SESSION_COOKIE_SECURE=True in production for HTTPS-only session cookies
 # In development, it's set to True but the after_request handler strips the Secure flag
 # to allow session persistence across HTTP (Gunicorn serves HTTP internally)
-app.config.update(
-    SESSION_TYPE='filesystem',
-    SESSION_FILE_DIR='/tmp/flask_session',
-    SESSION_PERMANENT=False,
-    SESSION_USE_SIGNER=True,
-    SESSION_FILE_THRESHOLD=500,
-    SESSION_COOKIE_SECURE=True,  # True for production HTTPS security
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_NAME='traitortrack_session',
-    PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
-    SEND_FILE_MAX_AGE_DEFAULT=0,
-    WTF_CSRF_ENABLED=True,
-    WTF_CSRF_TIME_LIMIT=None,
-    WTF_CSRF_CHECK_DEFAULT=True,
-    WTF_CSRF_SSL_STRICT=False,
-    PREFERRED_URL_SCHEME='https' if is_production else 'http'
-)
+if redis_available:
+    # Production: Use Redis for multi-worker session sharing
+    app.config.update(
+        SESSION_TYPE='redis',
+        SESSION_REDIS=redis_client,
+        SESSION_PERMANENT=False,
+        SESSION_USE_SIGNER=True,
+        SESSION_KEY_PREFIX='traitortrack:session:',
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_NAME='traitortrack_session',
+        PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
+        SEND_FILE_MAX_AGE_DEFAULT=0,
+        WTF_CSRF_ENABLED=True,
+        WTF_CSRF_TIME_LIMIT=None,
+        WTF_CSRF_CHECK_DEFAULT=True,
+        WTF_CSRF_SSL_STRICT=False,
+        PREFERRED_URL_SCHEME='https' if is_production else 'http'
+    )
+    session_backend = "Redis (multi-worker ready)"
+else:
+    # Development: Use filesystem for single-worker development
+    app.config.update(
+        SESSION_TYPE='filesystem',
+        SESSION_FILE_DIR='/tmp/flask_session',
+        SESSION_PERMANENT=False,
+        SESSION_USE_SIGNER=True,
+        SESSION_FILE_THRESHOLD=500,
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_NAME='traitortrack_session',
+        PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
+        SEND_FILE_MAX_AGE_DEFAULT=0,
+        WTF_CSRF_ENABLED=True,
+        WTF_CSRF_TIME_LIMIT=None,
+        WTF_CSRF_CHECK_DEFAULT=True,
+        WTF_CSRF_SSL_STRICT=False,
+        PREFERRED_URL_SCHEME='https' if is_production else 'http'
+    )
+    os.makedirs('/tmp/flask_session', exist_ok=True)
+    session_backend = "Filesystem (single-worker only)"
 
 # File upload size limits (for security and performance)
 # MAX_FILE_UPLOAD_SIZE must be in bytes (integer). Default: 16MB
@@ -111,9 +150,28 @@ except ValueError as e:
 logger.info(f"Environment: {'production' if is_production else 'development'} - HTTPS cookies: {is_production}")
 
 # Initialize Flask-Session
-os.makedirs('/tmp/flask_session', exist_ok=True)
 Session(app)
-logger.info("Filesystem session storage configured")
+logger.info(f"Session storage: {session_backend}")
+
+# Configure rate limiter - Redis with in-memory fallback
+if redis_available:
+    # Production: Use Redis for multi-worker rate limiting
+    limiter_storage_uri = redis_url
+    limiter_backend = "Redis (multi-worker ready)"
+else:
+    # Development: Use in-memory for single-worker development
+    limiter_storage_uri = "memory://"
+    limiter_backend = "In-memory (single-worker only)"
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["2000 per day", "500 per hour"],
+    storage_uri=limiter_storage_uri,
+    strategy="fixed-window",
+    swallow_errors=True
+)
+
+logger.info(f"Rate limiting storage: {limiter_backend}")
 
 # Database configuration - auto-select based on environment
 # Production deployments use PRODUCTION_DATABASE_URL (AWS RDS)

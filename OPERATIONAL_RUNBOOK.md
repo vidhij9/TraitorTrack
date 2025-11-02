@@ -58,21 +58,37 @@ TraitorTrack is a high-performance warehouse bag tracking system designed to man
 ### Component Stack
 
 ```
-[Users] → [Load Balancer] → [Gunicorn (2 workers)]
+[Users] → [Load Balancer] → [Gunicorn (2+ workers)]
                                     ↓
                             [Flask Application]
                                     ↓
-                     [PostgreSQL Database (AWS RDS)]
-                                    ↓
-                        [Filesystem Sessions (/tmp)]
+                     ┌──────────────┴──────────────┐
+                     ↓                             ↓
+          [PostgreSQL Database]            [Redis Cache]
+           (AWS RDS/Managed)              (Sessions + Rate Limiting)
 ```
+
+**Production Architecture**:
+- **Multi-Worker**: 2+ Gunicorn workers for horizontal scaling
+- **Shared State**: Redis stores sessions and rate limits across all workers
+- **High Availability**: Workers can restart without losing user sessions
+
+**Development Architecture** (without Redis):
+- **Single Worker**: 1 Gunicorn worker for development
+- **Local State**: Filesystem sessions (`/tmp/flask_session`), in-memory rate limiting
+- **Auto-Fallback**: Application automatically detects missing Redis and falls back
 
 ### Technology Stack
 
 - **Backend**: Flask 3.1+, Python 3.10+
 - **Database**: PostgreSQL 12+ (AWS RDS)
-- **WSGI Server**: Gunicorn with sync workers (2 workers, 4 threads each)
-- **Session Storage**: Filesystem-based (`/tmp/flask_session`)
+- **WSGI Server**: Gunicorn with sync workers (2+ workers, 4 threads each)
+- **Session Storage**: 
+  - **Production**: Redis (multi-worker, shared state)
+  - **Development**: Filesystem (`/tmp/flask_session`, single-worker)
+- **Rate Limiting**:
+  - **Production**: Redis (multi-worker, shared state)
+  - **Development**: In-memory (single-worker)
 - **Caching**: In-memory caching with TTL
 - **Security**: Flask-Login, Flask-WTF, Flask-Limiter
 
@@ -184,10 +200,143 @@ WHERE schemaname = 'public'
 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 ```
 
-### Clear Old Session Files
+### Redis Monitoring (Production Only)
+
+**Note**: Redis monitoring only applies to production deployments with `REDIS_URL` configured. Development environments use filesystem/memory and don't require Redis.
+
+#### Check Redis Connection
 
 ```bash
-# Remove sessions older than 2 days
+# Test Redis connectivity
+redis-cli -u $REDIS_URL ping
+
+# Expected output: PONG
+
+# Get Redis info
+redis-cli -u $REDIS_URL info
+
+# Check Redis version
+redis-cli -u $REDIS_URL info server | grep redis_version
+```
+
+#### Monitor Redis Memory Usage
+
+```bash
+# Check memory usage
+redis-cli -u $REDIS_URL info memory
+
+# Key metrics to monitor:
+# - used_memory_human: Current memory usage
+# - used_memory_peak_human: Peak memory usage
+# - maxmemory: Memory limit (if set)
+# - mem_fragmentation_ratio: Should be between 1.0-1.5
+
+# Example output:
+# used_memory_human:128.45M
+# maxmemory_human:256.00M
+# mem_fragmentation_ratio:1.12
+```
+
+**Alert Thresholds**:
+- **Warning**: Memory usage >70% of maxmemory
+- **Critical**: Memory usage >85% of maxmemory
+- **Action**: Increase Redis memory limit or enable eviction policy
+
+#### Monitor Session Keys
+
+```bash
+# Count session keys
+redis-cli -u $REDIS_URL --scan --pattern "traitortrack:session:*" | wc -l
+
+# Get session TTL (time to live)
+redis-cli -u $REDIS_URL TTL "traitortrack:session:<session_id>"
+
+# Expected: 3600 (1 hour in seconds)
+# -1 means key exists but no TTL set (problem!)
+# -2 means key doesn't exist
+
+# List all session keys (careful in production)
+redis-cli -u $REDIS_URL KEYS "traitortrack:session:*"
+
+# Get session data (for debugging)
+redis-cli -u $REDIS_URL GET "traitortrack:session:<session_id>"
+```
+
+#### Monitor Rate Limit Keys
+
+```bash
+# Count rate limit keys
+redis-cli -u $REDIS_URL --scan --pattern "LIMITER/*" | wc -l
+
+# Check specific rate limit
+redis-cli -u $REDIS_URL GET "LIMITER/<ip_address>/login"
+
+# Rate limit keys auto-expire based on rate limit window
+# Example: 10/min limit means key expires in 60 seconds
+```
+
+#### Redis Performance Metrics
+
+```bash
+# Check connected clients
+redis-cli -u $REDIS_URL info clients
+
+# Monitor commands per second
+redis-cli -u $REDIS_URL info stats | grep instantaneous_ops_per_sec
+
+# Check latency
+redis-cli -u $REDIS_URL --latency
+
+# Check slow queries (>10ms)
+redis-cli -u $REDIS_URL SLOWLOG GET 10
+```
+
+**Normal Ranges**:
+- Connected clients: 2-10 (for 2 Gunicorn workers)
+- Commands/sec: 10-100 (depends on traffic)
+- Latency: <5ms (healthy), 5-20ms (acceptable), >20ms (investigate)
+
+#### Clear Redis Cache (Emergency)
+
+```bash
+# ⚠️ WARNING: This will log out all users!
+
+# Clear all session keys only
+redis-cli -u $REDIS_URL --scan --pattern "traitortrack:session:*" | xargs redis-cli -u $REDIS_URL DEL
+
+# Clear all rate limit keys (reset all rate limits)
+redis-cli -u $REDIS_URL --scan --pattern "LIMITER/*" | xargs redis-cli -u $REDIS_URL DEL
+
+# Nuclear option: Flush entire database (USE WITH EXTREME CAUTION)
+# redis-cli -u $REDIS_URL FLUSHDB
+```
+
+**When to Clear Cache**:
+- Session corruption issues
+- Rate limit testing
+- Security incident (force logout all users)
+
+#### Verify Application is Using Redis
+
+```bash
+# Check application logs on startup
+# Expected output when Redis is active:
+# ✅ Redis connected successfully: your-redis-host:6379
+# Session storage: Redis (multi-worker ready)
+# Rate limiting storage: Redis (multi-worker ready)
+
+# If Redis unavailable:
+# ⚠️ Redis connection failed, falling back to filesystem/memory
+# Session storage: Filesystem (single-worker only)
+# Rate limiting storage: In-memory (single-worker only)
+```
+
+### Clear Old Session Files (Development Only)
+
+**Note**: This only applies to development environments **without** Redis. Production with Redis stores sessions in Redis, not filesystem.
+
+```bash
+# Remove filesystem sessions older than 2 days (development only)
 find /tmp/flask_session -type f -mtime +2 -delete
 
 # Check session count
@@ -197,12 +346,14 @@ ls -1 /tmp/flask_session | wc -l
 du -sh /tmp/flask_session
 ```
 
-**Schedule**: Daily via cron job
+**Schedule**: Daily via cron job (development environments only)
 
 ```bash
-# Add to crontab
+# Add to crontab (development only)
 0 2 * * * find /tmp/flask_session -type f -mtime +2 -delete
 ```
+
+**Production**: Sessions in Redis auto-expire after 1 hour (SESSION_PERMANENT_LIFETIME). No manual cleanup needed.
 
 ### User Management
 

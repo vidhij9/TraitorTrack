@@ -39,3 +39,5 @@ bleach
 pyotp
 qrcode[pil]
 ujson
+hiredis
+redis

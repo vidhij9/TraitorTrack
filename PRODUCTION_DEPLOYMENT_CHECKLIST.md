@@ -93,6 +93,25 @@ SENDGRID_ADMIN_EMAIL=admin@yourdomain.com
 - [ ] `SENDGRID_FROM_EMAIL` - Sender email address
 - [ ] `SENDGRID_ADMIN_EMAIL` - Admin alert recipient
 
+#### Redis Configuration (Required for Multi-Worker Deployments)
+
+```bash
+# Redis URL for sessions and rate limiting (REQUIRED for production with multiple workers)
+# Format: redis://[[username]:[password]]@host:port/db
+# Examples:
+#   - redis://localhost:6379/0 (local)
+#   - redis://:password@redis.example.com:6379/0 (with password)
+#   - rediss://user:pass@redis.example.com:6380/0 (SSL/TLS)
+REDIS_URL=redis://your-redis-host:6379/0
+```
+
+- [ ] `REDIS_URL` - **CRITICAL for multi-worker production**: Redis connection string for shared sessions and rate limiting
+  - **Why Required**: Filesystem sessions and in-memory rate limiting DO NOT work with multiple Gunicorn workers
+  - **Without Redis**: Each worker has separate session storage → users randomly logged out, rate limits not enforced
+  - **With Redis**: All workers share session state → consistent user experience, accurate rate limiting
+  - **Development**: Can be omitted (auto-fallback to filesystem/memory for single-worker dev)
+  - **Production**: Must be set for deployments with >1 worker
+
 #### Optional Configuration
 
 ```bash
@@ -141,6 +160,138 @@ else:
     print('✅ All required environment variables set')
 "
 ```
+
+---
+
+## Redis Setup (Multi-Worker Production)
+
+### Why Redis is Required for Production
+
+**CRITICAL**: TraitorTrack uses filesystem-based sessions and in-memory rate limiting by default. These DO NOT work with multiple Gunicorn workers:
+
+| Component | Single Worker (Dev) | Multi-Worker (Production) | Impact Without Redis |
+|-----------|-------------------|------------------------|---------------------|
+| **Sessions** | ✅ Filesystem works | ❌ Filesystem breaks | Users randomly logged out between requests |
+| **Rate Limiting** | ✅ Memory works | ❌ Memory breaks | Rate limits not enforced (security risk) |
+| **Scalability** | Limited to 1 worker | ✅ Unlimited workers | Cannot scale beyond single worker |
+
+**Solution**: Redis provides shared storage for sessions and rate limiting across all workers.
+
+### Redis Installation Options
+
+#### Option 1: Managed Redis (Recommended)
+
+**AWS ElastiCache (Recommended for AWS deployments):**
+```bash
+# Create Redis cluster via AWS Console or CLI
+aws elasticache create-cache-cluster \
+  --cache-cluster-id traitortrack-redis \
+  --engine redis \
+  --cache-node-type cache.t3.micro \
+  --num-cache-nodes 1 \
+  --engine-version 7.0
+
+# Get connection endpoint
+aws elasticache describe-cache-clusters \
+  --cache-cluster-id traitortrack-redis \
+  --show-cache-node-info
+```
+
+**Other Managed Options:**
+- **DigitalOcean Managed Redis**: $15/month, 1GB RAM
+- **Redis Cloud**: Free tier available, $0.026/GB-hour
+- **Upstash**: Serverless Redis, pay-per-request
+
+#### Option 2: Self-Hosted Redis
+
+```bash
+# Install Redis (Ubuntu/Debian)
+sudo apt-get update
+sudo apt-get install redis-server
+
+# Configure Redis for production
+sudo nano /etc/redis/redis.conf
+
+# Key settings:
+# bind 0.0.0.0  # Allow remote connections (use firewall!)
+# requirepass <strong_password>  # Set password
+# maxmemory 256mb  # Limit memory usage
+# maxmemory-policy allkeys-lru  # Eviction policy
+
+# Restart Redis
+sudo systemctl restart redis-server
+sudo systemctl enable redis-server
+
+# Test connection
+redis-cli ping  # Should return PONG
+```
+
+### Redis Configuration
+
+After setting up Redis, add the connection URL to your environment:
+
+```bash
+# Set REDIS_URL environment variable
+# Format: redis://[[username]:[password]]@host:port/db
+
+# AWS ElastiCache example
+REDIS_URL=redis://traitortrack-redis.abc123.0001.use1.cache.amazonaws.com:6379/0
+
+# Self-hosted with password
+REDIS_URL=redis://:your_strong_password@your-redis-host:6379/0
+
+# Redis Cloud example
+REDIS_URL=redis://default:password@redis-12345.c1.us-east-1-1.ec2.cloud.redislabs.com:12345
+```
+
+- [ ] Redis instance created (managed or self-hosted)
+- [ ] Redis accessible from application servers
+- [ ] `REDIS_URL` environment variable set
+- [ ] Redis connection tested successfully
+
+### Verify Redis Setup
+
+```bash
+# Test Redis connection from app server
+python -c "
+import redis
+import os
+
+redis_url = os.environ.get('REDIS_URL')
+if not redis_url:
+    print('❌ REDIS_URL not set')
+    exit(1)
+
+try:
+    client = redis.from_url(redis_url, socket_connect_timeout=2)
+    client.ping()
+    print('✅ Redis connection successful')
+except Exception as e:
+    print(f'❌ Redis connection failed: {e}')
+    exit(1)
+"
+```
+
+### Check Application Logs
+
+After deploying with Redis, verify the application is using Redis:
+
+```bash
+# Check application startup logs
+# Expected output:
+# ✅ Redis connected successfully: your-redis-host:6379
+# Session storage: Redis (multi-worker ready)
+# Rate limiting storage: Redis (multi-worker ready)
+
+# If Redis unavailable (fallback):
+# ⚠️ Redis connection failed, falling back to filesystem/memory
+# Session storage: Filesystem (single-worker only)
+# Rate limiting storage: In-memory (single-worker only)
+```
+
+- [ ] Application logs show "Redis connected successfully"
+- [ ] Session storage shows "Redis (multi-worker ready)"
+- [ ] Rate limiting storage shows "Redis (multi-worker ready)"
 
 ---
 
