@@ -136,13 +136,36 @@ POOL_EMAIL_ALERTS=true
 
 # Audit Log Anonymization (GDPR Compliance)
 ANONYMIZE_AUDIT_LOGS=true
+EMAIL_ANONYMIZATION_METHOD=mask  # Options: mask, hash, domain_only
+
+# Session Timeout Configuration (in seconds)
+SESSION_ABSOLUTE_TIMEOUT=3600      # 1 hour absolute timeout (default)
+SESSION_INACTIVITY_TIMEOUT=1800    # 30 minutes inactivity timeout (default)
+SESSION_WARNING_TIME=300           # 5 minutes warning before timeout (default)
+
+# Performance Monitoring
+SLOW_QUERY_THRESHOLD_MS=100        # Log queries slower than 100ms (default)
+SLOW_QUERY_LOGGING_ENABLED=true    # Enable slow query logging
+
+# Graceful Shutdown
+GRACEFUL_SHUTDOWN_TIMEOUT=30       # Seconds to wait for graceful shutdown (default)
+
+# Test User Creation (Development/Staging Only)
+CREATE_TEST_USERS=false            # Set to 'true' to create test users on startup
+BILLER_PASSWORD=<test_biller_password>      # Password for test biller user
+DISPATCHER_PASSWORD=<test_dispatcher_password>  # Password for test dispatcher user
 ```
 
 - [ ] `ENVIRONMENT` - Set to `production`
 - [ ] `REPLIT_DEPLOYMENT` - Set to `1` for production deployments
 - [ ] `MAX_FILE_UPLOAD_SIZE` - File upload limit (bytes)
 - [ ] Pool monitoring thresholds configured
-- [ ] GDPR anonymization enabled
+- [ ] GDPR anonymization enabled (`ANONYMIZE_AUDIT_LOGS=true`)
+- [ ] Email anonymization method configured (`EMAIL_ANONYMIZATION_METHOD`)
+- [ ] Session timeout values reviewed (defaults: 1hr absolute, 30min inactivity)
+- [ ] Slow query logging threshold configured (default: 100ms)
+- [ ] Graceful shutdown timeout configured (default: 30 seconds)
+- [ ] Test user creation disabled in production (`CREATE_TEST_USERS=false`)
 
 ### Verify Environment Variables
 

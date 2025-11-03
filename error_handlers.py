@@ -202,7 +202,7 @@ def setup_error_handlers(app):
     @app.errorhandler(Exception)
     def handle_unexpected_error(error):
         """Handle any unexpected errors"""
-        app.logger.error(f"Unexpected error: {request.url} - {traceback.format_exc()}")
+        app.logger.error(f"Unexpected error: {request.url} - {str(error)}", exc_info=True)
         
         # Rollback any database changes
         try:
@@ -297,7 +297,7 @@ def setup_health_monitoring(app):
                     return jsonify(response_data), 503
                     
             except Exception as e:
-                app.logger.error(f"Database health check failed: {e}")
+                app.logger.error(f"Database health check failed: {str(e)}", exc_info=True)
                 response_data['status'] = 'unhealthy'
                 response_data['message'] = 'Database connection failed'
                 response_data['database'] = {

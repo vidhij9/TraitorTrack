@@ -529,8 +529,8 @@ def admin_user_profile(user_id):
             daily_scan_data['labels'].append(date_key.strftime('%b %d'))
             daily_scan_data['values'].append(scan_dict.get(date_key, 0))
         
-        # Log the data for debugging
-        app.logger.info(f"Daily scan data for user {user_id}: {len(daily_scan_data['labels'])} days, total scans: {sum(daily_scan_data['values'])}")
+        # Log user metrics for monitoring
+        app.logger.info(f"User metrics generated - User ID: {user_id}, Days: {len(daily_scan_data['labels'])}, Total scans: {sum(daily_scan_data['values'])}")
         
         # Time estimation (rough calculation based on scans)
         estimated_hours = round(total_scans * 0.5 / 60, 1)  # Assuming 30 seconds per scan
@@ -2127,9 +2127,7 @@ def request_promotion():
 @login_required
 def admin_promotions():
     """Admin view of all promotion requests"""
-    # Debug logging for admin check
-    import logging
-    logging.info(f"Admin promotions route - User ID: {current_user.id}, Role: {current_user.role}, Is Admin: {current_user.is_admin()}")
+    app.logger.info(f"Admin promotions access - User ID: {current_user.id}, Role: {current_user.role}")
     
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
@@ -2378,8 +2376,7 @@ def process_parent_scan():
         return redirect(url_for('login'))
     
     try:
-        # Debug logging
-        app.logger.info(f'PARENT SCAN START: User ID from session: {user_id}')
+        app.logger.info(f'Parent scan initiated - User ID: {user_id}')
         
         qr_code = request.form.get('qr_code', '').strip()
         
@@ -2450,8 +2447,7 @@ def process_parent_scan():
         # session.permanent is False (set at login) to ensure logout on browser close
         session.modified = True  # Force session save
         
-        # Log for debugging
-        app.logger.info(f'PARENT SCAN: Session saved with parent_qr={qr_code}, user={username}')
+        app.logger.info(f'Parent scan completed - QR: {qr_code}, User: {username}')
         
         if is_api:
             return jsonify({
@@ -3209,16 +3205,13 @@ def scan_complete():
         ).all()
         scan_count = len(child_bags)
         
-        # Debug logging to troubleshoot the issue
-        app.logger.info(f'Scan complete: Parent QR {parent_qr}, Parent ID {parent_bag.id}, Child count {scan_count}')
+        # Log scan completion metrics
+        app.logger.info(f'Scan validation - Parent QR: {parent_qr}, Parent ID: {parent_bag.id}, Child count: {scan_count}')
         
-        # Alternative query to double-check
+        # Verify link count for data integrity
         link_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-        app.logger.info(f'Direct link count for parent ID {parent_bag.id}: {link_count}')
-        
-        # Get links and their child bags separately for debugging
-        links = Link.query.filter_by(parent_bag_id=parent_bag.id).all()
-        app.logger.info(f'Links found: {[(link.id, link.child_bag_id) for link in links]}')
+        if link_count != scan_count:
+            app.logger.warning(f'Link count mismatch detected - Parent ID: {parent_bag.id}, Link count: {link_count}, Child count: {scan_count}')
         
         # Validate exactly 30 bags requirement
         if scan_count != 30:
@@ -3680,9 +3673,8 @@ def bag_management():
         bags_result = query.limit(per_page).offset(offset).all()
         bag_ids = [bag.id for bag in bags_result]
         
-        # Debug logging
-        app.logger.info(f"Bag management query returned {len(bags_result)} bags")
-        app.logger.info(f"Total filtered count: {total_filtered}")
+        # Log query performance metrics
+        app.logger.info(f"Bag management - Bags loaded: {len(bags_result)}, Total filtered: {total_filtered}")
         
         # Batch fetch all relationships in 3 queries instead of N queries
         child_counts = {}
@@ -3866,9 +3858,6 @@ def bag_management():
         
         bag_objects = [TemplateBag(bag_dict) for bag_dict in bags_data]
         
-        # Debug logging
-        app.logger.info(f"Created {len(bag_objects)} bag objects from {len(bags_data)} bags_data")
-        
         # Create pagination object manually
         class SimplePagination:
             def __init__(self, items, page, per_page, total):
@@ -3899,14 +3888,11 @@ def bag_management():
         
         bags = SimplePagination(bag_objects, page, 20, total_filtered)
         
-        # Debug logging
-        app.logger.info(f"SimplePagination created with {len(bags.items)} items, bool={bool(bags)}")
-        
         # Update filtered count in stats
         stats['filtered_count'] = total_filtered
         
         query_time = (time.time() - start_time) * 1000
-        app.logger.info(f"Ultra-fast bag management page loaded in {query_time:.2f}ms")
+        app.logger.info(f"Bag management page loaded in {query_time:.2f}ms with {len(bags.items)} items")
         
     except Exception as e:
         app.logger.error(f"Optimized bag query failed, falling back to standard query: {str(e)}")
@@ -4546,14 +4532,10 @@ def edit_bill(bill_id):
     
     if request.method == 'POST':
         try:
-            # Debug logging
-            app.logger.info(f'Edit bill POST request for bill_id: {bill_id}')
-            app.logger.info(f'Form data: {dict(request.form)}')
+            app.logger.info(f'Edit bill request - Bill ID: {bill_id}')
             
             description = request.form.get('description', '').strip()
             parent_bag_count = request.form.get('parent_bag_count', type=int)
-            
-            app.logger.info(f'Parsed - description: "{description}", parent_bag_count: {parent_bag_count}')
             
             # Store original values for comparison
             original_description = bill.description
@@ -5082,9 +5064,6 @@ def process_bill_parent_scan():
             app.logger.error(f'Invalid bill capacity: {current_capacity}')
             return jsonify({'success': False, 'message': 'Bill has invalid capacity configuration'})
         
-        # Log bill details for debugging
-        app.logger.info(f'Bill ID: {bill.id}, Bill parent_bag_count: {bill.parent_bag_count}')
-        
         # Direct duplicate check
         existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
         if existing_link:
@@ -5197,8 +5176,7 @@ def bag_details(qr_id):
     from urllib.parse import unquote
     qr_id = unquote(qr_id)
     
-    # Log the QR ID for debugging
-    app.logger.info(f'Looking up bag with QR ID: {qr_id}')
+    app.logger.info(f'Bag detail lookup - QR ID: {qr_id}')
     
     try:
         bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first_or_404()

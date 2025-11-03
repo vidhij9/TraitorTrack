@@ -6,6 +6,9 @@ from flask import session
 from sqlalchemy import text
 from functools import lru_cache
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class QueryOptimizer:
     """Optimized database operations for maximum performance"""
@@ -166,6 +169,7 @@ class QueryOptimizer:
             
             return True, "Link created successfully"
         except Exception as e:
+            logger.error(f"Failed to create link: parent_bag_id={parent_bag_id}, child_bag_id={child_bag_id}, error={str(e)}", exc_info=True)
             return False, str(e)
     
     def create_scan_fast(self, user_id, parent_bag_id=None, child_bag_id=None):
@@ -186,7 +190,8 @@ class QueryOptimizer:
                 }
             )
             return True
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to create scan: user_id={user_id}, parent_bag_id={parent_bag_id}, child_bag_id={child_bag_id}", exc_info=True)
             return False
     
     def link_bag_to_bill_fast(self, bill_id, bag_id):
@@ -238,6 +243,7 @@ class QueryOptimizer:
             
             return True, "Bag linked to bill successfully"
         except Exception as e:
+            logger.error(f"Failed to link bag to bill: bill_id={bill_id}, bag_id={bag_id}, error={str(e)}", exc_info=True)
             return False, str(e)
     
     def batch_link_bags_to_bill(self, bill_id, bag_ids):
@@ -288,6 +294,7 @@ class QueryOptimizer:
             
             return True, f"Successfully linked {len(bag_ids)} bags to bill"
         except Exception as e:
+            logger.error(f"Failed to batch link bags to bill: bill_id={bill_id}, bag_count={len(bag_ids)}, error={str(e)}", exc_info=True)
             return False, str(e)
     
     def invalidate_cache(self, qr_id=None):
@@ -347,6 +354,7 @@ class QueryOptimizer:
             
             return bag
         except Exception as e:
+            logger.error(f"Failed to create bag: qr_id={qr_id}, type={bag_type}, user_id={user_id}, error={str(e)}", exc_info=True)
             return None
     
     def create_scan_optimized(self, user_id, parent_bag_id=None, child_bag_id=None):
@@ -398,6 +406,7 @@ class QueryOptimizer:
             # Re-raise validation errors
             raise
         except Exception as e:
+            logger.error(f"Failed to create link optimized: parent_bag_id={parent_bag_id}, child_bag_id={child_bag_id}, error={str(e)}", exc_info=True)
             return None, False
     
     def bulk_commit(self):
@@ -409,6 +418,7 @@ class QueryOptimizer:
             self.db.session.commit()
             return True
         except Exception as e:
+            logger.error(f"Failed to commit database transaction", exc_info=True)
             self.db.session.rollback()
             return False
 
