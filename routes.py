@@ -5768,7 +5768,7 @@ def api_system_health():
             'total_hits': cache_info['hits'],
             'total_misses': cache_info['misses'],
             'total_requests': cache_info['hits'] + cache_info['misses'],
-            'size': cache_info['entries']
+            'size': cache_info['total_entries']
         }
         
         # Database size
