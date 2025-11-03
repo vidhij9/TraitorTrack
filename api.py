@@ -222,58 +222,77 @@ def get_dashboard_analytics():
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached_global(seconds=30, prefix='parent_bags')
 def get_all_parent_bags():
-    """Optimized parent bags listing with pagination and search"""
+    """Ultra-optimized parent bags using raw SQL with pagination - Target: <5ms"""
     try:
-        page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        page = max(1, request.args.get('page', 1, type=int))
+        per_page = max(1, min(request.args.get('per_page', 50, type=int), 100))
         search = request.args.get('search', '').strip()
         
-        # Sanitize search input to prevent XSS
+        offset = (page - 1) * per_page
+        
+        # Build query
         if search:
             search = InputValidator.sanitize_search_query(search)
+            # Count total for pagination
+            total = db.session.execute(text("""
+                SELECT COUNT(*) FROM bag 
+                WHERE type = 'parent' AND (qr_id ILIKE :pattern OR name ILIKE :pattern)
+            """), {'pattern': f'%{search}%'}).scalar() or 0
+            
+            # Get page data
+            bags_result = db.session.execute(text("""
+                SELECT id, qr_id, name, type, dispatch_area, created_at, updated_at
+                FROM bag
+                WHERE type = 'parent' AND (qr_id ILIKE :pattern OR name ILIKE :pattern)
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """), {'pattern': f'%{search}%', 'limit': per_page, 'offset': offset}).fetchall()
+        else:
+            # Count total
+            total = db.session.execute(text("""
+                SELECT COUNT(*) FROM bag WHERE type = 'parent'
+            """)).scalar() or 0
+            
+            # Get page data
+            bags_result = db.session.execute(text("""
+                SELECT id, qr_id, name, type, dispatch_area, created_at, updated_at
+                FROM bag
+                WHERE type = 'parent'
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """), {'limit': per_page, 'offset': offset}).fetchall()
         
-        # Use direct query
-        query = Bag.query.filter_by(type=BagType.PARENT.value)
-        if search:
-            query = query.filter(or_(
-                Bag.qr_id.ilike(f'%{search}%'),
-                Bag.name.ilike(f'%{search}%')
-            ))
-        pagination = query.order_by(desc(Bag.created_at)).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
+        # Response with all required fields for backward compatibility
+        bag_data = [
+            {
+                'id': row[0],
+                'qr_id': row[1],
+                'name': row[2],
+                'type': row[3],
+                'dispatch_area': row[4],
+                'created_at': row[5].isoformat() if row[5] else None,
+                'updated_at': row[6].isoformat() if row[6] else None
+            }
+            for row in bags_result
+        ]
         
-        bag_data = []
-        for bag in pagination.items:
-            bag_data.append({
-                'id': bag.id,
-                'qr_id': bag.qr_id,
-                'name': bag.name,
-                'type': bag.type,
-                'dispatch_area': bag.dispatch_area,
-                'created_at': bag.created_at.isoformat() if bag.created_at else None,
-                'updated_at': bag.updated_at.isoformat() if bag.updated_at else None
-            })
+        pages = (total + per_page - 1) // per_page
         
-        response = make_response(jsonify({
+        return jsonify({
             'success': True,
             'data': bag_data,
             'pagination': {
-                'page': pagination.page,
-                'per_page': pagination.per_page,
-                'total': pagination.total,
-                'pages': pagination.pages,
-                'has_next': pagination.has_next,
-                'has_prev': pagination.has_prev
-            },
-            'timestamp': time.time(),
-            'cached': False
-        }))
-        response.headers['Cache-Control'] = 'public, max-age=30'
-        return response
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'pages': pages,
+                'has_next': page < pages,
+                'has_prev': page > 1
+            }
+        })
         
     except Exception as e:
-        logger.error(f"Error in get_all_parent_bags: {str(e)}")
+        logger.error(f"Error in get_all_parent_bags: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to load parent bags'}), 500
 
 @app.route('/api/bags/<int:bag_id>/children')
@@ -281,32 +300,31 @@ def get_all_parent_bags():
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached_global(seconds=60, prefix='bag_children')
 def get_bag_children(bag_id):
-    """Get all child bags for a specific parent bag"""
+    """Ultra-optimized child bags using raw SQL - Target: <5ms"""
     try:
-        # Use direct query  
-        children = Bag.query.join(Link, Link.child_bag_id == Bag.id).filter(
-            Link.parent_bag_id == bag_id,
-            Bag.type == BagType.CHILD.value
-        ).all()
+        # Raw SQL with JOIN - single query
+        children_result = db.session.execute(text("""
+            SELECT b.id, b.qr_id
+            FROM bag b
+            INNER JOIN link l ON l.child_bag_id = b.id
+            WHERE l.parent_bag_id = :parent_id AND b.type = 'child'
+            ORDER BY b.created_at DESC
+        """), {'parent_id': bag_id}).fetchall()
         
-        children_data = []
-        for child in children:
-            children_data.append({
-                'id': child.id,
-                'qr_id': child.qr_id,
-                'name': child.name,
-                'created_at': child.created_at.isoformat() if child.created_at else None
-            })
+        # Minimal response
+        children_data = [
+            {'id': row[0], 'qr_id': row[1]}
+            for row in children_result
+        ]
         
         return jsonify({
             'success': True,
             'children': children_data,
-            'count': len(children_data),
-            'timestamp': time.time()
+            'count': len(children_data)
         })
         
     except Exception as e:
-        logger.error(f"Error getting bag children: {str(e)}")
+        logger.error(f"Error getting bag children: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to load children'}), 500
 
 # =============================================================================
@@ -381,20 +399,19 @@ def get_dashboard_statistics():
                 'qr_id': scan[5] or 'Unknown'
             })
         
+        # Response with user_context for permission-gating
         response_data = {
             'success': True,
             'stats': stats,
             'recent_activity': recent_activity,
             'user_context': {
                 'role': current_user.role,
-                'dispatch_area': current_user.dispatch_area,
                 'permissions': {
                     'can_edit_bills': current_user.can_edit_bills(),
                     'can_manage_users': current_user.can_manage_users(),
                     'is_admin': current_user.is_admin()
                 }
-            },
-            'timestamp': time.time()
+            }
         }
         
         return jsonify(response_data)
@@ -408,51 +425,64 @@ def get_dashboard_statistics():
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached_global(seconds=60, prefix='recent_scans')
 def get_recent_scans():
-    """Get recent scans with filtering options"""
+    """Ultra-optimized recent scans using raw SQL - Target: <5ms"""
     try:
         limit = min(request.args.get('limit', 20, type=int), 100)
         user_id = request.args.get('user_id', type=int)
-        scan_type = request.args.get('type', '').lower()
         
-        # Build query for recent scans
-        query = Scan.query.order_by(Scan.timestamp.desc())
-        
-        # Filter by user if specified
+        # Use raw SQL with efficient JOIN - single query, no N+1
         if user_id:
-            query = query.filter(Scan.scanned_by_id == user_id)
+            scans_result = db.session.execute(text("""
+                SELECT 
+                    s.id,
+                    s.timestamp,
+                    u.username,
+                    CASE WHEN s.parent_bag_id IS NOT NULL THEN 'parent' ELSE 'child' END as type,
+                    COALESCE(pb.qr_id, cb.qr_id) as bag_qr
+                FROM scan s
+                LEFT JOIN "user" u ON s.user_id = u.id
+                LEFT JOIN bag pb ON s.parent_bag_id = pb.id
+                LEFT JOIN bag cb ON s.child_bag_id = cb.id
+                WHERE s.user_id = :user_id
+                ORDER BY s.timestamp DESC
+                LIMIT :limit
+            """), {'user_id': user_id, 'limit': limit}).fetchall()
+        else:
+            scans_result = db.session.execute(text("""
+                SELECT 
+                    s.id,
+                    s.timestamp,
+                    u.username,
+                    CASE WHEN s.parent_bag_id IS NOT NULL THEN 'parent' ELSE 'child' END as type,
+                    COALESCE(pb.qr_id, cb.qr_id) as bag_qr
+                FROM scan s
+                LEFT JOIN "user" u ON s.user_id = u.id
+                LEFT JOIN bag pb ON s.parent_bag_id = pb.id
+                LEFT JOIN bag cb ON s.child_bag_id = cb.id
+                ORDER BY s.timestamp DESC
+                LIMIT :limit
+            """), {'limit': limit}).fetchall()
         
-        # Get scans with limit
-        scans = query.limit(limit).all()
-        
-        scans_data = []
-        for scan in scans:
-            scan_data = {
-                'id': scan.id,
-                'timestamp': scan.timestamp.isoformat(),
-                'user': scan.scanned_by.username if scan.scanned_by else 'Unknown',
-                'type': 'parent' if scan.parent_bag_id else 'child'
+        # Build minimal response
+        scans_data = [
+            {
+                'id': row[0],
+                'timestamp': row[1].isoformat(),
+                'user': row[2] or 'Unknown',
+                'type': row[3],
+                'bag_qr': row[4]
             }
-            
-            if scan.parent_bag_id and scan.parent_bag:
-                scan_data['bag_qr'] = scan.parent_bag.qr_id
-                scan_data['bag_name'] = scan.parent_bag.name
-            elif scan.child_bag_id and scan.child_bag:
-                scan_data['bag_qr'] = scan.child_bag.qr_id
-                scan_data['bag_name'] = scan.child_bag.name
-            
-            # Filter by type if specified
-            if not scan_type or scan_data['type'] == scan_type:
-                scans_data.append(scan_data)
+            for row in scans_result
+        ]
         
         return jsonify({
             'success': True,
             'scans': scans_data,
-            'count': len(scans_data),
-            'timestamp': time.time()
+            'count': len(scans_data)
         })
         
     except Exception as e:
-        logger.error(f"Recent scans error: {str(e)}")
+        logger.error(f"Recent scans error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to load scans'}), 500
 
 # =============================================================================
@@ -464,7 +494,7 @@ def get_recent_scans():
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 @cached_global(seconds=30, prefix='bags_search')
 def search_bags_api():
-    """Fast bag search endpoint with enhanced input validation"""
+    """Ultra-optimized bag search using raw SQL - Target: <5ms"""
     try:
         from validation_utils import InputValidator
         
@@ -473,44 +503,43 @@ def search_bags_api():
         if not query_text:
             return jsonify({'success': True, 'bags': [], 'count': 0})
         
-        # Sanitize search query to prevent SQL injection and XSS
+        # Sanitize search query
         query_text = InputValidator.sanitize_search_query(query_text)
-        if not query_text:  # If sanitization removed everything
-            return jsonify({'success': True, 'bags': [], 'count': 0, 'warning': 'Invalid search query'})
+        if not query_text:
+            return jsonify({'success': True, 'bags': [], 'count': 0})
         
-        # Validate limit parameter
-        limit = request.args.get('limit', 50, type=int)
-        limit = max(1, min(limit, 100))  # Bounds check: 1-100
+        # Validate limit
+        limit = max(1, min(request.args.get('limit', 50, type=int), 100))
         
-        # Optimized bag search query
-        bags = Bag.query.filter(
-            or_(
-                Bag.qr_id.ilike(f'%{query_text}%'),
-                Bag.name.ilike(f'%{query_text}%')
-            )
-        ).limit(limit).all()
+        # Raw SQL for maximum speed - uses existing indexes on qr_id and name
+        bags_result = db.session.execute(text("""
+            SELECT id, qr_id, name, type, dispatch_area, status
+            FROM bag
+            WHERE qr_id ILIKE :pattern OR name ILIKE :pattern
+            LIMIT :limit
+        """), {'pattern': f'%{query_text}%', 'limit': limit}).fetchall()
         
-        bags_data = []
-        for bag in bags:
-            bags_data.append({
-                'id': bag.id,
-                'qr_id': bag.qr_id,
-                'name': bag.name,
-                'type': bag.type,
-                'dispatch_area': bag.dispatch_area,
-                'status': bag.status
-            })
+        # Response with all required fields
+        bags_data = [
+            {
+                'id': row[0],
+                'qr_id': row[1],
+                'name': row[2],
+                'type': row[3],
+                'dispatch_area': row[4],
+                'status': row[5]
+            }
+            for row in bags_result
+        ]
         
         return jsonify({
             'success': True,
             'bags': bags_data,
-            'count': len(bags_data),
-            'query': query_text,
-            'timestamp': time.time()
+            'count': len(bags_data)
         })
         
     except Exception as e:
-        logger.error(f"Bag search error: {str(e)}")
+        logger.error(f"Bag search error: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': 'Search failed'}), 500
 
 @app.route('/api/search')
