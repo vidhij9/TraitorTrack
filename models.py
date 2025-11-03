@@ -69,13 +69,7 @@ class User(UserMixin, db.Model):
     
     def set_password(self, password):
         """Set user password hash"""
-        # Use fast bcrypt hashing if available
-        try:
-            from fast_auth import FastAuth
-            self.password_hash = FastAuth.hash_password(password)
-        except ImportError:
-            # Fallback to werkzeug
-            self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password)
         
     def check_password(self, password):
         """Check password against stored hash"""
@@ -83,12 +77,7 @@ class User(UserMixin, db.Model):
             return False
             
         try:
-            # Use fast authentication if available
-            try:
-                from fast_auth import FastAuth
-                return FastAuth.verify_password(password, self.password_hash)
-            except ImportError:
-                return check_password_hash(self.password_hash, password)
+            return check_password_hash(self.password_hash, password)
         except Exception as e:
             import logging
             logging.error(f"Password check error: {str(e)}")
