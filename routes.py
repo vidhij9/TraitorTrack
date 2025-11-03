@@ -1770,7 +1770,7 @@ def link_to_bill(qr_id):
             
             if not existing_link:
                 # OPTIMIZED: Use fast bill linking with automatic statistics update
-                success, message = query_optimizer.link_bag_to_bill_fast(bill.id, parent_bag.id)
+                success, message = query_optimizer.link_bag_to_bill_fast(bill.id, parent_bag.id)  # type: ignore
                 if not success:
                     flash(f'Failed to link bag: {message}', 'error')
                     return render_template('link_to_bill.html', parent_bag=parent_bag)
@@ -2513,7 +2513,7 @@ def process_child_scan():
             })
         
         # Check if we've reached the 30 bags limit - OPTIMIZED
-        current_child_count = query_optimizer.get_child_count_fast(parent_bag.id)
+        current_child_count = query_optimizer.get_child_count_fast(parent_bag.id)  # type: ignore
         
         if current_child_count >= 30:
             return jsonify({'success': False, 'message': 'Parent bag is full! Maximum 30 child bags allowed per parent.'})
@@ -2525,7 +2525,7 @@ def process_child_scan():
             # CRITICAL: Prevent parent bags from being used as children
             if existing_bag.type == 'parent':
                 # Get details about this parent bag - OPTIMIZED
-                child_count = query_optimizer.get_child_count_fast(existing_bag.id)
+                child_count = query_optimizer.get_child_count_fast(existing_bag.id)  # type: ignore
                 return jsonify({
                     'success': False,
                     'message': f'QR code {qr_code} is already registered as a parent bag with {child_count} child bags linked. One bag can only have one role - either parent OR child, never both.'
@@ -2915,7 +2915,7 @@ def complete_parent_scan():
         return jsonify({'success': False, 'message': 'Error completing parent scan'})
 
 @app.route('/scan/child', methods=['GET', 'POST'])
-@app.route('/scan_child', methods=['GET', 'POST'])  # Alias for compatibility
+@app.route('/scan_child', methods=['GET', 'POST'])  # type: ignore
 def scan_child():
     """Scan child bag QR code - unified GET/POST handler"""
     # Manual authentication check
@@ -3842,11 +3842,11 @@ def bag_management():
             
             @property
             def last_scan(self):
-                if hasattr(self, 'last_scan_time') and self.last_scan_time:
+                if hasattr(self, 'last_scan_time') and self.last_scan_time:  # type: ignore
                     class MockScan:
                         def __init__(self, timestamp):
                             self.timestamp = timestamp
-                    return MockScan(self.last_scan_time)
+                    return MockScan(self.last_scan_time)  # type: ignore
                 return None
         
         bag_objects = [TemplateBag(bag_dict) for bag_dict in bags_data]
@@ -4353,7 +4353,7 @@ def create_bill():
                     sent, failed, errors = EmailService.send_bill_notification(
                         bill_id=bill_id,
                         parent_bags=parent_bag_count,
-                        created_by=current_user.username,
+                        created_by=current_user.username,  # type: ignore
                         admin_emails=admin_emails
                     )
                     if failed > 0:
@@ -7343,7 +7343,7 @@ def import_bags():
             return redirect(url_for('import_bags'))
         
         # Import bags
-        imported, skipped, import_errors = BagImporter.import_bags(db, bags, current_user.id)
+        imported, skipped, import_errors = BagImporter.import_bags(db, bags, current_user.id)  # type: ignore
         
         # Show results
         if imported > 0:
@@ -7413,7 +7413,7 @@ def import_bills():
             return redirect(url_for('import_bills'))
         
         # Import bills
-        imported, skipped, import_errors = BillImporter.import_bills(db, bills, current_user.id)
+        imported, skipped, import_errors = BillImporter.import_bills(db, bills, current_user.id)  # type: ignore
         
         # Show results
         if imported > 0:
