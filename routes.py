@@ -4330,15 +4330,14 @@ def create_bill():
                 return render_template('create_bill.html')
             
             # Create bill directly without enhancement features
-            bill = Bill(
-                bill_id=bill_id,
-                description='',
-                parent_bag_count=parent_bag_count,
-                created_by_id=current_user.id,
-                status='new',
-                expected_weight_kg=parent_bag_count * 30.0,  # Initialize expected weight: 30kg per parent bag
-                total_weight_kg=0.0  # Initialize actual weight to 0
-            )
+            bill = Bill()
+            bill.bill_id = bill_id
+            bill.description = ''
+            bill.parent_bag_count = parent_bag_count
+            bill.created_by_id = current_user.id
+            bill.status = 'new'
+            bill.expected_weight_kg = parent_bag_count * 30.0  # Initialize expected weight: 30kg per parent bag
+            bill.total_weight_kg = 0.0  # Initialize actual weight to 0
             db.session.add(bill)
             db.session.commit()
             
