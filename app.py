@@ -223,12 +223,13 @@ def get_db_pool_stats():
     """Get current database connection pool statistics for monitoring"""
     try:
         pool = db.engine.pool
+        # Note: pool methods require proper type annotation for LSP
         return {
-            'size': pool.size(),
-            'checked_in': pool.checkedin(),
-            'checked_out': pool.checkedout(),
-            'overflow': pool.overflow(),
-            'total_connections': pool.checkedout() + pool.checkedin()
+            'size': pool.size(),  # type: ignore
+            'checked_in': pool.checkedin(),  # type: ignore
+            'checked_out': pool.checkedout(),  # type: ignore
+            'overflow': pool.overflow(),  # type: ignore
+            'total_connections': pool.checkedout() + pool.checkedin()  # type: ignore
         }
     except Exception as e:
         logger.error(f"Error getting pool stats: {e}")
@@ -242,7 +243,7 @@ csrf.init_app(app)
 limiter.init_app(app)
 
 # Configure login manager
-login_manager.login_view = 'login'
+login_manager.login_view = 'login'  # type: ignore
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 

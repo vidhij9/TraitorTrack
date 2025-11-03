@@ -5696,9 +5696,9 @@ def api_system_health():
             else:
                 # Fallback to direct pool access
                 pool = db.engine.pool
-                pool_stats['size'] = pool.size()
-                pool_stats['checked_out'] = pool.checkedout()
-                pool_stats['overflow'] = pool.overflow()
+                pool_stats['size'] = pool.size()  # type: ignore
+                pool_stats['checked_out'] = pool.checkedout()  # type: ignore
+                pool_stats['overflow'] = pool.overflow()  # type: ignore
         except:
             pass
         
