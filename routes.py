@@ -2496,9 +2496,11 @@ def process_child_scan():
         if not qr_code:
             return jsonify({'success': False, 'message': 'No QR code provided'})
         
-        # Validate QR code format
-        if len(qr_code) < 3:
-            return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
+        # Validate QR code format using InputValidator
+        is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_code)
+        if not is_valid:
+            return jsonify({'success': False, 'message': f'Invalid QR code: {error_msg}'})
+        qr_code = cleaned_qr  # Use cleaned/normalized QR code
         
         # Get parent from session with fallback
         parent_qr = session.get('current_parent_qr', 'unknown')
@@ -2793,14 +2795,11 @@ def process_child_scan_fast():
         if not qr_id:
             return jsonify({'success': False, 'message': 'No QR code provided'})
         
-        # Validation: check length and truncate if needed
-        if len(qr_id) < 3:
-            return jsonify({'success': False, 'message': 'QR code too short'})
-        
-        # Handle long QR codes (database now supports up to 255 chars)
-        if len(qr_id) > 255:
-            qr_id = qr_id[:255]
-            app.logger.info(f'Truncated extremely long QR code to 255 characters')
+        # Validate QR code format using InputValidator
+        is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_id)
+        if not is_valid:
+            return jsonify({'success': False, 'message': f'Invalid QR code: {error_msg}'})
+        qr_id = cleaned_qr  # Use cleaned/normalized QR code
         
         # Get parent from session (fastest possible)
         parent_qr = session.get('current_parent_qr')
