@@ -1,0 +1,56 @@
+
+Scope
+	•	Operate only with hardware scanners in HID (keyboard) mode.
+	•	No camera access anywhere on the site.
+
+Station use
+	•	Provide a station page that:
+	•	Runs full-screen.
+	•	Has a single always-focused input that accepts scanner text ending with Enter.
+	•	Shows only: state title, big counter, recent scans list, and two buttons: Undo last & Finish.
+
+State logic
+	•	Start in PARENT state: accept parent codes only; anything else triggers an error.
+	•	After a valid parent, switch to CHILD state: accept child codes only.
+	•	Auto-finish when the expected child count (if present in parent code) is reached; otherwise allow Finish button.
+	•	Session timeout: if idle for 10 minutes, abort and return to PARENT.
+
+Validation & guarantees
+	•	A child belongs to exactly one parent (enforce uniqueness globally).
+	•	No duplicates within the current session.
+	•	Treat each link as idempotent (parent:child) so retries do nothing.
+	•	Attach parent to bill idempotently (bill:parent).
+
+Feedback
+	•	On success: brief green flash + success tone.
+	•	On error (wrong type / duplicate): red flash + error tone.
+	•	Use distinct tones for parent vs child success.
+
+Data carried with every action
+	•	Station identifier (from URL or saved setting).
+	•	Timestamps.
+	•	Actor (if any) for audit.
+
+Offline behavior
+	•	If a request fails, queue locally and retry until confirmed.
+	•	Idempotency must prevent double links after retries.
+
+Biller flow (on the existing bill page)
+	•	Accept parent scans from HID scanner.
+	•	Show attached parents with their child counts.
+	•	Allow removing an attached parent.
+
+Prohibited / out of scope
+	•	No phone-camera scanning.
+	•	No requirement for OTG pen-drive imports for labour.
+	•	No extra UI beyond what’s listed above.
+
+Acceptance checklist
+	•	Can complete PARENT → CHILD session using only a HID scanner.
+	•	Wrong-type and duplicate scans are blocked with red+tone feedback.
+	•	Counter increments correctly; Undo last removes the most recent child from this session.
+	•	Auto-finish works when expected count is present.
+	•	Global rule “one child to one parent” is enforced.
+	•	Retries do not create duplicates.
+	•	Biller can scan parents to a bill and see child counts.
+	•	No camera prompts appear anywhere.
