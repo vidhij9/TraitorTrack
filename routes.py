@@ -3170,13 +3170,19 @@ def scan_child():
                              form=ManualScanForm())
 
 @app.route('/scan/complete', methods=['GET', 'POST'])
+@csrf_compat.exempt
 @login_required
 def scan_complete():
     """Completion page for scanning workflow"""
+    # Check if this is an XHR request (from station page)
+    is_xhr = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     try:
         # Get parent bag from session
         parent_qr = session.get('current_parent_qr')
         if not parent_qr:
+            if is_xhr:
+                return jsonify({'success': True, 'message': 'No parent bag to complete'})
             flash('No recent scan found.', 'info')
             return redirect(url_for('dashboard'))
         
@@ -3186,6 +3192,8 @@ def scan_complete():
             Bag.type == 'parent'
         ).first()
         if not parent_bag:
+            if is_xhr:
+                return jsonify({'success': False, 'message': 'Parent bag not found'})
             flash('Parent bag not found.', 'error')
             return redirect(url_for('dashboard'))
         
@@ -3201,12 +3209,23 @@ def scan_complete():
         # Log scan completion metrics
         app.logger.info(f'Scan validation - Parent QR: {parent_qr}, Parent ID: {parent_bag.id}, Child count: {scan_count}')
         
+        # For XHR requests (station page), allow any count
+        if is_xhr:
+            # Clear session parent data
+            session.pop('current_parent_qr', None)
+            session.pop('parent_scan_time', None)
+            return jsonify({
+                'success': True, 
+                'message': f'Parent {parent_qr} completed with {scan_count} children',
+                'child_count': scan_count
+            })
+        
         # Verify link count for data integrity
         link_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
         if link_count != scan_count:
             app.logger.warning(f'Link count mismatch detected - Parent ID: {parent_bag.id}, Link count: {link_count}, Child count: {scan_count}')
         
-        # Validate exactly 30 bags requirement
+        # Validate exactly 30 bags requirement (for traditional workflow only)
         if scan_count != 30:
             flash(f'Error: You have scanned {scan_count} bags but exactly 30 are required. Please continue scanning.', 'error')
             return redirect(url_for('scan_child'))
@@ -3235,7 +3254,9 @@ def scan_complete():
                              child_bags=child_bags, 
                              scan_count=scan_count)
     except Exception as e:
-        app.logger.error(f'Scan complete error: {str(e)}')
+        app.logger.error(f'Scan complete error: {str(e)}', exc_info=True)
+        if is_xhr:
+            return jsonify({'success': False, 'message': 'Error completing scan'})
         flash('Error loading scan summary.', 'error')
         return redirect(url_for('dashboard'))
 
@@ -3395,7 +3416,11 @@ def scan_history():
     
     return render_template('scan_history.html', scans=scans, search_query=search_query, stats=stats)
 
-
+@app.route('/station')
+@login_required
+def station():
+    """Full-screen scanner station page for warehouse scanning"""
+    return render_template('station.html')
 
 @app.route('/bag/<int:bag_id>/delete', methods=['POST'])
 @login_required

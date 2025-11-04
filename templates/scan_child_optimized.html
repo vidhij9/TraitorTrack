@@ -61,7 +61,7 @@
                     <!-- Keyboard Wedge Scanner Input -->
                     <div class="alert alert-info mb-3">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Scanner Ready:</strong> Use your Coconut wireless scanner to scan child bag QR codes. Each scan will be added automatically.
+                        <strong>Note:</strong> Camera scanning is disabled. Please use a HID keyboard scanner (Coconut wireless scanner) in keyboard wedge mode. Each scan will be added automatically.
                     </div>
 
                     <!-- Scanner Entry Form -->
@@ -176,7 +176,6 @@
 {% block scripts %}
 <script>
 // Global variables
-let scanner = null;
 let isProcessing = false;
 let scannedCount = {{ scanned_child_count }};
 const maxBags = 30;
@@ -293,64 +292,8 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Handle QR code detection
-async function onScanSuccess(qrCode) {
-    if (isProcessing || scannedCount >= maxBags) {
-        if (scannedCount >= maxBags) {
-            showToast('Maximum 30 child bags reached!', 'warning');
-        }
-        return;
-    }
-    
-    isProcessing = true;
-    
-    // Pause scanner immediately after detection
-    if (scanner && scanner.pause) {
-        scanner.pause();
-    }
-    
-    showToast('Processing child bag...', 'info');
-    
-    const data = await sendRequest(qrCode);
-    
-    if (data.success) {        
-        showToast(`✓ Child bag ${qrCode} added successfully! (${scannedCount}/30)`, 'success');
-        
-        // Check if complete - EXACTLY 30 bags
-        if (scannedCount === 30) {
-            showToast('✓ All 30 child bags linked! Scanning complete.', 'success');
-            document.getElementById('stop-camera').click();
-            showCompletionSection();
-        } else {
-            // Resume scanning after 2 seconds for successful scan
-            setTimeout(() => {
-                isProcessing = false;
-                if (scanner && scanner.resume) {
-                    scanner.resume();
-                }
-            }, 2000);
-        }
-    } else {
-        // Show specific error messages with better detection
-        if (data.message.includes('DUPLICATE') || data.message.includes('already linked')) {
-            showToast(`❌ DUPLICATE: ${qrCode} already scanned!`, 'warning');
-        } else if (data.message.includes('duplicate') || data.message.includes('already')) {
-            showToast(`⚠️ Duplicate: ${qrCode} already exists!`, 'warning');
-        } else if (data.message.includes('maximum') || data.message.includes('30') || data.message.includes('full')) {
-            showToast('⚠️ Maximum 30 child bags reached!', 'warning');
-        } else {
-            showToast(data.message || 'Error processing child bag', 'error');
-        }
-        
-        // Resume scanning after 3 seconds for error
-        setTimeout(() => {
-            isProcessing = false;
-            if (scanner && scanner.resume) {
-                scanner.resume();
-            }
-        }, 3000);
-    }
-}
+// Note: Camera scanning functionality has been removed
+// This application now only supports HID keyboard scanners (keyboard wedge mode)
 
 // Update UI after successful scan
 function updateUI(qrCode, count) {
@@ -398,20 +341,8 @@ function showCompletionSection() {
         completionSection.style.display = 'block';
         completionSection.scrollIntoView({ behavior: 'smooth' });
         
-        // Also disable scanner controls
-        const startBtn = document.getElementById('start-camera');
-        const stopBtn = document.getElementById('stop-camera');
+        // Disable manual input when complete
         const manualInput = document.getElementById('manual-qr-input');
-        
-        if (startBtn) {
-            startBtn.disabled = true;
-            startBtn.textContent = '✓ Complete';
-            startBtn.className = 'btn btn-success';
-        }
-        if (stopBtn) {
-            stopBtn.disabled = true;
-            stopBtn.style.display = 'none';
-        }
         if (manualInput) {
             manualInput.disabled = true;
             manualInput.placeholder = 'Parent bag complete - 30/30 child bags linked';
@@ -422,14 +353,11 @@ function showCompletionSection() {
 // Complete scanning and go to next parent
 function completeScanning() {
     showToast('✅ Parent bag complete! 30 child bags linked.', 'success');
-    if (scanner) scanner.stop();
     
     setTimeout(() => {
         window.location.href = '/scan/parent';
     }, 1500);
 }
-
-// Keyboard wedge mode - no camera buttons needed
 
 // Manual form submission
 document.getElementById('manual-form').addEventListener('submit', async function(e) {

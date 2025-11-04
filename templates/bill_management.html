@@ -78,13 +78,8 @@
                                 </span>
                             </div>
                             <div class="col-auto" style="min-width: 150px;">
-                                <div class="input-group">
-                                    <input type="text" class="form-control form-control-sm" id="search_bill_id" name="search_bill_id" 
-                                           placeholder="Bill ID" value="{{ request.args.get('search_bill_id', '') }}">
-                                    <button type="button" class="btn btn-outline-primary btn-sm" id="start-qr-search-bill" title="Scan QR Code" data-bs-toggle="modal" data-bs-target="#billQrScannerModal">
-                                        <i class="fas fa-qrcode"></i>
-                                    </button>
-                                </div>
+                                <input type="text" class="form-control form-control-sm" id="search_bill_id" name="search_bill_id" 
+                                       placeholder="Bill ID (HID scanner supported)" value="{{ request.args.get('search_bill_id', '') }}" autofocus>
                             </div>
                             <div class="col-auto" style="min-width: 130px;">
                                 <select class="form-select form-select-sm" id="status_filter" name="status_filter">
@@ -368,39 +363,6 @@
     </div>
 </div>
 
-<!-- QR Scanner Modal -->
-<div class="modal fade scanner-modal" id="billQrScannerModal" tabindex="-1" aria-labelledby="billQrScannerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="billQrScannerModalLabel">
-                    <i class="fas fa-qrcode me-2"></i>Scan Bill QR Code
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div id="bill-scanner-container" class="scanner-main">
-                    <!-- Scanner loads here -->
-                </div>
-                
-                <!-- Scanner Status -->
-                <div class="p-3" style="background: #f8f9fa;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="scanner-status">
-                            <span id="bill-scanner-status" class="badge bg-info">
-                                <i class="fas fa-spinner fa-spin me-1"></i>Starting...
-                            </span>
-                        </div>
-                        <div class="scanner-info">
-                            <small class="text-muted">Point at QR code to search</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
 /* Fix modal flickering by preventing hover interference */
 .modal {
@@ -544,109 +506,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-    }
-
-    // QR Scanner functionality using InstantDetectionScanner
-    let billScanner = null;
-    
-    // QR Scanner Modal for Bill Search
-    const billQrScannerModal = document.getElementById('billQrScannerModal');
-    const searchBillInput = document.getElementById('search_bill_id');
-    
-    // Initialize scanner when modal opens
-    billQrScannerModal.addEventListener('shown.bs.modal', function() {
-        initializeBillScanner();
-    });
-    
-    // Cleanup scanner when modal closes
-    billQrScannerModal.addEventListener('hidden.bs.modal', function() {
-        if (billScanner && billScanner.stop) {
-            billScanner.stop();
-            billScanner = null;
-        }
-    });
-    
-    // Initialize Bill Scanner
-    async function initializeBillScanner() {
-        try {
-            updateBillScannerStatus('Starting...', 'info');
-            
-            // Check if jsQR is loaded
-            if (typeof jsQR === 'undefined') {
-                throw new Error('QR scanning library not loaded');
-            }
-            
-            // Request camera permissions
-            try {
-                await navigator.mediaDevices.getUserMedia({ video: true });
-            } catch (permError) {
-                throw new Error('Camera access denied. Please allow camera access and try again.');
-            }
-            
-            // Stop any existing scanner
-            if (billScanner && billScanner.stop) {
-                billScanner.stop();
-            }
-            
-            // Use Instant Detection Scanner
-            billScanner = new InstantDetectionScanner('bill-scanner-container');
-            billScanner.onScan = handleBillScanSuccess;
-            
-            // Monitor scanner status
-            setTimeout(() => {
-                updateBillScannerStatus('Ready', 'success');
-            }, 2000);
-            
-        } catch (error) {
-            console.error('Bill scanner initialization error:', error);
-            updateBillScannerStatus('Error', 'danger');
-        }
-    }
-    
-    // Update scanner status badge
-    function updateBillScannerStatus(text, type) {
-        const statusBadge = document.getElementById('bill-scanner-status');
-        statusBadge.className = `badge bg-${type}`;
-        
-        let icon = '';
-        switch(type) {
-            case 'success':
-                icon = '<i class="fas fa-check-circle me-1"></i>';
-                break;
-            case 'danger':
-                icon = '<i class="fas fa-exclamation-circle me-1"></i>';
-                break;
-            case 'info':
-                icon = '<i class="fas fa-spinner fa-spin me-1"></i>';
-                break;
-        }
-        
-        statusBadge.innerHTML = icon + text;
-    }
-    
-    // Handle successful scan
-    function handleBillScanSuccess(qrCode) {
-        console.log('Bill QR scanned:', qrCode);
-        
-        // Haptic feedback
-        if (navigator.vibrate) {
-            navigator.vibrate(200);
-        }
-        
-        // Fill search input
-        searchBillInput.value = qrCode;
-        
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(billQrScannerModal);
-        modal.hide();
-        
-        // Auto-submit form
-        document.querySelector('form[method="GET"]').submit();
-    }
-
-    async function initBillScanner() {
-        // Legacy function for compatibility - delegates to new implementation
-        await initializeBillScanner();
     }
     
     // Prevent table hover events from interfering with modal

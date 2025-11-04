@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Station - TraitorTrack</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .station-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            color: white;
+        }
+        
+        .station-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        #stateTitle {
+            font-size: 4rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+        
+        #stationId {
+            font-size: 1.5rem;
+            opacity: 0.9;
+        }
+        
+        #stationId span {
+            font-weight: bold;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+        
+        .counter-display {
+            text-align: center;
+            margin: 30px 0;
+            font-size: 8rem;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            line-height: 1;
+        }
+        
+        #childCount {
+            color: #28a745;
+        }
+        
+        #expectedCount {
+            color: rgba(255,255,255,0.8);
+        }
+        
+        #scanForm {
+            margin: 30px auto;
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        #scanInput {
+            width: 100%;
+            padding: 30px;
+            font-size: 3rem;
+            text-align: center;
+            border: 4px solid white;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.95);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s ease;
+        }
+        
+        #scanInput:focus {
+            outline: none;
+            border-color: #28a745;
+            box-shadow: 0 0 30px rgba(40,167,69,0.6);
+            background: white;
+        }
+        
+        #scanInput::placeholder {
+            color: #999;
+            font-weight: normal;
+        }
+        
+        .scans-list {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        
+        .scans-list h5 {
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .scan-item {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.2rem;
+        }
+        
+        .scan-item .scan-qr {
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .scan-item .scan-time {
+            opacity: 0.8;
+            font-size: 1rem;
+        }
+        
+        .button-row {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .button-row button {
+            font-size: 2rem;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-weight: bold;
+            border: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .button-row button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        
+        .button-row button:active {
+            transform: translateY(-1px);
+        }
+        
+        #undoBtn {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        #undoBtn:hover {
+            background: #ffca2c;
+        }
+        
+        #finishBtn {
+            background: #28a745;
+            color: white;
+        }
+        
+        #finishBtn:hover {
+            background: #34ce57;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            #stateTitle {
+                font-size: 2.5rem;
+            }
+            
+            .counter-display {
+                font-size: 5rem;
+            }
+            
+            #scanInput {
+                font-size: 2rem;
+                padding: 20px;
+            }
+            
+            .button-row button {
+                font-size: 1.5rem;
+                padding: 15px 30px;
+            }
+            
+            .scan-item {
+                font-size: 1rem;
+            }
+        }
+        
+        /* Success/Error animations */
+        @keyframes flash-success {
+            0%, 100% { background: rgba(40,167,69,0.3); }
+            50% { background: rgba(40,167,69,0.6); }
+        }
+        
+        @keyframes flash-error {
+            0%, 100% { background: rgba(220,53,69,0.3); }
+            50% { background: rgba(220,53,69,0.6); }
+        }
+        
+        .flash-success {
+            animation: flash-success 0.5s ease-in-out;
+        }
+        
+        .flash-error {
+            animation: flash-error 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="station-container">
+        <div class="station-header">
+            <h1 id="stateTitle">SCAN PARENT BAG</h1>
+            <div id="stationId">Station: <span></span></div>
+        </div>
+        
+        <div class="counter-display">
+            <span id="childCount">0</span> / <span id="expectedCount">30</span>
+        </div>
+        
+        <form id="scanForm">
+            <input 
+                type="text" 
+                id="scanInput" 
+                autofocus 
+                autocomplete="off" 
+                placeholder="Scan barcode..."
+            >
+        </form>
+        
+        <div class="scans-list" id="recentScans">
+            <h5><i class="fas fa-history me-2"></i>Recent Scans</h5>
+            <div id="scansList">
+                <p class="text-center opacity-75">No scans yet</p>
+            </div>
+        </div>
+        
+        <div class="button-row">
+            <button id="undoBtn" class="btn btn-warning">
+                <i class="fas fa-undo me-2"></i>Undo Last
+            </button>
+            <button id="finishBtn" class="btn btn-success">
+                <i class="fas fa-check-circle me-2"></i>Finish Parent
+            </button>
+        </div>
+    </div>
+    
+    <!-- Audio context initialized in JavaScript -->
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Station state management
+        let stationState = {
+            mode: 'PARENT', // 'PARENT' or 'CHILD'
+            currentParent: null,
+            currentParentId: null,
+            childCount: 0,
+            expectedCount: 30,
+            recentScans: [],
+            stationId: null,
+            lastActivityTime: Date.now(),
+            scannedChildren: new Set(), // Track scanned children in this session
+            offlineQueue: [] // Queue for failed requests
+        };
+        
+        let idleCheckInterval;
+        
+        // Initialize station
+        function initStation() {
+            // Get station ID from URL param or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const stationIdParam = urlParams.get('station');
+            
+            if (stationIdParam) {
+                stationState.stationId = stationIdParam;
+                localStorage.setItem('stationId', stationIdParam);
+            } else {
+                stationState.stationId = localStorage.getItem('stationId') || 'Unknown';
+            }
+            
+            // Update UI
+            document.querySelector('#stationId span').textContent = stationState.stationId;
+            updateUI();
+            
+            // Focus input
+            document.getElementById('scanInput').focus();
+            
+            // Start idle timeout checker (every 30 seconds)
+            idleCheckInterval = setInterval(checkIdleTimeout, 30000);
+            
+            // Process offline queue on init
+            processOfflineQueue();
+        }
+        
+        // Check for 10-minute idle timeout
+        function checkIdleTimeout() {
+            const idleTime = Date.now() - stationState.lastActivityTime;
+            const TEN_MINUTES = 10 * 60 * 1000;
+            
+            if (idleTime > TEN_MINUTES && stationState.mode === 'CHILD') {
+                alert('Session timed out after 10 minutes of inactivity. Returning to PARENT mode.');
+                resetToParentMode();
+            }
+        }
+        
+        // Update last activity time
+        function updateActivity() {
+            stationState.lastActivityTime = Date.now();
+        }
+        
+        // Update UI based on state
+        function updateUI() {
+            document.getElementById('stateTitle').textContent = 
+                stationState.mode === 'PARENT' ? 'SCAN PARENT BAG' : 'SCAN CHILD BAGS';
+            document.getElementById('childCount').textContent = stationState.childCount;
+            document.getElementById('expectedCount').textContent = stationState.expectedCount;
+            
+            // Update button states
+            document.getElementById('undoBtn').disabled = stationState.recentScans.length === 0;
+            // Finish button enabled in CHILD mode (confirmation dialog handles incomplete counts)
+            document.getElementById('finishBtn').disabled = stationState.mode === 'PARENT';
+            
+            // Update recent scans list
+            updateScansList();
+        }
+        
+        // Update scans list
+        function updateScansList() {
+            const scansList = document.getElementById('scansList');
+            
+            if (stationState.recentScans.length === 0) {
+                scansList.innerHTML = '<p class="text-center opacity-75">No scans yet</p>';
+                return;
+            }
+            
+            // Show last 10 scans
+            const recentScans = stationState.recentScans.slice(-10).reverse();
+            scansList.innerHTML = recentScans.map(scan => `
+                <div class="scan-item">
+                    <span class="scan-qr">${scan.qr}</span>
+                    <span class="scan-time">${scan.time}</span>
+                </div>
+            `).join('');
+        }
+        
+        // Audio context for tone generation
+        let audioContext;
+        
+        // Initialize audio context on first user interaction
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        // Play beep tone
+        function playBeep(frequency, duration) {
+            if (!audioContext) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        // Play audio feedback with distinct tones
+        function playAudio(type) {
+            try {
+                initAudio();
+                
+                if (type === 'parent') {
+                    // Lower tone for parent (500Hz)
+                    playBeep(500, 0.2);
+                } else if (type === 'child') {
+                    // Higher tone for child (800Hz)
+                    playBeep(800, 0.15);
+                } else if (type === 'error') {
+                    // Error tone - two descending beeps
+                    playBeep(600, 0.1);
+                    setTimeout(() => playBeep(400, 0.15), 120);
+                }
+            } catch (e) {
+                console.log('Audio error:', e);
+            }
+        }
+        
+        // Flash visual feedback
+        function flashFeedback(success) {
+            const container = document.querySelector('.station-container');
+            container.classList.add(success ? 'flash-success' : 'flash-error');
+            setTimeout(() => {
+                container.classList.remove('flash-success', 'flash-error');
+            }, 500);
+        }
+        
+        // Process scanned barcode
+        function processScan(qrCode) {
+            qrCode = qrCode.trim().toUpperCase();
+            
+            if (!qrCode) return;
+            
+            // Add to recent scans
+            stationState.recentScans.push({
+                qr: qrCode,
+                time: new Date().toLocaleTimeString()
+            });
+            
+            // Keep only last 50 scans in memory
+            if (stationState.recentScans.length > 50) {
+                stationState.recentScans.shift();
+            }
+            
+            // Process based on mode
+            if (stationState.mode === 'PARENT') {
+                processParentScan(qrCode);
+            } else {
+                processChildScan(qrCode);
+            }
+        }
+        
+        // Process parent bag scan
+        async function processParentScan(qrCode) {
+            updateActivity();
+            
+            try {
+                // Call backend API
+                const response = await fetch('/process_parent_scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: `qr_code=${encodeURIComponent(qrCode)}&station_id=${encodeURIComponent(stationState.stationId)}`
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    stationState.currentParent = qrCode;
+                    stationState.currentParentId = data.parent_id || null;
+                    stationState.mode = 'CHILD';
+                    stationState.childCount = data.child_count || 0;
+                    stationState.scannedChildren.clear();
+                    
+                    // Extract expected count if present in response
+                    if (data.expected_count) {
+                        stationState.expectedCount = data.expected_count;
+                    }
+                    
+                    playAudio('parent');
+                    flashFeedback(true);
+                    updateUI();
+                } else {
+                    playAudio('error');
+                    flashFeedback(false);
+                    alert(data.message || 'Error scanning parent bag');
+                }
+            } catch (error) {
+                console.error('Parent scan error:', error);
+                // Add to offline queue
+                queueOfflineRequest('parent', qrCode);
+                playAudio('error');
+                flashFeedback(false);
+                alert('Network error. Request queued for retry.');
+            }
+        }
+        
+        // Process child bag scan
+        async function processChildScan(qrCode) {
+            updateActivity();
+            
+            // Client-side duplicate check
+            if (qrCode === stationState.currentParent) {
+                playAudio('error');
+                flashFeedback(false);
+                alert('Cannot scan parent bag as child');
+                return;
+            }
+            
+            if (stationState.scannedChildren.has(qrCode)) {
+                playAudio('error');
+                flashFeedback(false);
+                alert('This child bag was already scanned in this session');
+                return;
+            }
+            
+            try {
+                // Call backend API
+                const response = await fetch('/process_child_scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: `qr_code=${encodeURIComponent(qrCode)}&station_id=${encodeURIComponent(stationState.stationId)}`
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    stationState.scannedChildren.add(qrCode);
+                    stationState.childCount = data.child_count || (stationState.childCount + 1);
+                    
+                    playAudio('child');
+                    flashFeedback(true);
+                    
+                    // Auto-finish if expected count reached
+                    if (stationState.childCount >= stationState.expectedCount) {
+                        setTimeout(() => {
+                            alert(`Parent bag ${stationState.currentParent} complete with ${stationState.childCount} children!`);
+                            finishParent();
+                        }, 1000);
+                    }
+                    
+                    updateUI();
+                } else {
+                    playAudio('error');
+                    flashFeedback(false);
+                    alert(data.message || 'Error scanning child bag');
+                }
+            } catch (error) {
+                console.error('Child scan error:', error);
+                // Add to offline queue
+                queueOfflineRequest('child', qrCode);
+                playAudio('error');
+                flashFeedback(false);
+                alert('Network error. Request queued for retry.');
+            }
+        }
+        
+        // Queue offline request
+        function queueOfflineRequest(type, qrCode) {
+            stationState.offlineQueue.push({
+                type,
+                qrCode,
+                timestamp: Date.now(),
+                stationId: stationState.stationId,
+                parentId: stationState.currentParentId
+            });
+            
+            // Save to localStorage
+            localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
+            
+            // Try to process immediately
+            setTimeout(processOfflineQueue, 5000);
+        }
+        
+        // Process offline queue
+        async function processOfflineQueue() {
+            // Load from localStorage if needed
+            if (stationState.offlineQueue.length === 0) {
+                const savedQueue = localStorage.getItem('offlineQueue');
+                if (savedQueue) {
+                    stationState.offlineQueue = JSON.parse(savedQueue);
+                }
+            }
+            
+            if (stationState.offlineQueue.length === 0) return;
+            
+            const request = stationState.offlineQueue[0];
+            
+            try {
+                const endpoint = request.type === 'parent' ? '/process_parent_scan' : '/process_child_scan';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: `qr_code=${encodeURIComponent(request.qrCode)}&station_id=${encodeURIComponent(request.stationId)}`
+                });
+                
+                const data = await response.json();
+                
+                if (data.success || data.message?.includes('already')) {
+                    // Success or idempotent - remove from queue
+                    stationState.offlineQueue.shift();
+                    localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
+                    
+                    // Process next item
+                    if (stationState.offlineQueue.length > 0) {
+                        setTimeout(processOfflineQueue, 1000);
+                    }
+                }
+            } catch (error) {
+                // Network still down, retry later
+                setTimeout(processOfflineQueue, 30000);
+            }
+        }
+        
+        // Reset to parent mode
+        function resetToParentMode() {
+            stationState.mode = 'PARENT';
+            stationState.currentParent = null;
+            stationState.currentParentId = null;
+            stationState.childCount = 0;
+            stationState.scannedChildren.clear();
+            stationState.recentScans = [];  // Clear recent scans
+            updateUI();
+        }
+        
+        // Undo last scan (client-side only)
+        function undoLast() {
+            if (stationState.recentScans.length === 0) return;
+            
+            if (!confirm('Undo last scan? Note: This only affects the display. Backend records remain unchanged.')) {
+                return;
+            }
+            
+            const lastScan = stationState.recentScans.pop();
+            
+            // If we're in CHILD mode and removed a child
+            if (stationState.mode === 'CHILD' && lastScan.qr !== stationState.currentParent) {
+                stationState.childCount = Math.max(0, stationState.childCount - 1);
+                stationState.scannedChildren.delete(lastScan.qr);
+            }
+            
+            updateUI();
+        }
+        
+        // Finish parent and reset
+        async function finishParent() {
+            if (stationState.mode === 'PARENT') return;
+            
+            if (stationState.childCount < stationState.expectedCount) {
+                if (!confirm(`Only ${stationState.childCount} of ${stationState.expectedCount} children scanned. Finish anyway?`)) {
+                    return;
+                }
+            }
+            
+            updateActivity();
+            
+            // Call backend to complete parent
+            try {
+                const response = await fetch('/scan/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: ''
+                });
+                
+                // Don't wait for response, just reset locally
+                alert(`Parent bag ${stationState.currentParent} completed with ${stationState.childCount} children!`);
+            } catch (error) {
+                console.error('Finish error:', error);
+                alert(`Parent bag ${stationState.currentParent} marked complete locally (network error).`);
+            }
+            
+            // Reset to parent mode
+            resetToParentMode();
+            document.getElementById('scanInput').focus();
+        }
+        
+        // Event listeners
+        document.getElementById('scanForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const input = document.getElementById('scanInput');
+            const qrCode = input.value;
+            input.value = '';
+            processScan(qrCode);
+            input.focus();
+        });
+        
+        document.getElementById('undoBtn').addEventListener('click', undoLast);
+        document.getElementById('finishBtn').addEventListener('click', finishParent);
+        
+        // Auto-focus input if it loses focus
+        document.getElementById('scanInput').addEventListener('blur', function() {
+            setTimeout(() => {
+                this.focus();
+            }, 100);
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Z for undo
+            if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault();
+                undoLast();
+            }
+            // Ctrl+Enter for finish
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                finishParent();
+            }
+        });
+        
+        // Initialize on load
+        initStation();
+    </script>
+</body>
+</html>

@@ -22,32 +22,17 @@ class QueryOptimizer:
     
     def get_bag_by_qr(self, qr_id, bag_type=None):
         """
-        Ultra-fast bag lookup with caching
-        Target: <10ms including cache check
+        Ultra-fast bag lookup - direct query (cache disabled to fix DetachedInstanceError)
+        Target: <10ms with proper indexes
         """
         from models import Bag
         
-        # Check cache first
-        cache_key = f"bag:{qr_id}"
-        now = time.time()
-        
-        if cache_key in self._bag_cache:
-            # Check if cache is still valid
-            if now - self._cache_timestamps.get(cache_key, 0) < self._cache_ttl:
-                cached_bag = self._bag_cache[cache_key]
-                if bag_type is None or cached_bag.type == bag_type:
-                    return cached_bag
-        
-        # Cache miss - query database
+        # Direct database query - cache disabled temporarily
+        # TODO: Re-implement with ID-based caching to avoid DetachedInstanceError
         if bag_type:
             bag = Bag.query.filter_by(qr_id=qr_id, type=bag_type).first()
         else:
             bag = Bag.query.filter_by(qr_id=qr_id).first()
-        
-        # Update cache
-        if bag:
-            self._bag_cache[cache_key] = bag
-            self._cache_timestamps[cache_key] = now
         
         return bag
     
