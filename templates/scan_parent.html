@@ -173,6 +173,8 @@ const qrEl = document.getElementById('qr');
 const beep = document.getElementById('beep');
 
 let processing = false;
+let lastScanned = '';
+let lastScanTime = 0;
 
 function playBeep() {
     if (beep) {
@@ -189,16 +191,39 @@ function updateStatus(msg, color) {
 function process(qr) {
     if (processing || !qr) return;
     
+    // Prevent duplicate scans within 2 seconds
+    const now = Date.now();
+    if (qr === lastScanned && now - lastScanTime < 2000) {
+        showToast('⚠️ Already scanning this code', 'warning');
+        input.value = '';
+        return;
+    }
+    
+    lastScanned = qr;
+    lastScanTime = now;
     processing = true;
     input.disabled = true;
     updateStatus('⏳ Processing...', '#FFD700');
+    
+    // Set timeout to prevent hanging
+    const timeout = setTimeout(() => {
+        processing = false;
+        input.disabled = false;
+        input.value = '';
+        input.focus();
+        showToast('⏱️ Timeout. Try again.', 'warning');
+        updateStatus('✅ Ready to scan', 'white');
+    }, 10000);
     
     fetch('/api/fast_parent_scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'qr_code=' + encodeURIComponent(qr)
     })
-    .then(r => r.json())
+    .then(r => {
+        clearTimeout(timeout);
+        return r.json();
+    })
     .then(d => {
         if (d.success) {
             playBeep();
@@ -218,6 +243,7 @@ function process(qr) {
         }
     })
     .catch(err => {
+        clearTimeout(timeout);
         console.error(err);
         processing = false;
         input.disabled = false;

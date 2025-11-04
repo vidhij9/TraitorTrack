@@ -2866,6 +2866,96 @@ def process_child_scan_fast():
             return jsonify({'success': False, 'message': 'DUPLICATE: Already scanned'})
         return jsonify({'success': False, 'message': 'Error processing scan'})
 
+@app.route('/api/unlink_child', methods=['POST'])
+@login_required
+def api_unlink_child():
+    """Unlink a child bag from current parent (undo functionality)"""
+    try:
+        # Get QR code from JSON
+        data = request.get_json()
+        qr_id = data.get('qr_code', '').strip()
+        
+        if not qr_id:
+            return jsonify({'success': False, 'message': 'No QR code provided'})
+        
+        # Get parent from session
+        parent_qr = session.get('current_parent_qr')
+        if not parent_qr:
+            return jsonify({'success': False, 'message': 'No parent bag in session'})
+        
+        # Get parent bag
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).first()
+        if not parent_bag:
+            return jsonify({'success': False, 'message': 'Parent bag not found'})
+        
+        # Get child bag
+        child_bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
+        if not child_bag:
+            return jsonify({'success': False, 'message': 'Child bag not found'})
+        
+        # Find the link for this specific parent-child combination
+        link = Link.query.filter_by(
+            parent_bag_id=parent_bag.id,
+            child_bag_id=child_bag.id
+        ).first()
+        
+        if not link:
+            return jsonify({'success': False, 'message': 'Link not found'})
+        
+        # Find the MOST RECENT scan for this specific parent-child combination
+        # Filter by BOTH parent_bag_id and child_bag_id to ensure we get the right scan
+        # Order by timestamp DESC to get the latest scan for this exact link
+        from datetime import datetime, timedelta
+        scan = Scan.query.filter_by(
+            parent_bag_id=parent_bag.id,
+            child_bag_id=child_bag.id,
+            user_id=current_user.id
+        ).order_by(Scan.timestamp.desc()).first()
+        
+        # Additional safety check: only delete the scan if it's recent (within last hour)
+        # This prevents accidentally deleting old audit records
+        if scan and scan.timestamp and (datetime.utcnow() - scan.timestamp) > timedelta(hours=1):
+            app.logger.warning(f'Scan too old to undo: {scan.timestamp}')
+            scan = None  # Don't delete old scans
+        
+        # Delete both in a single transaction
+        db.session.delete(link)
+        if scan:
+            db.session.delete(scan)
+        else:
+            app.logger.info(f'No recent scan found to delete for child {qr_id}')
+        
+        db.session.commit()
+        invalidate_bags_cache()
+        invalidate_stats_cache()
+        
+        # Get new count
+        new_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        
+        # Reset parent bag status if it was completed
+        if parent_bag.status == 'completed' and new_count < 30:
+            parent_bag.status = 'pending'
+            parent_bag.child_count = new_count
+            parent_bag.weight_kg = float(new_count)
+            db.session.commit()
+            invalidate_bags_cache()
+        
+        app.logger.info(f'User {current_user.id} unlinked child {qr_id} from parent {parent_qr}')
+        
+        return jsonify({
+            'success': True,
+            'child_count': new_count,
+            'message': f'Removed {qr_id} from {parent_qr}'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Unlink child error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error removing link'})
+
 @app.route('/complete_parent_scan', methods=['POST'])
 @csrf_compat.exempt
 @login_required

@@ -8,6 +8,45 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### November 4, 2025 - Mobile Scanner Optimization for Low-Grade Devices
+
+**Bluetooth Scanner Optimizations for Uneducated Workers**:
+- ✅ Created lightweight `scan_layout.html` removing Bootstrap/Font Awesome CDN dependencies
+- ✅ Inline critical CSS for faster mobile load times on low-grade Android/iOS devices  
+- ✅ Simplified UI with plain language, large high-contrast buttons, clear step-by-step instructions
+- ✅ Removed all technical jargon for workers with minimal reading ability
+- ✅ Audio feedback (embedded WAV beep sound) with proper browser autoplay handling
+- ✅ Vibration API integration for successful scans as fallback
+- ✅ Persistent auto-focus mechanism for Bluetooth keyboard-wedge scanners with aggressive refocus strategy
+- ✅ Blur event handlers, periodic checks (500ms), visibility change handlers, click handlers
+
+**Edge Case Handling & Reliability**:
+- ✅ Client-side duplicate prevention with Set-based tracking of scanned codes
+- ✅ Rapid scan throttling (1-2 second windows) to prevent double-scans
+- ✅ 10-second timeout protection on all scan requests with automatic cleanup
+- ✅ Proper error handling with user-friendly messages and visual feedback
+
+**Offline Support**:
+- ✅ localStorage-based offline queue system for poor network conditions
+- ✅ Auto-retry on network recovery with automatic sync notification
+- ✅ Optimistic UI updates when offline, synced when connection restored
+- ✅ Network status monitoring with online/offline event handlers
+
+**Undo Functionality**:
+- ✅ Backend `/api/unlink_child` endpoint with proper filtering (parent+child+user)
+- ✅ Most recent scan deletion using `Scan.timestamp DESC` ordering
+- ✅ 1-hour recency guard to preserve old audit records
+- ✅ CSRF protection with X-CSRFToken header from frontend
+- ✅ UI "Remove Last Scan" button for easy mistake correction
+- ✅ Proper state cleanup and count updates after undo
+
+**Performance & Architecture**:
+- ✅ Optimized endpoints: `/api/fast_parent_scan` and `/process_child_scan_fast`
+- ✅ Real-time progress tracking (X/30 child bags per parent)
+- ✅ Single-transaction commits with proper rollback on errors
+- ✅ Cache invalidation after link creation/deletion
+- ✅ Celebratory UI when 30 bags complete with confetti-style animation
+
 ### November 4, 2025 - Comprehensive Bug Fixes & Production Hardening
 **Critical Race Condition & Edge Case Fixes**:
 - ✅ Fixed race condition in offline queue: Added mutex-style locking (`isProcessingQueue`) to prevent concurrent retry attempts, request deduplication (60s window), exponential backoff (30s * retry_count, max 5min), max 10 retries with 24-hour request expiration, queue size limit (100 requests)

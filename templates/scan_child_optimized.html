@@ -161,6 +161,17 @@
         <div style="text-align: center; margin-top: 15px; color: #666; font-size: 16px;">
             <div id="status">✅ Ready</div>
         </div>
+        
+        <div style="text-align: center; margin-top: 15px;">
+            <button 
+                id="undo-btn" 
+                onclick="undoLast()" 
+                class="btn btn-secondary" 
+                style="padding: 12px 30px; display: none;"
+            >
+                ↶ Remove Last Scan
+            </button>
+        </div>
     </div>
     
     <div style="margin: 20px 0;">
@@ -229,6 +240,16 @@ const beep = document.getElementById('beep');
 
 let count = {{ scanned_child_count }};
 let processing = false;
+let lastScanned = '';
+let lastScanTime = 0;
+let scannedCodes = new Set();
+
+// Pre-populate scanned codes from existing list
+{% if linked_child_bags %}
+{% for child in linked_child_bags %}
+scannedCodes.add('{{ child.qr_id }}'.toUpperCase());
+{% endfor %}
+{% endif %}
 
 function playBeep() {
     if (beep) {
@@ -251,8 +272,10 @@ function addItem(qr) {
     const empty = document.getElementById('empty');
     if (empty) empty.remove();
     
-    const existing = Array.from(list.querySelectorAll('strong')).map(el => el.textContent);
-    if (existing.includes(qr)) return;
+    const qrUpper = qr.toUpperCase();
+    if (scannedCodes.has(qrUpper)) return;
+    
+    scannedCodes.add(qrUpper);
     
     const item = document.createElement('div');
     item.className = 'item';
@@ -269,10 +292,41 @@ function addItem(qr) {
 async function process(qr) {
     if (processing || !qr || count >= 30) return;
     
+    const qrUpper = qr.toUpperCase();
+    
+    // Client-side duplicate check
+    if (scannedCodes.has(qrUpper)) {
+        showToast('⚠️ Already scanned: ' + qr, 'warning');
+        vibrate([100, 50, 100]);
+        input.value = '';
+        input.focus();
+        return;
+    }
+    
+    // Prevent rapid double-scans within 1 second
+    const now = Date.now();
+    if (qr === lastScanned && now - lastScanTime < 1000) {
+        input.value = '';
+        return;
+    }
+    
+    lastScanned = qr;
+    lastScanTime = now;
     processing = true;
     input.disabled = true;
     status.innerHTML = '⏳ Processing...';
     status.style.color = '#FF9800';
+    
+    // Set timeout to prevent hanging
+    const timeout = setTimeout(() => {
+        processing = false;
+        input.disabled = false;
+        input.value = '';
+        input.focus();
+        showToast('⏱️ Timeout. Try again.', 'warning');
+        status.innerHTML = '✅ Ready';
+        status.style.color = '#666';
+    }, 10000);
     
     try {
         const r = await fetch('/process_child_scan_fast', {
@@ -281,6 +335,7 @@ async function process(qr) {
             body: JSON.stringify({ qr_code: qr })
         });
         
+        clearTimeout(timeout);
         const d = await r.json();
         
         if (d.success) {
@@ -290,6 +345,11 @@ async function process(qr) {
             showToast('✅ ' + qr + ' added!', 'success');
             status.innerHTML = '✅ Success!';
             status.style.color = '#4CAF50';
+            
+            // Track for undo
+            lastScannedQr = qr;
+            const undoBtn = document.getElementById('undo-btn');
+            if (undoBtn) undoBtn.style.display = 'inline-block';
             
             if (d.child_count >= 30) {
                 setTimeout(() => {
@@ -307,10 +367,30 @@ async function process(qr) {
             vibrate([200, 100, 200]);
         }
     } catch (err) {
+        clearTimeout(timeout);
         console.error(err);
-        showToast('📡 Network error', 'warning');
-        status.innerHTML = '⚠️ Error';
-        status.style.color = '#f44336';
+        
+        // Queue for offline processing
+        if (!isOnline || err.message.includes('fetch')) {
+            if (offlineQueue.add({ qr: qr, type: 'child' })) {
+                showToast('📡 Offline - queued for sync', 'info');
+                status.innerHTML = '📤 Queued';
+                status.style.color = '#FF9800';
+                
+                // Optimistically add to UI
+                count++;
+                updateDisplay(count);
+                addItem(qr);
+            } else {
+                showToast('❌ Failed to queue', 'error');
+                status.innerHTML = '⚠️ Error';
+                status.style.color = '#f44336';
+            }
+        } else {
+            showToast('📡 Network error', 'warning');
+            status.innerHTML = '⚠️ Error';
+            status.style.color = '#f44336';
+        }
     } finally {
         processing = false;
         input.disabled = false;
@@ -318,8 +398,10 @@ async function process(qr) {
         input.focus();
         
         setTimeout(() => {
-            status.innerHTML = '✅ Ready';
-            status.style.color = '#666';
+            if (status.innerHTML !== '✅ Success!') {
+                status.innerHTML = '✅ Ready';
+                status.style.color = '#666';
+            }
         }, 2000);
     }
 }
@@ -328,11 +410,106 @@ function nextBag() {
     window.location.href = '/scan/parent';
 }
 
+let lastScannedQr = null;
+
+async function undoLast() {
+    if (!lastScannedQr) {
+        showToast('⚠️ Nothing to undo', 'warning');
+        return;
+    }
+    
+    if (!confirm(`Remove ${lastScannedQr}?`)) return;
+    
+    const undoBtn = document.getElementById('undo-btn');
+    if (undoBtn) undoBtn.disabled = true;
+    
+    try {
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const headers = { 'Content-Type': 'application/json' };
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+        
+        const r = await fetch('/api/unlink_child', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ qr_code: lastScannedQr })
+        });
+        
+        const d = await r.json();
+        
+        if (d.success) {
+            // Remove from UI
+            const items = list.querySelectorAll('.item');
+            if (items.length > 0) {
+                items[0].remove();
+            }
+            
+            // Update count
+            count = d.child_count || count - 1;
+            updateDisplay(count);
+            
+            // Remove from scanned set
+            scannedCodes.delete(lastScannedQr.toUpperCase());
+            
+            showToast('✅ Removed: ' + lastScannedQr, 'success');
+            lastScannedQr = null;
+            if (undoBtn) undoBtn.style.display = 'none';
+        } else {
+            showToast('❌ ' + (d.message || 'Cannot remove'), 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('📡 Network error', 'warning');
+    } finally {
+        if (undoBtn) undoBtn.disabled = false;
+    }
+}
+
 document.getElementById('form').addEventListener('submit', function(e) {
     e.preventDefault();
     const qr = input.value.trim().toUpperCase();
     if (qr) process(qr);
 });
+
+// Process offline queue
+async function processQueue() {
+    const processed = await offlineQueue.processAll(async (item) => {
+        try {
+            const r = await fetch('/process_child_scan_fast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ qr_code: item.qr })
+            });
+            const d = await r.json();
+            if (d.success) {
+                updateDisplay(d.child_count || count + 1);
+                addItem(item.qr);
+                return true;
+            }
+            return false;
+        } catch (e) {
+            return false;
+        }
+    });
+    
+    if (processed > 0) {
+        showToast(`✅ Synced ${processed} scans`, 'success');
+        playBeep();
+    }
+}
+
+// Check and process queue on load
+setTimeout(() => {
+    const queuedCount = offlineQueue.getAll().length;
+    if (queuedCount > 0 && isOnline) {
+        showToast(`📤 ${queuedCount} scans queued - syncing...`, 'info');
+        processQueue();
+    } else if (count < 30) {
+        showToast('📱 Ready to scan!', 'info');
+    }
+}, 500);
 
 keepFocus(input);
 
@@ -340,11 +517,5 @@ if (count >= 30 && party) {
     party.style.display = 'block';
     input.disabled = true;
 }
-
-setTimeout(() => {
-    if (count < 30) {
-        showToast('📱 Ready to scan!', 'info');
-    }
-}, 500);
 </script>
 {% endblock %}

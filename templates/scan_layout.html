@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Scan{% endblock %}</title>
     
     <!-- Inline critical CSS for fastest load -->
@@ -127,20 +128,45 @@
             }, 3000);
         }
         
-        // Auto-focus helper
+        // Auto-focus helper - aggressive refocus for Bluetooth scanners
         function keepFocus(input) {
             if (!input) return;
             
-            input.addEventListener('blur', function() {
+            // Handle blur events (when input loses focus)
+            input.addEventListener('blur', function(e) {
+                // Re-focus after a short delay
                 setTimeout(() => {
-                    if (document.activeElement !== input) {
+                    if (document.activeElement !== input && !input.disabled) {
                         input.focus();
                     }
                 }, 50);
             });
             
-            // Initial focus
+            // Periodically ensure focus (every 500ms) - helps with scanners
+            setInterval(() => {
+                if (document.activeElement !== input && !input.disabled && document.hasFocus()) {
+                    input.focus();
+                }
+            }, 500);
+            
+            // Re-focus on any page interaction
+            document.addEventListener('click', function(e) {
+                if (e.target !== input && !input.disabled) {
+                    setTimeout(() => input.focus(), 100);
+                }
+            });
+            
+            // Re-focus when page becomes visible again
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && !input.disabled) {
+                    setTimeout(() => input.focus(), 200);
+                }
+            });
+            
+            // Initial focus with retry
             input.focus();
+            setTimeout(() => input.focus(), 100);
+            setTimeout(() => input.focus(), 300);
         }
         
         // Vibrate helper (if supported)
@@ -149,6 +175,87 @@
                 navigator.vibrate(pattern);
             }
         }
+        
+        // Offline queue system
+        const offlineQueue = {
+            key: 'scan_queue',
+            
+            add: function(item) {
+                try {
+                    const queue = this.getAll();
+                    queue.push({ ...item, timestamp: Date.now() });
+                    localStorage.setItem(this.key, JSON.stringify(queue));
+                    return true;
+                } catch (e) {
+                    console.error('Failed to add to queue:', e);
+                    return false;
+                }
+            },
+            
+            getAll: function() {
+                try {
+                    const data = localStorage.getItem(this.key);
+                    return data ? JSON.parse(data) : [];
+                } catch (e) {
+                    return [];
+                }
+            },
+            
+            remove: function(index) {
+                try {
+                    const queue = this.getAll();
+                    queue.splice(index, 1);
+                    localStorage.setItem(this.key, JSON.stringify(queue));
+                } catch (e) {
+                    console.error('Failed to remove from queue:', e);
+                }
+            },
+            
+            clear: function() {
+                try {
+                    localStorage.removeItem(this.key);
+                } catch (e) {
+                    console.error('Failed to clear queue:', e);
+                }
+            },
+            
+            processAll: async function(processFn) {
+                const queue = this.getAll();
+                if (queue.length === 0) return 0;
+                
+                let processed = 0;
+                for (let i = queue.length - 1; i >= 0; i--) {
+                    try {
+                        const success = await processFn(queue[i]);
+                        if (success) {
+                            this.remove(i);
+                            processed++;
+                        }
+                    } catch (e) {
+                        console.error('Queue processing error:', e);
+                    }
+                }
+                return processed;
+            }
+        };
+        
+        // Network status monitoring
+        let isOnline = navigator.onLine;
+        
+        window.addEventListener('online', function() {
+            isOnline = true;
+            showToast('📶 Back online! Syncing...', 'success');
+            
+            // Try to process queued scans
+            if (typeof processQueue === 'function') {
+                setTimeout(processQueue, 500);
+            }
+        });
+        
+        window.addEventListener('offline', function() {
+            isOnline = false;
+            showToast('📡 Offline - scans will be queued', 'warning');
+        });
     </script>
     
     {% block scripts %}{% endblock %}
