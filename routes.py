@@ -1477,6 +1477,8 @@ def seed_sample_data():
                     db.session.add(link)
             
             db.session.commit()
+            invalidate_bags_cache()  # Invalidate bags cache after bulk link creation
+            query_optimizer.invalidate_all_cache()  # Clear all optimizer cache after bulk import
         
         # Create sample scans for the past 30 days
         bags = Bag.query.all()
@@ -2853,6 +2855,9 @@ def process_child_scan_fast():
         db.session.commit()
         invalidate_bags_cache()  # Invalidate bags cache after link creation
         invalidate_stats_cache()  # Invalidate stats cache after scan
+        # Invalidate query optimizer cache for affected bags
+        query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
+        query_optimizer.invalidate_bag_cache(qr_id=qr_id)
         
         # Return current count after linking
         new_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
@@ -3600,8 +3605,12 @@ def delete_bag(bag_id):
         )
         
         # Delete the bag (cascade will handle scan records)
+        bag_qr = bag.qr_id  # Save QR before deletion
         db.session.delete(bag)
         db.session.commit()
+        invalidate_bags_cache()
+        invalidate_stats_cache()
+        query_optimizer.invalidate_bag_cache(qr_id=bag_qr)
         
         return jsonify({
             'success': True,
@@ -6218,6 +6227,10 @@ def api_delete_child_scan():
         db.session.delete(child_bag)
         
         db.session.commit()
+        invalidate_bags_cache()
+        invalidate_stats_cache()
+        query_optimizer.invalidate_bag_cache(qr_id=qr_code)
+        query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
         
         app.logger.info(f"Removed link and deleted child bag {qr_code} from parent {parent_qr}")
         
@@ -6583,6 +6596,9 @@ def api_edit_parent_children():
                     db.session.add(new_link)
         
         db.session.commit()
+        invalidate_bags_cache()
+        invalidate_stats_cache()
+        query_optimizer.invalidate_all_cache()  # Bulk operation - clear all caches
         
         return jsonify({
             'success': True,
