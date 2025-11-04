@@ -1,293 +1,252 @@
-{% extends "layout.html" %}
-{% block title %}Scan Parent Bag - TraitorTrack{% endblock %}
+{% extends "scan_layout.html" %}
+{% block title %}Scan Big Bag{% endblock %}
+{% block header %}📦 Scan BIG Bag{% endblock %}
 
-{% block head %}
-<style>
-/* Scanner Input - Large and prominent */
-.scanner-input-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px;
-    padding: 40px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+{% block styles %}
+.scan-box {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    border-radius: 20px;
+    padding: 30px 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    margin: 15px 0;
+}
+
+.big-icon {
+    font-size: 80px;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.scan-input {
+    font-size: 32px;
+    padding: 20px;
+    text-align: center;
+    border: 5px solid white;
+    border-radius: 15px;
+    font-weight: bold;
+    text-transform: uppercase;
+    background: white;
+    color: #333;
+    width: 100%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    outline: none;
+}
+
+.scan-input:focus {
+    border-color: #FFD700;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+}
+
+.status-text {
+    color: white;
+    font-size: 24px;
+    text-align: center;
+    margin-top: 15px;
+    font-weight: 600;
+}
+
+.instructions {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
     margin: 20px 0;
 }
 
-.scanner-input {
-    font-size: 2.5rem;
-    padding: 20px;
-    text-align: center;
-    border: 4px solid #fff;
-    border-radius: 12px;
+.step {
+    display: flex;
+    align-items: center;
+    margin: 15px 0;
+    font-size: 18px;
+}
+
+.step-num {
+    background: #4CAF50;
+    color: white;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
     font-weight: bold;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    background: rgba(255,255,255,0.95);
-    transition: all 0.3s ease;
+    margin-right: 15px;
+    flex-shrink: 0;
 }
 
-.scanner-input:focus {
-    border-color: #28a745;
-    box-shadow: 0 0 20px rgba(40,167,69,0.5);
-    background: #fff;
-}
-
-.scanner-status {
+.success-box {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 30px;
     text-align: center;
-    margin-top: 15px;
-    color: #fff;
-    font-size: 1.2rem;
+    margin: 20px 0;
 }
 
-.scanner-icon {
-    font-size: 4rem;
-    color: #fff;
-    margin-bottom: 20px;
-    animation: pulse 2s infinite;
+.qr-display {
+    background: white;
+    color: #333;
+    font-size: 36px;
+    padding: 15px;
+    border-radius: 10px;
+    font-weight: bold;
+    margin: 20px 0;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+@media (max-width: 480px) {
+    .scan-input { font-size: 28px; padding: 18px; }
+    .big-icon { font-size: 60px; }
+    .status-text { font-size: 20px; }
 }
-
-.toast {
-    min-width: 350px;
-    font-size: 1.1rem;
-}
-
-/* Success section */
-.success-badge {
-    font-size: 1.5rem;
-    padding: 15px 30px;
-}
-</style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-10 col-lg-8">
-            <div class="card border-0 shadow-lg">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">
-                        <i class="fas fa-qrcode me-2"></i>Scan Parent Bag
-                    </h4>
-                    <small>Using Coconut Wireless 2D Scanner</small>
-                </div>
-                <div class="card-body">
-                    <!-- Scanner Input Section -->
-                    <div class="scanner-input-container">
-                        <div class="text-center">
-                            <i class="fas fa-barcode scanner-icon"></i>
-                            <h5 class="text-white mb-3">Point scanner at QR code and scan</h5>
-                        </div>
-                        
-                        <input 
-                            type="text" 
-                            id="scanner-input" 
-                            class="form-control scanner-input" 
-                            placeholder="Ready to scan..." 
-                            autocomplete="off"
-                            autofocus
-                        >
-                        
-                        <div class="scanner-status">
-                            <span id="status-text">
-                                <i class="fas fa-check-circle me-2"></i>Scanner ready
-                            </span>
-                        </div>
-                    </div>
+<div class="container">
+    <div class="scan-box">
+        <div class="big-icon">📦</div>
+        
+        <input 
+            type="text" 
+            id="input" 
+            class="scan-input" 
+            placeholder="READY" 
+            autocomplete="off"
+            autofocus
+        >
+        
+        <div class="status-text" id="status">✅ Ready to scan</div>
+    </div>
 
-                    <!-- Instructions -->
-                    <div class="alert alert-info mt-4">
-                        <h6><i class="fas fa-info-circle me-2"></i>Two ways to enter QR codes:</h6>
-                        
-                        <div class="mb-3">
-                            <strong><i class="fas fa-barcode me-2"></i>Option 1: Coconut Wireless Scanner (Recommended)</strong>
-                            <ol class="mb-0 mt-1">
-                                <li>Make sure the input field above is highlighted (click it if not)</li>
-                                <li>Point your Coconut scanner at a parent bag QR code</li>
-                                <li>Press the scan button on your scanner</li>
-                                <li>The bag will be processed automatically!</li>
-                            </ol>
-                        </div>
-                        
-                        <div>
-                            <strong><i class="fas fa-keyboard me-2"></i>Option 2: Manual Entry</strong>
-                            <ol class="mb-0 mt-1">
-                                <li>Click the input field above</li>
-                                <li>Type the QR code (format: SB#####, e.g., SB12345)</li>
-                                <li>Press Enter to process</li>
-                            </ol>
-                        </div>
-                    </div>
-
-                    <!-- Success Section (hidden by default) -->
-                    <div id="scan-success-section" class="mt-4 text-center" style="display: none;">
-                        <div class="alert alert-success">
-                            <h5><i class="fas fa-check-circle me-2"></i>Parent Bag Scanned Successfully!</h5>
-                            <p class="mb-2">Parent QR: <span class="success-badge badge bg-success" id="scanned-parent-qr"></span></p>
-                            <p>You can now scan child bags for this parent.</p>
-                        </div>
-                        <a href="{{ url_for('scan_child') }}" class="btn btn-primary btn-lg">
-                            <i class="fas fa-cubes me-2"></i>Proceed to Child Scanning
-                        </a>
-                    </div>
-
-                    <!-- Actions -->
-                    <div id="default-actions" class="mt-4 text-center">
-                        <a href="{{ url_for('index') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-                        </a>
-                    </div>
-                </div>
-            </div>
+    <div class="instructions">
+        <h3 style="text-align: center; color: #4CAF50; margin-bottom: 20px;">
+            ℹ️ How to Scan
+        </h3>
+        
+        <div class="step">
+            <div class="step-num">1</div>
+            <div>Point scanner at BIG bag</div>
         </div>
+        
+        <div class="step">
+            <div class="step-num">2</div>
+            <div>Press scan button</div>
+        </div>
+        
+        <div class="step">
+            <div class="step-num">3</div>
+            <div>Listen for BEEP</div>
+        </div>
+        
+        <div class="step">
+            <div class="step-num">4</div>
+            <div>Scan small bags next</div>
+        </div>
+    </div>
+
+    <div id="success" class="success-box" style="display: none;">
+        <h2 style="font-size: 32px; margin-bottom: 15px;">✅ Done!</h2>
+        <p style="font-size: 20px;">Big Bag Scanned:</p>
+        <div class="qr-display" id="qr"></div>
+        <button onclick="next()" class="btn btn-success" style="width: 100%; max-width: 400px; min-height: 60px;">
+            ▶ Scan Small Bags Now
+        </button>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="/" class="btn btn-secondary" style="padding: 12px 30px;">
+            🏠 Back to Home
+        </a>
     </div>
 </div>
 
-<!-- Hidden form for submission -->
-<form method="POST" action="{{ url_for('process_parent_scan') }}" id="submit-form" style="display: none;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="qr_code" id="qr-code-input">
-</form>
-
-<!-- Toast notifications -->
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
-    <div id="scan-toast" class="toast align-items-center text-white border-0" role="alert">
-        <div class="d-flex">
-            <div class="toast-body" id="toast-message">
-                <i class="fas fa-check-circle me-2"></i>Message
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    </div>
-</div>
+<audio id="beep" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGS57OihUxILTKXo86xbGAg+ltrzxnUsCSB0xPDekT4JEU+m4fCrWBUIQ5zm8r5sIQQrhM/y2Yo3CRdnvOznpE8SC0ml5PKsWhgHPJXZ88p4LAceb8Tv3JA+CQ9Op+HwqVkUCEGa5fK/ayEEKYPP8tuJNwgUY7vt56NRFA1Jpejxq1oYBjuV2fPKeCwGHm7E79yQPgkPTqfh8KpZFAhBmuXyv2wgBSiDz/LbiTcIE2K57OajUxQOSaXo8atbGAc7lNjzyngsBS1txa/ckT4KD06o4fCqWhUIQZvm8sBsIQQogdDy24k3CBNiuezno1MUDkml6PGsWxcHO5TX88p3LAUtbcOu3JE+ChBOp+Lwq1sXCECa5fLAbCEEJoLQ8dqKOAgTYrrs6KNSFQ9Ip+fxrVsZCDuU2PPKeCwGLW3DrtySPwoQTajh8qtbGAg/mubywGwiBSaB0PHaijkIE2K67OejUxQPSKfn8KxcGQc7ldfzyHUsBy1txK/djD8JD0+n4fGsWxkIP5rm8r9sIwUlgNDy24o6CBRisuzoo1MVDUZL4fGsXRoIN5PY88l2LAgtbMSu3Y0/Cw9PqODyq1saCj2a5vK/bSQFJIDQ8duKOwkUYrLs56NUFg5FSeDxrV4aBzqT2PPJWK2EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"></source>
+</audio>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const scannerInput = document.getElementById('scanner-input');
-    const statusText = document.getElementById('status-text');
-    const submitForm = document.getElementById('submit-form');
-    const qrCodeInput = document.getElementById('qr-code-input');
-    
-    let isProcessing = false;
-    let scanBuffer = '';
-    let scanTimeout = null;
-    
-    function showToast(message, type = 'success') {
-        const toast = document.getElementById('scan-toast');
-        const toastMessage = document.getElementById('toast-message');
-        
-        toast.className = `toast align-items-center text-white border-0`;
-        
-        let bgClass = 'bg-success';
-        let icon = 'check-circle';
-        
-        if (type === 'error' || type === 'danger') {
-            bgClass = 'bg-danger';
-            icon = 'exclamation-circle';
-        } else if (type === 'warning') {
-            bgClass = 'bg-warning';
-            icon = 'exclamation-triangle';
-        } else if (type === 'info') {
-            bgClass = 'bg-info';
-            icon = 'info-circle';
-        }
-        
-        toast.classList.add(bgClass);
-        toastMessage.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
-        
-        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
-        bsToast.show();
+const input = document.getElementById('input');
+const status = document.getElementById('status');
+const success = document.getElementById('success');
+const qrEl = document.getElementById('qr');
+const beep = document.getElementById('beep');
+
+let processing = false;
+
+function playBeep() {
+    if (beep) {
+        beep.currentTime = 0;
+        beep.play().catch(e => console.log('Audio failed:', e));
     }
+}
+
+function updateStatus(msg, color) {
+    status.innerHTML = msg;
+    if (color) status.style.color = color;
+}
+
+function process(qr) {
+    if (processing || !qr) return;
     
-    function updateStatus(message, icon = 'check-circle', color = '') {
-        statusText.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
-        if (color) {
-            statusText.style.color = color;
-        }
-    }
+    processing = true;
+    input.disabled = true;
+    updateStatus('⏳ Processing...', '#FFD700');
     
-    function processBarcode(barcode) {
-        if (isProcessing) {
-            console.log('Already processing, ignoring:', barcode);
-            return;
+    fetch('/api/fast_parent_scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'qr_code=' + encodeURIComponent(qr)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            playBeep();
+            showToast('✅ Success!', 'success');
+            qrEl.textContent = qr;
+            success.style.display = 'block';
+            success.scrollIntoView({ behavior: 'smooth' });
+            updateStatus('✅ Done!', '#4CAF50');
+        } else {
+            processing = false;
+            input.disabled = false;
+            input.value = '';
+            input.focus();
+            showToast('❌ ' + (d.message || 'Error'), 'error');
+            updateStatus('⚠️ Try Again', '#FFA500');
+            vibrate([200, 100, 200]);
         }
-        
-        if (!barcode || barcode.trim().length === 0) {
-            return;
-        }
-        
-        barcode = barcode.trim().toUpperCase();
-        console.log('Processing barcode:', barcode);
-        
-        isProcessing = true;
-        updateStatus('Processing...', 'spinner fa-spin', '#ffc107');
-        showToast(`Processing ${barcode}...`, 'info');
-        
-        // Use fast API endpoint for instant processing and redirect
-        fetch('/api/fast_parent_scan', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `qr_code=${encodeURIComponent(barcode)}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast(`✓ ${data.message}`, 'success');
-                updateStatus('Success! Redirecting to child scanning...', 'check-circle', '#28a745');
-                
-                // Auto-redirect to child scanning page
-                setTimeout(() => {
-                    window.location.href = data.redirect;
-                }, 800);
-            } else {
-                isProcessing = false;
-                showToast(data.message || 'Scan failed', 'error');
-                updateStatus('Ready to scan', 'check-circle', '');
-                scannerInput.focus();
-            }
-        })
-        .catch(error => {
-            isProcessing = false;
-            console.error('Error:', error);
-            showToast('Network error. Please try again.', 'error');
-            updateStatus('Ready to scan', 'check-circle', '');
-            scannerInput.focus();
-        });
-    }
-    
-    // Listen for Enter key (scanner sends Enter after data)
-    scannerInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const barcode = scannerInput.value.trim();
-            if (barcode) {
-                processBarcode(barcode);
-                scannerInput.value = '';
-            }
-        }
+    })
+    .catch(err => {
+        console.error(err);
+        processing = false;
+        input.disabled = false;
+        input.value = '';
+        input.focus();
+        showToast('📡 Network error. Try again.', 'warning');
+        updateStatus('✅ Ready to scan', 'white');
     });
-    
-    // Auto-refocus input if it loses focus
-    scannerInput.addEventListener('blur', function() {
-        setTimeout(() => {
-            if (!isProcessing) {
-                scannerInput.focus();
-            }
-        }, 100);
-    });
-    
-    // Ensure input is focused on page load
-    scannerInput.focus();
-    
-    // Show ready message
-    showToast('Scanner ready! Point and scan.', 'success');
+}
+
+function next() {
+    window.location.href = '/scan/child';
+}
+
+input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const qr = input.value.trim().toUpperCase();
+        if (qr) {
+            process(qr);
+            input.value = '';
+        }
+    }
 });
+
+keepFocus(input);
+
+setTimeout(() => {
+    showToast('📱 Ready to scan!', 'info');
+}, 500);
 </script>
 {% endblock %}
