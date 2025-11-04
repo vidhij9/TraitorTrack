@@ -285,7 +285,11 @@
             stationId: null,
             lastActivityTime: Date.now(),
             scannedChildren: new Set(), // Track scanned children in this session
-            offlineQueue: [] // Queue for failed requests
+            offlineQueue: [], // Queue for failed requests
+            isProcessingQueue: false, // Queue processing lock (prevent concurrent retries)
+            isFinishing: false, // Finish operation lock (prevent double-finish)
+            currentAbortController: null, // For request timeout/cancellation
+            scanInProgress: false // Prevent rapid successive scans
         };
         
         let idleCheckInterval;
@@ -434,6 +438,29 @@
             
             if (!qrCode) return;
             
+            // Prevent rapid successive scans (debounce 100ms)
+            if (stationState.scanInProgress) {
+                console.log('Scan already in progress, ignoring duplicate');
+                return;
+            }
+            
+            // Validate QR code format and length
+            if (qrCode.length > 50) {
+                playAudio('error');
+                flashFeedback(false);
+                alert('Invalid QR code: too long (max 50 characters)');
+                return;
+            }
+            
+            // Sanitize QR code (remove dangerous characters)
+            const sanitized = qrCode.replace(/[<>\"\']/g, '');
+            if (sanitized !== qrCode) {
+                playAudio('error');
+                flashFeedback(false);
+                alert('Invalid QR code: contains forbidden characters');
+                return;
+            }
+            
             // Add to recent scans
             stationState.recentScans.push({
                 qr: qrCode,
@@ -456,8 +483,14 @@
         // Process parent bag scan
         async function processParentScan(qrCode) {
             updateActivity();
+            stationState.scanInProgress = true;
             
             try {
+                // Create abort controller for timeout (30s)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                stationState.currentAbortController = controller;
+                
                 // Call backend API
                 const response = await fetch('/process_parent_scan', {
                     method: 'POST',
@@ -465,8 +498,15 @@
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: `qr_code=${encodeURIComponent(qrCode)}&station_id=${encodeURIComponent(stationState.stationId)}`
+                    body: `qr_code=${encodeURIComponent(qrCode)}&station_id=${encodeURIComponent(stationState.stationId)}`,
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 
                 const data = await response.json();
                 
@@ -492,23 +532,36 @@
                 }
             } catch (error) {
                 console.error('Parent scan error:', error);
-                // Add to offline queue
-                queueOfflineRequest('parent', qrCode);
-                playAudio('error');
-                flashFeedback(false);
-                alert('Network error. Request queued for retry.');
+                
+                // Check if it was a timeout
+                if (error.name === 'AbortError') {
+                    playAudio('error');
+                    flashFeedback(false);
+                    alert('Request timed out after 30 seconds. Please try again.');
+                } else {
+                    // Network error - add to offline queue
+                    queueOfflineRequest('parent', qrCode);
+                    playAudio('error');
+                    flashFeedback(false);
+                    alert('Network error. Request queued for retry.');
+                }
+            } finally {
+                stationState.scanInProgress = false;
+                stationState.currentAbortController = null;
             }
         }
         
         // Process child bag scan
         async function processChildScan(qrCode) {
             updateActivity();
+            stationState.scanInProgress = true;
             
             // Client-side duplicate check
             if (qrCode === stationState.currentParent) {
                 playAudio('error');
                 flashFeedback(false);
                 alert('Cannot scan parent bag as child');
+                stationState.scanInProgress = false;
                 return;
             }
             
@@ -516,10 +569,16 @@
                 playAudio('error');
                 flashFeedback(false);
                 alert('This child bag was already scanned in this session');
+                stationState.scanInProgress = false;
                 return;
             }
             
             try {
+                // Create abort controller for timeout (30s)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                stationState.currentAbortController = controller;
+                
                 // Call backend API
                 const response = await fetch('/process_child_scan', {
                     method: 'POST',
@@ -527,8 +586,15 @@
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: `qr_code=${encodeURIComponent(qrCode)}&station_id=${encodeURIComponent(stationState.stationId)}`
+                    body: `qr_code=${encodeURIComponent(qrCode)}&station_id=${encodeURIComponent(stationState.stationId)}`,
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 
                 const data = await response.json();
                 
@@ -539,11 +605,13 @@
                     playAudio('child');
                     flashFeedback(true);
                     
-                    // Auto-finish if expected count reached
-                    if (stationState.childCount >= stationState.expectedCount) {
+                    // Auto-finish if expected count reached (with lock to prevent double-trigger)
+                    if (stationState.childCount >= stationState.expectedCount && !stationState.isFinishing) {
                         setTimeout(() => {
-                            alert(`Parent bag ${stationState.currentParent} complete with ${stationState.childCount} children!`);
-                            finishParent();
+                            if (!stationState.isFinishing) {  // Double-check lock
+                                alert(`Parent bag ${stationState.currentParent} complete with ${stationState.childCount} children!`);
+                                finishParent();
+                            }
                         }, 1000);
                     }
                     
@@ -555,46 +623,136 @@
                 }
             } catch (error) {
                 console.error('Child scan error:', error);
-                // Add to offline queue
-                queueOfflineRequest('child', qrCode);
-                playAudio('error');
-                flashFeedback(false);
-                alert('Network error. Request queued for retry.');
+                
+                // Check if it was a timeout
+                if (error.name === 'AbortError') {
+                    playAudio('error');
+                    flashFeedback(false);
+                    alert('Request timed out after 30 seconds. Please try again.');
+                } else {
+                    // Network error - add to offline queue
+                    queueOfflineRequest('child', qrCode);
+                    playAudio('error');
+                    flashFeedback(false);
+                    alert('Network error. Request queued for retry.');
+                }
+            } finally {
+                stationState.scanInProgress = false;
+                stationState.currentAbortController = null;
             }
         }
         
-        // Queue offline request
+        // Queue offline request (with deduplication)
         function queueOfflineRequest(type, qrCode) {
+            // Check for duplicates (same QR + type within last 60s)
+            const now = Date.now();
+            const isDuplicate = stationState.offlineQueue.some(req => 
+                req.qrCode === qrCode && 
+                req.type === type && 
+                (now - req.timestamp) < 60000
+            );
+            
+            if (isDuplicate) {
+                console.log('Duplicate request already queued, skipping');
+                return;
+            }
+            
             stationState.offlineQueue.push({
                 type,
                 qrCode,
-                timestamp: Date.now(),
+                timestamp: now,
                 stationId: stationState.stationId,
-                parentId: stationState.currentParentId
+                parentId: stationState.currentParentId,
+                retryCount: 0  // Track retry attempts
             });
             
-            // Save to localStorage
-            localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
-            
-            // Try to process immediately
-            setTimeout(processOfflineQueue, 5000);
-        }
-        
-        // Process offline queue
-        async function processOfflineQueue() {
-            // Load from localStorage if needed
-            if (stationState.offlineQueue.length === 0) {
-                const savedQueue = localStorage.getItem('offlineQueue');
-                if (savedQueue) {
-                    stationState.offlineQueue = JSON.parse(savedQueue);
-                }
+            // Limit queue size to prevent memory issues
+            if (stationState.offlineQueue.length > 100) {
+                stationState.offlineQueue.shift();
             }
             
-            if (stationState.offlineQueue.length === 0) return;
+            // Save to localStorage
+            try {
+                localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
+            } catch (e) {
+                console.error('Failed to save queue to localStorage:', e);
+            }
             
-            const request = stationState.offlineQueue[0];
+            // Try to process immediately (if not already processing)
+            if (!stationState.isProcessingQueue) {
+                setTimeout(processOfflineQueue, 5000);
+            }
+        }
+        
+        // Process offline queue (with locking to prevent concurrent retries)
+        async function processOfflineQueue() {
+            // Prevent concurrent queue processing
+            if (stationState.isProcessingQueue) {
+                console.log('Queue already being processed, skipping');
+                return;
+            }
+            
+            stationState.isProcessingQueue = true;
             
             try {
+                // Load from localStorage if needed
+                if (stationState.offlineQueue.length === 0) {
+                    const savedQueue = localStorage.getItem('offlineQueue');
+                    if (savedQueue) {
+                        try {
+                            stationState.offlineQueue = JSON.parse(savedQueue);
+                        } catch (e) {
+                            console.error('Failed to parse offline queue:', e);
+                            localStorage.removeItem('offlineQueue');
+                            stationState.isProcessingQueue = false;
+                            return;
+                        }
+                    }
+                }
+                
+                if (stationState.offlineQueue.length === 0) {
+                    stationState.isProcessingQueue = false;
+                    return;
+                }
+                
+                const request = stationState.offlineQueue[0];
+                
+                // Skip if request is too old (> 24 hours)
+                const requestAge = Date.now() - request.timestamp;
+                if (requestAge > 24 * 60 * 60 * 1000) {
+                    console.log('Removing stale offline request (>24h old)');
+                    stationState.offlineQueue.shift();
+                    localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
+                    stationState.isProcessingQueue = false;
+                    
+                    // Process next
+                    if (stationState.offlineQueue.length > 0) {
+                        setTimeout(processOfflineQueue, 1000);
+                    }
+                    return;
+                }
+                
+                // Increment retry count
+                request.retryCount = (request.retryCount || 0) + 1;
+                
+                // Give up after 10 retries
+                if (request.retryCount > 10) {
+                    console.log('Removing failed offline request (max retries exceeded)');
+                    stationState.offlineQueue.shift();
+                    localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
+                    stationState.isProcessingQueue = false;
+                    
+                    // Process next
+                    if (stationState.offlineQueue.length > 0) {
+                        setTimeout(processOfflineQueue, 1000);
+                    }
+                    return;
+                }
+                
+                // Try to process request with timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                
                 const endpoint = request.type === 'parent' ? '/process_parent_scan' : '/process_child_scan';
                 const response = await fetch(endpoint, {
                     method: 'POST',
@@ -602,24 +760,51 @@
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: `qr_code=${encodeURIComponent(request.qrCode)}&station_id=${encodeURIComponent(request.stationId)}`
+                    body: `qr_code=${encodeURIComponent(request.qrCode)}&station_id=${encodeURIComponent(request.stationId)}`,
+                    signal: controller.signal
                 });
                 
-                const data = await response.json();
+                clearTimeout(timeoutId);
                 
-                if (data.success || data.message?.includes('already')) {
-                    // Success or idempotent - remove from queue
-                    stationState.offlineQueue.shift();
-                    localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
+                if (response.ok) {
+                    const data = await response.json();
                     
-                    // Process next item
-                    if (stationState.offlineQueue.length > 0) {
-                        setTimeout(processOfflineQueue, 1000);
+                    if (data.success || data.message?.includes('already')) {
+                        // Success or idempotent - remove from queue
+                        console.log('Offline request succeeded:', request.qrCode);
+                        stationState.offlineQueue.shift();
+                        localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
+                        
+                        // Process next item immediately
+                        stationState.isProcessingQueue = false;
+                        if (stationState.offlineQueue.length > 0) {
+                            setTimeout(processOfflineQueue, 1000);
+                        }
+                    } else {
+                        // Server rejected - remove from queue
+                        console.log('Server rejected offline request:', data.message);
+                        stationState.offlineQueue.shift();
+                        localStorage.setItem('offlineQueue', JSON.stringify(stationState.offlineQueue));
+                        
+                        stationState.isProcessingQueue = false;
+                        if (stationState.offlineQueue.length > 0) {
+                            setTimeout(processOfflineQueue, 1000);
+                        }
                     }
+                } else {
+                    // HTTP error - retry later
+                    stationState.isProcessingQueue = false;
+                    setTimeout(processOfflineQueue, 30000);
                 }
             } catch (error) {
-                // Network still down, retry later
-                setTimeout(processOfflineQueue, 30000);
+                // Network error or timeout - retry later
+                console.error('Offline queue processing error:', error);
+                stationState.isProcessingQueue = false;
+                
+                // Exponential backoff: retry in 30s * retry_count (max 5 minutes)
+                const request = stationState.offlineQueue[0];
+                const retryDelay = Math.min(30000 * (request?.retryCount || 1), 300000);
+                setTimeout(processOfflineQueue, retryDelay);
             }
         }
         
@@ -653,9 +838,13 @@
             updateUI();
         }
         
-        // Finish parent and reset
+        // Finish parent and reset (with double-finish prevention)
         async function finishParent() {
-            if (stationState.mode === 'PARENT') return;
+            // Prevent double-finish with lock
+            if (stationState.isFinishing || stationState.mode === 'PARENT') {
+                console.log('Already finishing or in PARENT mode, ignoring');
+                return;
+            }
             
             if (stationState.childCount < stationState.expectedCount) {
                 if (!confirm(`Only ${stationState.childCount} of ${stationState.expectedCount} children scanned. Finish anyway?`)) {
@@ -663,25 +852,38 @@
                 }
             }
             
+            // Set finish lock
+            stationState.isFinishing = true;
             updateActivity();
             
             // Call backend to complete parent
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                
                 const response = await fetch('/scan/complete', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: ''
+                    body: '',
+                    signal: controller.signal
                 });
                 
-                // Don't wait for response, just reset locally
-                alert(`Parent bag ${stationState.currentParent} completed with ${stationState.childCount} children!`);
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    alert(`Parent bag ${stationState.currentParent} completed with ${stationState.childCount} children!`);
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
             } catch (error) {
                 console.error('Finish error:', error);
                 alert(`Parent bag ${stationState.currentParent} marked complete locally (network error).`);
-            }
+            } finally {
+                // Always reset, even if network failed
+                stationState.isFinishing = false;
             
             // Reset to parent mode
             resetToParentMode();
