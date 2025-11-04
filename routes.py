@@ -7110,10 +7110,67 @@ def schedule_eod_summary():
 
 
 # Add missing API endpoints that were causing 404s
-@app.route('/api/bags')
+@app.route('/api/bags', methods=['GET', 'POST'])
 @login_required
 def api_bags_endpoint():
     """API endpoint for bags data - OPTIMIZED FOR 1.8M+ BAGS"""
+    
+    # Handle POST request - Create new bag
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+            qr_id = data.get('qr_id', '').strip()
+            bag_type = data.get('type', '').strip()
+            
+            # Validate inputs
+            if not qr_id:
+                return jsonify({'success': False, 'error': 'qr_id is required'}), 400
+            
+            if bag_type not in ['parent', 'child']:
+                return jsonify({'success': False, 'error': 'type must be "parent" or "child"'}), 400
+            
+            # Validate QR ID length
+            if len(qr_id) > 50:
+                return jsonify({'success': False, 'error': 'QR ID too long (max 50 characters)'}), 400
+            
+            # Check if bag already exists
+            from models import Bag
+            existing_bag = Bag.query.filter_by(qr_id=qr_id).first()
+            if existing_bag:
+                return jsonify({'success': False, 'error': 'Bag with this QR ID already exists'}), 409
+            
+            # Create bag using query optimizer
+            bag = query_optimizer.create_bag_optimized(
+                qr_id=qr_id,
+                bag_type=bag_type,
+                user_id=current_user.id
+            )
+            
+            if not bag:
+                return jsonify({'success': False, 'error': 'Failed to create bag'}), 500
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'bag': {
+                    'id': bag.id,
+                    'qr_id': bag.qr_id,
+                    'type': bag.type,
+                    'child_count': bag.child_count,
+                    'created_at': bag.created_at.isoformat() if bag.created_at else None
+                }
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Error creating bag via API: {str(e)}', exc_info=True)
+            return jsonify({'success': False, 'error': 'An unexpected error occurred'}), 500
+    
+    # Handle GET request - List bags
     try:
         from models import Bag
         
@@ -7168,6 +7225,54 @@ def api_bags_endpoint():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/link', methods=['POST'])
+@csrf_compat.exempt
+@login_required
+def api_create_link():
+    """API endpoint to create a link between parent and child bags"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        parent_bag_id = data.get('parent_bag_id')
+        child_bag_id = data.get('child_bag_id')
+        
+        # Validate inputs
+        if not parent_bag_id:
+            return jsonify({'success': False, 'error': 'parent_bag_id is required'}), 400
+        
+        if not child_bag_id:
+            return jsonify({'success': False, 'error': 'child_bag_id is required'}), 400
+        
+        # Use query optimizer's atomic link creation
+        success, message = query_optimizer.create_link_fast(
+            parent_bag_id=parent_bag_id,
+            child_bag_id=child_bag_id,
+            user_id=current_user.id
+        )
+        
+        if success:
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': message
+            }), 200
+        else:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 400
+            
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error creating link via API: {str(e)}', exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred'
+        }), 500
 
 @app.route('/api/bag/<qr_id>')
 @csrf_compat.exempt
