@@ -80,11 +80,25 @@ if redis_url and redis_url != 'redis://localhost:6379/0':
         redis_available = True
         logger.info(f"✅ Redis connected successfully: {redis_url.split('@')[-1] if '@' in redis_url else redis_url}")
     except Exception as e:
-        logger.warning(f"⚠️  Redis connection failed, falling back to filesystem/memory: {str(e)}")
-        redis_available = False
-        redis_client = None
+        # CRITICAL: In production, Redis is mandatory for multi-worker session/rate-limit consistency
+        if is_production:
+            logger.error(f"❌ CRITICAL: Redis connection failed in production: {str(e)}")
+            logger.error(f"❌ Production deployments require Redis for multi-worker session persistence")
+            logger.error(f"❌ Set REDIS_URL environment variable or run single worker")
+            raise RuntimeError(f"Redis is required in production but connection failed: {str(e)}")
+        else:
+            logger.warning(f"⚠️  Redis connection failed, falling back to filesystem/memory: {str(e)}")
+            redis_available = False
+            redis_client = None
 else:
-    logger.info("ℹ️  REDIS_URL not configured, using filesystem/memory storage (development mode)")
+    # CRITICAL: In production, Redis is mandatory
+    if is_production:
+        logger.error(f"❌ CRITICAL: REDIS_URL not configured in production environment")
+        logger.error(f"❌ Production deployments require Redis for multi-worker session persistence")
+        logger.error(f"❌ Set REDIS_URL environment variable to a valid Redis connection string")
+        raise RuntimeError("REDIS_URL is required in production but not configured")
+    else:
+        logger.info("ℹ️  REDIS_URL not configured, using filesystem/memory storage (development mode)")
 
 # Session configuration - Redis with filesystem fallback
 # SECURITY: SESSION_COOKIE_SECURE=True in production for HTTPS-only session cookies

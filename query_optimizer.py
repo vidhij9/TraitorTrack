@@ -91,6 +91,38 @@ class QueryOptimizer:
             self._bag_id_cache.pop(cache_key, None)
             self._cache_timestamps.pop(cache_key, None)
     
+    def invalidate_bag_cache(self, qr_id=None, bag_id=None):
+        """
+        Invalidate cache for a specific bag by QR ID or bag ID
+        Call this after any bag mutation (create, update, delete, link, unlink)
+        
+        Args:
+            qr_id: QR code of the bag to invalidate
+            bag_id: Database ID of the bag to invalidate
+        """
+        if qr_id:
+            # Remove all cache entries for this QR (with and without type specifier)
+            keys_to_remove = [k for k in self._bag_id_cache.keys() if k.startswith(qr_id)]
+            for key in keys_to_remove:
+                self._bag_id_cache.pop(key, None)
+                self._cache_timestamps.pop(key, None)
+        
+        if bag_id:
+            # Find and remove cache entries by bag_id
+            keys_to_remove = [k for k, v in self._bag_id_cache.items() if v == bag_id]
+            for key in keys_to_remove:
+                self._bag_id_cache.pop(key, None)
+                self._cache_timestamps.pop(key, None)
+    
+    def invalidate_all_cache(self):
+        """
+        Clear all cached data
+        Call this after bulk operations or when cache coherence is critical
+        """
+        self._bag_id_cache.clear()
+        self._cache_timestamps.clear()
+        logger.debug("All query optimizer caches cleared")
+    
     def get_cache_stats(self):
         """Get cache performance statistics"""
         total_requests = self._cache_hits + self._cache_misses

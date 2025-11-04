@@ -99,6 +99,18 @@ def query_optimizer_fallback():
         @staticmethod
         def create_link_optimized(*args, **kwargs):
             return None, False
+        
+        @staticmethod
+        def create_link_fast(*args, **kwargs):
+            return False, "Optimizer not available"
+            
+        @staticmethod
+        def invalidate_bag_cache(qr_id=None, bag_id=None):
+            pass  # No-op in fallback
+        
+        @staticmethod
+        def invalidate_all_cache():
+            pass  # No-op in fallback
             
         @staticmethod
         def bulk_commit():
@@ -2589,6 +2601,9 @@ def process_child_scan():
         db.session.commit()
         invalidate_bags_cache()  # Invalidate bags cache after link creation
         invalidate_stats_cache()  # Invalidate stats cache after scan
+        # Invalidate query optimizer cache for affected bags
+        query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
+        query_optimizer.invalidate_bag_cache(qr_id=qr_code)
         
         # Use cached count + 1 instead of querying again
         updated_count = current_child_count + 1
@@ -2931,6 +2946,9 @@ def api_unlink_child():
         db.session.commit()
         invalidate_bags_cache()
         invalidate_stats_cache()
+        # Invalidate query optimizer cache for affected bags
+        query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
+        query_optimizer.invalidate_bag_cache(qr_id=qr_id)
         
         # Get new count
         new_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
