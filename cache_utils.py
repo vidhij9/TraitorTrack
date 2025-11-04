@@ -17,6 +17,12 @@ IST = pytz.timezone('Asia/Kolkata')
 _global_cache = {}
 _user_cache = {}
 _cache_stats = {'hits': 0, 'misses': 0, 'global_hits': 0, 'user_hits': 0}
+_last_cleanup_time = datetime.utcnow()
+
+# Cache limits to prevent memory leaks
+MAX_GLOBAL_CACHE_SIZE = 500  # Max entries in global cache
+MAX_USER_CACHE_SIZE = 1000   # Max entries in user cache
+CLEANUP_INTERVAL_SECONDS = 300  # Clean up every 5 minutes
 
 def cached_global(seconds=60, prefix=''):
     """
@@ -31,6 +37,9 @@ def cached_global(seconds=60, prefix=''):
         @wraps(f)
         def wrapper(*args, **kwargs):
             from flask import request
+            
+            # Proactive cleanup every 5 minutes
+            _proactive_cleanup()
             
             # Include request query parameters in cache key
             query_params = sorted(request.args.items()) if request and hasattr(request, 'args') else []
@@ -62,9 +71,9 @@ def cached_global(seconds=60, prefix=''):
                 'type': 'global'
             }
             
-            # Cleanup expired entries when cache gets large
-            if len(_global_cache) > 200:
-                _cleanup_cache(_global_cache)
+            # Enforce max cache size (prevent memory leak)
+            if len(_global_cache) > MAX_GLOBAL_CACHE_SIZE:
+                _evict_oldest(_global_cache, MAX_GLOBAL_CACHE_SIZE // 2)
             
             return result
         return wrapper
@@ -83,6 +92,9 @@ def cached_user(seconds=60, prefix=''):
         @wraps(f)
         def wrapper(*args, **kwargs):
             from flask import request
+            
+            # Proactive cleanup every 5 minutes
+            _proactive_cleanup()
             
             # Get user context from session
             user_id = session.get('user_id', 'anonymous')
@@ -120,9 +132,9 @@ def cached_user(seconds=60, prefix=''):
                 'type': 'user'
             }
             
-            # Cleanup expired entries when cache gets large
-            if len(_user_cache) > 500:
-                _cleanup_cache(_user_cache)
+            # Enforce max cache size (prevent memory leak)
+            if len(_user_cache) > MAX_USER_CACHE_SIZE:
+                _evict_oldest(_user_cache, MAX_USER_CACHE_SIZE // 2)
             
             return result
         return wrapper
@@ -133,6 +145,45 @@ def _cleanup_cache(cache_dict):
     now = datetime.utcnow()
     expired_keys = [k for k, v in cache_dict.items() if v['expires'] <= now]
     for key in expired_keys:
+        del cache_dict[key]
+
+def _proactive_cleanup():
+    """
+    Proactively clean up expired entries every 5 minutes.
+    This prevents memory leaks from accumulating expired cache entries.
+    """
+    global _last_cleanup_time
+    now = datetime.utcnow()
+    
+    # Only cleanup if CLEANUP_INTERVAL_SECONDS have passed
+    time_since_cleanup = (now - _last_cleanup_time).total_seconds()
+    if time_since_cleanup >= CLEANUP_INTERVAL_SECONDS:
+        _cleanup_cache(_global_cache)
+        _cleanup_cache(_user_cache)
+        _last_cleanup_time = now
+
+def _evict_oldest(cache_dict, target_size):
+    """
+    Evict oldest cache entries to bring cache down to target size.
+    Uses LRU-style eviction based on cached_at timestamp.
+    
+    Args:
+        cache_dict: The cache dictionary to evict from
+        target_size: Target number of entries after eviction
+    """
+    if len(cache_dict) <= target_size:
+        return
+    
+    # Sort entries by cached_at (oldest first)
+    sorted_entries = sorted(
+        cache_dict.items(),
+        key=lambda x: x[1].get('cached_at', datetime.min)
+    )
+    
+    # Remove oldest entries until we reach target size
+    num_to_remove = len(cache_dict) - target_size
+    for i in range(num_to_remove):
+        key = sorted_entries[i][0]
         del cache_dict[key]
 
 def invalidate_cache(pattern=None, cache_type='all'):
