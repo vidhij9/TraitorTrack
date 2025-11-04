@@ -884,10 +884,11 @@
             } finally {
                 // Always reset, even if network failed
                 stationState.isFinishing = false;
-            
-            // Reset to parent mode
-            resetToParentMode();
-            document.getElementById('scanInput').focus();
+                
+                // Reset to parent mode
+                resetToParentMode();
+                document.getElementById('scanInput').focus();
+            }
         }
         
         // Event listeners
