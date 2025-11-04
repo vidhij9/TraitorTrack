@@ -334,29 +334,20 @@ def get_bag_children(bag_id):
 @app.route('/api/dashboard/stats')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached_user(seconds=10, prefix='dashboard_stats')  # User-specific stats
+@cached_user(seconds=5, prefix='dashboard_stats')  # Aggressive 5s cache for sub-10ms response
 def get_dashboard_statistics():
-    """Ultra-optimized dashboard stats using single aggregated query"""
+    """Ultra-optimized dashboard stats using single aggregated query - Target: <5ms (cached), <50ms (uncached)"""
     try:
-        # Get core stats
+        # Single aggregated query for all core stats
         stats_result = db.session.execute(text("""
             SELECT 
                 (SELECT COUNT(*) FROM bag) as total_bags,
                 (SELECT COUNT(*) FROM scan) as total_scans,
-                (SELECT COUNT(DISTINCT user_id) FROM scan WHERE user_id IS NOT NULL) as active_users
+                (SELECT COUNT(DISTINCT user_id) FROM scan WHERE user_id IS NOT NULL) as active_users,
+                (SELECT COUNT(*) FROM bill) as total_bills
         """)).fetchone()
         
-        # Get bills count with error handling
-        total_bills = 0
-        try:
-            bills_result = db.session.execute(text("SELECT COUNT(*) FROM bill")).fetchone()
-            total_bills = bills_result[0] if bills_result else 0
-        except:
-            # If bills table doesn't exist, rollback and continue
-            db.session.rollback()
-            total_bills = 0
-        
-        # Get recent scans
+        # Get recent scans with optimized single query (limit data transfer)
         recent_scans_result = []
         try:
             recent_scans_result = db.session.execute(text("""
@@ -383,8 +374,8 @@ def get_dashboard_statistics():
         stats = {
             'total_bags': stats_result[0] if stats_result else 0,
             'total_scans': stats_result[1] if stats_result else 0,
-            'total_bills': total_bills,
-            'active_users': stats_result[2] if stats_result else 0
+            'active_users': stats_result[2] if stats_result else 0,
+            'total_bills': stats_result[3] if stats_result else 0
         }
         
         recent_activity = []
