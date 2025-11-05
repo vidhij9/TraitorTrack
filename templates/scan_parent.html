@@ -222,9 +222,19 @@ function process(qr) {
     })
     .then(r => {
         clearTimeout(timeout);
-        return r.json();
+        // Always try to parse JSON response (works for both success and error)
+        return r.json().then(data => ({
+            ok: r.ok,
+            status: r.status,
+            data: data
+        })).catch(() => ({
+            ok: r.ok,
+            status: r.status,
+            data: { success: false, message: 'Invalid server response' }
+        }));
     })
-    .then(d => {
+    .then(response => {
+        const d = response.data;
         if (d.success) {
             playBeep();
             showToast('✅ Success!', 'success');
@@ -237,20 +247,22 @@ function process(qr) {
             input.disabled = false;
             input.value = '';
             input.focus();
-            showToast('❌ ' + (d.message || 'Error'), 'error');
+            // Show clear error message
+            const errorMsg = d.message || 'Invalid QR code';
+            showToast('❌ ' + errorMsg, 'error');
             updateStatus('⚠️ Try Again', '#FFA500');
             vibrate([200, 100, 200]);
         }
     })
     .catch(err => {
         clearTimeout(timeout);
-        console.error(err);
+        console.error('Scan error:', err);
         processing = false;
         input.disabled = false;
         input.value = '';
         input.focus();
         showToast('📡 Network error. Try again.', 'warning');
-        updateStatus('✅ Ready to scan', 'white');
+        updateStatus('⚠️ Try Again', '#FFA500');
     });
 }
 
@@ -264,6 +276,12 @@ input.addEventListener('keydown', function(e) {
         const qr = input.value.trim().toUpperCase();
         if (qr) {
             process(qr);
+            input.value = '';
+        } else {
+            // Show error when trying to scan empty code
+            showToast('❌ Please scan a QR code', 'error');
+            updateStatus('⚠️ Try Again', '#FFA500');
+            vibrate([200, 100, 200]);
             input.value = '';
         }
     }
