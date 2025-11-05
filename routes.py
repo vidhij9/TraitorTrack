@@ -3418,8 +3418,14 @@ def child_lookup():
             start_time = time.time()
             app.logger.info(f'Lookup request for QR ID: {qr_id}')
             
-            # Direct database search - simple and fast (case-insensitive)
+            # Try to find as a bag first (case-insensitive)
             bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
+            
+            # If not found as bag, check if it's a bill
+            bill = None
+            if not bag:
+                from models import Bill
+                bill = Bill.query.filter(func.upper(Bill.bill_id) == func.upper(qr_id)).first()
             
             search_time_ms = (time.time() - start_time) * 1000
             
@@ -3464,8 +3470,13 @@ def child_lookup():
                             })
                 
                 app.logger.info(f'Search SUCCESS: Found bag {qr_id} in {search_time_ms:.2f}ms')
+            elif bill:
+                # Found a bill - redirect to bill details page
+                app.logger.info(f'Search SUCCESS: Found bill {qr_id} in {search_time_ms:.2f}ms')
+                flash(f'Bill {bill.bill_id} found! Redirecting to bill details.', 'success')
+                return redirect(url_for('view_bill', bill_id=bill.id))
             else:
-                app.logger.info(f'Search: No bag found for "{qr_id}" in {search_time_ms:.2f}ms')
+                app.logger.info(f'Search: No bag or bill found for "{qr_id}" in {search_time_ms:.2f}ms')
                 
                 # Try fuzzy search as fallback for better user experience
                 try:
@@ -3479,10 +3490,10 @@ def child_lookup():
                         similar_qr_codes = ", ".join([b.qr_id for b in similar_bags[:3]])
                         flash(f'Bag "{qr_id}" not found. Did you mean: {similar_qr_codes}?', 'warning')
                     else:
-                        flash(f'Bag "{qr_id}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
+                        flash(f'Bag or Bill "{qr_id}" does not exist in the system. Please verify the QR code or create it first.', 'error')
                 except Exception as e:
                     app.logger.error(f'Fuzzy search error: {str(e)}')
-                    flash(f'Bag "{qr_id}" does not exist in the system. Please verify the QR code or create the bag first.', 'error')
+                    flash(f'Bag or Bill "{qr_id}" does not exist in the system. Please verify the QR code or create it first.', 'error')
                     
         except Exception as e:
             app.logger.error(f'Bag lookup error for {qr_id}: {str(e)}')
@@ -7504,6 +7515,61 @@ def api_bills_endpoint():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/bills/<identifier>')
+@login_required
+def api_bill_detail_endpoint(identifier):
+    """API endpoint for single bill details - supports numeric ID or public bill_id"""
+    try:
+        from models import Bill, Bag, BillBag
+        
+        # Try to find bill by numeric ID or public bill_id
+        bill = None
+        if identifier.isdigit():
+            bill = Bill.query.filter_by(id=int(identifier)).first()
+        else:
+            bill = Bill.query.filter_by(bill_id=identifier).first()
+        
+        if not bill:
+            return jsonify({
+                'success': False,
+                'error': 'Bill not found'
+            }), 404
+        
+        # Get linked parent bags
+        parent_bags = db.session.query(Bag).join(
+            BillBag, Bag.id == BillBag.bag_id
+        ).filter(
+            BillBag.bill_id == bill.id
+        ).all()
+        
+        # Build response with bill details
+        bill_data = {
+            'success': True,
+            'id': bill.id,
+            'bill_id': bill.bill_id,
+            'status': bill.status,
+            'parent_bag_count': bill.parent_bag_count,
+            'destination': bill.destination if hasattr(bill, 'destination') else None,
+            'vehicle_number': bill.vehicle_number if hasattr(bill, 'vehicle_number') else None,
+            'created_at': bill.created_at.isoformat() if bill.created_at else None,
+            'parent_bags': [
+                {
+                    'id': bag.id,
+                    'qr_id': bag.qr_id,
+                    'type': str(bag.type) if bag.type else 'unknown',
+                    'status': str(bag.status) if bag.status else 'unknown'
+                } for bag in parent_bags
+            ]
+        }
+        
+        return jsonify(bill_data)
+    except Exception as e:
+        app.logger.error(f'API bill detail error for {identifier}: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
 
 @app.route('/api/users')
 @login_required
