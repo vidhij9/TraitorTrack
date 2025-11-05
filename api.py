@@ -327,6 +327,96 @@ def get_bag_children(bag_id):
         logger.error(f"Error getting bag children: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to load children'}), 500
 
+@app.route('/api/bags/qr/<qr_id>')
+@require_auth
+@limiter.limit("10000 per minute")
+def get_bag_by_qr(qr_id):
+    """Get bag details by QR code - useful for testing and integrations"""
+    try:
+        # Query bag by QR code (case-insensitive)
+        bag_result = db.session.execute(text("""
+            SELECT id, qr_id, name, type, status, child_count, weight_kg, dispatch_area, 
+                   created_at, updated_at
+            FROM bag
+            WHERE UPPER(qr_id) = UPPER(:qr_id)
+            LIMIT 1
+        """), {'qr_id': qr_id}).fetchone()
+        
+        if not bag_result:
+            return jsonify({'success': False, 'error': 'Bag not found'}), 404
+        
+        bag_data = {
+            'id': bag_result[0],
+            'qr_id': bag_result[1],
+            'name': bag_result[2],
+            'type': bag_result[3],
+            'status': bag_result[4],
+            'child_count': bag_result[5],
+            'weight_kg': float(bag_result[6]) if bag_result[6] else 0.0,
+            'dispatch_area': bag_result[7],
+            'created_at': bag_result[8].isoformat() if bag_result[8] else None,
+            'updated_at': bag_result[9].isoformat() if bag_result[9] else None
+        }
+        
+        return jsonify({
+            'success': True,
+            'bag': bag_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting bag by QR: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to load bag'}), 500
+
+@app.route('/api/bags/qr/<qr_id>/children')
+@require_auth
+@limiter.limit("10000 per minute")
+def get_bag_children_by_qr(qr_id):
+    """Get children of parent bag by QR code"""
+    try:
+        # First get parent bag ID
+        parent_result = db.session.execute(text("""
+            SELECT id, type
+            FROM bag
+            WHERE UPPER(qr_id) = UPPER(:qr_id)
+            LIMIT 1
+        """), {'qr_id': qr_id}).fetchone()
+        
+        if not parent_result:
+            return jsonify({'success': False, 'error': 'Parent bag not found'}), 404
+        
+        parent_id = parent_result[0]
+        
+        # Get children
+        children_result = db.session.execute(text("""
+            SELECT b.id, b.qr_id, b.name, b.type, l.created_at
+            FROM bag b
+            INNER JOIN link l ON l.child_bag_id = b.id
+            WHERE l.parent_bag_id = :parent_id AND b.type = 'child'
+            ORDER BY l.created_at DESC
+        """), {'parent_id': parent_id}).fetchall()
+        
+        children_data = [
+            {
+                'id': row[0],
+                'qr_id': row[1],
+                'name': row[2],
+                'type': row[3],
+                'linked_at': row[4].isoformat() if row[4] else None
+            }
+            for row in children_result
+        ]
+        
+        return jsonify({
+            'success': True,
+            'parent_qr': qr_id,
+            'children': children_data,
+            'count': len(children_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting children by parent QR: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to load children'}), 500
+
 # =============================================================================
 # OPTIMIZED DASHBOARD AND STATS ENDPOINTS  
 # =============================================================================
