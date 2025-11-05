@@ -288,16 +288,60 @@ def load_user(user_id):
     
     return user
 
-# Initialize database tables and admin user
+# Run database migrations automatically on startup
 with app.app_context():
     try:
         # Import models to ensure they're registered
         import models
         
-        # NOTE: Schema management is now handled by Alembic migrations
+        # AUTOMATIC MIGRATIONS: Run pending migrations on application startup
+        # This ensures database schema is always up-to-date without manual intervention
+        try:
+            from flask_migrate import upgrade as flask_migrate_upgrade
+            from alembic.script import ScriptDirectory
+            from alembic.config import Config as AlembicConfig
+            import alembic.command
+            
+            logger.info("🔄 Checking for pending database migrations...")
+            
+            # Get Alembic config
+            migrations_path = os.path.join(os.path.dirname(__file__), 'migrations')
+            alembic_cfg = AlembicConfig(os.path.join(migrations_path, 'alembic.ini'))
+            alembic_cfg.set_main_option('script_location', migrations_path)
+            
+            # Check current migration version
+            from alembic.migration import MigrationContext
+            from sqlalchemy import create_engine
+            
+            engine = db.engine
+            conn = engine.connect()
+            context = MigrationContext.configure(conn)
+            current_rev = context.get_current_revision()
+            conn.close()
+            
+            # Get latest migration version
+            script = ScriptDirectory.from_config(alembic_cfg)
+            head_rev = script.get_current_head()
+            
+            if current_rev == head_rev:
+                logger.info(f"✅ Database schema is up-to-date (revision: {current_rev or 'base'})")
+            else:
+                logger.info(f"📝 Applying pending migrations: {current_rev or 'base'} → {head_rev}")
+                
+                # Run migrations
+                flask_migrate_upgrade()
+                
+                logger.info(f"✅ Database migrations applied successfully! Current revision: {head_rev}")
+        
+        except Exception as migration_error:
+            # Log migration errors but don't crash the app
+            # This allows the app to start even if migrations fail (e.g., schema already up-to-date manually)
+            logger.error(f"⚠️  Migration check failed (non-critical): {str(migration_error)}")
+            logger.info("📌 App will continue startup - database may already be up-to-date")
+        
+        # NOTE: Schema management is now handled by Alembic migrations above
         # db.create_all() is disabled to avoid conflicts with migration system
-        # To initialize database schema on fresh deployment, run: flask db upgrade
-        # db.create_all()  # DISABLED: Use Flask-Migrate instead
+        # db.create_all()  # DISABLED: Use Flask-Migrate for automatic migrations
         
         # Create or update admin user (only if tables exist)
         try:
