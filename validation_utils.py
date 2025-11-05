@@ -349,7 +349,7 @@ class InputValidator:
         return True, ""
 
 # Convenience function for API endpoint validation
-def validate_api_input(data: dict, required_fields: dict, optional_fields: dict = None) -> Tuple[bool, dict, str]:
+def validate_api_input(data: dict, required_fields: dict, optional_fields: Optional[dict] = None) -> Tuple[bool, dict, str]:
     """
     Validate API endpoint input data
     

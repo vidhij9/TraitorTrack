@@ -126,41 +126,16 @@ except ImportError:
 
 # Using Flask-Login's login_required decorator directly
 
-def validate_qr_code(qr_id):
-    """Optimized QR code validation"""
-    if not qr_id or len(qr_id.strip()) == 0:
-        return False, "QR code cannot be empty"
-    
-    qr_id = qr_id.strip()
-    
-    # Quick length and character validation
-    if len(qr_id) > 100:
-        return False, "QR code is too long (max 100 characters)"
-    
-    # Check for problematic characters
-    if any(char in qr_id for char in ['<', '>', '"', "'", '&', '%']):
-        return False, "QR code contains invalid characters"
-    
-    return True, "Valid QR code"
-
 from sqlalchemy import desc, func, and_, or_, text
 from datetime import datetime, timedelta
 
 from app import app, db, limiter, csrf, csrf_compat
 from forms import LoginForm, RegistrationForm, ChildLookupForm, ManualScanForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from validation_utils import InputValidator
-# from validation_utils import validate_parent_qr_id, validate_child_qr_id, validate_bill_id, sanitize_input
-# Define simple validation functions
-def validate_parent_qr_id(qr_id):
-    return qr_id and qr_id.strip().upper().startswith('SB')
 
-def validate_child_qr_id(qr_id):
-    return qr_id and len(qr_id.strip()) > 2
-
-def validate_bill_id(bill_id):
-    return bill_id and len(bill_id.strip()) > 0
-
+# Simple sanitization helper for backward compatibility
 def sanitize_input(input_str):
+    """Simple input sanitizer - strips whitespace and limits length"""
     if not input_str:
         return ''
     return str(input_str).strip()[:255]
@@ -1816,6 +1791,13 @@ def log_scan():
             flash('QR ID is required', 'error')
             return redirect(url_for('scan'))
         
+        # Validate QR code format using InputValidator
+        is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_id)
+        if not is_valid:
+            flash(f'Invalid QR code: {error_msg}', 'error')
+            return redirect(url_for('scan'))
+        qr_id = cleaned_qr  # Use cleaned/normalized QR code
+        
         if not status:
             flash('Status is required', 'error')
             return redirect(url_for('scan'))
@@ -3054,9 +3036,11 @@ def scan_child():
         if qr_id:
             # Handle QR scan request - ULTRA-OPTIMIZED FOR SUB-SECOND RESPONSE
             try:
-                # Validate QR code format
-                if len(qr_id) < 3:
-                    return jsonify({'success': False, 'message': 'QR code too short. Please scan a valid QR code.'})
+                # Validate QR code format using InputValidator
+                is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_id)
+                if not is_valid:
+                    return jsonify({'success': False, 'message': f'Invalid QR code: {error_msg}'})
+                qr_id = cleaned_qr  # Use cleaned/normalized QR code
                 
                 # OPTIMIZED: Get parent bag from session (cached)
                 parent_qr = session.get('current_parent_qr')
