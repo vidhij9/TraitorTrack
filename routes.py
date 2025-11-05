@@ -4442,6 +4442,11 @@ def create_bill():
             bill_id = sanitize_input(form_bill_id.strip() if form_bill_id else '')
             parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
             
+            # Get and validate destination and vehicle number
+            # Note: form field is 'truck_number' not 'vehicle_number'
+            destination = request.form.get('destination', '').strip()
+            vehicle_number = request.form.get('truck_number', '').strip()
+            
             if not bill_id:
                 flash('Bill ID is required.', 'error')
                 return render_template('create_bill.html')
@@ -4449,6 +4454,16 @@ def create_bill():
             # Basic validation - just check if bill_id is not empty
             if len(bill_id.strip()) == 0:
                 flash('Bill ID cannot be empty.', 'error')
+                return render_template('create_bill.html')
+            
+            # Validate destination (required for production)
+            if not destination or len(destination.strip()) == 0:
+                flash('Destination is required.', 'error')
+                return render_template('create_bill.html')
+            
+            # Validate vehicle number (required for production)
+            if not vehicle_number or len(vehicle_number.strip()) == 0:
+                flash('Vehicle number is required.', 'error')
                 return render_template('create_bill.html')
             
             # Simplified validation for optimized version
@@ -4476,6 +4491,8 @@ def create_bill():
             bill = Bill()
             bill.bill_id = bill_id
             bill.description = ''
+            bill.destination = destination
+            bill.vehicle_number = vehicle_number
             bill.parent_bag_count = parent_bag_count
             bill.created_by_id = current_user.id
             bill.status = 'new'
