@@ -85,8 +85,16 @@ Preferred communication style: Simple, everyday language.
 - ✅ No regressions observed
 - ✅ Production-ready deployment approved
 
+**Automatic Database Migrations (November 2025):**
+- ✅ **Zero Manual Setup Required**: Flask-Migrate configured with automatic migrations on app startup
+- ✅ **Migration File Generated**: `986e81b92e8e_add_destination_and_vehicle_number_to_.py` adds Bill columns
+- ✅ **Auto-Upgrade on Startup**: Every app startup checks for pending migrations and applies them automatically
+- ✅ **Production-Safe**: Migration errors are non-fatal - app continues if schema already up-to-date
+- ✅ **Comprehensive Logging**: Migration status logged with revision tracking (current: 986e81b92e8e)
+- ⚠️ **No Manual SQL Required**: Previous manual migration requirement removed - fully automated
+
 **Deployment Requirements:**
-- Database migration: Execute `ALTER TABLE bill ADD COLUMN destination VARCHAR(200), ADD COLUMN vehicle_number VARCHAR(50)`
+- ✅ **Database Migrations**: Fully automated - no manual steps required
 - Monitor production logs post-release for 4xx/5xx responses on new endpoints
 - Consider consolidating duplicate child scan endpoints based on production metrics
 
@@ -123,6 +131,7 @@ The project uses a standard Flask application structure with modules for models,
 - **Rate Limiting Strategy**: In-memory Flask-Limiter with fixed-window strategy across various endpoints.
 - **System Health Monitoring**: Real-time metrics endpoint and admin dashboard tracking database connection pool, cache performance, memory usage, database size, and error counts.
 - **Deployment**: Utilizes `gunicorn` with sync workers, designed for cloud environments with environment variable-driven configuration.
+- **Automatic Database Migrations**: Flask-Migrate configured to run migrations automatically on app startup, ensuring zero-downtime deployments with comprehensive logging and production-safe error handling.
 - **Validation Framework**: Comprehensive input validation utilities for QR codes, search queries, HTML sanitization, pagination, email/username, numeric ranges, choice/enum, and file uploads.
 - **Offline Support**: `localStorage`-based offline queue with auto-retry and optimistic UI updates.
 - **Undo Functionality**: Backend endpoint `/api/unlink_child` and UI for removing the most recent scan within a 1-hour window.

@@ -152,13 +152,42 @@ python verify_db_connection.py
 - Run `verify_db_connection.py` to confirm connectivity
 
 ### 2. Database Initialization
-The application automatically:
-- Creates all tables on first run
-- Sets up statistics_cache table with triggers
-- Creates composite indexes for performance
-- Initializes admin user
 
-**Note:** Migrations are idempotent and safe to run multiple times.
+**✅ AUTOMATIC DATABASE MIGRATIONS**
+
+The application now features **fully automated database migrations** that run on every startup:
+
+- **Zero Manual Steps**: No SQL commands required - migrations run automatically
+- **Seamless Deployments**: Schema updates apply automatically when you deploy
+- **Production-Safe**: Non-fatal error handling - app continues if already up-to-date
+- **Comprehensive Logging**: Migration status tracked with revision IDs
+- **Current Migration**: `986e81b92e8e` (adds Bill.destination and Bill.vehicle_number columns)
+
+**What Happens on Startup:**
+1. App checks current database schema revision
+2. Detects pending migrations (if any)
+3. Applies migrations automatically via Flask-Migrate
+4. Logs migration status with emojis: 🔄 (checking) → ✅ (success)
+5. Continues with normal initialization
+
+**Example Startup Logs:**
+```
+2025-11-05 14:43:14 - app - INFO - 🔄 Checking for pending database migrations...
+2025-11-05 14:43:14 - app - INFO - ✅ Database schema is up-to-date (revision: 986e81b92e8e)
+```
+
+**Legacy Manual Migrations (NO LONGER NEEDED):**
+- ❌ Manual `ALTER TABLE` commands - **REMOVED** (fully automated now)
+- ❌ Running `flask db upgrade` manually - **REMOVED** (runs on startup)
+- ❌ Database schema setup scripts - **REMOVED** (automated)
+
+**Migration Files Location:** `/migrations/versions/`
+
+**Note:** The app also creates:
+- All tables on first run (if database is empty)
+- Statistics_cache table with triggers
+- Composite indexes for performance
+- Admin user account
 
 ### 3. Deploy to Production
 ```bash
