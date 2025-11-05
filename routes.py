@@ -2478,8 +2478,8 @@ def process_child_scan():
         if not qr_code:
             return jsonify({'success': False, 'message': 'No QR code provided'})
         
-        # Validate QR code format using InputValidator
-        is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_code)
+        # Validate QR code format using InputValidator (enforce child bag alphanumeric pattern)
+        is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_code, bag_type='child')
         if not is_valid:
             return jsonify({'success': False, 'message': f'Invalid QR code: {error_msg}'})
         qr_code = cleaned_qr  # Use cleaned/normalized QR code
@@ -2777,8 +2777,8 @@ def process_child_scan_fast():
         if not qr_id:
             return jsonify({'success': False, 'message': 'No QR code provided'})
         
-        # Validate QR code format using InputValidator
-        is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_id)
+        # Validate QR code format using InputValidator (enforce child bag alphanumeric pattern)
+        is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_id, bag_type='child')
         if not is_valid:
             return jsonify({'success': False, 'message': f'Invalid QR code: {error_msg}'})
         qr_id = cleaned_qr  # Use cleaned/normalized QR code
@@ -2872,12 +2872,9 @@ def process_child_scan_fast():
 def api_unlink_child():
     """Unlink a child bag from current parent (undo functionality)"""
     try:
-        # Get QR code from JSON
-        data = request.get_json()
+        # Get QR code from JSON (optional - if not provided, unlink most recent)
+        data = request.get_json() or {}
         qr_id = data.get('qr_code', '').strip()
-        
-        if not qr_id:
-            return jsonify({'success': False, 'message': 'No QR code provided'})
         
         # Get parent from session
         parent_qr = session.get('current_parent_qr')
@@ -2892,16 +2889,37 @@ def api_unlink_child():
         if not parent_bag:
             return jsonify({'success': False, 'message': 'Parent bag not found'})
         
-        # Get child bag
-        child_bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
-        if not child_bag:
-            return jsonify({'success': False, 'message': 'Child bag not found'})
-        
-        # Find the link for this specific parent-child combination
-        link = Link.query.filter_by(
-            parent_bag_id=parent_bag.id,
-            child_bag_id=child_bag.id
-        ).first()
+        # If QR code provided, find specific child. Otherwise, find most recent link.
+        if qr_id:
+            # Specific child bag
+            child_bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
+            if not child_bag:
+                return jsonify({'success': False, 'message': 'Child bag not found'})
+            
+            # Find the link for this specific parent-child combination
+            link = Link.query.filter_by(
+                parent_bag_id=parent_bag.id,
+                child_bag_id=child_bag.id
+            ).first()
+        else:
+            # Find the most recent link for this parent
+            from datetime import datetime, timedelta
+            recent_cutoff = datetime.utcnow() - timedelta(hours=1)
+            
+            link = Link.query.filter_by(parent_bag_id=parent_bag.id)\
+                .filter(Link.created_at >= recent_cutoff)\
+                .order_by(Link.created_at.desc())\
+                .first()
+            
+            if not link:
+                return jsonify({'success': False, 'message': 'No recent scan to undo (must be within 1 hour)'})
+            
+            # Get the child bag from the link
+            child_bag = Bag.query.get(link.child_bag_id)
+            if not child_bag:
+                return jsonify({'success': False, 'message': 'Child bag not found'})
+            
+            qr_id = child_bag.qr_id  # Set for logging and response
         
         if not link:
             return jsonify({'success': False, 'message': 'Link not found'})
@@ -3036,8 +3054,8 @@ def scan_child():
         if qr_id:
             # Handle QR scan request - ULTRA-OPTIMIZED FOR SUB-SECOND RESPONSE
             try:
-                # Validate QR code format using InputValidator
-                is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_id)
+                # Validate QR code format using InputValidator (enforce child bag alphanumeric pattern)
+                is_valid, cleaned_qr, error_msg = InputValidator.validate_qr_code(qr_id, bag_type='child')
                 if not is_valid:
                     return jsonify({'success': False, 'message': f'Invalid QR code: {error_msg}'})
                 qr_id = cleaned_qr  # Use cleaned/normalized QR code

@@ -413,12 +413,12 @@ function nextBag() {
 let lastScannedQr = null;
 
 async function undoLast() {
-    if (!lastScannedQr) {
-        showToast('⚠️ Nothing to undo', 'warning');
-        return;
-    }
+    // If we don't have the QR code in memory, confirm generically
+    const confirmMsg = lastScannedQr 
+        ? `Remove ${lastScannedQr}?` 
+        : 'Remove the most recent scan?';
     
-    if (!confirm(`Remove ${lastScannedQr}?`)) return;
+    if (!confirm(confirmMsg)) return;
     
     const undoBtn = document.getElementById('undo-btn');
     if (undoBtn) undoBtn.disabled = true;
@@ -431,10 +431,15 @@ async function undoLast() {
             headers['X-CSRFToken'] = csrfToken;
         }
         
+        // Send QR code if we have it, otherwise let server determine most recent
+        const requestBody = lastScannedQr 
+            ? { qr_code: lastScannedQr }
+            : {};
+        
         const r = await fetch('/api/unlink_child', {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify({ qr_code: lastScannedQr })
+            body: JSON.stringify(requestBody)
         });
         
         const d = await r.json();
@@ -512,6 +517,12 @@ setTimeout(() => {
 }, 500);
 
 keepFocus(input);
+
+// Show undo button if there are scanned bags
+const undoBtn = document.getElementById('undo-btn');
+if (count > 0 && undoBtn) {
+    undoBtn.style.display = 'inline-block';
+}
 
 if (count >= 30 && party) {
     party.style.display = 'block';
