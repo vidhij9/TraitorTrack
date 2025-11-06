@@ -2597,12 +2597,14 @@ def process_child_scan():
         # CRITICAL: Calculate new count and auto-complete BEFORE commit (atomic)
         updated_count = current_child_count + 1
         
-        # UPDATE PARENT BAG STATUS AND WEIGHT WHEN 30 CHILDREN ARE LINKED
+        # UPDATE PARENT BAG COUNT AND WEIGHT ON EVERY SCAN
+        parent_bag.child_count = updated_count
+        parent_bag.weight_kg = float(updated_count)  # 1kg per child bag
+        
+        # AUTO-COMPLETE WHEN 30 CHILDREN ARE LINKED
         # This MUST happen BEFORE commit to maintain atomic lock and prevent race conditions
         if updated_count == 30:
             parent_bag.status = 'completed'
-            parent_bag.child_count = 30
-            parent_bag.weight_kg = 30.0  # 1kg per child bag
             app.logger.info(f'Parent bag {parent_qr} automatically marked as completed with 30 children')
         
         # Single atomic commit (includes link, scan, AND status update if 30th child)
@@ -2866,12 +2868,14 @@ def process_child_scan_fast():
         # This prevents race condition where 31st scan slips in before status is set
         new_count = current_count + 1
         
-        # UPDATE PARENT BAG STATUS AND WEIGHT WHEN 30 CHILDREN ARE LINKED
+        # UPDATE PARENT BAG COUNT AND WEIGHT ON EVERY SCAN
+        parent_bag.child_count = new_count
+        parent_bag.weight_kg = float(new_count)  # 1kg per child bag
+        
+        # AUTO-COMPLETE WHEN 30 CHILDREN ARE LINKED
         # This MUST happen BEFORE commit to maintain atomic lock
         if new_count == 30:
             parent_bag.status = 'completed'
-            parent_bag.child_count = 30
-            parent_bag.weight_kg = 30.0  # 1kg per child bag
             app.logger.info(f'[FAST_SCAN] Parent {parent_qr} auto-completing with 30th child {qr_id}')
         
         # Single atomic commit (includes link, scan, AND status update if 30th child)
