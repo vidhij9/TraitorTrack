@@ -2499,8 +2499,13 @@ def process_child_scan():
         if qr_code == parent_qr:
             return jsonify({'success': False, 'message': f'Cannot link QR code {qr_code} to itself. Parent and child must be different QR codes.'})
         
-        # Use query_optimizer for better performance
-        parent_bag = query_optimizer.get_bag_by_qr(parent_qr, 'parent')
+        # Use query_optimizer for better performance with atomic locking
+        # CRITICAL: Use SELECT FOR UPDATE to prevent race conditions on 30-child limit
+        parent_bag = Bag.query.filter(
+            func.upper(Bag.qr_id) == func.upper(parent_qr),
+            Bag.type == 'parent'
+        ).with_for_update().first()
+        
         if not parent_bag:
             # Clear invalid parent from session to prevent repeated errors
             session.pop('current_parent_qr', None)
@@ -2510,8 +2515,12 @@ def process_child_scan():
                 'clear_parent': True  # Signal frontend to clear parent selection
             })
         
-        # Check if we've reached the 30 bags limit - OPTIMIZED
-        current_child_count = query_optimizer.get_child_count_fast(parent_bag.id)  # type: ignore
+        # CRITICAL: Check if parent is already completed (prevents 31st+ scans)
+        if parent_bag.status == 'completed':
+            return jsonify({'success': False, 'message': 'Parent bag already completed (30/30 limit reached). Please select a new parent bag.'})
+        
+        # Check if we've reached the 30 bags limit - OPTIMIZED with atomic lock
+        current_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
         
         if current_child_count >= 30:
             return jsonify({'success': False, 'message': 'Parent bag is full! Maximum 30 child bags allowed per parent.'})
@@ -2584,15 +2593,25 @@ def process_child_scan():
         scan.child_bag_id = child_bag.id
         
         db.session.add_all([link, scan])
+        
+        # CRITICAL: Calculate new count and auto-complete BEFORE commit (atomic)
+        updated_count = current_child_count + 1
+        
+        # UPDATE PARENT BAG STATUS AND WEIGHT WHEN 30 CHILDREN ARE LINKED
+        # This MUST happen BEFORE commit to maintain atomic lock and prevent race conditions
+        if updated_count == 30:
+            parent_bag.status = 'completed'
+            parent_bag.child_count = 30
+            parent_bag.weight_kg = 30.0  # 1kg per child bag
+            app.logger.info(f'Parent bag {parent_qr} automatically marked as completed with 30 children')
+        
+        # Single atomic commit (includes link, scan, AND status update if 30th child)
         db.session.commit()
         invalidate_bags_cache()  # Invalidate bags cache after link creation
         invalidate_stats_cache()  # Invalidate stats cache after scan
         # Invalidate query optimizer cache for affected bags
         query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
         query_optimizer.invalidate_bag_cache(qr_id=qr_code)
-        
-        # Use cached count + 1 instead of querying again
-        updated_count = current_child_count + 1
         
         return jsonify({
             'success': True,
@@ -2792,17 +2811,28 @@ def process_child_scan_fast():
             return jsonify({'success': False, 'message': 'Cannot link to itself'})
         
         # Fallback to ORM queries (optimized handler not available)
+        # CRITICAL: Use SELECT FOR UPDATE to prevent race conditions on 30-child limit
         parent_bag = Bag.query.filter(
             func.upper(Bag.qr_id) == func.upper(parent_qr),
             Bag.type == 'parent'
-        ).first()
+        ).with_for_update().first()
+        
         if not parent_bag:
+            app.logger.error(f'[FAST_SCAN] Parent bag not found: {parent_qr}')
             return jsonify({'success': False, 'message': 'Parent bag not found'})
         
-        # Check current count and enforce 30-bag limit
+        # CRITICAL: Check if parent is already completed (prevents 31st+ scans)
+        app.logger.info(f'[FAST_SCAN] Parent {parent_qr} (ID:{parent_bag.id}) status={parent_bag.status}')
+        if parent_bag.status == 'completed':
+            app.logger.warning(f'[FAST_SCAN] REJECTED: Parent {parent_qr} already completed - child {qr_id} blocked')
+            return jsonify({'success': False, 'message': 'Parent bag already completed (30/30 limit reached)'})
+        
+        # Check current count and enforce 30-bag limit (atomic with lock above)
         current_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+        app.logger.info(f'[FAST_SCAN] Parent {parent_qr} current_count={current_count}, attempting to link {qr_id}')
         if current_count >= 30:
-            return jsonify({'success': False, 'message': 'Maximum 30 child bags reached!'})
+            app.logger.warning(f'[FAST_SCAN] REJECTED: Parent {parent_qr} at {current_count}/30 limit - child {qr_id} blocked')
+            return jsonify({'success': False, 'message': 'Maximum 30 child bags reached!'}) 
         
         # Check/create child bag (case-insensitive)
         child_bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first()
@@ -2832,25 +2862,25 @@ def process_child_scan_fast():
         db.session.add(link)
         db.session.add(scan)
         
-        # Single fast commit
+        # CRITICAL: Calculate new count BEFORE commit to set status atomically
+        # This prevents race condition where 31st scan slips in before status is set
+        new_count = current_count + 1
+        
+        # UPDATE PARENT BAG STATUS AND WEIGHT WHEN 30 CHILDREN ARE LINKED
+        # This MUST happen BEFORE commit to maintain atomic lock
+        if new_count == 30:
+            parent_bag.status = 'completed'
+            parent_bag.child_count = 30
+            parent_bag.weight_kg = 30.0  # 1kg per child bag
+            app.logger.info(f'[FAST_SCAN] Parent {parent_qr} auto-completing with 30th child {qr_id}')
+        
+        # Single atomic commit (includes link, scan, AND status update if 30th child)
         db.session.commit()
         invalidate_bags_cache()  # Invalidate bags cache after link creation
         invalidate_stats_cache()  # Invalidate stats cache after scan
         # Invalidate query optimizer cache for affected bags
         query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
         query_optimizer.invalidate_bag_cache(qr_id=qr_id)
-        
-        # Return current count after linking
-        new_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-        
-        # UPDATE PARENT BAG STATUS AND WEIGHT WHEN 30 CHILDREN ARE LINKED
-        if new_count == 30:
-            parent_bag.status = 'completed'
-            parent_bag.child_count = 30
-            parent_bag.weight_kg = 30.0  # 1kg per child bag
-            db.session.commit()
-            invalidate_bags_cache()  # Invalidate bags cache after parent bag update
-            app.logger.info(f'Parent bag {parent_qr} automatically marked as completed with 30 children')
         
         return jsonify({
             'success': True,

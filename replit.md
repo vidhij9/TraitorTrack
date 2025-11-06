@@ -63,6 +63,20 @@ Preferred communication style: Simple, everyday language.
      - Returns full bill details including destination, vehicle_number, parent_bags array
    - **Impact**: Enables programmatic bill retrieval, integrations, and complete search functionality
 
+7. **30-Child Limit Race Condition (CRITICAL)**
+   - **Issue**: System accepted 31st+ children despite hard 30-child limit - race condition allowed scans to slip through before auto-completion status was set
+   - **Root Cause**: Auto-completion happened AFTER commit, creating window where:
+     - 30th scan: Lock → Create link → COMMIT (release lock) → Set status='completed' → Commit again
+     - 31st scan: (slips in here) → Lock parent (status not 'completed' yet) → Accepts scan
+   - **Fix**:
+     - Moved auto-completion logic BEFORE commit for atomic enforcement
+     - Applied to both `/process_child_scan` and `/process_child_scan_fast` endpoints
+     - Added row-level locking with `SELECT FOR UPDATE`
+     - New flow: Lock → Count → Create link → **Set status='completed' IF count==30** → Single atomic commit → Release lock
+     - Enhanced UI error feedback: Error messages stay visible (don't auto-clear), show full server message
+   - **Verification**: Architect-approved ✅ - "There is no code path left that would accept the 31st child once the new logic is running"
+   - **Impact**: True 30-child limit enforcement with zero race conditions, production-grade data integrity
+
 **QR Code Validation Security (Verified):**
 - All 4 QR code input endpoints properly secured:
   - `/scan_child` - Main child bag scanning interface

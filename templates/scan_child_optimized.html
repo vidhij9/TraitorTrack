@@ -361,10 +361,12 @@ async function process(qr) {
                 }, 500);
             }
         } else {
+            // REJECTION: Show clear error feedback
             showToast('❌ ' + (d.message || 'Error'), 'error');
-            status.innerHTML = '⚠️ Try again';
+            status.innerHTML = '❌ ' + (d.message || 'Error');
             status.style.color = '#f44336';
             vibrate([200, 100, 200]);
+            console.log('[SCAN REJECTED]', d.message || 'Error');
         }
     } catch (err) {
         clearTimeout(timeout);
@@ -397,11 +399,14 @@ async function process(qr) {
         input.value = '';
         input.focus();
         
+        // Only reset to Ready if showing success (keep errors visible longer)
         setTimeout(() => {
-            if (status.innerHTML !== '✅ Success!') {
+            if (status.innerHTML === '✅ Success!') {
+                // Success message resets after 2s
                 status.innerHTML = '✅ Ready';
                 status.style.color = '#666';
             }
+            // Error messages stay visible (don't auto-clear) to help workers
         }, 2000);
     }
 }
