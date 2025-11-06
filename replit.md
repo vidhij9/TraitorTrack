@@ -77,6 +77,19 @@ Preferred communication style: Simple, everyday language.
    - **Verification**: Architect-approved ✅ - "There is no code path left that would accept the 31st child once the new logic is running"
    - **Impact**: True 30-child limit enforcement with zero race conditions, production-grade data integrity
 
+8. **Bill API Missing Weight Fields (CRITICAL)**
+   - **Issue**: GET /api/bills/{id} didn't return weight information needed for integrations; duplicate parent bags caused incorrect counts
+   - **Root Cause**: API lacked weight calculations; SQL join returned duplicate parent bags when multiple BillBag records existed
+   - **Fix**:
+     - Added `.distinct()` to parent bags query to eliminate duplicates
+     - Calculate `actual_weight_kg`: Sum of all child counts (1kg per child)
+     - Calculate `expected_weight_kg`: Unique parent count × 30kg max capacity
+     - Return `total_child_count`: Total children across all parents
+     - Include `child_count` in each parent_bag object
+     - Use `unique_parent_count` for consistent parent_bag_count field
+   - **Verification**: Architect-approved ✅ - "Deduplicates parent bags so expected_weight_kg and parent_bag_count align with unique parents"
+   - **Impact**: Complete bill data for invoicing, shipping labels, and external integrations; accurate weight calculations
+
 **QR Code Validation Security (Verified):**
 - All 4 QR code input endpoints properly secured:
   - `/scan_child` - Main child bag scanning interface
