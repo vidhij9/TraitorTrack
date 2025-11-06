@@ -7566,12 +7566,18 @@ def api_bill_detail_endpoint(identifier):
                 'error': 'Bill not found'
             }), 404
         
-        # Get linked parent bags
+        # Get linked parent bags (DISTINCT to avoid duplicates from join)
         parent_bags = db.session.query(Bag).join(
             BillBag, Bag.id == BillBag.bag_id
         ).filter(
             BillBag.bill_id == bill.id
-        ).all()
+        ).distinct().all()
+        
+        # Calculate weights using deduplicated parent bags
+        total_child_count = sum(bag.child_count or 0 for bag in parent_bags)
+        unique_parent_count = len(parent_bags)  # Now correctly counts unique parents
+        actual_weight_kg = float(total_child_count)  # 1kg per child
+        expected_weight_kg = float(unique_parent_count * 30)  # 30kg max per parent
         
         # Build response with bill details
         bill_data = {
@@ -7579,16 +7585,20 @@ def api_bill_detail_endpoint(identifier):
             'id': bill.id,
             'bill_id': bill.bill_id,
             'status': bill.status,
-            'parent_bag_count': bill.parent_bag_count,
+            'parent_bag_count': unique_parent_count,  # Use actual unique count, not stored field
             'destination': bill.destination if hasattr(bill, 'destination') else None,
             'vehicle_number': bill.vehicle_number if hasattr(bill, 'vehicle_number') else None,
             'created_at': bill.created_at.isoformat() if bill.created_at else None,
+            'actual_weight_kg': actual_weight_kg,
+            'expected_weight_kg': expected_weight_kg,
+            'total_child_count': total_child_count,
             'parent_bags': [
                 {
                     'id': bag.id,
                     'qr_id': bag.qr_id,
                     'type': str(bag.type) if bag.type else 'unknown',
-                    'status': str(bag.status) if bag.status else 'unknown'
+                    'status': str(bag.status) if bag.status else 'unknown',
+                    'child_count': bag.child_count or 0
                 } for bag in parent_bags
             ]
         }
