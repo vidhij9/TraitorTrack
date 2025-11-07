@@ -1660,8 +1660,10 @@ def login():
             return redirect(url_for('dashboard'))
                 
         except Exception as e:
+            import traceback
             app.logger.error(f"LOGIN EXCEPTION: {e}")
-            flash('Login failed. Please try again.', 'error')
+            app.logger.error(f"LOGIN EXCEPTION TRACEBACK: {traceback.format_exc()}")
+            flash(f'Login failed. Error: {str(e)}', 'error')
         
         return render_template('login.html')
     
