@@ -570,24 +570,130 @@ body.warehouse-mode {
     animation: wh-fadeIn 0.3s ease;
 }
 
-/* Mobile Optimizations */
+/* Icon-First Utilities for Illiterate Users */
+.wh-icon-only .wh-btn-text {
+    display: none;
+}
+
+.wh-icon-only .wh-icon {
+    font-size: var(--wh-font-3xl);
+    margin: 0;
+}
+
+.wh-visual-step {
+    display: flex;
+    align-items: center;
+    margin: var(--wh-space-lg) 0;
+}
+
+.wh-step-number {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--wh-primary);
+    color: var(--wh-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--wh-font-2xl);
+    font-weight: bold;
+    margin-right: var(--wh-space-md);
+    flex-shrink: 0;
+}
+
+.wh-step-icon {
+    font-size: var(--wh-font-3xl);
+    margin-right: var(--wh-space-md);
+}
+
+.wh-step-text {
+    font-size: var(--wh-font-lg);
+    font-weight: 600;
+}
+
+/* Color-Coded Status Indicators */
+.wh-status-success {
+    background: var(--wh-success);
+    color: var(--wh-white);
+    padding: var(--wh-space-lg);
+    border-radius: var(--wh-radius-lg);
+    text-align: center;
+    font-size: var(--wh-font-xl);
+    font-weight: bold;
+}
+
+.wh-status-error {
+    background: var(--wh-danger);
+    color: var(--wh-white);
+    padding: var(--wh-space-lg);
+    border-radius: var(--wh-radius-lg);
+    text-align: center;
+    font-size: var(--wh-font-xl);
+    font-weight: bold;
+}
+
+.wh-status-warning {
+    background: var(--wh-warning);
+    color: var(--wh-dark);
+    padding: var(--wh-space-lg);
+    border-radius: var(--wh-radius-lg);
+    text-align: center;
+    font-size: var(--wh-font-xl);
+    font-weight: bold;
+}
+
+/* Mobile Optimizations - Maximum Usability for Warehouse Workers */
 @media (max-width: 768px) {
     .wh-container {
-        padding: var(--wh-space-md);
+        padding: var(--wh-space-sm);
     }
     
     .wh-card {
-        padding: var(--wh-space-lg);
+        padding: var(--wh-space-md);
     }
     
     .wh-card-header {
         padding: var(--wh-space-md) var(--wh-space-lg);
-        margin: calc(-1 * var(--wh-space-lg)) calc(-1 * var(--wh-space-lg)) var(--wh-space-lg);
+        margin: calc(-1 * var(--wh-space-md)) calc(-1 * var(--wh-space-md)) var(--wh-space-md);
+    }
+    
+    /* CRITICAL: Even larger buttons on mobile */
+    .wh-btn {
+        min-height: 70px !important;
+        padding: var(--wh-space-lg) var(--wh-space-xl) !important;
+        font-size: var(--wh-font-lg) !important;
+        font-weight: 700 !important;
+    }
+    
+    .wh-btn-sm {
+        min-height: 60px !important;
+        padding: var(--wh-space-md) var(--wh-space-lg) !important;
+        font-size: var(--wh-font-base) !important;
+        font-weight: 700 !important;
+    }
+    
+    .wh-btn-lg {
+        min-height: 90px !important;
+        padding: var(--wh-space-xl) var(--wh-space-2xl) !important;
+        font-size: var(--wh-font-xl) !important;
+    }
+    
+    /* Icon size in buttons */
+    .wh-icon {
+        font-size: var(--wh-font-xl);
     }
     
     .wh-scanner-input {
         font-size: var(--wh-font-2xl);
         padding: var(--wh-space-lg);
+        min-height: 80px;
+    }
+    
+    .wh-input,
+    .wh-select {
+        min-height: 60px !important;
+        font-size: var(--wh-font-lg) !important;
+        padding: var(--wh-space-lg) !important;
     }
     
     .wh-counter {
@@ -597,6 +703,22 @@ body.warehouse-mode {
     .wh-grid-2,
     .wh-grid-3 {
         grid-template-columns: 1fr;
+    }
+    
+    /* Stack visual steps vertically */
+    .wh-visual-step {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .wh-step-number {
+        margin-right: 0;
+        margin-bottom: var(--wh-space-md);
+    }
+    
+    .wh-step-icon {
+        margin-right: 0;
+        margin-bottom: var(--wh-space-sm);
     }
 }
 
