@@ -3,6 +3,17 @@
 ## Overview
 TraitorTrack is a high-performance, production-ready web-based bag tracking system for warehouse and logistics. It manages parent-child bag relationships, scanning, and bill generation, designed to support over 100 concurrent users and 1.8 million bags. Its core purpose is to streamline logistics, enhance operational efficiency, and provide robust, scalable bag management with real-time tracking for dispatchers, billers, and administrators.
 
+## Recent Changes (November 2025)
+### Critical Bug Fixes
+1. **Redis Configuration** - Enhanced URL validation with clear error messages for development vs production environments
+2. **LSP Type Errors** - Fixed notification API endpoints to properly handle authentication edge cases
+3. **Migration File** - Resolved type errors by converting expression-based indexes to raw SQL
+4. **Dashboard Analytics** - Optimized hourly scan aggregation, eliminating N+1 query (reduced from 24 queries to 1)
+5. **Bag Type Auto-Conversion** - Removed dangerous code that could corrupt data integrity by auto-converting bag types
+6. **Bill Weight Calculation** - Replaced error-prone manual calculations with standardized `recalculate_weights()` method across all bill-linking routes
+7. **Session Handling** - Improved edge case handling for expired/invalid parent bags in session
+8. **CSRF Security** - Documented all 21 CSRF-exempted routes with risk analysis (see CSRF_SECURITY_ANALYSIS.md)
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
