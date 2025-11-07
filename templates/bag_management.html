@@ -330,6 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token() }}'
                 },
                 body: `qr_code=${encodeURIComponent(qrCode)}`
             })

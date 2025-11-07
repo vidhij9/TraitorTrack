@@ -6283,7 +6283,6 @@ def api_delete_child_scan():
         }), 500
 
 @app.route('/api/delete_bag', methods=['POST'])
-@csrf_compat.exempt
 @login_required
 def api_delete_bag():
     """Delete a bag and handle parent/child relationships - optimized for performance"""
@@ -7617,7 +7616,6 @@ def child_lookup_page():
 
 @app.route('/excel_upload', methods=['GET', 'POST'])
 @login_required
-@csrf_compat.exempt
 def excel_upload():
     """Redirect to new bulk import page"""
     return redirect(url_for('import_bags'))
@@ -7629,7 +7627,6 @@ def excel_upload():
 
 @app.route('/import/bags', methods=['GET', 'POST'])
 @login_required
-@csrf_compat.exempt
 def import_bags():
     """Bulk import bags from CSV or Excel - admin only"""
     if not current_user.is_admin():
@@ -7709,7 +7706,6 @@ def import_bags():
 
 @app.route('/import/bills', methods=['GET', 'POST'])
 @login_required
-@csrf_compat.exempt
 def import_bills():
     """Bulk import bills from CSV - admin only"""
     if not current_user.is_admin():
