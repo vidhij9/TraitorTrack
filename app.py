@@ -64,36 +64,47 @@ is_production = (
 )
 
 # Redis Configuration - for sessions and rate limiting
-# REDIS_URL format: redis://[[username]:[password]]@host:port/db
-# Default: redis://localhost:6379/0
-redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+# REDIS_URL format: redis://[[username]:[password]]@host:port/db or rediss:// for SSL
+redis_url = os.environ.get('REDIS_URL', '').strip()
 redis_available = False
 redis_client = None
 
-# Try to connect to Redis if URL is provided
-if redis_url and redis_url != 'redis://localhost:6379/0':
-    try:
-        import redis
-        redis_client = redis.from_url(redis_url, socket_connect_timeout=2)
-        # Test connection
-        redis_client.ping()
-        redis_available = True
-        logger.info(f"✅ Redis connected successfully: {redis_url.split('@')[-1] if '@' in redis_url else redis_url}")
-    except Exception as e:
-        # In production, log error but allow fallback for resilience (deploy.sh verifies REDIS_URL is set)
-        if is_production:
-            logger.error(f"❌ CRITICAL: Redis connection failed in production: {str(e)}")
-            logger.error(f"⚠️  WARNING: Falling back to filesystem sessions (may cause issues with multiple workers)")
-            logger.error(f"⚠️  Please verify REDIS_URL is correct and Redis service is accessible")
-        else:
-            logger.warning(f"⚠️  Redis connection failed, falling back to filesystem/memory: {str(e)}")
-        redis_available = False
-        redis_client = None
-else:
-    # Log warning if REDIS_URL not configured
+# Validate and connect to Redis if URL is provided
+if redis_url:
+    # Validate Redis URL format
+    valid_schemes = ['redis://', 'rediss://', 'unix://']
+    if not any(redis_url.startswith(scheme) for scheme in valid_schemes):
+        logger.error(f"❌ Invalid REDIS_URL format: '{redis_url[:20]}...'")
+        logger.error(f"⚠️  REDIS_URL must start with: {', '.join(valid_schemes)}")
+        logger.error(f"⚠️  Falling back to filesystem/memory storage")
+        redis_url = ''  # Clear invalid URL
+    else:
+        try:
+            import redis
+            redis_client = redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
+            # Test connection
+            redis_client.ping()
+            redis_available = True
+            # Mask password in logs for security
+            url_display = redis_url.split('@')[-1] if '@' in redis_url else redis_url.split('//')[1][:20]
+            logger.info(f"✅ Redis connected successfully: {url_display}")
+        except Exception as e:
+            # In production, log error but allow fallback for resilience
+            if is_production:
+                logger.error(f"❌ CRITICAL: Redis connection failed in production: {str(e)}")
+                logger.error(f"⚠️  WARNING: Falling back to filesystem sessions (may cause issues with multiple workers)")
+                logger.error(f"⚠️  Please verify REDIS_URL is correct and Redis service is accessible")
+            else:
+                logger.warning(f"⚠️  Redis connection failed, falling back to filesystem/memory: {str(e)}")
+            redis_available = False
+            redis_client = None
+
+# Warn if Redis not configured in production
+if not redis_url:
     if is_production:
         logger.error(f"❌ CRITICAL: REDIS_URL not configured in production environment")
-        logger.error(f"⚠️  deploy.sh should have caught this - check deployment configuration")
+        logger.error(f"⚠️  Multi-worker deployments require Redis for session/rate-limit sharing")
+        logger.error(f"⚠️  Set REDIS_URL to your Redis instance (e.g., redis://host:port/0)")
     else:
         logger.info("ℹ️  REDIS_URL not configured, using filesystem/memory storage (development mode)")
 

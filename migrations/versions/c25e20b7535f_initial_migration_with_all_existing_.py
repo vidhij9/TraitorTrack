@@ -67,9 +67,9 @@ def downgrade():
         batch_op.create_index(batch_op.f('idx_bill_bag_bill'), ['bill_id'], unique=False)
         batch_op.create_index(batch_op.f('idx_bill_bag_bag'), ['bag_id'], unique=False)
 
-    with op.batch_alter_table('bag', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('idx_bag_qr_upper'), [sa.literal_column('upper(qr_id::text)')], unique=False)
-        batch_op.create_index(batch_op.f('idx_bag_qr_type'), [sa.literal_column('upper(qr_id::text)'), 'type'], unique=False)
+    # Create expression-based indexes using raw SQL (these use PostgreSQL functions)
+    op.execute('CREATE INDEX IF NOT EXISTS idx_bag_qr_upper ON bag (UPPER(qr_id::text))')
+    op.execute('CREATE INDEX IF NOT EXISTS idx_bag_qr_type ON bag (UPPER(qr_id::text), type)')
 
     with op.batch_alter_table('audit_log', schema=None) as batch_op:
         batch_op.drop_index('idx_audit_user_timestamp')

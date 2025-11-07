@@ -89,24 +89,24 @@ def get_dashboard_analytics():
         hour_ago = now - timedelta(hours=1)
         scans_last_hour = Scan.query.filter(Scan.timestamp >= hour_ago).count()
         
-        # Get hourly distribution for chart
-        hourly_scans = []
-        for hour in range(24):
-            count = Scan.query.filter(
-                func.date(Scan.timestamp) == today,
-                func.extract('hour', Scan.timestamp) == hour
-            ).count()
-            hourly_scans.append(count)
-        
-        # Find peak hour
-        peak_hour_data = db.session.query(
+        # OPTIMIZED: Get hourly distribution using single grouped query instead of 24 separate queries
+        hourly_data_raw = db.session.query(
             func.extract('hour', Scan.timestamp).label('hour'),
             func.count().label('count')
         ).filter(
             func.date(Scan.timestamp) == today
-        ).group_by('hour').order_by(desc('count')).first()
+        ).group_by('hour').all()
         
-        peak_hour = f"{peak_hour_data.hour}:00" if peak_hour_data else "--"
+        # Convert to dict for O(1) lookup and fill in missing hours with 0
+        hourly_dict = {int(row.hour): row.count for row in hourly_data_raw}
+        hourly_scans = [hourly_dict.get(hour, 0) for hour in range(24)]
+        
+        # Find peak hour from the already-queried data
+        if hourly_data_raw:
+            peak_hour_row = max(hourly_data_raw, key=lambda x: x[1])  # x[1] is the count column
+            peak_hour = f"{int(peak_hour_row[0])}:00"  # x[0] is the hour column
+        else:
+            peak_hour = "--"
         
         # Billing metrics (admin and biller)
         billing_metrics = {}
@@ -763,6 +763,10 @@ def get_notifications():
     try:
         from notification_utils import NotificationManager
         
+        # Verify user is authenticated
+        if not current_user.id:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        
         # Get query parameters
         unread_only = request.args.get('unread_only', 'false').lower() == 'true'
         limit = min(int(request.args.get('limit', 50)), 100)  # Max 100
@@ -770,7 +774,7 @@ def get_notifications():
         # Get notifications
         notifications = NotificationManager.get_user_notifications(
             db,
-            current_user.id,
+            int(current_user.id),
             unread_only=unread_only,
             limit=limit
         )
@@ -779,7 +783,7 @@ def get_notifications():
         notifications_data = [notif.to_dict() for notif in notifications]
         
         # Get unread count
-        unread_count = NotificationManager.get_unread_count(db, current_user.id)
+        unread_count = NotificationManager.get_unread_count(db, int(current_user.id))
         
         return jsonify({
             'success': True,
@@ -801,7 +805,11 @@ def get_unread_count():
     try:
         from notification_utils import NotificationManager
         
-        count = NotificationManager.get_unread_count(db, current_user.id)
+        # Verify user is authenticated
+        if not current_user.id:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        
+        count = NotificationManager.get_unread_count(db, int(current_user.id))
         
         return jsonify({
             'success': True,
@@ -822,11 +830,15 @@ def mark_notification_read(notification_id):
     try:
         from notification_utils import NotificationManager
         
-        success = NotificationManager.mark_as_read(db, notification_id, current_user.id)
+        # Verify user is authenticated
+        if not current_user.id:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        
+        success = NotificationManager.mark_as_read(db, notification_id, int(current_user.id))
         
         if success:
             # Get updated unread count
-            unread_count = NotificationManager.get_unread_count(db, current_user.id)
+            unread_count = NotificationManager.get_unread_count(db, int(current_user.id))
             
             return jsonify({
                 'success': True,
@@ -853,7 +865,11 @@ def mark_all_notifications_read():
     try:
         from notification_utils import NotificationManager
         
-        count = NotificationManager.mark_all_as_read(db, current_user.id)
+        # Verify user is authenticated
+        if not current_user.id:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        
+        count = NotificationManager.mark_all_as_read(db, int(current_user.id))
         
         return jsonify({
             'success': True,
@@ -876,11 +892,15 @@ def delete_notification(notification_id):
     try:
         from notification_utils import NotificationManager
         
-        success = NotificationManager.delete_notification(db, notification_id, current_user.id)
+        # Verify user is authenticated
+        if not current_user.id:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        
+        success = NotificationManager.delete_notification(db, notification_id, int(current_user.id))
         
         if success:
             # Get updated unread count
-            unread_count = NotificationManager.get_unread_count(db, current_user.id)
+            unread_count = NotificationManager.get_unread_count(db, int(current_user.id))
             
             return jsonify({
                 'success': True,
