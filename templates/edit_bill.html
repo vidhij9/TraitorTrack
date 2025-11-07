@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "warehouse_layout.html" %}
 
 {% block title %}Edit Bill - traitor track{% endblock %}
 
@@ -23,17 +23,17 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="Enter bill description">{{ bill.description or '' }}</textarea>
+                            <label for="description" class="form-label wh-label">Description</label>
+                            <textarea class="form-control wh-input" id="description" name="description" rows="3" placeholder="Enter bill description">{{ bill.description or '' }}</textarea>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="parent_bag_count" class="form-label">Expected Parent Bags</label>
-                            <input type="number" class="form-control" id="parent_bag_count" name="parent_bag_count" value="{{ bill.parent_bag_count or 1 }}" min="1">
+                            <label for="parent_bag_count" class="form-label wh-label">Expected Parent Bags</label>
+                            <input type="number" class="form-control wh-input" id="parent_bag_count" name="parent_bag_count" value="{{ bill.parent_bag_count or 1 }}" min="1">
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Current Status</label>
+                            <label class="form-label wh-label">Current Status</label>
                             <p class="form-control-plaintext">
                                 <span class="badge bg-{{ 'success' if bill.status == 'completed' else 'warning' }}">
                                     {{ bill.status.title() }}
@@ -42,10 +42,10 @@
                         </div>
                         
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-secondary">
+                            <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-secondary wh-btn">
                                 <i class="fas fa-times me-1"></i>Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary wh-btn">
                                 <i class="fas fa-save me-1"></i>Save Changes
                             </button>
                         </div>

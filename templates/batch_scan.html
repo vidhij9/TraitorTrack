@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "warehouse_layout.html" %}
 
 {% block title %}Batch Scanning - TraitorTrack{% endblock %}
 
@@ -16,15 +16,15 @@
                         <div class="col-md-6">
                             <h5>Ultra-Fast Batch Scanner</h5>
                             <p>Use our optimized batch scanner for processing multiple bags quickly.</p>
-                            <a href="/ultra/batch" class="btn btn-primary btn-lg">
+                            <a href="/ultra/batch" class="btn btn-primary wh-btn">
                                 <i class="fas fa-rocket"></i> Start Batch Scan
                             </a>
                         </div>
                         <div class="col-md-6">
                             <h5>Manual Batch Entry</h5>
                             <p>Enter multiple QR codes manually if needed.</p>
-                            <textarea class="form-control" rows="10" placeholder="Enter QR codes, one per line..."></textarea>
-                            <button class="btn btn-secondary mt-2">Process Batch</button>
+                            <textarea class="form-control wh-input" rows="10" placeholder="Enter QR codes, one per line..."></textarea>
+                            <button class="btn btn-secondary wh-btn mt-2">Process Batch</button>
                         </div>
                     </div>
                 </div>

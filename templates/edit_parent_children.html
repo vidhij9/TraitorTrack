@@ -1,8 +1,9 @@
-{% extends "layout.html" %}
+{% extends "warehouse_layout.html" %}
 
 {% block title %} - Edit Parent Bag Children{% endblock %}
 
-{% block head %}
+{% block extra_css %}
+{{ super() }}
 <style>
     .child-item {
         display: flex;
@@ -45,10 +46,10 @@
             <i class="fas fa-edit me-2"></i>Edit Parent Bag: <code>{{ parent_qr }}</code>
         </h1>
         <div class="btn-toolbar mb-2 mb-md-0">
-            <button onclick="history.back()" class="btn btn-secondary me-2">
+            <button onclick="history.back()" class="btn btn-secondary wh-btn me-2">
                 <i class="fas fa-arrow-left me-2"></i>Back
             </button>
-            <button class="btn btn-success" onclick="saveChanges()">
+            <button class="btn btn-success wh-btn" onclick="saveChanges()">
                 <i class="fas fa-save me-2"></i>Save Changes
             </button>
         </div>
@@ -68,7 +69,7 @@
                                 <div>
                                     <code>{{ child }}</code>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-outline-danger remove-child-btn" data-qr="{{ child }}">
+                                <button type="button" class="btn btn-outline-danger wh-btn remove-child-btn" data-qr="{{ child }}">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -97,8 +98,8 @@
                     <div>
                         <h6><i class="fas fa-keyboard me-2"></i>HID Scanner / Manual Entry</h6>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="manual-qr-input" placeholder="Scan with HID scanner or type child bag QR code" autofocus>
-                            <button class="btn btn-outline-primary" onclick="addManualChild()">
+                            <input type="text" class="form-control wh-input" id="manual-qr-input" placeholder="Scan with HID scanner or type child bag QR code" autofocus>
+                            <button class="btn btn-outline-primary wh-btn" onclick="addManualChild()">
                                 <i class="fas fa-plus me-1"></i>Add
                             </button>
                         </div>

@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "warehouse_layout.html" %}
 
 {% block title %} - Link to Bill{% endblock %}
 
@@ -40,8 +40,8 @@
                 
                 <form method="post" action="">
                     <div class="mb-4">
-                        <label for="bill_id" class="form-label">Bill ID</label>
-                        <input type="text" class="form-control" id="bill_id" name="bill_id" 
+                        <label for="bill_id" class="form-label wh-label">Bill ID</label>
+                        <input type="text" class="form-control wh-input" id="bill_id" name="bill_id" 
                             placeholder="Enter bill ID" {% if link %}value="{{ link.bill_id }}"{% endif %} required>
                         <div class="form-text">Enter the bill ID to link this parent bag to</div>
                     </div>
@@ -49,10 +49,10 @@
                     <hr class="my-4">
                     
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary wh-btn">
                             <i class="fas fa-link me-2"></i>{{ link and 'Update' or 'Link' }} to Bill
                         </button>
-                        <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}" class="btn btn-outline-secondary">
+                        <a href="{{ url_for('bag_details', qr_id=parent_bag.qr_id|urlencode) }}" class="btn btn-outline-secondary wh-btn">
                             <i class="fas fa-arrow-left me-2"></i>Back to Bag
                         </a>
                     </div>

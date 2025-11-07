@@ -1,8 +1,9 @@
-{% extends "layout.html" %}
+{% extends "warehouse_layout.html" %}
 
 {% block title %} - Bag Management{% endblock %}
 
-{% block head %}
+{% block extra_css %}
+{{ super() }}
 <style>
 /* Scanner Modal Styles */
 .scanner-modal {
@@ -60,16 +61,16 @@
                 <span class="text-success"><strong>{{ stats.child_bags }}</strong> child</span>
             </small>
         </div>
-        <div class="btn-group btn-group-sm">
-            <a href="{{ url_for('scan_parent') }}" class="btn btn-primary btn-sm">
+        <div class="btn-group">
+            <a href="{{ url_for('scan_parent') }}" class="btn btn-primary wh-btn">
                 <i class="fas fa-plus"></i><span class="d-none d-lg-inline ms-1">New</span>
             </a>
             {% if current_user.role == 'admin' %}
-            <a href="{{ url_for('excel_upload') }}" class="btn btn-success btn-sm">
+            <a href="{{ url_for('excel_upload') }}" class="btn btn-success wh-btn">
                 <i class="fas fa-file-excel"></i><span class="d-none d-lg-inline ms-1">Excel Upload</span>
             </a>
             {% endif %}
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+            <button type="button" class="btn btn-outline-secondary wh-btn" onclick="clearFilters()">
                 <i class="fas fa-refresh"></i><span class="d-none d-lg-inline ms-1">Clear</span>
             </button>
         </div>
@@ -146,19 +147,19 @@
 
                     <!-- Search Filter -->
                     <div class="col-md-6">
-                        <label for="search" class="form-label">Search QR Code (Scan or Type)</label>
+                        <label for="search" class="form-label wh-label">Search QR Code (Scan or Type)</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="fas fa-barcode"></i></span>
-                            <input type="text" class="form-control" id="search" name="search" value="{{ filters.search }}" placeholder="Scan with Coconut scanner or type QR code..." autocomplete="off" style="text-transform: uppercase;">
+                            <input type="text" class="form-control wh-input" id="search" name="search" value="{{ filters.search }}" placeholder="Scan or type QR code..." autocomplete="off" style="text-transform: uppercase;">
                         </div>
                     </div>
 
                     <!-- Filter Buttons -->
                     <div class="col-md-6 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary me-2">
+                        <button type="submit" class="btn btn-primary wh-btn me-2">
                             <i class="fas fa-search me-2"></i>Apply Filters
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                        <button type="button" class="btn btn-outline-secondary wh-btn" onclick="clearFilters()">
                             <i class="fas fa-times me-2"></i>Clear
                         </button>
                     </div>
@@ -272,11 +273,11 @@
                                 {% endif %}
                             </td>
                             <td class="align-middle">
-                                <div class="btn-group btn-group-sm d-flex flex-wrap justify-content-center" role="group">
-                                    <a href="{{ url_for('bag_details', qr_id=bag.qr_id|urlencode) }}" class="btn btn-outline-primary btn-sm me-1 mb-1" title="View">
+                                <div class="btn-group d-flex flex-wrap justify-content-center" role="group">
+                                    <a href="{{ url_for('bag_details', qr_id=bag.qr_id|urlencode) }}" class="btn btn-outline-primary wh-btn me-1 mb-1" title="View">
                                         <i class="fas fa-eye"></i><span class="d-none d-lg-inline ms-1">View</span>
                                     </a>
-                                    <button class="btn btn-outline-danger btn-sm delete-bag-btn me-1 mb-1" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete">
+                                    <button class="btn btn-outline-danger wh-btn delete-bag-btn me-1 mb-1" data-qr="{{ bag.qr_id }}" data-type="{{ bag.type }}" title="Delete">
                                         <i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">Del</span>
                                     </button>
                                 </div>
