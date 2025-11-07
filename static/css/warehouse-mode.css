@@ -68,7 +68,7 @@ body.warehouse-mode {
     font-size: var(--wh-font-base);
     line-height: 1.6;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #f5f5dc 0%, #d3d3c0 100%);
     min-height: 100vh;
 }
 
@@ -92,7 +92,7 @@ body.warehouse-mode {
 }
 
 .wh-card-header {
-    background: linear-gradient(135deg, var(--wh-success) 0%, #20c997 100%);
+    background: linear-gradient(135deg, var(--wh-primary) 0%, var(--wh-primary-light) 100%);
     color: var(--wh-white);
     padding: var(--wh-space-lg) var(--wh-space-xl);
     border-radius: var(--wh-radius-lg) var(--wh-radius-lg) 0 0;
@@ -161,14 +161,14 @@ body.warehouse-mode {
 
 /* Button Colors */
 .wh-btn-primary {
-    background: var(--wh-info);
+    background: var(--wh-primary);
     color: var(--wh-white);
-    border-color: var(--wh-info);
+    border-color: var(--wh-primary);
 }
 
 .wh-btn-primary:hover {
-    background: var(--wh-info-dark);
-    border-color: var(--wh-info-dark);
+    background: var(--wh-primary-light);
+    border-color: var(--wh-primary-light);
     color: var(--wh-white);
 }
 
@@ -455,7 +455,7 @@ body.warehouse-mode {
 }
 
 .wh-progress-bar-success {
-    background: linear-gradient(90deg, var(--wh-success) 0%, #20c997 100%);
+    background: linear-gradient(90deg, var(--wh-success) 0%, var(--wh-primary-light) 100%);
 }
 
 .wh-progress-bar-warning {
