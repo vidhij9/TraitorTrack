@@ -1,7 +1,7 @@
 """Add destination and vehicle_number to Bill model
 
 Revision ID: 986e81b92e8e
-Revises: 6830e8e892ce
+Revises: a1b2c3d4e5f6
 Create Date: 2025-11-05 14:42:10.158070
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '986e81b92e8e'
-down_revision = '6830e8e892ce'
+down_revision = 'a1b2c3d4e5f6'
 branch_labels = None
 depends_on = None
 
