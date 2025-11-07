@@ -45,6 +45,18 @@ class EmailConfig:
         """Check if email is properly configured"""
         return bool(EmailConfig.API_KEY and SENDGRID_AVAILABLE)
 
+# Diagnostic logging for SendGrid API key on module load
+if EmailConfig.API_KEY:
+    key_length = len(EmailConfig.API_KEY)
+    starts_with_sg = EmailConfig.API_KEY.startswith('SG.')
+    logger.info(f"🔑 SendGrid API Key Status: Loaded={True}, Length={key_length}, StartsWithSG={starts_with_sg}, SendGridAvailable={SENDGRID_AVAILABLE}")
+    if key_length != 69:
+        logger.warning(f"⚠️  SendGrid API key has unexpected length {key_length} (should be 69 characters)")
+    if not starts_with_sg:
+        logger.warning(f"⚠️  SendGrid API key doesn't start with 'SG.' - first 4 chars: {EmailConfig.API_KEY[:4]}")
+else:
+    logger.error("❌ SendGrid API Key NOT FOUND in environment variables!")
+
 
 class EmailTemplate:
     """Email template manager"""
