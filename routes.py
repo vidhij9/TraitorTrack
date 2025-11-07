@@ -8293,3 +8293,29 @@ def export_system_stats_excel():
         app.logger.error(f"System stats Excel export error: {str(e)}")
         flash(f'Error exporting system stats: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
+
+
+@app.route('/config-check')
+def config_check():
+    """Check critical environment configuration (PUBLIC endpoint for troubleshooting)"""
+    import os
+    
+    is_production = (
+        os.environ.get('REPLIT_DEPLOYMENT') == '1' or
+        os.environ.get('ENVIRONMENT') == 'production'
+    )
+    
+    config = {
+        'environment': 'production' if is_production else 'development',
+        'deployment_id': os.environ.get('REPLIT_DEPLOYMENT', 'not set'),
+        'session_secret_configured': bool(os.environ.get('SESSION_SECRET')),
+        'redis_url_configured': bool(os.environ.get('REDIS_URL')),
+        'admin_password_configured': bool(os.environ.get('ADMIN_PASSWORD')),
+        'database_url_configured': bool(os.environ.get('DATABASE_URL')),
+        'session_type': app.config.get('SESSION_TYPE', 'unknown'),
+        'session_cookie_secure': app.config.get('SESSION_COOKIE_SECURE', False),
+        'preferred_url_scheme': app.config.get('PREFERRED_URL_SCHEME', 'unknown'),
+        'replit_domains': os.environ.get('REPLIT_DOMAINS', 'not set')
+    }
+    
+    return jsonify(config)
