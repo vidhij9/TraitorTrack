@@ -6,51 +6,52 @@
 .progress-card {
     background: linear-gradient(135deg, var(--wh-info, #2196F3) 0%, #1976D2 100%);
     color: white;
-    border-radius: 20px;
-    padding: 30px 25px;
-    margin: 15px 0;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    border-radius: 16px;
+    padding: 20px 15px;
+    margin: 10px 0;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
 }
 
 .big-number {
-    font-size: 96px;
-    font-weight: bold;
+    font-size: 100px;
+    font-weight: 900;
     text-align: center;
     line-height: 1;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
 }
 
 .progress-label {
-    font-size: 28px;
+    font-size: 20px;
     text-align: center;
-    margin-top: 10px;
-    font-weight: 500;
+    margin-top: 8px;
+    font-weight: 600;
 }
 
 .scan-box {
     background: white;
-    border-radius: 20px;
-    padding: 30px;
-    margin: 20px 0;
+    border-radius: 16px;
+    padding: 20px 15px;
+    margin: 12px 0;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .scan-input {
     font-size: 36px;
-    padding: 24px;
+    padding: 20px;
     text-align: center;
     border: 5px solid #2196F3;
-    border-radius: 16px;
+    border-radius: 15px;
     font-weight: bold;
     text-transform: uppercase;
     width: 100%;
     outline: none;
     letter-spacing: 2px;
+    min-height: 70px;
 }
 
 .scan-input:focus {
     border-color: var(--wh-success, #4CAF50);
-    box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+    box-shadow: 0 0 35px rgba(76, 175, 80, 0.6);
 }
 
 .scan-input:disabled {
@@ -60,12 +61,12 @@
 }
 
 .progress-bar {
-    height: 50px;
-    border-radius: 25px;
+    height: 60px;
+    border-radius: 30px;
     background: #e0e0e0;
     overflow: hidden;
-    margin: 20px 0;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    margin: 12px 0;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .progress-fill {
@@ -76,17 +77,17 @@
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 24px;
-    font-weight: bold;
+    font-size: 26px;
+    font-weight: 800;
 }
 
 .item {
     background: #f8f9fa;
     border-left: 6px solid var(--wh-success, #4CAF50);
-    padding: 18px;
-    margin: 12px 0;
+    padding: 16px;
+    margin: 10px 0;
     border-radius: 12px;
-    font-size: 20px;
+    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -95,23 +96,23 @@
 .item-num {
     background: var(--wh-success, #4CAF50);
     color: white;
-    width: 50px;
-    height: 50px;
+    width: 55px;
+    height: 55px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 22px;
+    font-size: 24px;
 }
 
 .party {
     background: linear-gradient(135deg, var(--wh-warning, #FFD700) 0%, #FFA500 100%);
     color: #333;
-    border-radius: 20px;
-    padding: 50px 30px;
+    border-radius: 16px;
+    padding: 40px 20px;
     text-align: center;
-    margin: 20px 0;
+    margin: 15px 0;
     animation: pop 0.6s ease;
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
@@ -124,26 +125,46 @@
 
 .party h2 {
     font-size: 48px;
-    margin-bottom: 20px;
-    font-weight: bold;
+    margin-bottom: 15px;
+    font-weight: 900;
+}
+
+@media (max-width: 768px) {
+    .progress-card { padding: 16px 12px; margin: 8px 0; }
+    .big-number { font-size: 85px; }
+    .progress-label { font-size: 18px; }
+    .scan-box { padding: 16px 12px; margin: 10px 0; }
+    .scan-input { font-size: 30px; padding: 16px; min-height: 65px; }
+    .progress-bar { height: 55px; }
+    .progress-fill { font-size: 24px; }
+    .item { padding: 14px; margin: 8px 0; font-size: 17px; }
+    .item-num { width: 50px; height: 50px; font-size: 22px; }
+    .party { padding: 35px 18px; }
+    .party h2 { font-size: 42px; }
 }
 
 @media (max-width: 480px) {
+    .progress-card { padding: 14px 10px; }
     .big-number { font-size: 72px; }
-    .progress-label { font-size: 24px; }
-    .scan-input { font-size: 32px; padding: 20px; }
+    .progress-label { font-size: 16px; }
+    .scan-input { font-size: 26px; padding: 14px; min-height: 60px; }
+    .progress-bar { height: 50px; }
+    .progress-fill { font-size: 22px; }
+    .item { padding: 12px; font-size: 16px; }
+    .item-num { width: 45px; height: 45px; font-size: 20px; }
+    .party { padding: 30px 15px; }
     .party h2 { font-size: 36px; }
 }
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container" style="max-width: 600px; padding: 8px;">
     {% if parent_qr %}
     <div class="progress-card">
         <div class="big-number" id="count">{{ scanned_child_count }}</div>
         <div class="progress-label">out of 30 small bags</div>
-        <div style="text-align: center; margin-top: 15px; font-size: 18px;">
-            Big Bag: <strong>{{ parent_qr }}</strong>
+        <div style="text-align: center; margin-top: 10px; font-size: 16px; font-weight: 600;">
+            📦 Big Bag: <strong style="font-size: 18px;">{{ parent_qr }}</strong>
         </div>
     </div>
     
@@ -154,8 +175,8 @@
     </div>
     
     <div class="scan-box">
-        <h3 style="text-align: center; color: #2196F3; margin-bottom: 20px;">
-            📦 Scan Small Bag
+        <h3 style="text-align: center; color: #2196F3; margin-bottom: 15px; font-size: 24px; font-weight: 700;">
+            <i class="fas fa-box" style="font-size: 28px;"></i> Scan Small Bag
         </h3>
         
         <form id="form">
@@ -169,24 +190,26 @@
             >
         </form>
         
-        <div style="text-align: center; margin-top: 15px; color: #666; font-size: 16px;">
+        <div style="text-align: center; margin-top: 12px; color: #666; font-size: 18px; font-weight: 600;">
             <div id="status">✅ Ready</div>
         </div>
         
-        <div style="text-align: center; margin-top: 20px; max-width: 400px; margin-left: auto; margin-right: auto;">
+        <div style="text-align: center; margin-top: 15px; max-width: 400px; margin-left: auto; margin-right: auto;">
             <button 
                 id="undo-btn" 
                 onclick="undoLast()" 
                 class="wh-btn wh-btn-warning wh-btn-block"
-                style="display: none;"
+                style="display: none; min-height: 54px; font-size: 18px; font-weight: 700;"
             >
-                ↶ Remove Last Scan
+                <i class="fas fa-undo me-2"></i>Undo Last Scan
             </button>
         </div>
     </div>
     
-    <div style="margin: 20px 0;">
-        <h4 style="color: #666; margin-bottom: 15px;">📋 Recently Scanned</h4>
+    <div style="margin: 15px 0;">
+        <h4 style="color: #666; margin-bottom: 12px; font-size: 20px; font-weight: 700;">
+            <i class="fas fa-list me-2"></i>Recently Scanned
+        </h4>
         <div id="list">
             {% if linked_child_bags %}
                 {% for child in linked_child_bags|reverse %}
@@ -207,27 +230,28 @@
     </div>
     
     <div id="party" class="party" style="display: none;">
-        <h2>⭐ Complete! ⭐</h2>
-        <p style="font-size: 28px; margin: 20px 0;">All 30 small bags done!</p>
-        <p style="font-size: 22px; margin-bottom: 30px;">Big Bag <strong>{{ parent_qr }}</strong> is ready</p>
-        <button onclick="nextBag()" class="wh-btn wh-btn-success wh-btn-lg" style="width: 100%; max-width: 450px;">
-            ▶ Next Big Bag
+        <div style="font-size: 70px; margin-bottom: 12px;">✅</div>
+        <h2>Complete!</h2>
+        <p style="font-size: 24px; margin: 15px 0; font-weight: 700;">All 30 small bags done!</p>
+        <p style="font-size: 18px; margin-bottom: 20px;">Big Bag: <strong style="font-size: 20px;">{{ parent_qr }}</strong></p>
+        <button onclick="nextBag()" class="wh-btn wh-btn-success wh-btn-lg" style="width: 100%; max-width: 450px; min-height: 70px; font-size: 22px; font-weight: 700;">
+            <i class="fas fa-arrow-right me-2" style="font-size: 24px;"></i>Next Big Bag
         </button>
     </div>
     
-    <div style="text-align: center; margin-top: 25px; max-width: 400px; margin-left: auto; margin-right: auto;">
-        <a href="/scan/parent" class="wh-btn wh-btn-outline wh-btn-block">
-            ⬅ Back
+    <div style="text-align: center; margin-top: 15px; max-width: 400px; margin-left: auto; margin-right: auto;">
+        <a href="/scan/parent" class="wh-btn wh-btn-outline wh-btn-block" style="min-height: 54px; font-size: 18px; font-weight: 600;">
+            <i class="fas fa-arrow-left me-2"></i>Back
         </a>
     </div>
     
     {% else %}
-    <div style="background: #fff3cd; text-align: center; font-size: 24px; padding: 40px; margin: 30px 0; border-radius: 20px; border: 4px solid #ffc107;">
-        <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
-        <strong style="font-size: 28px;">Please scan a big bag first!</strong>
-        <div style="margin-top: 30px; max-width: 450px; margin-left: auto; margin-right: auto;">
-            <a href="/scan/parent" class="wh-btn wh-btn-primary wh-btn-lg wh-btn-block">
-                📦 Scan Big Bag
+    <div style="background: #fff3cd; text-align: center; padding: 30px 20px; margin: 20px 0; border-radius: 16px; border: 4px solid #ffc107;">
+        <div style="font-size: 80px; margin-bottom: 15px;">⚠️</div>
+        <strong style="font-size: 26px; font-weight: 800; color: #333;">Scan Big Bag First!</strong>
+        <div style="margin-top: 25px; max-width: 450px; margin-left: auto; margin-right: auto;">
+            <a href="/scan/parent" class="wh-btn wh-btn-primary wh-btn-lg wh-btn-block" style="min-height: 70px; font-size: 22px; font-weight: 700;">
+                <i class="fas fa-box me-2" style="font-size: 26px;"></i>Scan Big Bag
             </a>
         </div>
     </div>
