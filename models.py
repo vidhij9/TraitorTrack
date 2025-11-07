@@ -230,8 +230,6 @@ class Bill(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     bill_id = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
-    destination = db.Column(db.String(200), nullable=True)
-    vehicle_number = db.Column(db.String(50), nullable=True)
     parent_bag_count = db.Column(db.Integer, default=1)
     total_weight_kg = db.Column(db.Float, default=0.0)  # Actual weight based on real child count
     expected_weight_kg = db.Column(db.Float, default=0.0)  # Expected weight (30kg per parent bag)
