@@ -18,8 +18,18 @@ if [ -z "$ADMIN_PASSWORD" ]; then
     exit 1
 fi
 
-if [ -z "$DATABASE_URL" ]; then
-    echo "❌ ERROR: DATABASE_URL not set"
+if [ -z "$PRODUCTION_DATABASE_URL" ]; then
+    echo "❌ ERROR: PRODUCTION_DATABASE_URL not set"
+    echo "   Production deployments MUST use AWS RDS database"
+    echo "   Set PRODUCTION_DATABASE_URL to your AWS RDS connection string"
+    exit 1
+fi
+
+# Safety check: Ensure production DB is not a Replit database
+if echo "$PRODUCTION_DATABASE_URL" | grep -iq "replit"; then
+    echo "❌ ERROR: PRODUCTION_DATABASE_URL appears to be a Replit database"
+    echo "   Production must use AWS RDS, not development database"
+    echo "   This prevents accidental data loss to production data"
     exit 1
 fi
 

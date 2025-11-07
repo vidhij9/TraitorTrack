@@ -184,23 +184,33 @@ limiter = Limiter(
 
 logger.info(f"Rate limiting storage: {limiter_backend}")
 
-# Database configuration - auto-select based on environment
-# Production deployments: DATABASE_URL (Replit managed) or PRODUCTION_DATABASE_URL (custom)
-# Development workspace: DATABASE_URL (Replit PostgreSQL)
+# Database configuration - strict separation between production and development
+# CRITICAL: Production MUST use PRODUCTION_DATABASE_URL (AWS RDS) to prevent data loss
+# Development uses DATABASE_URL (Replit PostgreSQL)
 if is_production:
-    # Production: Try custom database first, fall back to Replit managed database
-    database_url = os.environ.get("PRODUCTION_DATABASE_URL") or os.environ.get("DATABASE_URL")
-    if os.environ.get("PRODUCTION_DATABASE_URL"):
-        db_source = "Custom Database (PRODUCTION_DATABASE_URL)"
-    else:
-        db_source = "Replit Managed PostgreSQL (DATABASE_URL)"
+    # Production: REQUIRE PRODUCTION_DATABASE_URL - NO FALLBACK to prevent accidental dev DB connection
+    database_url = os.environ.get("PRODUCTION_DATABASE_URL")
+    if not database_url:
+        logger.error("❌ CRITICAL: PRODUCTION_DATABASE_URL not set in production environment")
+        logger.error("❌ Production deployments MUST use a dedicated production database")
+        logger.error("❌ Set PRODUCTION_DATABASE_URL to your AWS RDS connection string")
+        raise ValueError("PRODUCTION_DATABASE_URL is required in production - deploy.sh should have caught this")
+    
+    # Safety check: Ensure production DB is not a Replit database
+    if 'replit' in database_url.lower() or 'db.replit' in database_url.lower():
+        logger.error("❌ CRITICAL: PRODUCTION_DATABASE_URL appears to be a Replit database")
+        logger.error("❌ Production must use AWS RDS, not development database")
+        logger.error(f"❌ Current URL contains: {database_url.split('@')[-1] if '@' in database_url else 'invalid'}")
+        raise ValueError("Production database cannot be a Replit database - data loss prevention")
+    
+    db_source = "AWS RDS Production Database (PRODUCTION_DATABASE_URL)"
+    logger.info(f"✅ Production database configured: {database_url.split('@')[-1] if '@' in database_url else 'configured'}")
 else:
     # Development: Use Replit database
     database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not found - required for development environment")
     db_source = "Replit PostgreSQL (DATABASE_URL)"
-
-if not database_url:
-    raise ValueError("Database URL not found. Set DATABASE_URL environment variable")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 logger.info(f"Database: {db_source}")
