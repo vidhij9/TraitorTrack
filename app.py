@@ -185,23 +185,22 @@ limiter = Limiter(
 logger.info(f"Rate limiting storage: {limiter_backend}")
 
 # Database configuration - auto-select based on environment
-# Production deployments use PRODUCTION_DATABASE_URL (AWS RDS)
-# Development workspace uses DATABASE_URL (Replit PostgreSQL)
+# Production deployments: DATABASE_URL (Replit managed) or PRODUCTION_DATABASE_URL (custom)
+# Development workspace: DATABASE_URL (Replit PostgreSQL)
 if is_production:
-    # Production: Use AWS RDS
-    database_url = os.environ.get("PRODUCTION_DATABASE_URL")
-    if not database_url:
-        # Fallback to DATABASE_URL if PRODUCTION_DATABASE_URL not set
-        database_url = os.environ.get("DATABASE_URL")
-        logger.warning("PRODUCTION_DATABASE_URL not set, falling back to DATABASE_URL")
-    db_source = "AWS RDS (PRODUCTION_DATABASE_URL)"
+    # Production: Try custom database first, fall back to Replit managed database
+    database_url = os.environ.get("PRODUCTION_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if os.environ.get("PRODUCTION_DATABASE_URL"):
+        db_source = "Custom Database (PRODUCTION_DATABASE_URL)"
+    else:
+        db_source = "Replit Managed PostgreSQL (DATABASE_URL)"
 else:
     # Development: Use Replit database
     database_url = os.environ.get("DATABASE_URL")
     db_source = "Replit PostgreSQL (DATABASE_URL)"
 
 if not database_url:
-    raise ValueError("Database URL not found. Set DATABASE_URL (dev) or PRODUCTION_DATABASE_URL (prod)")
+    raise ValueError("Database URL not found. Set DATABASE_URL environment variable")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 logger.info(f"Database: {db_source}")
