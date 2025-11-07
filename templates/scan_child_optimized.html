@@ -4,107 +4,116 @@
 
 {% block styles %}
 .progress-card {
-    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    background: linear-gradient(135deg, var(--wh-info, #2196F3) 0%, #1976D2 100%);
     color: white;
     border-radius: 20px;
-    padding: 25px;
+    padding: 30px 25px;
     margin: 15px 0;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
 }
 
 .big-number {
-    font-size: 72px;
+    font-size: 96px;
     font-weight: bold;
     text-align: center;
     line-height: 1;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
 }
 
 .progress-label {
-    font-size: 24px;
+    font-size: 28px;
     text-align: center;
     margin-top: 10px;
+    font-weight: 500;
 }
 
 .scan-box {
     background: white;
     border-radius: 20px;
-    padding: 25px;
+    padding: 30px;
     margin: 20px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .scan-input {
-    font-size: 28px;
-    padding: 18px;
+    font-size: 36px;
+    padding: 24px;
     text-align: center;
-    border: 4px solid #2196F3;
-    border-radius: 15px;
+    border: 5px solid #2196F3;
+    border-radius: 16px;
     font-weight: bold;
     text-transform: uppercase;
     width: 100%;
     outline: none;
+    letter-spacing: 2px;
 }
 
 .scan-input:focus {
-    border-color: #4CAF50;
-    box-shadow: 0 0 25px rgba(76, 175, 80, 0.5);
+    border-color: var(--wh-success, #4CAF50);
+    box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
 }
 
 .scan-input:disabled {
     background: #f0f0f0;
     border-color: #ccc;
+    opacity: 0.6;
 }
 
 .progress-bar {
-    height: 40px;
-    border-radius: 20px;
+    height: 50px;
+    border-radius: 25px;
     background: #e0e0e0;
     overflow: hidden;
     margin: 20px 0;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%);
+    background: linear-gradient(90deg, var(--wh-success, #4CAF50) 0%, #45a049 100%);
     transition: width 0.5s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 20px;
+    font-size: 24px;
     font-weight: bold;
 }
 
 .item {
     background: #f8f9fa;
-    border-left: 5px solid #4CAF50;
-    padding: 15px;
-    margin: 10px 0;
-    border-radius: 10px;
-    font-size: 18px;
+    border-left: 6px solid var(--wh-success, #4CAF50);
+    padding: 18px;
+    margin: 12px 0;
+    border-radius: 12px;
+    font-size: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
 .item-num {
-    background: #4CAF50;
+    background: var(--wh-success, #4CAF50);
     color: white;
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
+    font-size: 22px;
 }
 
 .party {
-    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    background: linear-gradient(135deg, var(--wh-warning, #FFD700) 0%, #FFA500 100%);
     color: #333;
     border-radius: 20px;
-    padding: 40px 25px;
+    padding: 50px 30px;
     text-align: center;
     margin: 20px 0;
     animation: pop 0.6s ease;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
 @keyframes pop {
@@ -114,14 +123,16 @@
 }
 
 .party h2 {
-    font-size: 36px;
-    margin-bottom: 15px;
+    font-size: 48px;
+    margin-bottom: 20px;
+    font-weight: bold;
 }
 
 @media (max-width: 480px) {
-    .big-number { font-size: 60px; }
-    .progress-label { font-size: 20px; }
-    .scan-input { font-size: 24px; padding: 16px; }
+    .big-number { font-size: 72px; }
+    .progress-label { font-size: 24px; }
+    .scan-input { font-size: 32px; padding: 20px; }
+    .party h2 { font-size: 36px; }
 }
 {% endblock %}
 
@@ -162,12 +173,12 @@
             <div id="status">✅ Ready</div>
         </div>
         
-        <div style="text-align: center; margin-top: 15px;">
+        <div style="text-align: center; margin-top: 20px; max-width: 400px; margin-left: auto; margin-right: auto;">
             <button 
                 id="undo-btn" 
                 onclick="undoLast()" 
-                class="btn btn-secondary" 
-                style="padding: 12px 30px; display: none;"
+                class="wh-btn wh-btn-warning wh-btn-block"
+                style="display: none;"
             >
                 ↶ Remove Last Scan
             </button>
@@ -197,25 +208,25 @@
     
     <div id="party" class="party" style="display: none;">
         <h2>⭐ Complete! ⭐</h2>
-        <p style="font-size: 24px; margin: 15px 0;">All 30 small bags done!</p>
-        <p style="font-size: 18px; margin-bottom: 25px;">Big Bag <strong>{{ parent_qr }}</strong> is ready</p>
-        <button onclick="nextBag()" class="btn btn-success" style="width: 100%; max-width: 400px; min-height: 60px;">
+        <p style="font-size: 28px; margin: 20px 0;">All 30 small bags done!</p>
+        <p style="font-size: 22px; margin-bottom: 30px;">Big Bag <strong>{{ parent_qr }}</strong> is ready</p>
+        <button onclick="nextBag()" class="wh-btn wh-btn-success wh-btn-lg" style="width: 100%; max-width: 450px;">
             ▶ Next Big Bag
         </button>
     </div>
     
-    <div style="text-align: center; margin-top: 20px;">
-        <a href="/scan/parent" class="btn btn-secondary" style="padding: 12px 30px;">
+    <div style="text-align: center; margin-top: 25px; max-width: 400px; margin-left: auto; margin-right: auto;">
+        <a href="/scan/parent" class="wh-btn wh-btn-outline wh-btn-block">
             ⬅ Back
         </a>
     </div>
     
     {% else %}
-    <div style="background: #fff3cd; text-align: center; font-size: 20px; padding: 30px; margin: 30px 0; border-radius: 15px;">
-        <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
-        <strong>Please scan a big bag first!</strong>
-        <div style="margin-top: 20px;">
-            <a href="/scan/parent" class="btn btn-primary" style="width: 100%; max-width: 400px; min-height: 60px;">
+    <div style="background: #fff3cd; text-align: center; font-size: 24px; padding: 40px; margin: 30px 0; border-radius: 20px; border: 4px solid #ffc107;">
+        <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+        <strong style="font-size: 28px;">Please scan a big bag first!</strong>
+        <div style="margin-top: 30px; max-width: 450px; margin-left: auto; margin-right: auto;">
+            <a href="/scan/parent" class="wh-btn wh-btn-primary wh-btn-lg wh-btn-block">
                 📦 Scan Big Bag
             </a>
         </div>

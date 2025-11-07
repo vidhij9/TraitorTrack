@@ -3,25 +3,10 @@
 {% block title %}Create Bill - TraitorTrack{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse-mode.css') }}">
 <style>
-.scanner-friendly-input {
-    font-size: 1.5rem;
-    padding: 15px;
-    text-align: center;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.number-input-large {
-    font-size: 1.5rem;
-    padding: 15px;
-    text-align: center;
-    font-weight: 600;
-}
-
 .progress-container {
-    margin: 20px 0;
+    margin: var(--wh-space-lg) 0;
 }
 
 .progress-indicator {
@@ -36,40 +21,41 @@
 }
 
 .progress-step-circle {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     background: #e9ecef;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 8px;
+    margin: 0 auto 10px;
     font-weight: bold;
     color: #6c757d;
+    font-size: var(--wh-font-lg);
 }
 
 .progress-step.active .progress-step-circle {
-    background: #0d6efd;
+    background: var(--wh-info);
     color: white;
 }
 
 .progress-step-label {
-    font-size: 0.875rem;
+    font-size: var(--wh-font-sm);
     color: #6c757d;
 }
 
 .progress-step.active .progress-step-label {
-    color: #0d6efd;
+    color: var(--wh-info);
     font-weight: 600;
 }
 
 .progress-line {
-    height: 2px;
+    height: 3px;
     background: #e9ecef;
     flex: 1;
     margin: 0 10px;
     align-self: start;
-    margin-top: 20px;
+    margin-top: 25px;
 }
 </style>
 {% endblock %}
@@ -120,75 +106,66 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                         <!-- Bill ID - Scanner friendly -->
-                        <div class="mb-4">
-                            <label for="bill_id" class="form-label fw-bold">
+                        <div class="wh-form-group-xl">
+                            <label for="bill_id" class="wh-label-lg">
                                 <i class="fas fa-hashtag me-2"></i>Bill ID
-                                <span class="text-muted small">(Scannable)</span>
+                                <span class="text-muted wh-text-sm">(Scannable)</span>
                             </label>
-                            <div class="input-group input-group-lg">
-                                <span class="input-group-text">
-                                    <i class="fas fa-barcode"></i>
-                                </span>
-                                <input 
-                                    type="text" 
-                                    class="form-control scanner-friendly-input" 
-                                    id="bill_id" 
-                                    name="bill_id" 
-                                    value="{{ request.form.get('bill_id', '') }}" 
-                                    required 
-                                    autofocus
-                                    placeholder="SCAN OR TYPE HERE"
-                                >
-                            </div>
-                            <div class="form-text">
+                            <input 
+                                type="text" 
+                                class="wh-scanner-input" 
+                                id="bill_id" 
+                                name="bill_id" 
+                                value="{{ request.form.get('bill_id', '') }}" 
+                                required 
+                                autofocus
+                                placeholder="SCAN OR TYPE"
+                            >
+                            <div class="wh-text-sm text-muted wh-mt-sm">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Scan a barcode or type a unique bill identifier
+                                Scan barcode or type bill ID
                             </div>
                         </div>
                         
                         <!-- Parent Bag Count -->
-                        <div class="mb-4">
-                            <label for="parent_bag_count" class="form-label fw-bold">
+                        <div class="wh-form-group-xl">
+                            <label for="parent_bag_count" class="wh-label-lg">
                                 <i class="fas fa-boxes me-2"></i>Number of Parent Bags
                             </label>
-                            <div class="input-group input-group-lg">
-                                <span class="input-group-text">
-                                    <i class="fas fa-sort-numeric-up"></i>
-                                </span>
-                                <input 
-                                    type="number" 
-                                    class="form-control number-input-large" 
-                                    id="parent_bag_count" 
-                                    name="parent_bag_count" 
-                                    min="1" 
-                                    max="50" 
-                                    value="{{ request.form.get('parent_bag_count', '5') }}" 
-                                    required
-                                >
-                            </div>
-                            <div class="form-text">
+                            <input 
+                                type="number" 
+                                class="wh-input" 
+                                id="parent_bag_count" 
+                                name="parent_bag_count" 
+                                min="1" 
+                                max="50" 
+                                value="{{ request.form.get('parent_bag_count', '5') }}" 
+                                required
+                                style="font-size: var(--wh-font-2xl); text-align: center; font-weight: 700;"
+                            >
+                            <div class="wh-text-sm text-muted wh-mt-sm">
                                 <i class="fas fa-info-circle me-1"></i>
-                                How many parent bags should be linked to this bill? (1-50)
+                                How many parent bags? (1-50)
                             </div>
                         </div>
 
                         <!-- Instructions -->
-                        <div class="alert alert-info">
-                            <h6><i class="fas fa-lightbulb me-2"></i>Quick Tips:</h6>
-                            <ul class="mb-0 small">
-                                <li>Bill ID field accepts barcode scanner input - just scan!</li>
-                                <li>Use Tab or Enter to move between fields quickly</li>
-                                <li>All fields are required</li>
+                        <div class="wh-alert wh-alert-info wh-mb-lg">
+                            <h6 class="wh-text-lg wh-text-bold mb-2"><i class="fas fa-lightbulb me-2"></i>Quick Tips:</h6>
+                            <ul class="mb-0 wh-text-base">
+                                <li>Bill ID accepts scanner input - just scan!</li>
+                                <li>Use Tab or Enter to move between fields</li>
+                                <li>All fields required</li>
                             </ul>
                         </div>
                         
                         <!-- Action Buttons -->
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-arrow-right me-2"></i>Continue to Scan Parent Bags
+                        <div class="wh-flex wh-flex-col wh-flex-gap-md">
+                            <button type="submit" class="wh-btn wh-btn-success wh-btn-lg wh-btn-block">
+                                <i class="fas fa-arrow-right wh-icon"></i>Continue to Scan Parent Bags
                             </button>
-                            <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-2"></i>Cancel
+                            <a href="{{ url_for('bill_management') }}" class="wh-btn wh-btn-outline wh-btn-block">
+                                <i class="fas fa-times wh-icon"></i>Cancel
                             </a>
                         </div>
                     </form>

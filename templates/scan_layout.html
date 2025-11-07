@@ -6,9 +6,34 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Scan{% endblock %}</title>
     
-    <!-- Inline critical CSS for fastest load -->
+    <!-- Preload warehouse-mode.css async for non-blocking load -->
+    <link rel="preload" href="{{ url_for('static', filename='css/warehouse-mode.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse-mode.css') }}"></noscript>
+    
+    <!-- Inline critical CSS for fastest first render -->
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* Critical warehouse-mode variables for buttons */
+        :root {
+            --wh-success: #28a745;
+            --wh-success-dark: #218838;
+            --wh-warning: #ffc107;
+            --wh-warning-dark: #e0a800;
+            --wh-danger: #dc3545;
+            --wh-info: #17a2b8;
+            --wh-white: #ffffff;
+            --wh-dark: #343a40;
+            --wh-font-base: 1.25rem;
+            --wh-font-lg: 1.5rem;
+            --wh-space-md: 1rem;
+            --wh-space-lg: 1.5rem;
+            --wh-touch-md: 60px;
+            --wh-touch-lg: 80px;
+            --wh-border-medium: 3px;
+            --wh-radius-md: 12px;
+            --wh-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
         
         body {
             font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -24,10 +49,8 @@
             padding: 10px;
         }
         
-        /* Hide everything but scan content on load to prevent flash */
         .scan-page { opacity: 1; }
         
-        /* Minimalist header */
         .header {
             background: #4CAF50;
             color: white;
@@ -38,6 +61,83 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
+        /* Critical warehouse-mode button styles */
+        .wh-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-height: var(--wh-touch-md);
+            padding: var(--wh-space-md) var(--wh-space-lg);
+            font-size: var(--wh-font-base);
+            font-weight: 600;
+            text-decoration: none;
+            border: var(--wh-border-medium) solid transparent;
+            border-radius: var(--wh-radius-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--wh-shadow-md);
+            text-align: center;
+        }
+        
+        .wh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            text-decoration: none;
+        }
+        
+        .wh-btn-lg {
+            min-height: var(--wh-touch-lg);
+            padding: 1.5rem 2rem;
+            font-size: var(--wh-font-lg);
+        }
+        
+        .wh-btn-success {
+            background: var(--wh-success);
+            color: var(--wh-white);
+            border-color: var(--wh-success);
+        }
+        
+        .wh-btn-success:hover {
+            background: var(--wh-success-dark);
+            border-color: var(--wh-success-dark);
+            color: var(--wh-white);
+        }
+        
+        .wh-btn-warning {
+            background: var(--wh-warning);
+            color: var(--wh-dark);
+            border-color: var(--wh-warning);
+        }
+        
+        .wh-btn-warning:hover {
+            background: var(--wh-warning-dark);
+            border-color: var(--wh-warning-dark);
+        }
+        
+        .wh-btn-outline {
+            background: var(--wh-white);
+            color: var(--wh-dark);
+            border-color: var(--wh-dark);
+        }
+        
+        .wh-btn-outline:hover {
+            background: var(--wh-dark);
+            color: var(--wh-white);
+        }
+        
+        .wh-btn-primary {
+            background: var(--wh-info);
+            color: var(--wh-white);
+            border-color: var(--wh-info);
+        }
+        
+        .wh-btn-block {
+            display: flex;
+            width: 100%;
+        }
+        
+        /* Legacy .btn fallback for compatibility */
         .btn {
             display: inline-block;
             padding: 15px 25px;
@@ -60,6 +160,7 @@
         .btn-primary { background: #2196F3; color: white; }
         .btn-success { background: #4CAF50; color: white; }
         .btn-secondary { background: #757575; color: white; }
+        .btn-warning { background: #ffc107; color: #333; }
         
         /* Toast - simple and fast */
         .toast {

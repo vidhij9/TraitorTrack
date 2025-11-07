@@ -3,6 +3,7 @@
 {% block title %}Bill Management - traitor track{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse-mode.css') }}">
 <style>
 /* Scanner Modal Styles */
 .scanner-modal {
@@ -30,7 +31,7 @@
 }
 
 .scanner-info {
-    font-size: 0.85rem;
+    font-size: var(--wh-font-sm);
 }
 
 /* Success animation */
@@ -52,12 +53,12 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h2 class="card-title mb-0">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h2 class="card-title mb-0 wh-text-xl">
                             <i class="fas fa-file-invoice me-2"></i>Bill Management
                         </h2>
-                        <a href="{{ url_for('create_bill') }}" class="btn btn-primary btn-sm px-2 py-1">
-                            <i class="fas fa-plus me-1"></i>Create Bill
+                        <a href="{{ url_for('create_bill') }}" class="wh-btn wh-btn-success">
+                            <i class="fas fa-plus wh-icon-sm"></i>Create Bill
                         </a>
                     </div>
                 </div>
@@ -71,41 +72,44 @@
             <div class="card">
                 <div class="card-body py-2 px-3">
                     <form method="GET" action="{{ url_for('bill_management') }}">
-                        <div class="row g-2 align-items-center">
-                            <div class="col-auto">
-                                <span class="fw-medium text-dark">
-                                    <i class="fas fa-search me-1"></i>Search:
-                                </span>
+                        <div class="wh-flex wh-flex-col wh-flex-gap-md">
+                            <!-- Search Input -->
+                            <div class="wh-form-group">
+                                <label for="search_bill_id" class="wh-label">
+                                    <i class="fas fa-search me-2"></i>Bill ID Search (Scanner Supported)
+                                </label>
+                                <input type="text" class="wh-input" id="search_bill_id" name="search_bill_id" 
+                                       placeholder="SCAN OR TYPE BILL ID" value="{{ request.args.get('search_bill_id', '') }}" autofocus
+                                       style="text-transform: uppercase;">
                             </div>
-                            <div class="col-auto" style="min-width: 150px;">
-                                <input type="text" class="form-control form-control-sm" id="search_bill_id" name="search_bill_id" 
-                                       placeholder="Bill ID (HID scanner supported)" value="{{ request.args.get('search_bill_id', '') }}" autofocus>
-                            </div>
-                            <div class="col-auto" style="min-width: 130px;">
-                                <select class="form-select form-select-sm" id="status_filter" name="status_filter">
+                            
+                            <!-- Status Filter -->
+                            <div class="wh-form-group">
+                                <label for="status_filter" class="wh-label">
+                                    <i class="fas fa-filter me-2"></i>Filter by Status
+                                </label>
+                                <select class="wh-select" id="status_filter" name="status_filter" style="font-size: var(--wh-font-base);">
                                     <option value="all" {% if request.args.get('status_filter', 'all') == 'all' %}selected{% endif %}>All Status</option>
                                     <option value="empty" {% if request.args.get('status_filter') == 'empty' %}selected{% endif %}>Empty</option>
                                     <option value="in_progress" {% if request.args.get('status_filter') == 'in_progress' %}selected{% endif %}>In Progress</option>
                                     <option value="completed" {% if request.args.get('status_filter') == 'completed' %}selected{% endif %}>Completed</option>
                                 </select>
                             </div>
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-primary btn-sm px-3 py-1">
-                                    <i class="fas fa-search me-1"></i>Search
+                            
+                            <!-- Action Buttons -->
+                            <div class="wh-flex wh-flex-col wh-flex-gap-sm">
+                                <button type="submit" class="wh-btn wh-btn-primary wh-btn-block">
+                                    <i class="fas fa-search wh-icon"></i>Search Bills
                                 </button>
-                            </div>
-                            <div class="col-auto">
-                                <button type="button" class="btn btn-success btn-sm px-3 py-1" data-bs-toggle="modal" data-bs-target="#summaryModal">
-                                    <i class="fas fa-chart-bar me-1"></i>Generate Summary
+                                <button type="button" class="wh-btn wh-btn-success wh-btn-block" data-bs-toggle="modal" data-bs-target="#summaryModal">
+                                    <i class="fas fa-chart-bar wh-icon"></i>Generate Summary
                                 </button>
-                            </div>
-                            {% if request.args.get('search_bill_id') or request.args.get('status_filter', 'all') != 'all' %}
-                            <div class="col-auto">
-                                <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary btn-sm px-2 py-1">
-                                    <i class="fas fa-times"></i>
+                                {% if request.args.get('search_bill_id') or request.args.get('status_filter', 'all') != 'all' %}
+                                <a href="{{ url_for('bill_management') }}" class="wh-btn wh-btn-outline wh-btn-block">
+                                    <i class="fas fa-times wh-icon"></i>Clear Filters
                                 </a>
+                                {% endif %}
                             </div>
-                            {% endif %}
                         </div>
                     </form>
                 </div>
