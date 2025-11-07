@@ -30,12 +30,12 @@ Mobile-first approach with consistent breakpoints
     --spacing-lg: 0.75rem;
     --spacing-xl: 1rem;
     
-    /* Typography - Smaller fonts for compact design */
-    --font-size-xs: 0.625rem;
-    --font-size-sm: 0.75rem;
-    --font-size-base: 0.875rem;
-    --font-size-lg: 1rem;
-    --font-size-xl: 1.125rem;
+    /* Typography - Readable fonts for warehouse workers */
+    --font-size-xs: 0.875rem;
+    --font-size-sm: 1rem;
+    --font-size-base: 1.125rem;
+    --font-size-lg: 1.25rem;
+    --font-size-xl: 1.5rem;
     
     /* Borders */
     --border-radius: 0.5rem;
@@ -194,31 +194,31 @@ h6 { font-size: 0.875rem; }
     padding: var(--spacing-sm);
 }
 
-/* Buttons - Mobile-first compact approach */
+/* Buttons - Warehouse-friendly large sizes */
 .btn {
     border-radius: var(--border-radius-sm);
-    font-size: var(--font-size-xs);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-weight: 500;
+    font-size: var(--font-size-base);
+    padding: 0.75rem 1.25rem;
+    font-weight: 600;
     transition: var(--transition);
-    border: 1px solid transparent;
+    border: 2px solid transparent;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 1.75rem;
+    min-height: 44px;
 }
 
 .btn-sm {
-    padding: var(--spacing-xs) var(--spacing-xs);
-    font-size: var(--font-size-xs);
-    min-height: 1.5rem;
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-sm);
+    min-height: 38px;
 }
 
 .btn-lg {
-    padding: var(--spacing-md) var(--spacing-lg);
-    font-size: var(--font-size-base);
-    min-height: 2.75rem;
+    padding: 1rem 1.5rem;
+    font-size: var(--font-size-lg);
+    min-height: 50px;
 }
 
 .btn-primary {

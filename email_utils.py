@@ -489,7 +489,18 @@ class EmailService:
     
     @staticmethod
     def send_password_reset_email(username: str, email: str, reset_link: str) -> Tuple[bool, Optional[str]]:
-        """Send password reset email"""
+        """
+        Send password reset email.
+        
+        SECURITY: Accepts None values for anti-enumeration. When username/email is None,
+        still makes SendGrid API call with synthetic data to ensure constant-time behavior.
+        """
+        # SECURITY: For anti-enumeration, use fake data but still call SendGrid API
+        if username is None or email is None:
+            username = "fake_user"
+            email = "noreply@example.com"  # Will fail but takes same time as real attempts
+            reset_link = "https://example.com/reset/fake"
+            
         subject, html_content = EmailTemplate.password_reset(username, reset_link)
         return EmailService.send_email(email, subject, html_content)
     

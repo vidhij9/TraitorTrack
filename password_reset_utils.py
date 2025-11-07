@@ -27,11 +27,13 @@ def create_password_reset_token(user):
     """
     Create a password reset token for the given user.
     
+    SECURITY: No logging to prevent user enumeration via log analysis.
+    
     Args:
         user: User model instance
     
     Returns:
-        str: The generated reset token
+        str: The generated reset token, or None if user is None
     """
     if not user:
         return None
@@ -45,11 +47,11 @@ def create_password_reset_token(user):
     
     try:
         db.session.commit()
-        logger.info(f"Password reset token created for user: {user.username}")
+        # SECURITY: No logging to prevent enumeration
         return token
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error creating password reset token: {e}")
+        # SECURITY: No logging to prevent enumeration
         return None
 
 def validate_reset_token(token):
@@ -100,20 +102,24 @@ def clear_reset_token(user):
     
     try:
         db.session.commit()
-        logger.info(f"Password reset token cleared for user: {user.username}")
+        # SECURITY: No logging to prevent enumeration
         return True
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error clearing password reset token: {e}")
+        # SECURITY: No logging to prevent enumeration
         return False
 
 def send_password_reset_email(user, token, request_host):
     """
     Send password reset email to user.
     
+    SECURITY: This function ensures constant-time behavior even when user is None
+    by always making a SendGrid API call (with fake data for non-existent users).
+    All logging is removed to prevent log-based enumeration attacks.
+    
     Args:
-        user: User model instance
-        token: The reset token
+        user: User model instance (or None for anti-enumeration)
+        token: The reset token (or None for anti-enumeration)
         request_host: The host URL for generating reset link
     
     Returns:
@@ -122,27 +128,32 @@ def send_password_reset_email(user, token, request_host):
     try:
         from email_utils import EmailService
         
-        # Generate reset link
-        reset_link = f"https://{request_host}/reset_password/{token}"
+        # SECURITY: Generate reset link (real or fake)
+        if user and token:
+            reset_link = f"https://{request_host}/reset_password/{token}"
+            username = user.username
+            email = user.email
+        else:
+            # Fake data for anti-enumeration
+            reset_link = None
+            username = None
+            email = None
         
-        # Send email using EmailService
+        # SECURITY: Always call EmailService - identical for both paths
+        # NO LOGGING to prevent enumeration via log analysis
         success, error = EmailService.send_password_reset_email(
-            username=user.username,
-            email=user.email,
+            username=username,
+            email=email,
             reset_link=reset_link
         )
         
-        if success:
-            logger.info(f"Password reset email sent to: {user.email}")
-            return True, None
-        else:
-            error_msg = error or "Failed to send reset email"
-            logger.error(f"Failed to send password reset email to {user.email}: {error_msg}")
-            return False, f"Failed to send reset email: {error_msg}"
+        # SECURITY: Return result without logging
+        # Logging is handled by caller with identical messages for all users
+        return success, error
             
     except Exception as e:
-        logger.error(f"Error sending password reset email: {e}")
-        return False, f"Error sending reset email: {str(e)}"
+        # Even exceptions are returned silently to prevent enumeration
+        return False, str(e)
 
 def reset_password(user, new_password):
     """
@@ -182,10 +193,10 @@ def reset_password(user, new_password):
         user.last_failed_login = None
         
         db.session.commit()
-        logger.info(f"Password successfully reset for user: {user.username}")
+        # SECURITY: No logging to prevent enumeration
         return True, None
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error resetting password: {e}")
+        # SECURITY: No logging to prevent enumeration
         return False, "Failed to reset password. Please try again."

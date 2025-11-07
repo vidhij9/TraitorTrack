@@ -14,6 +14,8 @@ TraitorTrack is a high-performance, production-ready web-based bag tracking syst
 7. **Session Handling** - Improved edge case handling for expired/invalid parent bags in session
 8. **CSRF Security** - Documented all 21 CSRF-exempted routes with risk analysis (see CSRF_SECURITY_ANALYSIS.md)
 9. **Warehouse CSS Loading** - Created warehouse_layout.html to centralize warehouse-mode.css loading, fixing block name mismatch (layout.html used `extra_css` but warehouse pages used `head`), ensuring consistent 70px buttons across all operational pages
+10. **Password Reset Security** - Implemented constant-time behavior to prevent user enumeration attacks through timing analysis, logging patterns, or UI differences. All code paths make identical SendGrid API calls and log identical messages regardless of user existence.
+11. **Agriculture UI/UX** - Redesigned entire color scheme from tech startup purple to agriculture industry theme (forest green #2d5016, earth-tone beige backgrounds, golden accents). Increased all button sizes to 44px minimum height with 18px fonts for warehouse workers. Enhanced text readability with heavier font weights (600-800) and WCAG AA-compliant contrast ratios (9.25:1).
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

@@ -1972,6 +1972,7 @@ def forgot_password():
     
     from forms import ForgotPasswordForm
     from password_reset_utils import create_password_reset_token, send_password_reset_email
+    from email_utils import EmailConfig
     
     form = ForgotPasswordForm()
     
@@ -1982,27 +1983,18 @@ def forgot_password():
             # Find user by email
             user = User.query.filter_by(email=email).first()
             
-            # Always show success message (don't reveal if email exists)
-            # This prevents email enumeration attacks
-            flash('If an account exists with that email, a password reset link has been sent.', 'success')
+            # SECURITY: Create token only if user exists, None otherwise
+            token = create_password_reset_token(user) if user else None
             
-            if user:
-                # Generate reset token
-                token = create_password_reset_token(user)
-                
-                if token:
-                    # Send reset email
-                    success, error = send_password_reset_email(user, token, request.host)
-                    
-                    if success:
-                        app.logger.info(f"Password reset email sent to: {email}")
-                    else:
-                        app.logger.error(f"Failed to send password reset email: {error}")
-                else:
-                    app.logger.error(f"Failed to create reset token for: {email}")
-            else:
-                # User not found - log for security monitoring
-                app.logger.warning(f"Password reset attempted for non-existent email: {email}")
+            # SECURITY: Always call email function - identical path for all requests
+            success, error = send_password_reset_email(user, token, request.host)
+            
+            # SECURITY: Always log the same message regardless of outcome
+            app.logger.info(f"Password reset flow executed for email submission")
+            
+            # Always show IDENTICAL messages to prevent enumeration
+            flash('If an account exists with that email, a password reset link has been sent.', 'success')
+            flash('Note: If you don\'t receive an email within a few minutes, check your spam folder or contact your administrator.', 'info')
             
             return redirect(url_for('login'))
             
