@@ -5,20 +5,20 @@
 {% block styles %}
 .scan-box {
     background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-    border-radius: 20px;
-    padding: 30px 20px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    margin: 15px 0;
+    border-radius: 16px;
+    padding: 20px 15px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    margin: 10px 0;
 }
 
 .big-icon {
-    font-size: 80px;
+    font-size: 100px;
     text-align: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .scan-input {
-    font-size: 32px;
+    font-size: 36px;
     padding: 20px;
     text-align: center;
     border: 5px solid white;
@@ -30,78 +30,112 @@
     width: 100%;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     outline: none;
+    min-height: 70px;
 }
 
 .scan-input:focus {
     border-color: #FFD700;
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+    box-shadow: 0 0 35px rgba(255, 215, 0, 0.7);
 }
 
 .status-text {
     color: white;
-    font-size: 24px;
+    font-size: 26px;
     text-align: center;
-    margin-top: 15px;
-    font-weight: 600;
+    margin-top: 10px;
+    font-weight: 700;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
 }
 
 .instructions {
     background: white;
-    border-radius: 15px;
-    padding: 20px;
-    margin: 20px 0;
+    border-radius: 12px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.instructions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 5px 0;
 }
 
 .step {
     display: flex;
     align-items: center;
-    margin: 15px 0;
-    font-size: 18px;
+    margin: 12px 0;
+    font-size: 20px;
+    font-weight: 600;
 }
 
 .step-num {
     background: #4CAF50;
     color: white;
-    width: 45px;
-    height: 45px;
+    width: 55px;
+    height: 55px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 28px;
     font-weight: bold;
     margin-right: 15px;
     flex-shrink: 0;
 }
 
+.step-icon {
+    font-size: 32px;
+    margin-left: 10px;
+}
+
 .success-box {
     background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
     color: white;
-    border-radius: 20px;
-    padding: 30px;
+    border-radius: 16px;
+    padding: 25px 15px;
     text-align: center;
-    margin: 20px 0;
+    margin: 15px 0;
 }
 
 .qr-display {
     background: white;
     color: #333;
-    font-size: 36px;
-    padding: 15px;
-    border-radius: 10px;
+    font-size: 40px;
+    padding: 20px;
+    border-radius: 12px;
     font-weight: bold;
     margin: 20px 0;
+    word-break: break-all;
+}
+
+@media (max-width: 768px) {
+    .scan-box { padding: 15px 10px; margin: 8px 0; }
+    .big-icon { font-size: 80px; margin-bottom: 8px; }
+    .scan-input { font-size: 28px; padding: 16px; min-height: 65px; }
+    .status-text { font-size: 22px; }
+    .instructions { padding: 12px; margin: 12px 0; }
+    .step { font-size: 18px; margin: 10px 0; }
+    .step-num { width: 50px; height: 50px; font-size: 24px; margin-right: 12px; }
+    .step-icon { font-size: 28px; }
+    .qr-display { font-size: 32px; padding: 15px; }
 }
 
 @media (max-width: 480px) {
-    .scan-input { font-size: 28px; padding: 18px; }
-    .big-icon { font-size: 60px; }
+    .scan-box { padding: 12px 8px; }
+    .big-icon { font-size: 70px; }
+    .scan-input { font-size: 24px; padding: 14px; min-height: 60px; }
     .status-text { font-size: 20px; }
+    .step { font-size: 16px; }
+    .step-num { width: 45px; height: 45px; font-size: 22px; }
+    .step-icon { font-size: 24px; }
 }
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container" style="max-width: 600px; padding: 8px;">
+    <!-- Scan Input Box - Always Above Fold -->
     <div class="scan-box">
         <div class="big-icon">📦</div>
         
@@ -117,47 +151,72 @@
         <div class="status-text" id="status">✅ Ready to scan</div>
     </div>
 
+    <!-- Collapsible Instructions - Icon-First Design -->
     <div class="instructions">
-        <h3 style="text-align: center; color: #4CAF50; margin-bottom: 20px;">
-            ℹ️ How to Scan
-        </h3>
-        
-        <div class="step">
-            <div class="step-num">1</div>
-            <div>Point scanner at BIG bag</div>
+        <div class="instructions-header" onclick="toggleInstructions()">
+            <h3 style="color: #4CAF50; margin: 0; font-size: 20px; font-weight: 700;">
+                <i class="fas fa-info-circle"></i> How to Scan
+            </h3>
+            <i class="fas fa-chevron-down" id="instructions-icon" style="color: #4CAF50; font-size: 20px;"></i>
         </div>
         
-        <div class="step">
-            <div class="step-num">2</div>
-            <div>Press scan button</div>
-        </div>
-        
-        <div class="step">
-            <div class="step-num">3</div>
-            <div>Listen for BEEP</div>
-        </div>
-        
-        <div class="step">
-            <div class="step-num">4</div>
-            <div>Scan small bags next</div>
+        <div id="instructions-content" class="collapse">
+            <div class="step">
+                <div class="step-num">1</div>
+                <div>Point scanner <span class="step-icon">👉</span></div>
+            </div>
+            
+            <div class="step">
+                <div class="step-num">2</div>
+                <div>Press button <span class="step-icon">🔘</span></div>
+            </div>
+            
+            <div class="step">
+                <div class="step-num">3</div>
+                <div>Listen for BEEP <span class="step-icon">🔊</span></div>
+            </div>
+            
+            <div class="step">
+                <div class="step-num">4</div>
+                <div>Next: Small bags <span class="step-icon">📦</span></div>
+            </div>
         </div>
     </div>
 
+    <!-- Success Box -->
     <div id="success" class="success-box" style="display: none;">
-        <h2 style="font-size: 32px; margin-bottom: 15px;">✅ Done!</h2>
-        <p style="font-size: 20px;">Big Bag Scanned:</p>
+        <div style="font-size: 60px; margin-bottom: 10px;">✅</div>
+        <h2 style="font-size: 32px; margin-bottom: 10px; font-weight: 800;">DONE!</h2>
+        <p style="font-size: 18px; margin-bottom: 8px;">Big Bag:</p>
         <div class="qr-display" id="qr"></div>
-        <button onclick="next()" class="btn btn-success" style="width: 100%; max-width: 400px; min-height: 60px;">
-            ▶ Scan Small Bags Now
+        <button onclick="next()" class="btn btn-success" style="width: 100%; max-width: 400px; min-height: 70px; font-size: 22px; font-weight: 700; margin-top: 10px;">
+            <i class="fas fa-arrow-right me-2" style="font-size: 24px;"></i>Scan Small Bags
         </button>
     </div>
 
-    <div style="text-align: center; margin-top: 20px;">
-        <a href="/" class="btn btn-secondary" style="padding: 12px 30px;">
-            🏠 Back to Home
+    <!-- Back Button -->
+    <div style="text-align: center; margin-top: 15px;">
+        <a href="/" class="btn btn-secondary" style="min-height: 54px; padding: 12px 30px; font-size: 18px;">
+            <i class="fas fa-home me-2"></i>Home
         </a>
     </div>
 </div>
+
+<script>
+function toggleInstructions() {
+    const content = document.getElementById('instructions-content');
+    const icon = document.getElementById('instructions-icon');
+    if (content.classList.contains('show')) {
+        content.classList.remove('show');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    } else {
+        content.classList.add('show');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    }
+}
+</script>
 
 <audio id="beep" preload="auto">
     <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGS57OihUxILTKXo86xbGAg+ltrzxnUsCSB0xPDekT4JEU+m4fCrWBUIQ5zm8r5sIQQrhM/y2Yo3CRdnvOznpE8SC0ml5PKsWhgHPJXZ88p4LAceb8Tv3JA+CQ9Op+HwqVkUCEGa5fK/ayEEKYPP8tuJNwgUY7vt56NRFA1Jpejxq1oYBjuV2fPKeCwGHm7E79yQPgkPTqfh8KpZFAhBmuXyv2wgBSiDz/LbiTcIE2K57OajUxQOSaXo8atbGAc7lNjzyngsBS1txa/ckT4KD06o4fCqWhUIQZvm8sBsIQQogdDy24k3CBNiuezno1MUDkml6PGsWxcHO5TX88p3LAUtbcOu3JE+ChBOp+Lwq1sXCECa5fLAbCEEJoLQ8dqKOAgTYrrs6KNSFQ9Ip+fxrVsZCDuU2PPKeCwGLW3DrtySPwoQTajh8qtbGAg/mubywGwiBSaB0PHaijkIE2K67OejUxQPSKfn8KxcGQc7ldfzyHUsBy1txK/djD8JD0+n4fGsWxkIP5rm8r9sIwUlgNDy24o6CBRisuzoo1MVDUZL4fGsXRoIN5PY88l2LAgtbMSu3Y0/Cw9PqODyq1saCj2a5vK/bSQFJIDQ8duKOwkUYrLs56NUFg5FSeDxrV4aBzqT2PPJWK2EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"></source>

@@ -3,59 +3,66 @@
 {% block title %}Login - Traitor Track{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container" style="max-width: 500px; padding: 12px;">
     <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="card mb-4">
-                <div class="card-header bg-primary bg-opacity-25 text-dark">
-                    <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Login</h4>
-                </div>
-                <div class="card-body">
+        <div class="col-12">
+            <!-- Logo/Header -->
+            <div class="text-center mb-4">
+                <i class="fas fa-sign-in-alt" style="font-size: 60px; color: var(--primary-color, #2d5016);"></i>
+                <h3 style="font-size: 28px; font-weight: 700; margin-top: 12px; color: var(--primary-color, #2d5016);">Login</h3>
+            </div>
+            
+            <div class="card mb-3">
+                <div class="card-body" style="padding: 20px;">
                     <form method="POST" action="/login">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         
+                        <!-- Username Field -->
                         <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-user"></i>
-                                </span>
-                                <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username" required>
-                            </div>
+                            <label for="username" class="form-label" style="font-size: 16px; font-weight: 600;">
+                                <i class="fas fa-user me-2"></i>Username
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username" 
+                                   placeholder="Enter username" required
+                                   style="min-height: 52px; font-size: 18px; padding: 12px 16px;">
                         </div>
                         
+                        <!-- Password Field -->
                         <div class="mb-4">
-                            <label for="password" class="form-label">Password</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-lock"></i>
-                                </span>
-                                <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
-                            </div>
+                            <label for="password" class="form-label" style="font-size: 16px; font-weight: 600;">
+                                <i class="fas fa-lock me-2"></i>Password
+                            </label>
+                            <input type="password" class="form-control" id="password" name="password" 
+                                   placeholder="Enter password" required
+                                   style="min-height: 52px; font-size: 18px; padding: 12px 16px;">
                         </div>
                         
-                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                        <!-- Remember Me / Forgot Password -->
+                        <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                                <label class="form-check-label" for="remember">
+                                <input type="checkbox" class="form-check-input" id="remember" name="remember" 
+                                       style="min-width: 20px; min-height: 20px;">
+                                <label class="form-check-label" for="remember" style="font-size: 15px; margin-left: 8px;">
                                     Remember me
                                 </label>
                             </div>
-                            <a href="{{ url_for('forgot_password') }}" class="text-decoration-none small">
+                            <a href="{{ url_for('forgot_password') }}" style="font-size: 15px; text-decoration: none;">
                                 Forgot password?
                             </a>
                         </div>
                         
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                        <!-- Login Button -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" 
+                                    style="min-height: 56px; font-size: 20px; font-weight: 700;">
+                                <i class="fas fa-sign-in-alt me-2" style="font-size: 22px;"></i>Login
                             </button>
                         </div>
                     </form>
                 </div>
-                <div class="card-footer bg-light">
-                    <p class="mb-0 text-center">
-                        Don't have an account? <a href="{{ url_for('register') }}" class="text-primary">Register here</a>
+                <div class="card-footer bg-light text-center" style="padding: 16px;">
+                    <p class="mb-0" style="font-size: 15px;">
+                        Don't have an account? <a href="{{ url_for('register') }}" style="font-weight: 600;">Register here</a>
                     </p>
                 </div>
             </div>

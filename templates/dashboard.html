@@ -30,84 +30,104 @@
 
 {% block content %}
 <!-- Compact Header -->
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <h4 class="mb-0">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0" style="font-size: 1.5rem; font-weight: 700;">
         <i class="fas fa-chart-line me-2"></i>Dashboard
     </h4>
-    <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-data">
+    <button type="button" class="btn btn-outline-secondary" id="refresh-data" style="min-height: 44px; min-width: 44px;">
         <i class="fas fa-sync-alt"></i>
     </button>
 </div>
 
-<!-- Compact Stats -->
-<div class="mb-2">
-    <div class="bg-white rounded border py-1 px-2">
+<!-- Stats - Mobile-Friendly with Large Text -->
+<div class="mb-3">
+    <div class="bg-white rounded border">
         <div class="row text-center g-0">
             <div class="col-3">
-                <span class="fw-bold text-primary" id="total-parent-bags">0</span>
-                <small class="d-block text-muted" style="font-size: 10px;">Parents</small>
+                <i class="fas fa-boxes d-block text-primary mb-1" style="font-size: 1.5rem;"></i>
+                <span class="fw-bold text-primary d-block" id="total-parent-bags" style="font-size: 1.75rem;">0</span>
+                <small class="d-block text-muted fw-semibold" style="font-size: 14px;">Parents</small>
             </div>
             <div class="col-3">
-                <span class="fw-bold text-success" id="total-child-bags">0</span>
-                <small class="d-block text-muted" style="font-size: 10px;">Children</small>
+                <i class="fas fa-box d-block text-success mb-1" style="font-size: 1.5rem;"></i>
+                <span class="fw-bold text-success d-block" id="total-child-bags" style="font-size: 1.75rem;">0</span>
+                <small class="d-block text-muted fw-semibold" style="font-size: 14px;">Children</small>
             </div>
             <div class="col-3">
-                <span class="fw-bold text-warning" id="total-bills">0</span>
-                <small class="d-block text-muted" style="font-size: 10px;">Bills</small>
+                <i class="fas fa-file-invoice d-block text-warning mb-1" style="font-size: 1.5rem;"></i>
+                <span class="fw-bold text-warning d-block" id="total-bills" style="font-size: 1.75rem;">0</span>
+                <small class="d-block text-muted fw-semibold" style="font-size: 14px;">Bills</small>
             </div>
             <div class="col-3">
-                <span class="fw-bold text-danger" id="total-scans">0</span>
-                <small class="d-block text-muted" style="font-size: 10px;">Scans</small>
+                <i class="fas fa-qrcode d-block text-danger mb-1" style="font-size: 1.5rem;"></i>
+                <span class="fw-bold text-danger d-block" id="total-scans" style="font-size: 1.75rem;">0</span>
+                <small class="d-block text-muted fw-semibold" style="font-size: 14px;">Scans</small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Compact Actions -->
-<div class="mb-2">
-    <div class="d-flex gap-1">
-        <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary btn-sm flex-fill py-1">
-            <i class="fas fa-qrcode"></i> Scan Parent
-        </a>
-        <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success btn-sm flex-fill py-1">
-            <i class="fas fa-file-invoice"></i> Bills
-        </a>
-        <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-info btn-sm flex-fill py-1">
-            <i class="fas fa-search"></i> Lookup
-        </a>
+<!-- Actions - Large Touch-Friendly Buttons -->
+<div class="mb-3">
+    <div class="row g-2">
+        <div class="col-12 col-md-4">
+            <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 18px;">
+                <i class="fas fa-qrcode me-2" style="font-size: 1.5rem;"></i>
+                <span>Scan Parent</span>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 18px;">
+                <i class="fas fa-file-invoice me-2" style="font-size: 1.5rem;"></i>
+                <span>Bills</span>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-info w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 18px;">
+                <i class="fas fa-search me-2" style="font-size: 1.5rem;"></i>
+                <span>Lookup</span>
+            </a>
+        </div>
     </div>
 </div>
 
-<!-- System Health (Admin Only) -->
+<!-- System Health (Admin Only) - Collapsible to save space -->
 {% if current_user.is_admin() %}
-<div class="card mb-2">
-    <div class="card-header py-2 bg-dark text-white">
+<div class="card mb-3">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#systemHealth">
         <h6 class="mb-0"><i class="fas fa-heartbeat me-2"></i>System Health</h6>
+        <i class="fas fa-chevron-down"></i>
     </div>
-    <div class="card-body p-2">
-        <div class="row g-1" id="system-health-metrics" style="font-size: 11px;">
-            <div class="col-6">
-                <div class="border rounded p-1">
-                    <small class="text-muted d-block">DB Connections</small>
-                    <strong id="db-connections">-/-</strong>
+    <div id="systemHealth" class="collapse">
+        <div class="card-body p-2">
+            <div class="row g-2" id="system-health-metrics">
+                <div class="col-6">
+                    <div class="border rounded p-2 text-center">
+                        <i class="fas fa-database text-primary mb-1" style="font-size: 1.25rem;"></i>
+                        <small class="text-muted d-block" style="font-size: 12px;">DB Connections</small>
+                        <strong id="db-connections" style="font-size: 16px;">-/-</strong>
+                    </div>
                 </div>
-            </div>
-            <div class="col-6">
-                <div class="border rounded p-1">
-                    <small class="text-muted d-block">Cache Hit Rate</small>
-                    <strong id="cache-hit-rate">-</strong>
+                <div class="col-6">
+                    <div class="border rounded p-2 text-center">
+                        <i class="fas fa-bolt text-warning mb-1" style="font-size: 1.25rem;"></i>
+                        <small class="text-muted d-block" style="font-size: 12px;">Cache Hit</small>
+                        <strong id="cache-hit-rate" style="font-size: 16px;">-</strong>
+                    </div>
                 </div>
-            </div>
-            <div class="col-6">
-                <div class="border rounded p-1">
-                    <small class="text-muted d-block">Memory</small>
-                    <strong id="memory-usage">-</strong>
+                <div class="col-6">
+                    <div class="border rounded p-2 text-center">
+                        <i class="fas fa-memory text-success mb-1" style="font-size: 1.25rem;"></i>
+                        <small class="text-muted d-block" style="font-size: 12px;">Memory</small>
+                        <strong id="memory-usage" style="font-size: 16px;">-</strong>
+                    </div>
                 </div>
-            </div>
-            <div class="col-6">
-                <div class="border rounded p-1">
-                    <small class="text-muted d-block">DB Size</small>
-                    <strong id="db-size">-</strong>
+                <div class="col-6">
+                    <div class="border rounded p-2 text-center">
+                        <i class="fas fa-hdd text-info mb-1" style="font-size: 1.25rem;"></i>
+                        <small class="text-muted d-block" style="font-size: 12px;">DB Size</small>
+                        <strong id="db-size" style="font-size: 16px;">-</strong>
+                    </div>
                 </div>
             </div>
         </div>
@@ -115,28 +135,33 @@
 </div>
 {% endif %}
 
-<!-- Compact Recent Scans -->
+<!-- Recent Scans - Collapsible to reduce scrolling -->
 <div class="card">
-    <div class="card-header py-2">
-        <h6 class="mb-0">Recent Scans</h6>
+    <div class="card-header d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#recentScans">
+        <h6 class="mb-0" style="font-size: 16px; font-weight: 600;"><i class="fas fa-history me-2"></i>Recent Scans</h6>
+        <i class="fas fa-chevron-down"></i>
     </div>
-    <div class="card-body p-2">
-        <div class="table-responsive">
-            <table class="table table-hover table-sm mb-0" id="recent-scans-table" style="font-size: 12px;">
-                <thead>
-                    <tr>
-                        <th style="width: 35%;">QR ID</th>
-                        <th style="width: 20%;">Type</th>
-                        <th style="width: 25%;">User</th>
-                        <th style="width: 20%;">Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td colspan="5" class="text-center">Loading...</td>
-                    </tr>
-                </tbody>
-            </table>
+    <div id="recentScans" class="collapse show">
+        <div class="card-body p-2">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0" id="recent-scans-table" style="font-size: 14px;">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">QR ID</th>
+                            <th style="width: 20%;">Type</th>
+                            <th style="width: 25%;">User</th>
+                            <th style="width: 20%;">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="4" class="text-center py-3">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
