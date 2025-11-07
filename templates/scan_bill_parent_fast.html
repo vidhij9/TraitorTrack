@@ -1,8 +1,8 @@
-{% extends "layout.html" %}
+{% extends "warehouse_layout.html" %}
 {% block title %}Link Parent Bags to Bill - TraitorTrack{% endblock %}
 
-{% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse-mode.css') }}">
+{% block extra_css %}
+{{ super() }}
 <style>
 .scanner-input-container {
     background: linear-gradient(135deg, var(--wh-success) 0%, #20c997 100%);

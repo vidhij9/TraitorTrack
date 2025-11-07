@@ -1,9 +1,9 @@
-{% extends "layout.html" %}
+{% extends "warehouse_layout.html" %}
 
 {% block title %}Create Bill - TraitorTrack{% endblock %}
 
-{% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse-mode.css') }}">
+{% block extra_css %}
+{{ super() }}
 <style>
 .progress-container {
     margin: var(--wh-space-lg) 0;

@@ -1,0 +1,8 @@
+{% extends "layout.html" %}
+
+{% block extra_css %}
+<!-- Warehouse Mode CSS - Large buttons, big fonts, thick borders for mobile warehouse workers -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse-mode.css') }}">
+{% endblock %}
+
+{%- block body_class %}warehouse-mode{% endblock -%}

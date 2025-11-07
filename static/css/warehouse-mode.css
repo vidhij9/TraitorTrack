@@ -110,16 +110,16 @@ body.warehouse-mode {
 
 /* Warehouse Buttons - Large and Clear */
 .wh-btn {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     justify-content: center;
     gap: var(--wh-space-sm);
-    min-height: var(--wh-touch-md);
-    padding: var(--wh-space-md) var(--wh-space-lg);
-    font-size: var(--wh-font-base);
+    min-height: var(--wh-touch-md) !important;
+    padding: var(--wh-space-md) var(--wh-space-lg) !important;
+    font-size: var(--wh-font-base) !important;
     font-weight: 600;
     text-decoration: none;
-    border: var(--wh-border-medium) solid transparent;
+    border: var(--wh-border-medium) solid transparent !important;
     border-radius: var(--wh-radius-md);
     cursor: pointer;
     transition: all 0.2s ease;

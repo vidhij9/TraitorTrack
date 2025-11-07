@@ -41,3 +41,4 @@ qrcode[pil]
 ujson
 hiredis
 redis
+playwright
