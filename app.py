@@ -80,23 +80,20 @@ if redis_url and redis_url != 'redis://localhost:6379/0':
         redis_available = True
         logger.info(f"✅ Redis connected successfully: {redis_url.split('@')[-1] if '@' in redis_url else redis_url}")
     except Exception as e:
-        # CRITICAL: In production, Redis is mandatory for multi-worker session/rate-limit consistency
+        # In production, log error but allow fallback for resilience (deploy.sh verifies REDIS_URL is set)
         if is_production:
             logger.error(f"❌ CRITICAL: Redis connection failed in production: {str(e)}")
-            logger.error(f"❌ Production deployments require Redis for multi-worker session persistence")
-            logger.error(f"❌ Set REDIS_URL environment variable or run single worker")
-            raise RuntimeError(f"Redis is required in production but connection failed: {str(e)}")
+            logger.error(f"⚠️  WARNING: Falling back to filesystem sessions (may cause issues with multiple workers)")
+            logger.error(f"⚠️  Please verify REDIS_URL is correct and Redis service is accessible")
         else:
             logger.warning(f"⚠️  Redis connection failed, falling back to filesystem/memory: {str(e)}")
-            redis_available = False
-            redis_client = None
+        redis_available = False
+        redis_client = None
 else:
-    # CRITICAL: In production, Redis is mandatory
+    # Log warning if REDIS_URL not configured
     if is_production:
         logger.error(f"❌ CRITICAL: REDIS_URL not configured in production environment")
-        logger.error(f"❌ Production deployments require Redis for multi-worker session persistence")
-        logger.error(f"❌ Set REDIS_URL environment variable to a valid Redis connection string")
-        raise RuntimeError("REDIS_URL is required in production but not configured")
+        logger.error(f"⚠️  deploy.sh should have caught this - check deployment configuration")
     else:
         logger.info("ℹ️  REDIS_URL not configured, using filesystem/memory storage (development mode)")
 

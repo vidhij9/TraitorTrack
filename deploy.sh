@@ -23,6 +23,12 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
+if [ -z "$REDIS_URL" ]; then
+    echo "❌ ERROR: REDIS_URL not set"
+    echo "   Redis is required for multi-worker session persistence and rate limiting"
+    exit 1
+fi
+
 echo "✅ Environment variables verified"
 echo "✅ Starting Gunicorn with gevent workers"
 echo ""
