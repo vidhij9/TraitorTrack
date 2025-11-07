@@ -99,3 +99,4 @@ The project uses a standard Flask application structure with modules for models,
 - **pyotp**: TOTP generation and verification.
 - **qrcode**: QR code generation for 2FA setup.
 - **Redis**: For production session management (mandatory in production environments).
+- **SendGrid**: Email service for password reset and notifications (configured sender: vidhi.jn39@gmail.com).
