@@ -433,24 +433,27 @@ class EmailService:
             from_email = from_email or EmailConfig.FROM_EMAIL
             from_name = from_name or EmailConfig.FROM_NAME
             
-            # Create email message
-            message = Mail(
-                from_email=Email(from_email, from_name),
-                to_emails=To(to_email),
+            # Create email message - type: ignore for SendGrid library types
+            message = Mail(  # type: ignore[misc]
+                from_email=Email(from_email, from_name),  # type: ignore[misc]
+                to_emails=To(to_email),  # type: ignore[misc]
                 subject=subject,
-                html_content=Content("text/html", html_content)
+                html_content=Content("text/html", html_content)  # type: ignore[misc]
             )
             
             # Send email
-            sg = SendGridAPIClient(EmailConfig.API_KEY)
+            sg = SendGridAPIClient(EmailConfig.API_KEY)  # type: ignore[misc]
             response = sg.send(message)
             
-            if response.status_code >= 200 and response.status_code < 300:
+            # SendGrid response has status_code attribute
+            status = getattr(response, 'status_code', None)
+            if status and 200 <= status < 300:
                 logger.info(f"Email sent successfully to {to_email}: {subject}")
                 return True, None
             else:
-                logger.error(f"SendGrid error: {response.status_code} - {response.body}")
-                return False, f"SendGrid error: {response.status_code}"
+                error_body = getattr(response, 'body', 'Unknown error')
+                logger.error(f"SendGrid error: {status} - {error_body}")
+                return False, f"SendGrid error: {status}"
         
         except Exception as e:
             logger.error(f"Error sending email to {to_email}: {str(e)}")
