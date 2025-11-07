@@ -3275,18 +3275,22 @@ def scan_child():
         ).first()
             
             if not parent_bag:
-                # Try without type restriction
+                # Try without type restriction to check if bag exists with wrong type
                 parent_bag_any = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(parent_qr)).first()
                 if parent_bag_any:
-                    app.logger.warning(f'CHILD SCAN PAGE: Bag {parent_qr} exists but is type {parent_bag_any.type}, not parent')
-                    # If it exists but not as parent, update its type
-                    if parent_bag_any.type != 'parent':
-                        parent_bag_any.type = 'parent'
-                        db.session.commit()
-                        parent_bag = parent_bag_any
-                        app.logger.info(f'CHILD SCAN PAGE: Updated bag {parent_qr} to parent type')
+                    app.logger.error(f'CHILD SCAN PAGE: Bag {parent_qr} exists but has type {parent_bag_any.type}, not parent. Clearing invalid session data.')
+                    # SECURITY FIX: Never auto-convert bag types as it corrupts data integrity
+                    # Instead, clear the invalid session and redirect to parent scan
+                    session.pop('current_parent_qr', None)
+                    session.pop('last_scan', None)
+                    flash(f'The QR code in session ({parent_qr}) is not a parent bag. Please scan a valid parent bag.', 'error')
+                    return redirect(url_for('scan_parent'))
                 else:
-                    app.logger.error(f'CHILD SCAN PAGE: Parent bag {parent_qr} not found in database at all')
+                    app.logger.error(f'CHILD SCAN PAGE: Parent bag {parent_qr} not found in database at all. Clearing invalid session data.')
+                    session.pop('current_parent_qr', None)
+                    session.pop('last_scan', None)
+                    flash('Parent bag not found in database. Please scan a valid parent bag.', 'error')
+                    return redirect(url_for('scan_parent'))
             
             if parent_bag:
                 # Get count of linked child bags and the actual linked bags
@@ -5100,16 +5104,6 @@ def ultra_fast_bill_parent_scan():
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
-        # Update bill totals
-        bill.total_weight_kg = (bill.total_weight_kg or 0.0) + parent_bag.weight_kg
-        if hasattr(bill, 'total_child_bags'):
-            bill.total_child_bags = (bill.total_child_bags or 0) + child_count
-        
-        # Update expected weight (30kg per parent bag)
-        linked_parent_count = current_count + 1  # +1 for the current bag being added
-        if hasattr(bill, 'expected_weight_kg'):
-            bill.expected_weight_kg = float(linked_parent_count * 30)
-        
         # Record scan
         scan = Scan()
         scan.user_id = user_id
@@ -5119,6 +5113,11 @@ def ultra_fast_bill_parent_scan():
         db.session.add(bill_bag)
         db.session.add(scan)
         db.session.commit()
+        
+        # CRITICAL: Use recalculate_weights() to ensure accurate bill totals
+        # This prevents edge cases where manual calculations might be wrong
+        actual_weight, expected_weight, parent_count, child_count_total = bill.recalculate_weights()
+        db.session.commit()  # Commit the recalculated values
         
         # Get final count after commit
         final_linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
@@ -5261,26 +5260,9 @@ def process_bill_parent_scan():
             bill_bag.bill_id = bill.id
             bill_bag.bag_id = parent_bag.id
             
-            # Import enhancement features for weight updates
-            # from enhancement_features import fix_weight_updates  # Disabled to prevent route registration errors
-            
             # Track who created/modified the bill
             if not bill.created_by_id:
                 bill.created_by_id = current_user.id
-            
-            # Update both actual and expected weights
-            # Actual weight based on real child count (already calculated in parent_bag.weight_kg)
-            bill.total_weight_kg = (bill.total_weight_kg or 0) + (parent_bag.weight_kg or 0.0)
-            
-            # Expected weight: always add 30kg per parent bag
-            if hasattr(bill, 'expected_weight_kg'):
-                bill.expected_weight_kg = (bill.expected_weight_kg or 0) + 30.0
-            
-            # Only update total_child_bags if the column exists
-            if hasattr(bill, 'total_child_bags'):
-                # Calculate actual child count from Link table instead of relying on child_count field
-                actual_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-                bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + actual_child_count
             
             # Create scan record
             scan = Scan()
@@ -5288,15 +5270,20 @@ def process_bill_parent_scan():
             scan.parent_bag_id = parent_bag.id
             scan.timestamp = datetime.now()
             
-            # Add audit log entry
-            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
-            app.logger.info(f'Bill weight updated: {getattr(bill, "total_weight_kg", 0)}kg, Total child bags: {getattr(bill, "total_child_bags", 0)}')
-            
             db.session.add(bill_bag)
             db.session.add(scan)
         
         # Commit outside the nested transaction
         db.session.commit()
+        
+        # CRITICAL: Use recalculate_weights() to ensure accurate bill totals
+        # This prevents edge cases where manual calculations might be wrong
+        actual_weight, expected_weight, parent_count, child_count_total = bill.recalculate_weights()
+        db.session.commit()  # Commit the recalculated values
+        
+        # Add audit log entry
+        app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
+        app.logger.info(f'Bill weight recalculated: {actual_weight}kg actual, {expected_weight}kg expected, {child_count_total} total children')
         
         # Cache clearing skipped - cache module not available
         # cache.clear_pattern(f'bill_bags:{bill.id}')
@@ -6857,24 +6844,15 @@ def manual_parent_entry():
         bill_bag.bill_id = bill.id
         bill_bag.bag_id = parent_bag.id
         
-        # Update bill weights - both actual and expected (with null safety)
-        parent_weight = parent_bag.weight_kg or 0.0  # Null-safe weight
-        app.logger.info(f'Updating bill weights - current actual: {bill.total_weight_kg}kg, adding: {parent_weight}kg')
-        bill.total_weight_kg = (bill.total_weight_kg or 0.0) + parent_weight
-        
-        # Update expected weight (30kg per parent bag)
-        if hasattr(bill, 'expected_weight_kg'):
-            bill.expected_weight_kg = (bill.expected_weight_kg or 0.0) + 30.0
-            app.logger.info(f'Updated expected weight: {bill.expected_weight_kg}kg')
-        
-        # Only update total_child_bags if the column exists (with null safety)
-        if hasattr(bill, 'total_child_bags'):
-            child_count = parent_bag.child_count or 0
-            bill.total_child_bags = (getattr(bill, 'total_child_bags', 0) or 0) + child_count
-        
         db.session.add(bill_bag)
         db.session.commit()
         app.logger.info(f'Successfully linked parent bag {manual_qr} to bill {bill.bill_id}')
+        
+        # CRITICAL: Use recalculate_weights() to ensure accurate bill totals
+        # This prevents edge cases where manual calculations might be wrong
+        actual_weight, expected_weight, parent_count, child_count_total = bill.recalculate_weights()
+        db.session.commit()  # Commit the recalculated values
+        app.logger.info(f'Bill weight recalculated: {actual_weight}kg actual, {expected_weight}kg expected, {child_count_total} total children')
         
         # Get updated count
         linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
