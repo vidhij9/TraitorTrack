@@ -13,7 +13,7 @@ FEATURES:
 
 CONFIGURATION:
 - Requires SENDGRID_API_KEY environment variable
-- Optional FROM_EMAIL (defaults to noreply@traitortrack.app)
+- Optional FROM_EMAIL (defaults to vidhi.jn39@gmail.com)
 - Optional ADMIN_EMAIL for admin notifications
 """
 import os
@@ -36,9 +36,9 @@ except ImportError:
 class EmailConfig:
     """Email configuration"""
     API_KEY = os.environ.get('SENDGRID_API_KEY')
-    FROM_EMAIL = os.environ.get('FROM_EMAIL', 'noreply@traitortrack.app')
+    FROM_EMAIL = os.environ.get('FROM_EMAIL', 'vidhi.jn39@gmail.com')
     FROM_NAME = os.environ.get('FROM_NAME', 'TraitorTrack')
-    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@traitortrack.app')
+    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'vidhi.jn39@gmail.com')
     
     @staticmethod
     def is_configured() -> bool:
