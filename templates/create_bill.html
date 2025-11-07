@@ -145,48 +145,6 @@
                                 Scan a barcode or type a unique bill identifier
                             </div>
                         </div>
-
-                        <!-- Destination -->
-                        <div class="mb-4">
-                            <label for="destination" class="form-label fw-bold">
-                                <i class="fas fa-map-marker-alt me-2"></i>Destination
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-location-arrow"></i>
-                                </span>
-                                <input 
-                                    type="text" 
-                                    class="form-control" 
-                                    id="destination" 
-                                    name="destination" 
-                                    value="{{ request.form.get('destination', '') }}"
-                                    placeholder="e.g., Delhi, Mumbai, Bangalore"
-                                >
-                            </div>
-                            <div class="form-text">Enter the destination city or location</div>
-                        </div>
-
-                        <!-- Truck Number -->
-                        <div class="mb-4">
-                            <label for="truck_number" class="form-label fw-bold">
-                                <i class="fas fa-truck me-2"></i>Truck Number
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-id-card"></i>
-                                </span>
-                                <input 
-                                    type="text" 
-                                    class="form-control" 
-                                    id="truck_number" 
-                                    name="truck_number" 
-                                    value="{{ request.form.get('truck_number', '') }}"
-                                    placeholder="e.g., MH-12-AB-1234"
-                                >
-                            </div>
-                            <div class="form-text">Enter the truck registration number</div>
-                        </div>
                         
                         <!-- Parent Bag Count -->
                         <div class="mb-4">
@@ -220,7 +178,7 @@
                             <ul class="mb-0 small">
                                 <li>Bill ID field accepts barcode scanner input - just scan!</li>
                                 <li>Use Tab or Enter to move between fields quickly</li>
-                                <li>All fields except Destination and Truck are required</li>
+                                <li>All fields are required</li>
                             </ul>
                         </div>
                         
@@ -269,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') {
             e.preventDefault();
             // Move to next field instead of submitting
-            document.getElementById('destination').focus();
+            document.getElementById('parent_bag_count').focus();
         }
     });
     
