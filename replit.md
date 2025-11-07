@@ -13,6 +13,7 @@ TraitorTrack is a high-performance, production-ready web-based bag tracking syst
 6. **Bill Weight Calculation** - Replaced error-prone manual calculations with standardized `recalculate_weights()` method across all bill-linking routes
 7. **Session Handling** - Improved edge case handling for expired/invalid parent bags in session
 8. **CSRF Security** - Documented all 21 CSRF-exempted routes with risk analysis (see CSRF_SECURITY_ANALYSIS.md)
+9. **Warehouse CSS Loading** - Created warehouse_layout.html to centralize warehouse-mode.css loading, fixing block name mismatch (layout.html used `extra_css` but warehouse pages used `head`), ensuring consistent 70px buttons across all operational pages
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
