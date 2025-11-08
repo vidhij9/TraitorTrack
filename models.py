@@ -260,20 +260,20 @@ class Bill(db.Model):
         """
         from sqlalchemy import text
         
-        # Calculate actual weight from all child bags
+        # Calculate actual weight: 1kg per child bag (not from weight_kg field which is 0)
         actual_weight_result = db.session.execute(
             text("""
-                SELECT COALESCE(SUM(child.weight_kg), 0)
+                SELECT COUNT(DISTINCT child.id)
                 FROM bill_bag bb
                 JOIN bag parent ON bb.bag_id = parent.id
                 LEFT JOIN link l ON parent.id = l.parent_bag_id
                 LEFT JOIN bag child ON l.child_bag_id = child.id
-                WHERE bb.bill_id = :bill_id AND parent.type = 'parent'
+                WHERE bb.bill_id = :bill_id AND parent.type = 'parent' AND child.id IS NOT NULL
             """),
             {'bill_id': self.id}
         ).scalar()
         
-        actual_weight = float(actual_weight_result or 0)
+        actual_weight = float(actual_weight_result or 0)  # 1kg per child bag
         
         # Count linked parent bags
         parent_count = BillBag.query.filter_by(bill_id=self.id).count()
@@ -293,11 +293,10 @@ class Bill(db.Model):
         
         child_count = int(child_count_result or 0)
         
-        # Expected weight is 30kg per parent bag
-        expected_weight = parent_count * 30.0
+        # Expected weight is 30kg per parent bag (based on capacity target)
+        expected_weight = self.parent_bag_count * 30.0
         
-        # Update ALL bill fields to fix stale data
-        self.parent_bag_count = parent_count  # FIX: Update parent count
+        # Update bill fields (but NOT parent_bag_count which is the CAPACITY TARGET, not current count)
         self.total_weight_kg = actual_weight
         self.expected_weight_kg = expected_weight
         self.total_child_bags = child_count
