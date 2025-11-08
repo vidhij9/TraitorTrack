@@ -7795,7 +7795,7 @@ def batch_scan_page():
 @login_required 
 def create_bill_page():
     """Bill creation page - redirect to existing bill create"""
-    return redirect(url_for('bill_create'))
+    return redirect(url_for('create_bill'))
 
 @app.route('/api/generate_bill', methods=['GET', 'POST'])
 @login_required
