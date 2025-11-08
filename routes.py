@@ -1543,12 +1543,23 @@ def login():
             # Import models locally to avoid circular imports
             from models import User
             from password_utils import is_account_locked, record_failed_login, record_successful_login
+            from werkzeug.security import check_password_hash
             
             # Find user
             user = User.query.filter_by(username=username).first()
             app.logger.info(f"LOGIN ATTEMPT: {username}")
             
-            if not user:
+            # SECURITY: Prevent username enumeration by using constant-time behavior
+            # Always perform the same operations regardless of whether user exists
+            user_found = user is not None
+            
+            if not user_found:
+                # Create a dummy password hash to perform timing-safe comparison
+                # This prevents timing attacks that could reveal if username exists
+                dummy_hash = 'scrypt:32768:8:1$placeholder$1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+                # Perform dummy check to match timing of real password verification
+                check_password_hash(dummy_hash, password)
+                
                 app.logger.warning(f"LOGIN FAILED: User {username} not found")
                 # Audit log: Failed login attempt (user not found)
                 log_audit('login_failed_user_not_found', 'auth', None, {
@@ -1556,6 +1567,7 @@ def login():
                     'ip_address': request.remote_addr,
                     'reason': 'user_not_found'
                 })
+                # Use generic error message (don't reveal if username exists or not)
                 flash('Invalid username or password.', 'error')
                 return render_template('login.html')
             
