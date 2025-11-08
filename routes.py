@@ -5728,21 +5728,24 @@ def api_dashboard_stats():
             WHERE id = 1
         """)).fetchone()
         
+        app.logger.debug(f"Stats query result: {stats_result}")
+        
         if stats_result:
-            # Use cached statistics (instant!)
+            # Use cached statistics (instant!) - Access by index for reliability
             stats = {
-                'total_parent_bags': stats_result.parent_bags,
-                'total_child_bags': stats_result.child_bags,
-                'total_scans': stats_result.total_scans,
-                'total_bills': stats_result.total_bills,
-                'total_products': stats_result.total_bags,
+                'total_parent_bags': int(stats_result[0]) if stats_result[0] is not None else 0,
+                'total_child_bags': int(stats_result[1]) if stats_result[1] is not None else 0,
+                'total_scans': int(stats_result[3]) if stats_result[3] is not None else 0,
+                'total_bills': int(stats_result[4]) if stats_result[4] is not None else 0,
+                'total_products': int(stats_result[2]) if stats_result[2] is not None else 0,
                 'active_dispatchers': 0,
                 'status_counts': {
-                    'active': stats_result.total_bags,
-                    'scanned': stats_result.total_scans
+                    'active': int(stats_result[2]) if stats_result[2] is not None else 0,
+                    'scanned': int(stats_result[3]) if stats_result[3] is not None else 0
                 },
-                'cache_updated': stats_result.last_updated.isoformat() if stats_result.last_updated else None
+                'cache_updated': stats_result[5].isoformat() if stats_result[5] else None
             }
+            app.logger.debug(f"Stats dict: {stats}")
         else:
             # Fallback to real-time counts (slower but works if cache table doesn't exist)
             stats_result_fallback = db.session.execute(text("""

@@ -21,7 +21,7 @@ TraitorTrack is a high-performance, production-ready web-based bag tracking syst
 - Supports 100+ concurrent users without performance degradation
 - Works with or without Redis (StatisticsCache is in PostgreSQL)
 
-### Critical Bug Fixes
+### Critical Bug Fixes (November 2025)
 1. **Redis Configuration** - Enhanced URL validation with clear error messages for development vs production environments
 2. **LSP Type Errors** - Fixed notification API endpoints to properly handle authentication edge cases
 3. **Migration File** - Resolved type errors by converting expression-based indexes to raw SQL
@@ -34,6 +34,10 @@ TraitorTrack is a high-performance, production-ready web-based bag tracking syst
 10. **Password Reset Security** - Implemented constant-time behavior to prevent user enumeration attacks through timing analysis, logging patterns, or UI differences. All code paths make identical SendGrid API calls and log identical messages regardless of user existence.
 11. **Agriculture UI/UX** - Redesigned entire color scheme from tech startup purple to agriculture industry theme (forest green #2d5016, earth-tone beige backgrounds, golden accents). Increased all button sizes to 44px minimum height with 18px fonts for warehouse workers. Enhanced text readability with heavier font weights (600-800) and WCAG AA-compliant contrast ratios (9.25:1).
 12. **Mobile-First Minimal Scrolling** - Optimized all core warehouse pages for 375px+ mobile screens with minimal vertical/horizontal scrolling. Compressed spacing throughout (mb-3→mb-2, tighter padding), reduced icon sizes, collapsed secondary content by default (Recent Scans, instructions). Added fixed mobile bottom navigation bar (64px) with 4 primary actions (Home, Scan, Search, Bills) for quick access. Main content includes 72px bottom padding to prevent nav overlap. All primary actions now visible above the fold without scrolling, tested successfully on 375×667px viewport.
+13. **Dispatcher Unlink Permission Bug (November 8, 2025)** - Fixed 403 Forbidden error when dispatchers tried to unlink children from bag details page. Changed bag_detail.html to call `/api/unlink_child` (dispatcher-accessible) instead of admin-only `/api/edit-parent-children` endpoint. Updated routes.py to accept `parent_qr` from request body for dual-source compatibility (scanning workflow + bag details page).
+14. **Bill Capacity Bug (November 8, 2025)** - Fixed critical bug preventing bills from accepting multiple parent bags. Root cause: `recalculate_weights()` was overwriting `parent_bag_count` (capacity target) with current linked count, blocking second parent. Removed line 300 in models.py that overwrote capacity - now stays as target value. Bills can now accept multiple parents up to configured capacity.
+15. **Bill Weight Calculation Bug (November 8, 2025)** - Fixed bill weights showing 0.0 kg despite having children. Root cause: SQL query summed `child.weight_kg` (all 0 in database) instead of counting children. Changed models.py recalculate_weights() from `SUM(child.weight_kg)` to `COUNT(DISTINCT child.id)` to implement 1kg-per-child business rule. Weight now calculates correctly (verified: 60 children = 60.0 kg).
+16. **Dashboard Stats Persistence Bug (November 8, 2025)** - Fixed dashboard statistics resetting to 0 after navigation. Root cause: SQL result column access using attribute names (`stats_result.parent_bags`) was unreliable with SQLAlchemy text() queries. Changed routes.py /api/stats endpoint to use index-based access (`stats_result[0]`, `stats_result[1]`, etc.) with explicit int() conversion and None handling. Stats now persist correctly across navigations and page reloads.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
