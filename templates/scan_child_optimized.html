@@ -6,47 +6,47 @@
 .progress-card {
     background: linear-gradient(135deg, var(--wh-info, #2196F3) 0%, #1976D2 100%);
     color: white;
-    border-radius: 16px;
-    padding: 20px 15px;
-    margin: 10px 0;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    border-radius: 12px;
+    padding: 14px 12px;
+    margin: 6px 0;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
 }
 
 .big-number {
-    font-size: 100px;
+    font-size: 80px;
     font-weight: 900;
     text-align: center;
     line-height: 1;
-    text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
 .progress-label {
-    font-size: 20px;
+    font-size: 18px;
     text-align: center;
-    margin-top: 8px;
+    margin-top: 6px;
     font-weight: 600;
 }
 
 .scan-box {
     background: white;
-    border-radius: 16px;
-    padding: 20px 15px;
-    margin: 12px 0;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    padding: 14px 12px;
+    margin: 8px 0;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
 }
 
 .scan-input {
-    font-size: 36px;
-    padding: 20px;
+    font-size: 32px;
+    padding: 16px;
     text-align: center;
-    border: 5px solid #2196F3;
-    border-radius: 15px;
+    border: 4px solid #2196F3;
+    border-radius: 12px;
     font-weight: bold;
     text-transform: uppercase;
     width: 100%;
     outline: none;
-    letter-spacing: 2px;
-    min-height: 70px;
+    letter-spacing: 1px;
+    min-height: 64px;
 }
 
 .scan-input:focus {
@@ -61,12 +61,12 @@
 }
 
 .progress-bar {
-    height: 60px;
-    border-radius: 30px;
+    height: 50px;
+    border-radius: 25px;
     background: #e0e0e0;
     overflow: hidden;
-    margin: 12px 0;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.1);
+    margin: 8px 0;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .progress-fill {
@@ -77,7 +77,7 @@
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 800;
 }
 
@@ -130,35 +130,35 @@
 }
 
 @media (max-width: 768px) {
-    .progress-card { padding: 16px 12px; margin: 8px 0; }
-    .big-number { font-size: 85px; }
-    .progress-label { font-size: 18px; }
-    .scan-box { padding: 16px 12px; margin: 10px 0; }
-    .scan-input { font-size: 30px; padding: 16px; min-height: 65px; }
-    .progress-bar { height: 55px; }
-    .progress-fill { font-size: 24px; }
-    .item { padding: 14px; margin: 8px 0; font-size: 17px; }
-    .item-num { width: 50px; height: 50px; font-size: 22px; }
-    .party { padding: 35px 18px; }
-    .party h2 { font-size: 42px; }
+    .progress-card { padding: 12px 10px; margin: 6px 0; }
+    .big-number { font-size: 70px; }
+    .progress-label { font-size: 17px; margin-top: 4px; }
+    .scan-box { padding: 12px 10px; margin: 6px 0; }
+    .scan-input { font-size: 28px; padding: 14px; min-height: 60px; }
+    .progress-bar { height: 48px; margin: 6px 0; }
+    .progress-fill { font-size: 20px; }
+    .item { padding: 12px; margin: 6px 0; font-size: 16px; }
+    .item-num { width: 48px; height: 48px; font-size: 20px; }
+    .party { padding: 30px 16px; }
+    .party h2 { font-size: 38px; }
 }
 
 @media (max-width: 480px) {
-    .progress-card { padding: 14px 10px; }
-    .big-number { font-size: 72px; }
+    .progress-card { padding: 10px 8px; }
+    .big-number { font-size: 64px; }
     .progress-label { font-size: 16px; }
-    .scan-input { font-size: 26px; padding: 14px; min-height: 60px; }
-    .progress-bar { height: 50px; }
-    .progress-fill { font-size: 22px; }
-    .item { padding: 12px; font-size: 16px; }
-    .item-num { width: 45px; height: 45px; font-size: 20px; }
-    .party { padding: 30px 15px; }
-    .party h2 { font-size: 36px; }
+    .scan-input { font-size: 24px; padding: 12px; min-height: 58px; }
+    .progress-bar { height: 44px; }
+    .progress-fill { font-size: 18px; }
+    .item { padding: 10px; font-size: 15px; }
+    .item-num { width: 44px; height: 44px; font-size: 18px; }
+    .party { padding: 26px 14px; }
+    .party h2 { font-size: 34px; }
 }
 {% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 600px; padding: 8px;">
+<div class="container" style="max-width: 600px; padding: 6px;">
     {% if parent_qr %}
     <div class="progress-card">
         <div class="big-number" id="count">{{ scanned_child_count }}</div>

@@ -5,10 +5,10 @@
 {% block styles %}
 .scan-box {
     background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-    border-radius: 16px;
-    padding: 20px 15px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    margin: 10px 0;
+    border-radius: 12px;
+    padding: 14px 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    margin: 8px 0;
 }
 
 .big-icon {
@@ -18,19 +18,19 @@
 }
 
 .scan-input {
-    font-size: 36px;
-    padding: 20px;
+    font-size: 32px;
+    padding: 16px;
     text-align: center;
-    border: 5px solid white;
-    border-radius: 15px;
+    border: 4px solid white;
+    border-radius: 12px;
     font-weight: bold;
     text-transform: uppercase;
     background: white;
     color: #333;
     width: 100%;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
     outline: none;
-    min-height: 70px;
+    min-height: 64px;
 }
 
 .scan-input:focus {
@@ -49,9 +49,9 @@
 
 .instructions {
     background: white;
-    border-radius: 12px;
-    padding: 15px;
-    margin: 15px 0;
+    border-radius: 10px;
+    padding: 12px;
+    margin: 10px 0;
 }
 
 .instructions-header {
@@ -111,33 +111,33 @@
 }
 
 @media (max-width: 768px) {
-    .scan-box { padding: 15px 10px; margin: 8px 0; }
-    .big-icon { font-size: 80px; margin-bottom: 8px; }
-    .scan-input { font-size: 28px; padding: 16px; min-height: 65px; }
-    .status-text { font-size: 22px; }
-    .instructions { padding: 12px; margin: 12px 0; }
-    .step { font-size: 18px; margin: 10px 0; }
-    .step-num { width: 50px; height: 50px; font-size: 24px; margin-right: 12px; }
-    .step-icon { font-size: 28px; }
-    .qr-display { font-size: 32px; padding: 15px; }
+    .scan-box { padding: 12px 10px; margin: 6px 0; }
+    .big-icon { font-size: 64px; margin-bottom: 6px; }
+    .scan-input { font-size: 26px; padding: 14px; min-height: 60px; }
+    .status-text { font-size: 20px; margin-top: 6px; }
+    .instructions { padding: 10px; margin: 8px 0; }
+    .step { font-size: 17px; margin: 8px 0; }
+    .step-num { width: 48px; height: 48px; font-size: 22px; margin-right: 10px; }
+    .step-icon { font-size: 26px; }
+    .qr-display { font-size: 30px; padding: 14px; }
 }
 
 @media (max-width: 480px) {
-    .scan-box { padding: 12px 8px; }
-    .big-icon { font-size: 70px; }
-    .scan-input { font-size: 24px; padding: 14px; min-height: 60px; }
-    .status-text { font-size: 20px; }
+    .scan-box { padding: 10px 8px; }
+    .big-icon { font-size: 60px; }
+    .scan-input { font-size: 24px; padding: 12px; min-height: 58px; }
+    .status-text { font-size: 18px; }
     .step { font-size: 16px; }
-    .step-num { width: 45px; height: 45px; font-size: 22px; }
+    .step-num { width: 44px; height: 44px; font-size: 20px; }
     .step-icon { font-size: 24px; }
 }
 {% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 600px; padding: 8px;">
-    <!-- Scan Input Box - Always Above Fold -->
-    <div class="scan-box">
-        <div class="big-icon">📦</div>
+<div class="container" style="max-width: 600px; padding: 6px;">
+    <!-- Scan Input Box - Compact for above fold -->
+    <div class="scan-box" style="margin: 6px 0;">
+        <div class="big-icon" style="font-size: 70px; margin-bottom: 6px;">📦</div>
         
         <input 
             type="text" 
@@ -148,19 +148,19 @@
             autofocus
         >
         
-        <div class="status-text" id="status">✅ Ready to scan</div>
+        <div class="status-text" id="status" style="margin-top: 6px; font-size: 22px;">✅ Ready to scan</div>
     </div>
 
-    <!-- Collapsible Instructions - Icon-First Design -->
-    <div class="instructions">
+    <!-- Collapsible Instructions - Collapsed by default -->
+    <div class="instructions" style="margin: 10px 0;">
         <div class="instructions-header" onclick="toggleInstructions()">
-            <h3 style="color: #4CAF50; margin: 0; font-size: 20px; font-weight: 700;">
+            <h3 style="color: #4CAF50; margin: 0; font-size: 18px; font-weight: 700;">
                 <i class="fas fa-info-circle"></i> How to Scan
             </h3>
-            <i class="fas fa-chevron-down" id="instructions-icon" style="color: #4CAF50; font-size: 20px;"></i>
+            <i class="fas fa-chevron-down" id="instructions-icon" style="color: #4CAF50; font-size: 18px;"></i>
         </div>
         
-        <div id="instructions-content" class="collapse">
+        <div id="instructions-content" class="collapse" style="margin-top: 8px;">
             <div class="step">
                 <div class="step-num">1</div>
                 <div>Point scanner <span class="step-icon">👉</span></div>
@@ -194,9 +194,9 @@
         </button>
     </div>
 
-    <!-- Back Button -->
-    <div style="text-align: center; margin-top: 15px;">
-        <a href="/" class="btn btn-secondary" style="min-height: 54px; padding: 12px 30px; font-size: 18px;">
+    <!-- Back Button - Compact -->
+    <div style="text-align: center; margin-top: 10px;">
+        <a href="/" class="btn btn-secondary" style="min-height: 50px; padding: 10px 24px; font-size: 17px;">
             <i class="fas fa-home me-2"></i>Home
         </a>
     </div>

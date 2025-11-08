@@ -29,62 +29,62 @@
 {% endblock %}
 
 {% block content %}
-<!-- Compact Header -->
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0" style="font-size: 1.5rem; font-weight: 700;">
-        <i class="fas fa-chart-line me-2"></i>Dashboard
+<!-- Compact Header - Reduced margin -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h4 class="mb-0" style="font-size: 1.3rem; font-weight: 700;">
+        <i class="fas fa-chart-line me-2" style="font-size: 1.2rem;"></i>Dashboard
     </h4>
-    <button type="button" class="btn btn-outline-secondary" id="refresh-data" style="min-height: 44px; min-width: 44px;">
+    <button type="button" class="btn btn-outline-secondary" id="refresh-data" style="min-height: 44px; min-width: 44px; padding: 8px;">
         <i class="fas fa-sync-alt"></i>
     </button>
 </div>
 
-<!-- Stats - Mobile-Friendly with Large Text -->
-<div class="mb-3">
-    <div class="bg-white rounded border">
+<!-- Stats - Compact layout for above-the-fold -->
+<div class="mb-2">
+    <div class="bg-white rounded border py-2">
         <div class="row text-center g-0">
             <div class="col-3">
-                <i class="fas fa-boxes d-block text-primary mb-1" style="font-size: 1.5rem;"></i>
-                <span class="fw-bold text-primary d-block" id="total-parent-bags" style="font-size: 1.75rem;">0</span>
-                <small class="d-block text-muted fw-semibold" style="font-size: 14px;">Parents</small>
+                <i class="fas fa-boxes d-block text-primary" style="font-size: 1.3rem; margin-bottom: 4px;"></i>
+                <span class="fw-bold text-primary d-block" id="total-parent-bags" style="font-size: 1.6rem; line-height: 1.2;">0</span>
+                <small class="d-block text-muted fw-semibold" style="font-size: 13px;">Parents</small>
             </div>
             <div class="col-3">
-                <i class="fas fa-box d-block text-success mb-1" style="font-size: 1.5rem;"></i>
-                <span class="fw-bold text-success d-block" id="total-child-bags" style="font-size: 1.75rem;">0</span>
-                <small class="d-block text-muted fw-semibold" style="font-size: 14px;">Children</small>
+                <i class="fas fa-box d-block text-success" style="font-size: 1.3rem; margin-bottom: 4px;"></i>
+                <span class="fw-bold text-success d-block" id="total-child-bags" style="font-size: 1.6rem; line-height: 1.2;">0</span>
+                <small class="d-block text-muted fw-semibold" style="font-size: 13px;">Children</small>
             </div>
             <div class="col-3">
-                <i class="fas fa-file-invoice d-block text-warning mb-1" style="font-size: 1.5rem;"></i>
-                <span class="fw-bold text-warning d-block" id="total-bills" style="font-size: 1.75rem;">0</span>
-                <small class="d-block text-muted fw-semibold" style="font-size: 14px;">Bills</small>
+                <i class="fas fa-file-invoice d-block text-warning" style="font-size: 1.3rem; margin-bottom: 4px;"></i>
+                <span class="fw-bold text-warning d-block" id="total-bills" style="font-size: 1.6rem; line-height: 1.2;">0</span>
+                <small class="d-block text-muted fw-semibold" style="font-size: 13px;">Bills</small>
             </div>
             <div class="col-3">
-                <i class="fas fa-qrcode d-block text-danger mb-1" style="font-size: 1.5rem;"></i>
-                <span class="fw-bold text-danger d-block" id="total-scans" style="font-size: 1.75rem;">0</span>
-                <small class="d-block text-muted fw-semibold" style="font-size: 14px;">Scans</small>
+                <i class="fas fa-qrcode d-block text-danger" style="font-size: 1.3rem; margin-bottom: 4px;"></i>
+                <span class="fw-bold text-danger d-block" id="total-scans" style="font-size: 1.6rem; line-height: 1.2;">0</span>
+                <small class="d-block text-muted fw-semibold" style="font-size: 13px;">Scans</small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Actions - Large Touch-Friendly Buttons -->
-<div class="mb-3">
+<!-- Actions - Large Touch-Friendly Buttons, tighter spacing -->
+<div class="mb-2">
     <div class="row g-2">
         <div class="col-12 col-md-4">
-            <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 18px;">
-                <i class="fas fa-qrcode me-2" style="font-size: 1.5rem;"></i>
+            <a href="{{ url_for('scan_parent', s=request.args.get('s')) }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 17px; font-weight: 600;">
+                <i class="fas fa-qrcode me-2" style="font-size: 1.4rem;"></i>
                 <span>Scan Parent</span>
             </a>
         </div>
         <div class="col-12 col-md-4">
-            <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 18px;">
-                <i class="fas fa-file-invoice me-2" style="font-size: 1.5rem;"></i>
+            <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 17px; font-weight: 600;">
+                <i class="fas fa-file-invoice me-2" style="font-size: 1.4rem;"></i>
                 <span>Bills</span>
             </a>
         </div>
         <div class="col-12 col-md-4">
-            <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-info w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 18px;">
-                <i class="fas fa-search me-2" style="font-size: 1.5rem;"></i>
+            <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="btn btn-info w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 17px; font-weight: 600;">
+                <i class="fas fa-search me-2" style="font-size: 1.4rem;"></i>
                 <span>Lookup</span>
             </a>
         </div>
@@ -93,7 +93,7 @@
 
 <!-- System Health (Admin Only) - Collapsible to save space -->
 {% if current_user.is_admin() %}
-<div class="card mb-3">
+<div class="card mb-2">
     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#systemHealth">
         <h6 class="mb-0"><i class="fas fa-heartbeat me-2"></i>System Health</h6>
         <i class="fas fa-chevron-down"></i>
@@ -135,13 +135,13 @@
 </div>
 {% endif %}
 
-<!-- Recent Scans - Collapsible to reduce scrolling -->
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#recentScans">
-        <h6 class="mb-0" style="font-size: 16px; font-weight: 600;"><i class="fas fa-history me-2"></i>Recent Scans</h6>
+<!-- Recent Scans - Collapsed by default to minimize scrolling -->
+<div class="card mb-2">
+    <div class="card-header d-flex justify-content-between align-items-center py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#recentScans">
+        <h6 class="mb-0" style="font-size: 15px; font-weight: 600;"><i class="fas fa-history me-2"></i>Recent Scans</h6>
         <i class="fas fa-chevron-down"></i>
     </div>
-    <div id="recentScans" class="collapse show">
+    <div id="recentScans" class="collapse">
         <div class="card-body p-2">
             <div class="table-responsive">
                 <table class="table table-hover table-sm mb-0" id="recent-scans-table" style="font-size: 14px;">

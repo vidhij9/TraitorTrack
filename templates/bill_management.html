@@ -66,29 +66,29 @@
         </div>
     </div>
     
-    <!-- Bill Search -->
-    <div class="row mb-3">
+    <!-- Bill Search - Compact -->
+    <div class="row mb-2">
         <div class="col-12">
             <div class="card">
-                <div class="card-body py-2 px-3">
+                <div class="card-body py-2 px-2">
                     <form method="GET" action="{{ url_for('bill_management') }}">
                         <div class="wh-flex wh-flex-col wh-flex-gap-md">
-                            <!-- Search Input -->
-                            <div class="wh-form-group">
-                                <label for="search_bill_id" class="wh-label" style="font-size: 16px; font-weight: 600;">
-                                    <i class="fas fa-search me-2"></i>Bill ID Search
+                            <!-- Search Input - Compact -->
+                            <div class="wh-form-group mb-2">
+                                <label for="search_bill_id" class="wh-label" style="font-size: 15px; font-weight: 600; margin-bottom: 4px;">
+                                    <i class="fas fa-search me-1"></i>Bill ID
                                 </label>
                                 <input type="text" class="wh-input" id="search_bill_id" name="search_bill_id" 
-                                       placeholder="SCAN OR TYPE BILL ID" value="{{ request.args.get('search_bill_id', '') }}" autofocus
-                                       style="text-transform: uppercase; min-height: 52px; font-size: 18px; padding: 12px 16px;">
+                                       placeholder="SCAN OR TYPE" value="{{ request.args.get('search_bill_id', '') }}" autofocus
+                                       style="text-transform: uppercase; min-height: 48px; font-size: 17px; padding: 10px 14px;">
                             </div>
                             
-                            <!-- Status Filter -->
-                            <div class="wh-form-group">
-                                <label for="status_filter" class="wh-label" style="font-size: 16px; font-weight: 600;">
-                                    <i class="fas fa-filter me-2"></i>Status
+                            <!-- Status Filter - Compact -->
+                            <div class="wh-form-group mb-2">
+                                <label for="status_filter" class="wh-label" style="font-size: 15px; font-weight: 600; margin-bottom: 4px;">
+                                    <i class="fas fa-filter me-1"></i>Status
                                 </label>
-                                <select class="wh-select" id="status_filter" name="status_filter" style="min-height: 52px; font-size: 18px; padding: 12px 16px;">
+                                <select class="wh-select" id="status_filter" name="status_filter" style="min-height: 48px; font-size: 17px; padding: 10px 14px;">
                                     <option value="all" {% if request.args.get('status_filter', 'all') == 'all' %}selected{% endif %}>All Status</option>
                                     <option value="empty" {% if request.args.get('status_filter') == 'empty' %}selected{% endif %}>Empty</option>
                                     <option value="in_progress" {% if request.args.get('status_filter') == 'in_progress' %}selected{% endif %}>In Progress</option>
@@ -96,17 +96,17 @@
                                 </select>
                             </div>
                             
-                            <!-- Action Buttons -->
-                            <div class="wh-flex wh-flex-col wh-flex-gap-sm">
-                                <button type="submit" class="wh-btn wh-btn-primary wh-btn-block" style="min-height: 54px; font-size: 18px; font-weight: 700;">
-                                    <i class="fas fa-search me-2" style="font-size: 20px;"></i>Search Bills
+                            <!-- Action Buttons - Compact -->
+                            <div class="wh-flex wh-flex-col" style="gap: 6px;">
+                                <button type="submit" class="wh-btn wh-btn-primary wh-btn-block" style="min-height: 50px; font-size: 17px; font-weight: 700; padding: 10px;">
+                                    <i class="fas fa-search me-2" style="font-size: 18px;"></i>Search
                                 </button>
-                                <button type="button" class="wh-btn wh-btn-success wh-btn-block" data-bs-toggle="modal" data-bs-target="#summaryModal" style="min-height: 54px; font-size: 18px; font-weight: 700;">
-                                    <i class="fas fa-chart-bar me-2" style="font-size: 20px;"></i>Generate Summary
+                                <button type="button" class="wh-btn wh-btn-success wh-btn-block" data-bs-toggle="modal" data-bs-target="#summaryModal" style="min-height: 50px; font-size: 17px; font-weight: 700; padding: 10px;">
+                                    <i class="fas fa-chart-bar me-2" style="font-size: 18px;"></i>Summary
                                 </button>
                                 {% if request.args.get('search_bill_id') or request.args.get('status_filter', 'all') != 'all' %}
-                                <a href="{{ url_for('bill_management') }}" class="wh-btn wh-btn-outline wh-btn-block" style="min-height: 54px; font-size: 18px; font-weight: 700;">
-                                    <i class="fas fa-times me-2" style="font-size: 20px;"></i>Clear Filters
+                                <a href="{{ url_for('bill_management') }}" class="wh-btn wh-btn-outline wh-btn-block" style="min-height: 48px; font-size: 16px; font-weight: 600; padding: 10px;">
+                                    <i class="fas fa-times me-2" style="font-size: 17px;"></i>Clear
                                 </a>
                                 {% endif %}
                             </div>
@@ -119,7 +119,7 @@
     
     <!-- Summary Report Display -->
     {% if summary_data is not none %}
-    <div class="row mb-3">
+    <div class="row mb-2">
         <div class="col-12">
             <div class="card border-success">
                 <div class="card-header bg-success text-white">
@@ -138,48 +138,48 @@
                     </div>
                 </div>
                 <div class="card-body" id="summaryReport">
-                    <!-- Summary Stats -->
-                    <div class="row mb-3 g-2">
+                    <!-- Summary Stats - Compact -->
+                    <div class="row mb-2 g-2">
                         <div class="col-md-2 col-6">
-                            <div class="text-center p-3 border rounded" style="min-height: 100px; display: flex; flex-direction: column; justify-content: center;">
-                                <div style="font-size: 32px; margin-bottom: 5px;">📋</div>
-                                <h5 class="mb-0" style="font-size: 28px; font-weight: 800;">{{ summary_stats.total_bills }}</h5>
-                                <small class="text-muted" style="font-size: 14px; font-weight: 600;">Total Bills</small>
+                            <div class="text-center p-2 border rounded" style="min-height: 90px; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-size: 28px; margin-bottom: 3px;">📋</div>
+                                <h5 class="mb-0" style="font-size: 24px; font-weight: 800; line-height: 1.1;">{{ summary_stats.total_bills }}</h5>
+                                <small class="text-muted" style="font-size: 13px; font-weight: 600;">Total</small>
                             </div>
                         </div>
                         <div class="col-md-2 col-6">
-                            <div class="text-center p-3 border rounded" style="min-height: 100px; display: flex; flex-direction: column; justify-content: center;">
-                                <div style="font-size: 32px; margin-bottom: 5px;">✅</div>
-                                <h5 class="mb-0 text-success" style="font-size: 28px; font-weight: 800;">{{ summary_stats.completed_bills }}</h5>
-                                <small class="text-muted" style="font-size: 14px; font-weight: 600;">Completed</small>
+                            <div class="text-center p-2 border rounded" style="min-height: 90px; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-size: 28px; margin-bottom: 3px;">✅</div>
+                                <h5 class="mb-0 text-success" style="font-size: 24px; font-weight: 800; line-height: 1.1;">{{ summary_stats.completed_bills }}</h5>
+                                <small class="text-muted" style="font-size: 13px; font-weight: 600;">Done</small>
                             </div>
                         </div>
                         <div class="col-md-2 col-6">
-                            <div class="text-center p-3 border rounded" style="min-height: 100px; display: flex; flex-direction: column; justify-content: center;">
-                                <div style="font-size: 32px; margin-bottom: 5px;">⏳</div>
-                                <h5 class="mb-0 text-warning" style="font-size: 28px; font-weight: 800;">{{ summary_stats.in_progress_bills }}</h5>
-                                <small class="text-muted" style="font-size: 14px; font-weight: 600;">In Progress</small>
+                            <div class="text-center p-2 border rounded" style="min-height: 90px; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-size: 28px; margin-bottom: 3px;">⏳</div>
+                                <h5 class="mb-0 text-warning" style="font-size: 24px; font-weight: 800; line-height: 1.1;">{{ summary_stats.in_progress_bills }}</h5>
+                                <small class="text-muted" style="font-size: 13px; font-weight: 600;">Progress</small>
                             </div>
                         </div>
                         <div class="col-md-2 col-6">
-                            <div class="text-center p-3 border rounded" style="min-height: 100px; display: flex; flex-direction: column; justify-content: center;">
-                                <div style="font-size: 32px; margin-bottom: 5px;">📦</div>
-                                <h5 class="mb-0" style="font-size: 28px; font-weight: 800;">{{ summary_stats.total_parent_bags }}</h5>
-                                <small class="text-muted" style="font-size: 14px; font-weight: 600;">Parent Bags</small>
+                            <div class="text-center p-2 border rounded" style="min-height: 90px; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-size: 28px; margin-bottom: 3px;">📦</div>
+                                <h5 class="mb-0" style="font-size: 24px; font-weight: 800; line-height: 1.1;">{{ summary_stats.total_parent_bags }}</h5>
+                                <small class="text-muted" style="font-size: 13px; font-weight: 600;">Parents</small>
                             </div>
                         </div>
                         <div class="col-md-2 col-6">
-                            <div class="text-center p-3 border rounded" style="min-height: 100px; display: flex; flex-direction: column; justify-content: center;">
-                                <div style="font-size: 32px; margin-bottom: 5px;">🎒</div>
-                                <h5 class="mb-0" style="font-size: 28px; font-weight: 800;">{{ summary_stats.total_child_bags }}</h5>
-                                <small class="text-muted" style="font-size: 14px; font-weight: 600;">Child Bags</small>
+                            <div class="text-center p-2 border rounded" style="min-height: 90px; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-size: 28px; margin-bottom: 3px;">🎒</div>
+                                <h5 class="mb-0" style="font-size: 24px; font-weight: 800; line-height: 1.1;">{{ summary_stats.total_child_bags }}</h5>
+                                <small class="text-muted" style="font-size: 13px; font-weight: 600;">Children</small>
                             </div>
                         </div>
                         <div class="col-md-2 col-6">
-                            <div class="text-center p-3 border rounded" style="min-height: 100px; display: flex; flex-direction: column; justify-content: center;">
-                                <div style="font-size: 32px; margin-bottom: 5px;">⚖️</div>
-                                <h5 class="mb-0" style="font-size: 28px; font-weight: 800;">{{ "%.1f"|format(summary_stats.total_weight) }}</h5>
-                                <small class="text-muted" style="font-size: 14px; font-weight: 600;">Total Weight (kg)</small>
+                            <div class="text-center p-2 border rounded" style="min-height: 90px; display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-size: 28px; margin-bottom: 3px;">⚖️</div>
+                                <h5 class="mb-0" style="font-size: 24px; font-weight: 800; line-height: 1.1;">{{ "%.1f"|format(summary_stats.total_weight) }}</h5>
+                                <small class="text-muted" style="font-size: 13px; font-weight: 600;">Weight (kg)</small>
                             </div>
                         </div>
                     </div>
