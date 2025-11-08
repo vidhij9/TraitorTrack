@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from flask import jsonify, request, make_response
 from sqlalchemy import func, or_, desc, text
 from app import app, db, limiter
-from models import User, Bag, BagType, Link, Scan, Bill, BillBag
+from models import User, Bag, BagType, Link, Scan, Bill, BillBag, StatisticsCache
 from auth_utils import require_auth, current_user
 from validation_utils import InputValidator
 from cache_utils import (
@@ -55,11 +55,14 @@ def get_dashboard_analytics():
         # Get current user role
         user_role = current_user.role if hasattr(current_user, 'role') else 'dispatcher'
         
+        # OPTIMIZED: Use cached statistics for instant response
+        cached_stats = StatisticsCache.get_cached_stats()
+        
         # System metrics (admin only)
         system_metrics = {}
         if user_role == 'admin':
             system_metrics = {
-                'total_users': User.query.count(),
+                'total_users': cached_stats.total_users,
                 'active_users_today': db.session.query(func.count(func.distinct(Scan.user_id))).filter(
                     func.date(Scan.timestamp) == today
                 ).scalar() or 0,
@@ -69,18 +72,20 @@ def get_dashboard_analytics():
                 'system_alerts': 0  # Placeholder for alerts
             }
         
-        # Operations metrics (all roles)
-        total_bags = Bag.query.count()
-        parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
-        child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
+        # Operations metrics (all roles) - OPTIMIZED: Read from cache instead of 3 COUNT queries
+        total_bags = cached_stats.total_bags
+        parent_bags = cached_stats.parent_bags
+        child_bags = cached_stats.child_bags
         
-        # Get unlinked children count
-        unlinked_children = db.session.query(Bag).outerjoin(
-            Link, Link.child_bag_id == Bag.id
-        ).filter(
-            Bag.type == BagType.CHILD.value,
-            Link.id == None
-        ).count()
+        # OPTIMIZED: Calculate unlinked children using efficient indexed query
+        # Instead of outer join + NULL check (full table scan), use NOT EXISTS subquery
+        unlinked_children = db.session.execute(text("""
+            SELECT COUNT(*) FROM bag 
+            WHERE type = 'child' 
+            AND NOT EXISTS (
+                SELECT 1 FROM link WHERE link.child_bag_id = bag.id
+            )
+        """)).scalar() or 0
         
         # Performance metrics
         scans_today = Scan.query.filter(func.date(Scan.timestamp) == today).count()
@@ -108,20 +113,40 @@ def get_dashboard_analytics():
         else:
             peak_hour = "--"
         
-        # Billing metrics (admin and biller)
+        # Billing metrics (admin and biller) - OPTIMIZED: Single grouped query instead of 5 separate queries
         billing_metrics = {}
         if user_role in ['admin', 'biller']:
-            billing_metrics = {
-                'total_bills': Bill.query.count(),
-                'completed_bills': Bill.query.filter_by(status='completed').count(),
-                'in_progress_bills': Bill.query.filter_by(status='in_progress').count(),
-                'pending_bills': Bill.query.filter_by(status='new').count(),
-                'monthly_bills': Bill.query.filter(Bill.created_at >= month_ago).count(),
-                'overdue_bills': 0,  # Placeholder
-                'avg_bags_per_bill': db.session.query(
-                    func.avg(Bill.parent_bag_count)
-                ).scalar() or 0
-            }
+            # Use single query with grouping instead of 5 separate COUNT queries
+            bill_counts_result = db.session.execute(text("""
+                SELECT 
+                    COUNT(*) FILTER (WHERE status = 'completed') as completed,
+                    COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
+                    COUNT(*) FILTER (WHERE status = 'new') as pending,
+                    COUNT(*) FILTER (WHERE created_at >= :month_ago) as monthly,
+                    AVG(parent_bag_count) as avg_bags
+                FROM bill
+            """), {'month_ago': month_ago}).fetchone()
+            
+            if bill_counts_result:
+                billing_metrics = {
+                    'total_bills': cached_stats.total_bills,
+                    'completed_bills': bill_counts_result[0] or 0,
+                    'in_progress_bills': bill_counts_result[1] or 0,
+                    'pending_bills': bill_counts_result[2] or 0,
+                    'monthly_bills': bill_counts_result[3] or 0,
+                    'overdue_bills': 0,  # Placeholder
+                    'avg_bags_per_bill': round(bill_counts_result[4], 1) if bill_counts_result[4] else 0
+                }
+            else:
+                billing_metrics = {
+                    'total_bills': 0,
+                    'completed_bills': 0,
+                    'in_progress_bills': 0,
+                    'pending_bills': 0,
+                    'monthly_bills': 0,
+                    'overdue_bills': 0,
+                    'avg_bags_per_bill': 0
+                }
         
         # Dispatch metrics (admin and dispatcher)
         dispatch_metrics = {}
@@ -142,25 +167,31 @@ def get_dashboard_analytics():
                 'avg_dispatch_time_hours': 2.5  # Placeholder
             }
         
-        # Recent activity
-        recent_activity = []
-        recent_scans = Scan.query.order_by(desc(Scan.timestamp)).limit(10).all()
+        # Recent activity - OPTIMIZED: Single query with joins instead of N+1 queries
+        recent_activity_raw = db.session.execute(text("""
+            SELECT 
+                s.timestamp,
+                u.username,
+                COALESCE(pb.type, cb.type) as bag_type,
+                COALESCE(pb.qr_id, cb.qr_id) as bag_qr_id
+            FROM scan s
+            LEFT JOIN "user" u ON s.user_id = u.id
+            LEFT JOIN bag pb ON s.parent_bag_id = pb.id
+            LEFT JOIN bag cb ON s.child_bag_id = cb.id
+            ORDER BY s.timestamp DESC
+            LIMIT 10
+        """)).fetchall()
         
-        for scan in recent_scans:
-            user = User.query.get(scan.user_id)
-            bag = None
-            if scan.parent_bag_id:
-                bag = Bag.query.get(scan.parent_bag_id)
-            elif scan.child_bag_id:
-                bag = Bag.query.get(scan.child_bag_id)
-            
-            recent_activity.append({
-                'timestamp': scan.timestamp.isoformat(),
+        recent_activity = [
+            {
+                'timestamp': row[0].isoformat() if row[0] else '',
                 'action': 'Scan',
-                'user': user.username if user else 'Unknown',
-                'details': f"{bag.type if bag else 'Unknown'} - {bag.qr_id if bag else 'N/A'}",
+                'user': row[1] or 'Unknown',
+                'details': f"{row[2] or 'Unknown'} - {row[3] or 'N/A'}",
                 'status': 'success'
-            })
+            }
+            for row in recent_activity_raw
+        ]
         
         # Bag distribution for chart
         bag_distribution = {

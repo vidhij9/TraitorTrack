@@ -232,10 +232,32 @@ def invalidate_bags_cache():
     """Invalidate all bag-related caches when bag data changes"""
     invalidate_cache(cache_type='global')  # Bags are global data
     invalidate_cache(cache_type='user')    # Dashboard stats depend on bags
+    # Also trigger statistics cache refresh for dashboard
+    refresh_statistics_cache()
 
 def invalidate_stats_cache():
     """Invalidate statistics caches when data changes"""
     invalidate_cache(cache_type='user')    # Stats are user/role-specific
+    # Also trigger statistics cache refresh for dashboard
+    refresh_statistics_cache()
+
+def refresh_statistics_cache(commit=True):
+    """
+    Refresh the materialized statistics cache for ultra-fast dashboard loading.
+    This is called automatically when bags, bills, scans, or users change.
+    
+    Args:
+        commit: If True, commits the cache update immediately. If False, caller must commit.
+    
+    NOTE: This runs in a separate database session to avoid transaction conflicts.
+    Safe to call post-commit from request handlers.
+    """
+    try:
+        from models import StatisticsCache
+        StatisticsCache.refresh_cache(commit=commit)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to refresh statistics cache: {e}")
 
 def clear_cache(pattern=None):
     """

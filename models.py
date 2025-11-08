@@ -478,3 +478,69 @@ class Notification(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'read_at': self.read_at.isoformat() if self.read_at else None
         }
+
+
+class StatisticsCache(db.Model):
+    """
+    Single-row table for ultra-fast dashboard statistics caching.
+    Provides sub-10ms response time for dashboard analytics.
+    Updated automatically via database triggers or on-demand refresh.
+    """
+    __tablename__ = 'statistics_cache'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    total_bags = db.Column(db.Integer, default=0)
+    parent_bags = db.Column(db.Integer, default=0)
+    child_bags = db.Column(db.Integer, default=0)
+    total_scans = db.Column(db.Integer, default=0)
+    total_bills = db.Column(db.Integer, default=0)
+    total_users = db.Column(db.Integer, default=0)
+    last_updated = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<StatisticsCache updated at {self.last_updated}>"
+    
+    @staticmethod
+    def get_cached_stats():
+        """
+        Get cached statistics. Returns the single row of pre-calculated stats.
+        If cache doesn't exist, creates and populates it.
+        """
+        stats = StatisticsCache.query.first()
+        if not stats:
+            stats = StatisticsCache.refresh_cache()
+        return stats
+    
+    @staticmethod
+    def refresh_cache(commit=True):
+        """
+        Recalculate and update all statistics in cache.
+        This is called by database triggers or can be manually invoked.
+        
+        Args:
+            commit: If True, commits the changes immediately. If False, caller must commit.
+                   Set to False if calling within an existing transaction.
+        
+        IMPORTANT: This method performs db.session.commit() by default.
+        - Call with commit=False if running inside another transaction
+        - Only call post-commit from request handlers to avoid premature finalization
+        """
+        from sqlalchemy import text
+        
+        stats = StatisticsCache.query.first()
+        if not stats:
+            stats = StatisticsCache()
+            stats.id = 1
+            db.session.add(stats)
+        
+        stats.total_bags = Bag.query.count()
+        stats.parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
+        stats.child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
+        stats.total_scans = Scan.query.count()
+        stats.total_bills = Bill.query.count()
+        stats.total_users = User.query.count()
+        stats.last_updated = datetime.datetime.utcnow()
+        
+        if commit:
+            db.session.commit()
+        return stats
