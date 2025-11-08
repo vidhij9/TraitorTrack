@@ -379,15 +379,33 @@ function scanNewChild(parentQr) {
 
 function removeChildBag(parentQr, childQr) {
     if (confirm(`Remove child bag ${childQr} from parent ${parentQr}?`)) {
-        // Get current children list and remove the specified child
-        fetch(`/api/parent-children/${parentQr}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const updatedChildren = data.children.filter(child => child !== childQr);
-                    updateParentChildren(parentQr, updatedChildren);
-                }
-            });
+        // Use the dispatcher-accessible unlink endpoint
+        fetch('/api/unlink_child', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                qr_code: childQr,
+                parent_qr: parentQr
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message || 'Child bag unlinked successfully');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showAlert('danger', data.message || 'Failed to unlink child bag');
+            }
+        })
+        .catch(error => {
+            console.error('Unlink error:', error);
+            showAlert('danger', 'Error unlinking child bag');
+        });
     }
 }
 

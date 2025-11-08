@@ -2916,10 +2916,10 @@ def api_unlink_child():
         data = request.get_json() or {}
         qr_id = data.get('qr_code', '').strip()
         
-        # Get parent from session
-        parent_qr = session.get('current_parent_qr')
+        # Get parent from request body (for bag details page) or session (for scanning workflow)
+        parent_qr = data.get('parent_qr', '').strip() or session.get('current_parent_qr')
         if not parent_qr:
-            return jsonify({'success': False, 'message': 'No parent bag in session'})
+            return jsonify({'success': False, 'message': 'No parent bag specified'})
         
         # Get parent bag
         parent_bag = Bag.query.filter(
