@@ -760,8 +760,11 @@ def edit_user(user_id):
                     return redirect(url_for('user_management'))
             
             user.role = role
-            # Update dispatch area based on role
-            if role == 'dispatcher':
+        
+        # Handle dispatch area update (separate from role change to allow independent updates)
+        if role:  # Use current role (after potential change above)
+            final_role = role  # Use the role from form (either new or unchanged)
+            if final_role == 'dispatcher':
                 if not dispatch_area:
                     flash('Dispatch area is required for dispatchers.', 'error')
                     return redirect(url_for('user_management'))
