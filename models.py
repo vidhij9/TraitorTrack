@@ -158,6 +158,8 @@ class Bag(db.Model):
         # Composite indexes for common filter combinations
         db.Index('idx_bag_type_area_created', 'type', 'dispatch_area', 'created_at'),
         db.Index('idx_bag_user_type', 'user_id', 'type'),  # For user's bags by type
+        # CHECK constraint to ensure weight is non-negative
+        db.CheckConstraint('weight_kg >= 0', name='check_bag_weight_non_negative'),
     )
     
     # Relationship to User model
@@ -257,6 +259,9 @@ class Bill(db.Model):
         db.Index('idx_bill_status', 'status'),
         db.Index('idx_bill_created', 'created_at'),
         db.Index('idx_bill_status_created', 'status', 'created_at'),
+        # CHECK constraints to ensure weights are non-negative
+        db.CheckConstraint('total_weight_kg >= 0', name='check_bill_total_weight_non_negative'),
+        db.CheckConstraint('expected_weight_kg >= 0', name='check_bill_expected_weight_non_negative'),
     )
     
     def __repr__(self):
