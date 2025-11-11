@@ -321,7 +321,7 @@ h6 { font-size: 0.875rem; }
     border-radius: var(--border-radius-sm);
     padding: var(--spacing-sm);
     font-size: var(--font-size-base);
-    min-height: 2.25rem;
+    min-height: 44px; /* WCAG AA accessibility: minimum touch target size */
     width: 100%;
     transition: var(--transition);
 }
@@ -691,7 +691,7 @@ h6 { font-size: 0.875rem; }
     .modal-body .form-select {
         font-size: var(--font-size-sm);
         padding: var(--spacing-sm);
-        min-height: 2rem;
+        min-height: 44px; /* WCAG AA accessibility - modals */
     }
     
     .modal-footer .btn {
@@ -837,7 +837,7 @@ h6 { font-size: 0.875rem; }
     .form-select {
         padding: var(--spacing-sm);
         font-size: var(--font-size-base);
-        min-height: 2.25rem;
+        min-height: 44px; /* WCAG AA accessibility - desktop/tablet */
     }
     
     .form-label {
