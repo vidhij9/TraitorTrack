@@ -326,12 +326,8 @@ document.addEventListener('DOMContentLoaded', function() {
             this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             
             // Send delete request
-            fetch('/api/delete_bag', {
+            fetchWithCSRF('/api/delete_bag', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
                 body: `qr_code=${encodeURIComponent(qrCode)}`
             })
             .then(response => response.json())

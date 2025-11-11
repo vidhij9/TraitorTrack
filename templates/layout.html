@@ -436,6 +436,35 @@
     {% block scripts %}{% endblock %}
     
     <script>
+        // CSRF token helper - Get token from meta tag
+        function getCSRFToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+        
+        // CSRF-protected fetch helper
+        function fetchWithCSRF(url, options = {}) {
+            const csrfToken = getCSRFToken();
+            
+            options.headers = options.headers || {};
+            options.headers['X-CSRFToken'] = csrfToken;
+            
+            if (!options.headers['Content-Type'] && options.body) {
+                if (options.body instanceof FormData) {
+                    // FormData sets its own Content-Type with boundary
+                } else if (typeof options.body === 'string' && 
+                          (options.body.trim().startsWith('{') || options.body.trim().startsWith('['))) {
+                    // Body looks like JSON
+                    options.headers['Content-Type'] = 'application/json';
+                } else {
+                    // Default to form-urlencoded for other string bodies
+                    options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                }
+            }
+            
+            return fetch(url, options);
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize tooltips
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
@@ -605,9 +634,8 @@
                     btn.addEventListener('click', async function() {
                         const notifId = this.dataset.id;
                         try {
-                            const response = await fetch(`/api/notifications/${notifId}/mark-read`, {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'}
+                            const response = await fetchWithCSRF(`/api/notifications/${notifId}/mark-read`, {
+                                method: 'POST'
                             });
                             if (response.ok) {
                                 await loadNotifications(); // Reload
@@ -624,7 +652,7 @@
                         if (confirm('Delete this notification?')) {
                             const notifId = this.dataset.id;
                             try {
-                                const response = await fetch(`/api/notifications/${notifId}`, {
+                                const response = await fetchWithCSRF(`/api/notifications/${notifId}`, {
                                     method: 'DELETE'
                                 });
                                 if (response.ok) {
@@ -641,9 +669,8 @@
             // Mark all as read
             document.getElementById('mark-all-read-btn')?.addEventListener('click', async function() {
                 try {
-                    const response = await fetch('/api/notifications/mark-all-read', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'}
+                    const response = await fetchWithCSRF('/api/notifications/mark-all-read', {
+                        method: 'POST'
                     });
                     if (response.ok) {
                         await loadNotifications(); // Reload

@@ -219,6 +219,35 @@
     
     <!-- Minimal vanilla JS - no jQuery, no Bootstrap JS -->
     <script>
+        // CSRF token helper - Get token from meta tag
+        function getCSRFToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+        
+        // CSRF-protected fetch helper
+        function fetchWithCSRF(url, options = {}) {
+            const csrfToken = getCSRFToken();
+            
+            options.headers = options.headers || {};
+            options.headers['X-CSRFToken'] = csrfToken;
+            
+            if (!options.headers['Content-Type'] && options.body) {
+                if (options.body instanceof FormData) {
+                    // FormData sets its own Content-Type with boundary
+                } else if (typeof options.body === 'string' && 
+                          (options.body.trim().startsWith('{') || options.body.trim().startsWith('['))) {
+                    // Body looks like JSON
+                    options.headers['Content-Type'] = 'application/json';
+                } else {
+                    // Default to form-urlencoded for other string bodies
+                    options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                }
+            }
+            
+            return fetch(url, options);
+        }
+        
         // Simple toast function
         function showToast(msg, type) {
             const toast = document.getElementById('toast');

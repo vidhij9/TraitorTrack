@@ -274,9 +274,8 @@ function process(qr) {
         updateStatus('✅ Ready to scan', 'white');
     }, 10000);
     
-    fetch('/api/fast_parent_scan', {
+    fetchWithCSRF('/api/fast_parent_scan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'qr_code=' + encodeURIComponent(qr)
     })
     .then(r => {

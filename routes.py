@@ -2244,7 +2244,6 @@ def scan_parent():
     return render_template('scan_parent.html')
 
 @app.route('/api/fast_parent_scan', methods=['POST'])
-@csrf_compat.exempt
 def api_fast_parent_scan():
     """Ultra-fast parent scan API endpoint"""
     import time
@@ -2349,7 +2348,6 @@ def api_fast_parent_scan():
 
 
 @app.route('/process_parent_scan', methods=['GET', 'POST'])
-@csrf_compat.exempt
 def process_parent_scan():
     """Process parent bag scan - Optimized for high concurrency"""
     # Manual authentication check that works
@@ -2466,7 +2464,6 @@ def process_parent_scan():
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan', methods=['GET', 'POST'])
-@csrf_compat.exempt
 def process_child_scan():
     """Optimized child bag processing for high concurrency"""
     # Manual authentication check
@@ -2783,7 +2780,6 @@ def ajax_scan_parent_bag():
         return redirect(url_for('scan_parent'))
 
 @app.route('/process_child_scan_fast', methods=['POST'])
-@csrf_compat.exempt
 @login_required
 @limiter.exempt  # Exempt from rate limiting for fast scanning
 def process_child_scan_fast():
@@ -3022,7 +3018,6 @@ def api_unlink_child():
         return jsonify({'success': False, 'message': 'Error removing link'})
 
 @app.route('/complete_parent_scan', methods=['POST'])
-@csrf_compat.exempt
 @login_required
 def complete_parent_scan():
     """Complete parent bag scanning and mark as completed if 30 children"""
@@ -3331,7 +3326,6 @@ def scan_child():
                              form=ManualScanForm())
 
 @app.route('/scan/complete', methods=['GET', 'POST'])
-@csrf_compat.exempt
 @login_required
 def scan_complete():
     """Completion page for scanning workflow"""
@@ -4477,7 +4471,6 @@ def bill_management():
             return redirect(url_for('dashboard'))
 
 @app.route('/bill/create', methods=['GET', 'POST'])
-@csrf_compat.exempt
 @login_required
 def create_bill():
     """Create a new bill - admin and employee access"""
@@ -4768,7 +4761,6 @@ def edit_bill(bill_id):
     return render_template('edit_bill.html', bill=bill)
 
 @app.route('/remove_bag_from_bill', methods=['POST'])
-@csrf_compat.exempt
 @login_required
 def remove_bag_from_bill():
     """Remove a parent bag from a bill - admin and employee access"""
@@ -4877,7 +4869,6 @@ def scan_bill_parent(bill_id):
 # Removed redundant save_bill function - bills are automatically saved when parent bags are linked
 
 @app.route('/complete_bill', methods=['POST'])
-@csrf_compat.exempt
 @login_required
 def complete_bill():
     """Complete a bill - must meet capacity requirements - admin and biller access"""
@@ -4928,7 +4919,6 @@ def complete_bill():
         return jsonify({'success': False, 'message': 'Error completing bill.'})
 
 @app.route('/reopen_bill', methods=['POST'])
-@csrf_compat.exempt
 @login_required
 def reopen_bill():
     """Reopen a completed bill for editing - admin and biller access"""
@@ -4966,7 +4956,6 @@ def reopen_bill():
         return jsonify({'success': False, 'message': 'Error reopening bill.'})
 
 @app.route('/fast/bill_parent_scan', methods=['POST'])
-@csrf_compat.exempt
 def ultra_fast_bill_parent_scan():
     """Ultra-fast bill parent bag scanning with optimized performance"""
     user_id = session.get('user_id')
@@ -5138,7 +5127,6 @@ def ultra_fast_bill_parent_scan():
         })
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
-@csrf_compat.exempt
 @login_required
 def process_bill_parent_scan():
     """Process a parent bag scan for bill linking - admin and biller access (works for completed bills too)"""
@@ -6695,7 +6683,7 @@ def api_get_parent_children(parent_qr):
 
 # Bill Summary and Manual Entry Routes
 @app.route('/bill/manual_parent_entry', methods=['GET', 'POST'])
-@csrf_compat.exempt  # Exempt from CSRF for AJAX requests
+@login_required
 @login_required
 def manual_parent_entry():
     """Manually enter a parent bag QR code to link to a bill"""
@@ -7386,7 +7374,6 @@ def api_bags_endpoint():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/link', methods=['POST'])
-@csrf_compat.exempt
 @login_required
 def api_create_link():
     """API endpoint to create a link between parent and child bags"""
@@ -7434,7 +7421,6 @@ def api_create_link():
         }), 500
 
 @app.route('/api/bag/<qr_id>')
-@csrf_compat.exempt
 @login_required
 def api_bag_detail(qr_id):
     """API endpoint for individual bag details"""
@@ -8121,7 +8107,6 @@ def statistics_api():
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
-@csrf_compat.exempt  # Exempt from CSRF for file upload functionality
 def upload():
     """Excel upload page - redirect to existing excel_upload"""
     if request.method == 'POST':

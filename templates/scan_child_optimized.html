@@ -464,21 +464,13 @@ async function undoLast() {
     if (undoBtn) undoBtn.disabled = true;
     
     try {
-        // Get CSRF token from meta tag
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-        const headers = { 'Content-Type': 'application/json' };
-        if (csrfToken) {
-            headers['X-CSRFToken'] = csrfToken;
-        }
-        
         // Send QR code if we have it, otherwise let server determine most recent
         const requestBody = lastScannedQr 
             ? { qr_code: lastScannedQr }
             : {};
         
-        const r = await fetch('/api/unlink_child', {
+        const r = await fetchWithCSRF('/api/unlink_child', {
             method: 'POST',
-            headers: headers,
             body: JSON.stringify(requestBody)
         });
         

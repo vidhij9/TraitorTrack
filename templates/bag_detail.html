@@ -380,12 +380,8 @@ function scanNewChild(parentQr) {
 function removeChildBag(parentQr, childQr) {
     if (confirm(`Remove child bag ${childQr} from parent ${parentQr}?`)) {
         // Use the dispatcher-accessible unlink endpoint
-        fetch('/api/unlink_child', {
+        fetchWithCSRF('/api/unlink_child', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
             body: JSON.stringify({
                 qr_code: childQr,
                 parent_qr: parentQr
@@ -417,11 +413,8 @@ function updateParentChildren(parentQr, childQrs) {
         formData.append('child_qrs[]', qr);
     });
     
-    fetch('/api/edit-parent-children', {
+    fetchWithCSRF('/api/edit-parent-children', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
         body: formData
     })
     .then(response => response.json())
