@@ -586,23 +586,37 @@ class StatisticsCache(db.Model):
         IMPORTANT: This method performs db.session.commit() by default.
         - Call with commit=False if running inside another transaction
         - Only call post-commit from request handlers to avoid premature finalization
+        
+        CONCURRENCY: Uses PostgreSQL advisory lock (ID 300000) to prevent concurrent refreshes.
+        Only one refresh operation can run at a time across all workers/processes.
+        Advisory lock is automatically released on transaction commit or rollback.
         """
         from sqlalchemy import text
         
-        stats = StatisticsCache.query.first()
-        if not stats:
-            stats = StatisticsCache()
-            stats.id = 1
-            db.session.add(stats)
-        
-        stats.total_bags = Bag.query.count()
-        stats.parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
-        stats.child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
-        stats.total_scans = Scan.query.count()
-        stats.total_bills = Bill.query.count()
-        stats.total_users = User.query.count()
-        stats.last_updated = datetime.datetime.utcnow()
-        
-        if commit:
-            db.session.commit()
-        return stats
+        try:
+            # Acquire advisory lock to prevent concurrent cache refreshes
+            # Lock ID 300000 (distinct from bill locks 100000+ and bag locks 200000+)
+            # pg_advisory_xact_lock automatically releases on transaction end (commit/rollback)
+            db.session.execute(text("SELECT pg_advisory_xact_lock(300000)"))
+            
+            stats = StatisticsCache.query.first()
+            if not stats:
+                stats = StatisticsCache()
+                stats.id = 1
+                db.session.add(stats)
+            
+            stats.total_bags = Bag.query.count()
+            stats.parent_bags = Bag.query.filter_by(type=BagType.PARENT.value).count()
+            stats.child_bags = Bag.query.filter_by(type=BagType.CHILD.value).count()
+            stats.total_scans = Scan.query.count()
+            stats.total_bills = Bill.query.count()
+            stats.total_users = User.query.count()
+            stats.last_updated = datetime.datetime.utcnow()
+            
+            if commit:
+                db.session.commit()
+            return stats
+        except Exception as e:
+            if commit:
+                db.session.rollback()
+            raise
