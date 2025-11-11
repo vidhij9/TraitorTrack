@@ -3603,12 +3603,37 @@ def delete_bag(bag_id):
         # Import models locally to avoid circular imports
         # Models already imported globally
         
-        # Use transaction with locking
-        bag = Bag.query.with_for_update().get_or_404(bag_id)
+        # Import needed for raw SQL
+        from sqlalchemy import text, select
+        from models import acquire_bag_lock, acquire_bill_lock
         
-        # Check if bag is linked to a bill
+        # CRITICAL: Global lock order is Bill→Bag to prevent deadlocks
+        # First check if bag is linked to a bill (unlocked query)
+        bag = Bag.query.get_or_404(bag_id)
+        initial_bill_link = None
         if bag.type == 'parent':
-            bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
+            initial_bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
+        
+        # Acquire locks in Bill→Bag order
+        if initial_bill_link:
+            # Bill lock first (prevents deadlock with Bill.recalculate_weights)
+            acquire_bill_lock(initial_bill_link.bill_id)
+            db.session.execute(
+                select(Bill).where(Bill.id == initial_bill_link.bill_id).with_for_update()
+            )
+        
+        # Bag lock second
+        acquire_bag_lock(bag_id)
+        db.session.execute(
+            select(Bag).where(Bag.id == bag_id).with_for_update()
+        )
+        
+        # Re-query bag with lock held
+        bag = Bag.query.get(bag_id)
+        
+        # Check if bag is linked to a bill (re-query WITH locks)
+        if bag.type == 'parent':
+            bill_link = BillBag.query.with_for_update().filter_by(bag_id=bag.id).first()
             if bill_link:
                 bill = Bill.query.get(bill_link.bill_id)
                 return jsonify({
@@ -3616,7 +3641,8 @@ def delete_bag(bag_id):
                     'message': f'Cannot delete. This parent bag is linked to bill "{bill.bill_id if bill else "unknown"}". Remove it from the bill first.'
                 })
             
-            # Check if parent has child bags
+            # Lock all link rows for this parent
+            db.session.execute(text("SELECT * FROM link WHERE parent_bag_id = :bag_id FOR UPDATE"), {'bag_id': bag.id})
             child_links = Link.query.filter_by(parent_bag_id=bag.id).count()
             if child_links > 0:
                 return jsonify({
@@ -3625,7 +3651,8 @@ def delete_bag(bag_id):
                 })
         
         if bag.type == 'child':
-            # Check if child is linked to a parent
+            # Lock link rows for this child
+            db.session.execute(text("SELECT * FROM link WHERE child_bag_id = :bag_id FOR UPDATE"), {'bag_id': bag.id})
             parent_link = Link.query.filter_by(child_bag_id=bag.id).first()
             if parent_link:
                 parent = Bag.query.get(parent_link.parent_bag_id)
@@ -6331,6 +6358,10 @@ def api_delete_bag():
                 'message': 'QR code is required'
             })
         
+        from sqlalchemy import text, select
+        from models import acquire_bag_lock, acquire_bill_lock
+        
+        # Get bag first (unlocked query)
         bag = Bag.query.filter_by(qr_id=qr_code).first()
         if not bag:
             return jsonify({
@@ -6338,23 +6369,39 @@ def api_delete_bag():
                 'message': 'Bag not found'
             })
         
-        # Store bag information before deletion operations
         bag_id = bag.id
         bag_type = bag.type
         
-        from sqlalchemy import text
+        # CRITICAL: Global lock order is Bill→Bag to prevent deadlocks
+        # First check if bag is linked to a bill (unlocked query)
+        initial_bill_link = None
+        if bag_type == 'parent':
+            initial_bill_link = BillBag.query.filter_by(bag_id=bag_id).first()
+        
+        # Acquire locks in Bill→Bag order
+        if initial_bill_link:
+            # Bill lock first (prevents deadlock with Bill.recalculate_weights)
+            acquire_bill_lock(initial_bill_link.bill_id)
+            db.session.execute(
+                select(Bill).where(Bill.id == initial_bill_link.bill_id).with_for_update()
+            )
+        
+        # Bag lock second
+        acquire_bag_lock(bag_id)
+        db.session.execute(
+            select(Bag).where(Bag.id == bag_id).with_for_update()
+        )
+        
+        # Re-query bag with lock held
+        bag = Bag.query.get(bag_id)
         
         if bag_type == 'parent':
-            # SAFETY CHECK 1: Check if parent bag is linked to any bill
-            bill_link = BillBag.query.filter_by(bag_id=bag_id).first()
+            # Re-query bill_link WITH locks to prevent race conditions
+            bill_link = BillBag.query.with_for_update().filter_by(bag_id=bag_id).first()
             if bill_link:
-                from models import acquire_bill_lock
                 bill = Bill.query.get(bill_link.bill_id)
                 
-                # Acquire lock to ensure consistent check
-                if bill:
-                    acquire_bill_lock(bill.id)
-                
+                # SAFETY CHECK 1: Check if parent bag is linked to any bill
                 bill_id_str = bill.bill_id if bill else "unknown"
                 app.logger.warning(f"Deletion prevented: Parent bag {qr_code} is linked to bill {bill_id_str}")
                 
@@ -6376,6 +6423,9 @@ def api_delete_bag():
                     'success': False,
                     'message': f'Cannot delete. This parent bag is linked to bill "{bill_id_str}". Remove it from the bill first.'
                 }), 400
+            
+            # Lock all link rows for this parent
+            db.session.execute(text("SELECT * FROM link WHERE parent_bag_id = :bag_id FOR UPDATE"), {'bag_id': bag_id})
             
             # SAFETY CHECK 2: Get child bag IDs and validate cascade deletion
             child_bag_ids = db.session.query(Link.child_bag_id).filter_by(parent_bag_id=bag_id).all()
@@ -6479,6 +6529,9 @@ def api_delete_bag():
             message = f'Parent bag {qr_code} and {child_count} linked child bags deleted successfully'
             
         else:
+            # Lock link rows for this child
+            db.session.execute(text("SELECT * FROM link WHERE child_bag_id = :bag_id FOR UPDATE"), {'bag_id': bag_id})
+            
             # SAFETY CHECK: Validate child bag before deletion
             # Check if child is linked to a parent
             parent_link = Link.query.filter_by(child_bag_id=bag_id).first()

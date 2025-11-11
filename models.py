@@ -15,6 +15,12 @@ def acquire_bill_lock(bill_id):
     advisory_lock_id = 100000 + bill_id
     db.session.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {'lock_id': advisory_lock_id})
 
+def acquire_bag_lock(bag_id):
+    """Acquire PostgreSQL advisory lock for bag deletion operations. Prevents concurrent modifications during deletion checks."""
+    from sqlalchemy import text
+    advisory_lock_id = 200000 + bag_id
+    db.session.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {'lock_id': advisory_lock_id})
+
 class UserRole(enum.Enum):
     ADMIN = "admin"
     BILLER = "biller"
