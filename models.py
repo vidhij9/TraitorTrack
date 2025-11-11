@@ -9,6 +9,12 @@ from app import db
 # Schema-based isolation - no table prefixes needed
 # Tables will be isolated by PostgreSQL schemas (production/development)
 
+def acquire_bill_lock(bill_id):
+    """Acquire PostgreSQL advisory lock for bill operations. Call this before any bill_bag/link modifications."""
+    from sqlalchemy import text
+    advisory_lock_id = 100000 + bill_id
+    db.session.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {'lock_id': advisory_lock_id})
+
 class UserRole(enum.Enum):
     ADMIN = "admin"
     BILLER = "biller"
@@ -255,52 +261,98 @@ class Bill(db.Model):
         Recalculate bill weights from scratch based on current linked bags.
         Fixes edge cases like deleted parent bags or modified child weights.
         
+        Uses PostgreSQL advisory locks and row-level locks to prevent race conditions.
+        Creates a critical section that blocks all concurrent bill_bag, bag, and link
+        operations for this specific bill.
+        
+        IMPORTANT: Must be called within an active transaction (db.session.begin()).
+        Does not commit - caller must commit the transaction.
+        
         Returns:
             tuple: (actual_weight, expected_weight, parent_count, child_count)
         """
-        from sqlalchemy import text
+        from sqlalchemy import select, text
         
-        # Calculate actual weight: 1kg per child bag (not from weight_kg field which is 0)
-        actual_weight_result = db.session.execute(
+        # Step 1: Acquire PostgreSQL advisory lock for this bill
+        # This creates a critical section - only one transaction can hold this lock
+        # Advisory lock ID = 100000 + bill.id (ensures uniqueness per bill)
+        advisory_lock_id = 100000 + self.id
+        db.session.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_id)"),
+            {'lock_id': advisory_lock_id}
+        )
+        
+        # Step 2: Acquire exclusive lock on the Bill row
+        # This prevents concurrent updates to the bill itself
+        db.session.execute(
+            select(Bill)
+            .where(Bill.id == self.id)
+            .with_for_update()
+        )
+        
+        # Step 3: Lock all BillBag associations (now protected by advisory lock)
+        # The advisory lock ensures no concurrent inserts can happen
+        db.session.execute(
+            text("SELECT * FROM bill_bag WHERE bill_id = :bill_id FOR UPDATE"),
+            {'bill_id': self.id}
+        )
+        
+        # Step 4: Lock parent bags to prevent new Link inserts
+        db.session.execute(
             text("""
-                SELECT COUNT(DISTINCT child.id)
+                SELECT bag.id FROM bill_bag bb
+                JOIN bag ON bb.bag_id = bag.id
+                WHERE bb.bill_id = :bill_id AND bag.type = 'parent'
+                FOR UPDATE
+            """),
+            {'bill_id': self.id}
+        )
+        
+        # Step 5: Lock existing Link rows to prevent deletions
+        db.session.execute(
+            text("""
+                SELECT link.id FROM bill_bag bb
+                JOIN bag parent ON bb.bag_id = parent.id
+                INNER JOIN link ON parent.id = link.parent_bag_id
+                WHERE bb.bill_id = :bill_id AND parent.type = 'parent'
+                FOR UPDATE
+            """),
+            {'bill_id': self.id}
+        )
+        
+        # Step 6: Calculate all metrics in a single atomic query under all locks
+        # Advisory lock + row locks ensure complete isolation
+        result = db.session.execute(
+            text("""
+                SELECT 
+                    COUNT(DISTINCT parent.id) as parent_count,
+                    COUNT(DISTINCT child.id) as child_count
                 FROM bill_bag bb
                 JOIN bag parent ON bb.bag_id = parent.id
                 LEFT JOIN link l ON parent.id = l.parent_bag_id
                 LEFT JOIN bag child ON l.child_bag_id = child.id
-                WHERE bb.bill_id = :bill_id AND parent.type = 'parent' AND child.id IS NOT NULL
+                WHERE bb.bill_id = :bill_id AND parent.type = 'parent'
             """),
             {'bill_id': self.id}
-        ).scalar()
+        ).fetchone()
         
-        actual_weight = float(actual_weight_result or 0)  # 1kg per child bag
+        # Handle None result (no bags linked to this bill)
+        parent_count = int(result[0] if result else 0)
+        child_count = int(result[1] if result else 0)
         
-        # Count linked parent bags
-        parent_count = BillBag.query.filter_by(bill_id=self.id).count()
+        # Actual weight: 1kg per child bag
+        actual_weight = float(child_count)
         
-        # Count total child bags
-        child_count_result = db.session.execute(
-            text("""
-                SELECT COUNT(DISTINCT child.id)
-                FROM bill_bag bb
-                JOIN bag parent ON bb.bag_id = parent.id
-                LEFT JOIN link l ON parent.id = l.parent_bag_id
-                LEFT JOIN bag child ON l.child_bag_id = child.id
-                WHERE bb.bill_id = :bill_id AND parent.type = 'parent' AND child.id IS NOT NULL
-            """),
-            {'bill_id': self.id}
-        ).scalar()
-        
-        child_count = int(child_count_result or 0)
-        
-        # Expected weight is 30kg per parent bag (based on capacity target)
+        # Expected weight: 30kg per parent bag (based on capacity target)
         expected_weight = self.parent_bag_count * 30.0
         
-        # Update bill fields (but NOT parent_bag_count which is the CAPACITY TARGET, not current count)
+        # Update bill fields while locks are held
+        # (but NOT parent_bag_count which is the CAPACITY TARGET, not current count)
         self.total_weight_kg = actual_weight
         self.expected_weight_kg = expected_weight
         self.total_child_bags = child_count
         
+        # Advisory lock automatically released when transaction commits/rolls back
         return (actual_weight, expected_weight, parent_count, child_count)
 
 class BillBag(db.Model):

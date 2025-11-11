@@ -1751,7 +1751,7 @@ def link_to_bill(qr_id):
                 return render_template('link_to_bill.html', parent_bag=parent_bag)
             
             # Import models locally to avoid circular imports  
-            from models import Bill
+            from models import Bill, acquire_bill_lock
             
             # Check if bill already exists
             bill = Bill.query.filter_by(bill_id=bill_id).first()
@@ -1767,6 +1767,9 @@ def link_to_bill(qr_id):
                 bill.total_weight_kg = 0.0  # Initialize actual weight
                 db.session.add(bill)
                 db.session.flush()
+            
+            # Acquire advisory lock before bill_bag operations
+            acquire_bill_lock(bill.id)
             
             # Link parent bag to bill
             existing_link = BillBag.query.filter_by(
@@ -4591,7 +4594,7 @@ def delete_bill(bill_id):
     
     try:
         # Import models locally
-        from models import Bill, BillBag
+        from models import Bill, BillBag, acquire_bill_lock
         from sqlalchemy import text
         
         # Use a single transaction with raw SQL for maximum speed
@@ -4606,6 +4609,9 @@ def delete_bill(bill_id):
             return redirect(url_for('bill_management'))
         
         bill_identifier = result[0]
+        
+        # Acquire advisory lock before bill_bag operations
+        acquire_bill_lock(bill_id)
         
         # Execute both deletes in a single transaction for speed
         # Using raw SQL for maximum performance
@@ -4773,12 +4779,22 @@ def remove_bag_from_bill():
         return redirect(url_for('bill_management'))
     
     try:
+        from models import acquire_bill_lock
+        
         parent_qr = request.form.get('parent_qr')
         bill_id = request.form.get('bill_id', type=int)
         
         if not parent_qr or not bill_id:
             flash('Missing required information.', 'error')
             return redirect(url_for('bill_management'))
+        
+        # Get Bill object and acquire lock before bill_bag operations
+        bill = Bill.query.get(bill_id)
+        if not bill:
+            flash('Bill not found.', 'error')
+            return redirect(url_for('bill_management'))
+        
+        acquire_bill_lock(bill.id)
         
         # Find the parent bag
         parent_bag = Bag.query.filter(
@@ -5000,6 +5016,9 @@ def ultra_fast_bill_parent_scan():
         })
     
     try:
+        # Import the lock helper
+        from models import acquire_bill_lock
+        
         # Simplified queries for better reliability and debugging
         
         # 1. Check if bill exists
@@ -5011,6 +5030,9 @@ def ultra_fast_bill_parent_scan():
                 'message': f'📋 Bill #{bill_id} not found. Please refresh the page.',
                 'error_type': 'bill_not_found'
             })
+        
+        # Acquire advisory lock before bill_bag operations
+        acquire_bill_lock(bill.id)
         
         # 2. Check if parent bag exists (case-insensitive)
         from sqlalchemy import func
@@ -5151,7 +5173,7 @@ def process_bill_parent_scan():
         app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
         
         # Import models locally to avoid circular imports
-        from models import Bill, Bag, BillBag
+        from models import Bill, Bag, BillBag, acquire_bill_lock
         
         # Get bill - handle both integer ID and string bill_id
         try:
@@ -5163,6 +5185,9 @@ def process_bill_parent_scan():
         
         if not bill:
             return jsonify({'success': False, 'message': f'Bill with ID "{bill_id}" not found. Please check the bill exists.'})
+        
+        # Acquire advisory lock before bill_bag operations
+        acquire_bill_lock(bill.id)
         
         qr_id = sanitize_input(qr_code.strip() if qr_code else '')
         
@@ -6323,7 +6348,13 @@ def api_delete_bag():
             # SAFETY CHECK 1: Check if parent bag is linked to any bill
             bill_link = BillBag.query.filter_by(bag_id=bag_id).first()
             if bill_link:
+                from models import acquire_bill_lock
                 bill = Bill.query.get(bill_link.bill_id)
+                
+                # Acquire lock to ensure consistent check
+                if bill:
+                    acquire_bill_lock(bill.id)
+                
                 bill_id_str = bill.bill_id if bill else "unknown"
                 app.logger.warning(f"Deletion prevented: Parent bag {qr_code} is linked to bill {bill_id_str}")
                 
