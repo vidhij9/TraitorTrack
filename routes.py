@@ -2229,8 +2229,9 @@ def process_promotion_request(request_id):
 # Scanning workflow routes (simplified without location selection)
 
 @app.route('/scanner-test')
+@login_required
 def scanner_test():
-    """Simple scanner test page - no login required"""
+    """Simple scanner test page"""
     return send_from_directory('/tmp', 'scanner_test.html')
 
 @app.route('/scan/parent', methods=['GET', 'POST'])
