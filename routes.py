@@ -1528,7 +1528,7 @@ def dashboard():
     return render_template('dashboard.html')
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")  # Strict rate limiting to prevent brute-force attacks
+@limiter.limit("10 per hour")  # Strict rate limiting to prevent brute-force attacks
 def login():
     """User login endpoint with improved error handling"""
     if is_logged_in() and request.method == 'GET':
@@ -1982,7 +1982,7 @@ def register():
     return render_template('register.html')
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
-@limiter.limit("3 per minute")  # Strict rate limiting to prevent abuse
+@limiter.limit("5 per hour")  # Strict rate limiting to prevent email spam and abuse
 def forgot_password():
     """Handle forgot password requests"""
     if current_user.is_authenticated:
@@ -2023,7 +2023,7 @@ def forgot_password():
     return render_template('forgot_password.html', form=form)
 
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")  # Rate limiting for password reset
+@limiter.limit("5 per hour")  # Rate limiting to prevent password reset abuse
 def reset_password(token):
     """Handle password reset with token"""
     if current_user.is_authenticated:
