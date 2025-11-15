@@ -4175,6 +4175,7 @@ def bag_management():
     
     filters = {
         'type': bag_type,
+        'search': search_query,
         'date_from': date_from,
         'date_to': date_to,
         'linked_status': linked_status,
@@ -4685,60 +4686,126 @@ def finish_bill_scan(bill_id):
 @app.route('/bill/<int:bill_id>')
 @login_required  
 def view_bill(bill_id):
-    """Ultra-fast bill view - optimized for 8+ lakh bags"""
-    # Import models locally
-    # Models already imported globally
+    """Ultra-optimized bill view using single CTE query to eliminate N+1"""
     from sqlalchemy import func
     
     bill = Bill.query.get_or_404(bill_id)
     
-    # Single optimized query for parent bags with child counts
-    # Uses outer join to handle bags with no children gracefully
-    parent_data = db.session.query(
-        Bag,
-        func.coalesce(func.count(Link.child_bag_id), 0).label('child_count')
-    ).join(
-        BillBag, Bag.id == BillBag.bag_id
-    ).outerjoin(
-        Link, Link.parent_bag_id == Bag.id
-    ).filter(
-        BillBag.bill_id == bill.id,
-        Bag.id.isnot(None)  # Ensure valid bag reference
-    ).group_by(Bag.id).limit(50).all()  # Limit for performance
+    # ULTRA-OPTIMIZED: Single CTE query to fetch all parent bags and their children in one roundtrip
+    result = db.session.execute(text("""
+        WITH parent_bags AS (
+            SELECT 
+                b.id as parent_id,
+                b.qr_id,
+                b.name,
+                b.type,
+                b.dispatch_area,
+                b.created_at,
+                COUNT(l.child_bag_id) as child_count
+            FROM bag b
+            JOIN bill_bag bb ON bb.bag_id = b.id
+            LEFT JOIN link l ON l.parent_bag_id = b.id
+            WHERE bb.bill_id = :bill_id AND b.type = 'parent'
+            GROUP BY b.id, b.qr_id, b.name, b.type, b.dispatch_area, b.created_at
+            LIMIT 50
+        ),
+        all_children AS (
+            SELECT 
+                cb.id as child_id,
+                cb.qr_id as child_qr,
+                cb.name as child_name,
+                cb.created_at as child_created,
+                l.parent_bag_id
+            FROM link l
+            JOIN bag cb ON cb.id = l.child_bag_id
+            WHERE l.parent_bag_id IN (SELECT parent_id FROM parent_bags)
+            ORDER BY cb.created_at DESC
+        )
+        SELECT 
+            pb.parent_id,
+            pb.qr_id,
+            pb.name,
+            pb.dispatch_area,
+            pb.child_count,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'id', ac.child_id,
+                        'qr_id', ac.child_qr,
+                        'name', ac.child_name,
+                        'created_at', ac.child_created
+                    ) ORDER BY ac.child_created DESC
+                ) FILTER (WHERE ac.child_id IS NOT NULL),
+                '[]'::json
+            ) as children
+        FROM parent_bags pb
+        LEFT JOIN all_children ac ON ac.parent_bag_id = pb.parent_id
+        GROUP BY pb.parent_id, pb.qr_id, pb.name, pb.dispatch_area, pb.child_count
+    """), {'bill_id': bill_id}).fetchall()
     
-    # Format data efficiently with null-safe access
+    # Parse results into format expected by template - ZERO additional queries
     parent_bags = []
     parent_bag_ids = []
-    for bag, child_count in parent_data:
-        if bag:  # Null-safe check
-            # Load child bags for this parent
-            child_bags = db.session.query(Bag).join(
-                Link, Bag.id == Link.child_bag_id
-            ).filter(Link.parent_bag_id == bag.id).all()
-            
-            parent_bags.append({
-                'parent_bag': bag,
-                'child_count': child_count or 0,  # Handle None
-                'child_bags': child_bags  # Load actual child bags
-            })
-            parent_bag_ids.append(bag.id)
+    all_bag_ids = []
+    import json
     
-    # Get limited scan history for performance - handle empty list
+    # Collect all bag IDs (both parent and child) for single bulk fetch
+    for row in result:
+        parent_id = row[0]
+        children_json = row[5]
+        all_bag_ids.append(parent_id)
+        parent_bag_ids.append(parent_id)
+        
+        if children_json:
+            children_data = json.loads(children_json)
+            if children_data:
+                child_ids = [c['id'] for c in children_data if c and c.get('id')]
+                all_bag_ids.extend(child_ids)
+    
+    # SINGLE BULK FETCH: Load all Bag objects in one query
+    bag_objects_dict = {}
+    if all_bag_ids:
+        bag_objects = Bag.query.filter(Bag.id.in_(all_bag_ids)).all()
+        bag_objects_dict = {bag.id: bag for bag in bag_objects}
+    
+    # Build parent_bags using pre-fetched objects
+    for row in result:
+        parent_id, qr_id, name, dispatch_area, child_count, children_json = row
+        
+        parent_bag_obj = bag_objects_dict.get(parent_id)
+        if not parent_bag_obj:
+            continue
+        
+        # Parse children JSON and fetch from pre-loaded dict
+        children_data = json.loads(children_json) if children_json else []
+        child_bags = []
+        if children_data:
+            for c in children_data:
+                if c and c.get('id'):
+                    child_bag = bag_objects_dict.get(c['id'])
+                    if child_bag:
+                        child_bags.append(child_bag)
+        
+        parent_bags.append({
+            'parent_bag': parent_bag_obj,
+            'child_count': child_count or 0,
+            'child_bags': child_bags
+        })
+    
+    # Get limited scan history with eager loading in single query
     scans = []
     if parent_bag_ids:
-        scans = Scan.query.filter(
+        from sqlalchemy.orm import joinedload
+        scans = Scan.query.options(joinedload(Scan.user)).filter(
             Scan.parent_bag_id.in_(parent_bag_ids)
         ).order_by(desc(Scan.timestamp)).limit(100).all()
-    
-    # Fast count
-    bag_links_count = len(parent_bags)
     
     return render_template('view_bill.html', 
                          bill=bill, 
                          parent_bags=parent_bags, 
-                         child_bags=[],  # Fixed: all_child_bags was undefined
-                         scans=scans or [],  # Ensure never None
-                         bag_links_count=bag_links_count)
+                         child_bags=[],
+                         scans=scans or [],
+                         bag_links_count=len(parent_bags))
 
 @app.route('/bill/<int:bill_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -5359,85 +5426,142 @@ def process_bill_parent_scan():
 @app.route('/bag/<path:qr_id>')
 @login_required
 def bag_details(qr_id):
-    """Display detailed information about a specific bag"""
-    # URL decode the qr_id to handle special characters
+    """Ultra-optimized bag details using single CTE query to eliminate N+1"""
     from urllib.parse import unquote
+    from sqlalchemy.orm import joinedload
     qr_id = unquote(qr_id)
     
-    app.logger.info(f'Bag detail lookup - QR ID: {qr_id}')
-    
     try:
-        bag = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id)).first_or_404()
+        # ULTRA-OPTIMIZED: Single CTE query to fetch all related data in one roundtrip
+        result = db.session.execute(text("""
+            WITH bag_data AS (
+                SELECT id, qr_id, type, name, status, dispatch_area, created_at
+                FROM bag
+                WHERE UPPER(qr_id) = UPPER(:qr_id)
+                LIMIT 1
+            ),
+            child_data AS (
+                SELECT b.id, b.qr_id, b.name, b.created_at
+                FROM bag b
+                JOIN link l ON l.child_bag_id = b.id
+                WHERE l.parent_bag_id = (SELECT id FROM bag_data WHERE type = 'parent')
+                ORDER BY b.created_at DESC
+                LIMIT 100
+            ),
+            parent_data AS (
+                SELECT pb.id, pb.qr_id, pb.name, pb.type
+                FROM link l
+                JOIN bag pb ON pb.id = l.parent_bag_id
+                WHERE l.child_bag_id = (SELECT id FROM bag_data WHERE type = 'child')
+                LIMIT 1
+            ),
+            bill_data AS (
+                SELECT bill.id, bill.bill_id, bill.description, bill.created_at, bill.status
+                FROM bill
+                JOIN bill_bag bb ON bb.bill_id = bill.id
+                WHERE bb.bag_id IN (
+                    SELECT id FROM bag_data WHERE type = 'parent'
+                    UNION ALL
+                    SELECT id FROM parent_data
+                )
+                LIMIT 10
+            )
+            SELECT 
+                (SELECT row_to_json(bag_data) FROM bag_data) as bag,
+                (SELECT json_agg(row_to_json(child_data)) FROM child_data) as children,
+                (SELECT row_to_json(parent_data) FROM parent_data) as parent,
+                (SELECT json_agg(row_to_json(bill_data)) FROM bill_data) as bills
+        """), {'qr_id': qr_id}).fetchone()
         
-        # Initialize variables to avoid template errors
+        if not result or not result[0]:
+            flash('Bag not found', 'error')
+            return redirect(url_for('bag_management'))
+        
+        bag_json, children_json, parent_json, bills_json = result
+        
+        # Parse bag data
+        import json
+        bag_data = json.loads(bag_json) if bag_json else None
+        if not bag_data:
+            flash('Bag not found', 'error')
+            return redirect(url_for('bag_management'))
+        
+        # Collect all IDs for single bulk fetch - ZERO per-item queries
+        all_bag_ids = [bag_data['id']]
+        all_bill_ids = []
+        
+        if children_json:
+            children_data = json.loads(children_json)
+            if children_data:
+                child_ids = [c['id'] for c in children_data]
+                all_bag_ids.extend(child_ids)
+        
+        if parent_json:
+            parent_data = json.loads(parent_json)
+            if parent_data:
+                all_bag_ids.append(parent_data['id'])
+        
+        if bills_json:
+            bills_data = json.loads(bills_json)
+            if bills_data:
+                all_bill_ids = [b['id'] for b in bills_data]
+        
+        # SINGLE BULK FETCH: Load all Bag objects in one query
+        bag_objects_dict = {}
+        if all_bag_ids:
+            bag_objects = Bag.query.filter(Bag.id.in_(all_bag_ids)).all()
+            bag_objects_dict = {b.id: b for b in bag_objects}
+        
+        # SINGLE BULK FETCH: Load all Bill objects in one query
+        bill_objects_dict = {}
+        if all_bill_ids:
+            bill_objects = Bill.query.filter(Bill.id.in_(all_bill_ids)).all()
+            bill_objects_dict = {b.id: b for b in bill_objects}
+        
+        # Build objects from pre-fetched data
+        bag = bag_objects_dict.get(bag_data['id'])
+        
         child_bags = []
-        parent_bag = None
-        bills = []
-        scans = []
-        link = None
+        if children_json:
+            children_data = json.loads(children_json)
+            if children_data:
+                for c in children_data:
+                    child_bag = bag_objects_dict.get(c['id'])
+                    if child_bag:
+                        child_bags.append(child_bag)
         
-        # Get related information with optimized queries
-        if bag.type == 'parent':
-            # Get child bags efficiently - handle potential join issues
-            try:
-                child_bags = db.session.query(Bag).join(
-                    Link, Link.child_bag_id == Bag.id
-                ).filter(
-                    Link.parent_bag_id == bag.id
-                ).limit(100).all()  # Limit for performance
-            except Exception as e:
-                app.logger.warning(f"Error loading child bags for {qr_id}: {e}")
-                child_bags = []
-            
-            # Get bills - handle potential join issues
-            try:
-                bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == bag.id).all()
-                # Set link only if bills exist and have valid data
-                if bills and len(bills) > 0:
-                    # Create a simple object to pass bill_id and created_at to template
+        parent_bag = None
+        if parent_json:
+            parent_data = json.loads(parent_json)
+            if parent_data:
+                parent_bag = bag_objects_dict.get(parent_data['id'])
+        
+        bills = []
+        link = None
+        if bills_json:
+            bills_data = json.loads(bills_json)
+            if bills_data:
+                for b in bills_data:
+                    bill = bill_objects_dict.get(b['id'])
+                    if bill:
+                        bills.append(bill)
+                if bills:
                     link = {
-                        'id': bills[0].id,  # Numeric ID for url_for
-                        'bill_id': bills[0].bill_id,  # String ID for display
+                        'id': bills[0].id,
+                        'bill_id': bills[0].bill_id,
                         'created_at': bills[0].created_at
                     }
-            except Exception as e:
-                app.logger.warning(f"Error loading bills for {qr_id}: {e}")
-                bills = []
-                link = None
-            
-            # Get scans with user relationship eagerly loaded - handle potential issues
-            try:
-                scans = db.session.query(Scan).options(
-                    db.joinedload(Scan.user)
-                ).filter(
-                    Scan.parent_bag_id == bag.id
-                ).order_by(desc(Scan.timestamp)).limit(50).all()
-            except Exception as e:
-                app.logger.warning(f"Error loading scans for {qr_id}: {e}")
-                scans = []
+        
+        # Get scans with eager loading in single query
+        scans = []
+        if bag.type == 'parent':
+            scans = Scan.query.options(joinedload(Scan.user)).filter(
+                Scan.parent_bag_id == bag.id
+            ).order_by(desc(Scan.timestamp)).limit(50).all()
         else:
-            # Handle child bag type
-            try:
-                link_obj = Link.query.filter_by(child_bag_id=bag.id).first()
-                parent_bag = Bag.query.get(link_obj.parent_bag_id) if link_obj and link_obj.parent_bag_id else None
-                
-                if parent_bag:
-                    bills = db.session.query(Bill).join(BillBag).filter(BillBag.bag_id == parent_bag.id).all()
-            except Exception as e:
-                app.logger.warning(f"Error loading parent/bills for child bag {qr_id}: {e}")
-                parent_bag = None
-                bills = []
-            
-            # Get scans for child bag
-            try:
-                scans = db.session.query(Scan).options(
-                    db.joinedload(Scan.user)
-                ).filter(
-                    Scan.child_bag_id == bag.id
-                ).order_by(desc(Scan.timestamp)).limit(50).all()
-            except Exception as e:
-                app.logger.warning(f"Error loading scans for child bag {qr_id}: {e}")
-                scans = []
+            scans = Scan.query.options(joinedload(Scan.user)).filter(
+                Scan.child_bag_id == bag.id
+            ).order_by(desc(Scan.timestamp)).limit(50).all()
         
         return render_template('bag_detail.html',
                              bag=bag,
@@ -5451,7 +5575,7 @@ def bag_details(qr_id):
     except Exception as e:
         app.logger.error(f"Error in bag_details for {qr_id}: {str(e)}")
         flash(f'Error loading bag details: {str(e)}', 'error')
-        return redirect(url_for('child_lookup', qr_id=qr_id))
+        return redirect(url_for('bag_management'))
 
 # User Profile Management
 @app.route('/profile')
@@ -6336,266 +6460,157 @@ def api_delete_child_scan():
 @app.route('/api/delete_bag', methods=['POST'])
 @login_required
 def api_delete_bag():
-    """Delete a bag and handle parent/child relationships - optimized for performance"""
-    # Check if user has permission to delete bags
+    """Delete a bag with all validations in a single optimized CTE query"""
     if not (current_user.is_admin() or current_user.is_biller()):
-        return jsonify({
-            'success': False,
-            'message': 'Admin or biller access required'
-        }), 403
+        return jsonify({'success': False, 'message': 'Admin or biller access required'}), 403
     
-    # Initialize variables for error handling
-    qr_code = 'unknown'
+    qr_code = request.form.get('qr_code', '').strip()
+    if not qr_code:
+        return jsonify({'success': False, 'message': 'QR code is required'})
     
     try:
-        # Import models locally to avoid circular imports
-        # Models already imported globally
-        
-        qr_code = request.form.get('qr_code', 'unknown')
-        if not qr_code:
-            return jsonify({
-                'success': False,
-                'message': 'QR code is required'
-            })
-        
-        from sqlalchemy import text, select
+        from sqlalchemy import text
         from models import acquire_bag_lock, acquire_bill_lock
         
-        # Get bag first (unlocked query)
-        bag = Bag.query.filter_by(qr_id=qr_code).first()
-        if not bag:
+        # ULTRA-OPTIMIZED: Single CTE query for all validation checks
+        validation_result = db.session.execute(text("""
+            WITH bag_info AS (
+                SELECT 
+                    b.id, 
+                    b.type, 
+                    b.qr_id,
+                    bb.bill_id,
+                    bill.bill_id as bill_identifier
+                FROM bag b
+                LEFT JOIN bill_bag bb ON bb.bag_id = b.id
+                LEFT JOIN bill ON bill.id = bb.bill_id
+                WHERE UPPER(b.qr_id) = UPPER(:qr_code)
+                LIMIT 1
+            ),
+            child_links AS (
+                SELECT 
+                    array_agg(l.child_bag_id) as child_ids,
+                    COUNT(l.child_bag_id) as child_count
+                FROM link l
+                WHERE l.parent_bag_id = (SELECT id FROM bag_info WHERE type = 'parent')
+            ),
+            multi_parent_check AS (
+                SELECT 
+                    COUNT(*) as multi_parent_count
+                FROM link l
+                WHERE l.child_bag_id = ANY((SELECT child_ids FROM child_links))
+                GROUP BY l.child_bag_id
+                HAVING COUNT(DISTINCT l.parent_bag_id) > 1
+            ),
+            parent_link_info AS (
+                SELECT 
+                    l.parent_bag_id,
+                    pb.qr_id as parent_qr
+                FROM link l
+                JOIN bag pb ON pb.id = l.parent_bag_id
+                WHERE l.child_bag_id = (SELECT id FROM bag_info WHERE type = 'child')
+                LIMIT 1
+            )
+            SELECT 
+                bi.id,
+                bi.type,
+                bi.qr_id,
+                bi.bill_id,
+                bi.bill_identifier,
+                COALESCE(cl.child_ids, ARRAY[]::int[]) as child_ids,
+                COALESCE(cl.child_count, 0) as child_count,
+                COALESCE((SELECT multi_parent_count FROM multi_parent_check LIMIT 1), 0) as multi_parent_count,
+                pli.parent_qr
+            FROM bag_info bi
+            LEFT JOIN child_links cl ON bi.type = 'parent'
+            LEFT JOIN parent_link_info pli ON bi.type = 'child'
+        """), {'qr_code': qr_code}).fetchone()
+        
+        if not validation_result or not validation_result[0]:
+            return jsonify({'success': False, 'message': 'Bag not found'})
+        
+        bag_id, bag_type, bag_qr, bill_id, bill_identifier, child_ids, child_count, multi_parent_count, parent_qr = validation_result
+        
+        # Validation checks using the single query result
+        if bag_type == 'parent' and bill_id:
+            log_audit('delete_bag_prevented', 'bag', bag_id, {
+                'qr_id': bag_qr, 'bag_type': bag_type, 'reason': 'linked_to_bill',
+                'bill_id': bill_identifier, 'user_id': current_user.id
+            })
             return jsonify({
                 'success': False,
-                'message': 'Bag not found'
+                'message': f'Cannot delete. This parent bag is linked to bill "{bill_identifier}". Remove it from the bill first.'
+            }), 400
+        
+        if bag_type == 'parent' and multi_parent_count > 0:
+            log_audit('delete_bag_prevented', 'bag', bag_id, {
+                'qr_id': bag_qr, 'bag_type': bag_type, 'reason': 'children_have_multiple_parents',
+                'child_count': multi_parent_count, 'user_id': current_user.id
             })
+            return jsonify({
+                'success': False,
+                'message': f'Cannot delete. {multi_parent_count} child bag(s) are linked to multiple parents. Remove those links first.'
+            }), 400
         
-        bag_id = bag.id
-        bag_type = bag.type
-        
-        # CRITICAL: Global lock order is Bill→Bag to prevent deadlocks
-        # First check if bag is linked to a bill (unlocked query)
-        initial_bill_link = None
-        if bag_type == 'parent':
-            initial_bill_link = BillBag.query.filter_by(bag_id=bag_id).first()
-        
-        # Acquire locks in Bill→Bag order
-        if initial_bill_link:
-            # Bill lock first (prevents deadlock with Bill.recalculate_weights)
-            acquire_bill_lock(initial_bill_link.bill_id)
-            db.session.execute(
-                select(Bill).where(Bill.id == initial_bill_link.bill_id).with_for_update()
-            )
-        
-        # Bag lock second
+        # Acquire locks (only if we're proceeding with deletion)
+        if bill_id:
+            acquire_bill_lock(bill_id)
         acquire_bag_lock(bag_id)
-        db.session.execute(
-            select(Bag).where(Bag.id == bag_id).with_for_update()
-        )
         
-        # Re-query bag with lock held
-        bag = Bag.query.get(bag_id)
-        
+        # ULTRA-OPTIMIZED: Single atomic deletion using CTE
         if bag_type == 'parent':
-            # Re-query bill_link WITH locks to prevent race conditions
-            bill_link = BillBag.query.with_for_update().filter_by(bag_id=bag_id).first()
-            if bill_link:
-                bill = Bill.query.get(bill_link.bill_id)
-                
-                # SAFETY CHECK 1: Check if parent bag is linked to any bill
-                bill_id_str = bill.bill_id if bill else "unknown"
-                app.logger.warning(f"Deletion prevented: Parent bag {qr_code} is linked to bill {bill_id_str}")
-                
-                # Audit log the prevented deletion attempt
-                log_audit(
-                    'delete_bag_prevented',
-                    'bag',
-                    bag_id,
-                    {
-                        'qr_id': qr_code,
-                        'bag_type': bag_type,
-                        'reason': 'linked_to_bill',
-                        'bill_id': bill_id_str,
-                        'user_id': current_user.id
-                    }
+            db.session.execute(text("""
+                WITH deleted_scan_child AS (
+                    DELETE FROM scan WHERE child_bag_id = ANY(:child_ids) RETURNING 1
+                ),
+                deleted_scan_parent AS (
+                    DELETE FROM scan WHERE parent_bag_id = :bag_id RETURNING 1
+                ),
+                deleted_bill_bag AS (
+                    DELETE FROM bill_bag WHERE bag_id = :bag_id RETURNING 1
+                ),
+                deleted_links AS (
+                    DELETE FROM link WHERE parent_bag_id = :bag_id RETURNING 1
+                ),
+                deleted_children AS (
+                    DELETE FROM bag WHERE id = ANY(:child_ids) RETURNING 1
                 )
-                
-                return jsonify({
-                    'success': False,
-                    'message': f'Cannot delete. This parent bag is linked to bill "{bill_id_str}". Remove it from the bill first.'
-                }), 400
+                DELETE FROM bag WHERE id = :bag_id
+            """), {'bag_id': bag_id, 'child_ids': child_ids if child_ids else []})
             
-            # Lock all link rows for this parent
-            db.session.execute(text("SELECT * FROM link WHERE parent_bag_id = :bag_id FOR UPDATE"), {'bag_id': bag_id})
-            
-            # SAFETY CHECK 2: Get child bag IDs and validate cascade deletion
-            child_bag_ids = db.session.query(Link.child_bag_id).filter_by(parent_bag_id=bag_id).all()
-            child_ids = [id[0] for id in child_bag_ids]
-            child_count = len(child_ids)
-            
-            # SAFETY CHECK 3: Prevent deletion if child bags are linked to other parents
-            if child_ids:
-                # Check if any child has multiple parent links (using ORM for type safety)
-                from sqlalchemy import func
-                multi_parent_children = db.session.query(
-                    Link.child_bag_id,
-                    func.count(func.distinct(Link.parent_bag_id)).label('parent_count')
-                ).filter(
-                    Link.child_bag_id.in_(child_ids)
-                ).group_by(
-                    Link.child_bag_id
-                ).having(
-                    func.count(func.distinct(Link.parent_bag_id)) > 1
-                ).all()
-                
-                if multi_parent_children:
-                    affected_children = [row[0] for row in multi_parent_children]
-                    app.logger.warning(f"Deletion prevented: Child bags {affected_children} are linked to multiple parents")
-                    
-                    # Audit log the prevented deletion
-                    log_audit(
-                        'delete_bag_prevented',
-                        'bag',
-                        bag_id,
-                        {
-                            'qr_id': qr_code,
-                            'bag_type': bag_type,
-                            'reason': 'children_have_multiple_parents',
-                            'affected_children': affected_children,
-                            'child_count': len(affected_children),
-                            'user_id': current_user.id
-                        }
-                    )
-                    
-                    return jsonify({
-                        'success': False,
-                        'message': f'Cannot delete. {len(affected_children)} child bag(s) are linked to multiple parents. Remove those links first.'
-                    }), 400
-            
-            # 1. Bulk delete all scans for child bags
-            if child_ids:
-                db.session.execute(
-                    text("DELETE FROM scan WHERE child_bag_id = ANY(:child_ids)"),
-                    {"child_ids": child_ids}
-                )
-            
-            # 2. Bulk delete scans for parent bag
-            db.session.execute(
-                text("DELETE FROM scan WHERE parent_bag_id = :parent_id"),
-                {"parent_id": bag_id}
-            )
-            
-            # 3. Bulk delete bill links for this bag
-            db.session.execute(
-                text("DELETE FROM bill_bag WHERE bag_id = :bag_id"),
-                {"bag_id": bag_id}
-            )
-            
-            # 4. Bulk delete all links for this parent
-            db.session.execute(
-                text("DELETE FROM link WHERE parent_bag_id = :parent_id"),
-                {"parent_id": bag_id}
-            )
-            
-            # 5. Bulk delete all child bags
-            if child_ids:
-                db.session.execute(
-                    text("DELETE FROM bag WHERE id = ANY(:child_ids)"),
-                    {"child_ids": child_ids}
-                )
-            
-            # 6. Delete parent bag
-            db.session.execute(
-                text("DELETE FROM bag WHERE id = :bag_id"),
-                {"bag_id": bag_id}
-            )
-            
-            # Single commit for all operations
-            db.session.commit()
-            
-            # Audit log successful parent bag deletion
-            log_audit(
-                'delete_bag',
-                'bag',
-                bag_id,
-                {
-                    'qr_id': qr_code,
-                    'bag_type': bag_type,
-                    'child_bags_deleted': child_count,
-                    'cascade_deletion': True,
-                    'user_id': current_user.id
-                }
-            )
-            
-            message = f'Parent bag {qr_code} and {child_count} linked child bags deleted successfully'
-            
+            message = f'Parent bag {bag_qr} and {child_count} linked child bags deleted successfully'
         else:
-            # Lock link rows for this child
-            db.session.execute(text("SELECT * FROM link WHERE child_bag_id = :bag_id FOR UPDATE"), {'bag_id': bag_id})
+            db.session.execute(text("""
+                WITH deleted_scans AS (
+                    DELETE FROM scan WHERE child_bag_id = :bag_id RETURNING 1
+                ),
+                deleted_links AS (
+                    DELETE FROM link WHERE child_bag_id = :bag_id RETURNING 1
+                )
+                DELETE FROM bag WHERE id = :bag_id
+            """), {'bag_id': bag_id})
             
-            # SAFETY CHECK: Validate child bag before deletion
-            # Check if child is linked to a parent
-            parent_link = Link.query.filter_by(child_bag_id=bag_id).first()
-            parent_qr = None
-            
-            if parent_link:
-                parent_bag = Bag.query.get(parent_link.parent_bag_id)
-                parent_qr = parent_bag.qr_id if parent_bag else None
-            
-            # Optimized child bag deletion
-            
-            # 1. Delete all scans for this child bag
-            db.session.execute(
-                text("DELETE FROM scan WHERE child_bag_id = :child_id"),
-                {"child_id": bag_id}
-            )
-            
-            # 2. Delete link to parent (if exists)
-            db.session.execute(
-                text("DELETE FROM link WHERE child_bag_id = :child_id"),
-                {"child_id": bag_id}
-            )
-            
-            # 3. Delete the child bag
-            db.session.execute(
-                text("DELETE FROM bag WHERE id = :bag_id"),
-                {"bag_id": bag_id}
-            )
-            
-            # Single commit for all operations
-            db.session.commit()
-            
-            # Audit log successful child bag deletion
-            log_audit(
-                'delete_bag',
-                'bag',
-                bag_id,
-                {
-                    'qr_id': qr_code,
-                    'bag_type': bag_type,
-                    'parent_qr': parent_qr,
-                    'was_linked': parent_link is not None,
-                    'user_id': current_user.id
-                }
-            )
-            
-            message = f'Child bag {qr_code} deleted successfully'
+            message = f'Child bag {bag_qr} deleted successfully'
             if parent_qr:
                 message += f' (was linked to parent {parent_qr})'
         
-        app.logger.info(f"Deleted bag {qr_code} ({bag_type}) - optimized operation")
+        db.session.commit()
+        invalidate_bags_cache()
+        invalidate_stats_cache()
+        query_optimizer.invalidate_bag_cache(qr_id=bag_qr)
         
-        return jsonify({
-            'success': True,
-            'message': message
+        log_audit('delete_bag', 'bag', bag_id, {
+            'qr_id': bag_qr, 'bag_type': bag_type,
+            'child_bags_deleted': child_count if bag_type == 'parent' else 0,
+            'user_id': current_user.id
         })
+        
+        return jsonify({'success': True, 'message': message})
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f'Error deleting bag {qr_code if "qr_code" in locals() else "unknown"}: {str(e)}')
-        return jsonify({
-            'success': False,
-            'message': f'Error deleting bag: {str(e)}'
-        }), 500
+        app.logger.error(f'Error deleting bag {qr_code}: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error deleting bag: {str(e)}'}), 500
 
 @app.route('/edit-parent/<parent_qr>')
 @login_required
