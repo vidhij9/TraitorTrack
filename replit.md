@@ -36,6 +36,15 @@ The project utilizes a standard Flask application structure, organizing code int
 
 **System Design Choices:**
 - **Production-Scale Optimizations**: Includes a statistics cache, optimized connection pooling, API pagination, comprehensive database indexing, a high-performance query optimizer, role-aware caching with invalidation, optimized request logging, and streamlined authentication.
+- **Ultra-Optimized Query Performance (November 2025)**: Critical endpoints refactored to eliminate N+1 queries using PostgreSQL CTEs and bulk fetching:
+  - `api_delete_bag`: Single CTE query consolidates all validations (bill links, multi-parent checks, child counts) reducing 10+ queries to 2-3 queries total. Atomic deletion using cascading CTEs.
+  - `bag_details`: Single CTE query fetches bag, children, parent, and bills using row_to_json/json_agg, then bulk-loads all Bag/Bill objects in 2 additional queries (total: 3 queries vs. N+1 previously).
+  - `view_bill`: Single CTE query with json_agg fetches all parent bags and their children, then bulk-loads all Bag objects in 1 query (total: 3 queries vs. N²+1 previously). Expected 90-95% speed improvement on bills with 50+ parent bags.
+  - `bag_management`: Already optimized with batch queries for child counts, parent links, bill links, and last scans (4-5 total queries for any page size).
+- **Mobile-First UI Enhancements (November 2025)**: 
+  - Responsive card layout for bag management on screens <768px with touch-optimized buttons and badges.
+  - Desktop table view hidden on mobile, mobile card view hidden on desktop for optimal rendering.
+  - Comprehensive pagination controls with page numbers, prev/next buttons, and result count indicators that preserve all filter parameters.
 - **Session Management**: Supports secure, filesystem-based sessions (development) and Redis-backed sessions (production) with dual timeouts, activity tracking, user warnings, and secure cookie handling.
 - **Two-Factor Authentication (2FA)**: TOTP-based 2FA for admin users with QR code provisioning and strict rate limiting.
 - **Security Features**: Secure password hashing (scrypt), CSRF protection, session validation, security headers, comprehensive rate limiting on authentication routes, and auto-detection of production environment for HTTPS-only cookies. QR code validation prevents SQL injection and XSS.
