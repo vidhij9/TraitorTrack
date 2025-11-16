@@ -13,43 +13,63 @@ logger = logging.getLogger(__name__)
 class QueryOptimizer:
     """Optimized database operations for maximum performance"""
     
-    def __init__(self, db):
+    def __init__(self, db, redis_client=None):
         self.db = db
-        # ID-only cache to avoid DetachedInstanceError + leverage SQLAlchemy identity map
-        self._bag_id_cache = {}    # Maps qr_id -> bag_id for minimal memory footprint
+        self.redis_client = redis_client
         self._cache_ttl = 30  # 30 second cache TTL for aggressive caching
-        self._cache_timestamps = {}
         self._cache_hits = 0
         self._cache_misses = 0
+        
+        # Fallback to in-memory cache only if Redis unavailable (development mode)
+        if not redis_client:
+            logger.warning("QueryOptimizer: Using in-memory cache (not production-safe for multi-worker)")
+            self._bag_id_cache = {}  # Maps qr_id -> bag_id for minimal memory footprint
+            self._cache_timestamps = {}
+        else:
+            logger.info("QueryOptimizer: Using Redis-backed cache for multi-worker coherence")
+            self._bag_id_cache = None  # Not used when Redis is available
+            self._cache_timestamps = None
     
     def get_bag_by_qr(self, qr_id, bag_type=None):
         """
-        Ultra-fast bag lookup with optimized ID-only caching (no DetachedInstanceError)
+        Ultra-fast bag lookup with Redis or in-memory caching
         Target: <1ms (cached), <10ms (uncached with indexes)
         
-        Strategy: Cache only bag_id, then use SQLAlchemy's identity map for free object reuse
+        Strategy: Cache only bag_id in Redis/memory, then use SQLAlchemy's identity map
         """
         from models import Bag
         
-        # Clean expired cache entries periodically
-        now = time.time()
-        cache_key = f"{qr_id}:{bag_type}" if bag_type else qr_id
+        cache_key = f"bag_id:{qr_id}:{bag_type}" if bag_type else f"bag_id:{qr_id}"
+        bag_id = None
         
-        # Check cache for bag_id first
-        if cache_key in self._bag_id_cache:
-            cached_timestamp = self._cache_timestamps.get(cache_key, 0)
-            if now - cached_timestamp < self._cache_ttl:
-                # Cache hit - use session.get for identity map reuse (no extra query if already loaded)
-                self._cache_hits += 1
-                bag_id = self._bag_id_cache[cache_key]
-                bag = Bag.query.get(bag_id)  # Uses SQLAlchemy identity map if available
-                return bag
-            else:
-                # Cache expired - remove
-                del self._bag_id_cache[cache_key]
-                del self._cache_timestamps[cache_key]
+        # Try Redis cache first (multi-worker safe)
+        if self.redis_client:
+            try:
+                cached_value = self.redis_client.get(cache_key)
+                if cached_value:
+                    self._cache_hits += 1
+                    bag_id = int(cached_value)
+                    bag = Bag.query.get(bag_id)
+                    return bag
+            except Exception as e:
+                logger.warning(f"Redis cache read failed: {e}, falling back to DB")
         
-        # Cache miss - query database using raw SQL for speed
+        # Fallback to in-memory cache (development only)
+        elif self._bag_id_cache is not None:
+            now = time.time()
+            if cache_key in self._bag_id_cache:
+                cached_timestamp = self._cache_timestamps.get(cache_key, 0)
+                if now - cached_timestamp < self._cache_ttl:
+                    self._cache_hits += 1
+                    bag_id = self._bag_id_cache[cache_key]
+                    bag = Bag.query.get(bag_id)
+                    return bag
+                else:
+                    # Expired
+                    del self._bag_id_cache[cache_key]
+                    del self._cache_timestamps[cache_key]
+        
+        # Cache miss - query database
         self._cache_misses += 1
         if bag_type:
             result = self.db.session.execute(
@@ -64,15 +84,24 @@ class QueryOptimizer:
         
         if result:
             bag_id = result
-            # Cache only the ID (minimal memory footprint)
-            self._bag_id_cache[cache_key] = bag_id
-            self._cache_timestamps[cache_key] = now
             
-            # Enforce cache size limit (prevent memory bloat)
-            if len(self._bag_id_cache) > 5000:
-                self._evict_oldest_cache_entries()
+            # Store in Redis (multi-worker safe)
+            if self.redis_client:
+                try:
+                    self.redis_client.setex(cache_key, self._cache_ttl, str(bag_id))
+                except Exception as e:
+                    logger.warning(f"Redis cache write failed: {e}")
             
-            # Get full object (will be in identity map for subsequent gets in same request)
+            # Store in in-memory cache (development fallback)
+            elif self._bag_id_cache is not None:
+                self._bag_id_cache[cache_key] = bag_id
+                self._cache_timestamps[cache_key] = time.time()
+                
+                # Enforce size limit
+                if len(self._bag_id_cache) > 5000:
+                    self._evict_oldest_cache_entries()
+            
+            # Return full object
             bag = Bag.query.get(bag_id)
             return bag
         
@@ -93,47 +122,111 @@ class QueryOptimizer:
     
     def invalidate_bag_cache(self, qr_id=None, bag_id=None):
         """
-        Invalidate cache for a specific bag by QR ID or bag ID
+        Invalidate cache for a specific bag by QR ID or bag ID (Redis or in-memory)
         Call this after any bag mutation (create, update, delete, link, unlink)
         
         Args:
             qr_id: QR code of the bag to invalidate
             bag_id: Database ID of the bag to invalidate
         """
-        if qr_id:
-            # Remove all cache entries for this QR (with and without type specifier)
-            keys_to_remove = [k for k in self._bag_id_cache.keys() if k.startswith(qr_id)]
-            for key in keys_to_remove:
-                self._bag_id_cache.pop(key, None)
-                self._cache_timestamps.pop(key, None)
+        if self.redis_client:
+            # Redis: Delete keys by pattern (requires SCAN for safety)
+            try:
+                if qr_id:
+                    # Delete all variations: bag_id:QR, bag_id:QR:parent, bag_id:QR:child
+                    patterns = [
+                        f"bag_id:{qr_id}",
+                        f"bag_id:{qr_id}:*"
+                    ]
+                    for pattern in patterns:
+                        cursor = 0
+                        while True:
+                            cursor, keys = self.redis_client.scan(cursor, match=pattern, count=100)
+                            if keys:
+                                self.redis_client.delete(*keys)
+                            if cursor == 0:
+                                break
+                
+                # For bag_id, we'd need reverse lookup which is expensive
+                # Instead, rely on TTL expiration (30s) for bag_id invalidations
+                if bag_id:
+                    logger.debug(f"bag_id invalidation in Redis relies on TTL (30s)")
+                    
+            except Exception as e:
+                logger.warning(f"Redis cache invalidation failed: {e}")
         
-        if bag_id:
-            # Find and remove cache entries by bag_id
-            keys_to_remove = [k for k, v in self._bag_id_cache.items() if v == bag_id]
-            for key in keys_to_remove:
-                self._bag_id_cache.pop(key, None)
-                self._cache_timestamps.pop(key, None)
+        # In-memory cache (development fallback)
+        elif self._bag_id_cache is not None:
+            if qr_id:
+                keys_to_remove = [k for k in self._bag_id_cache.keys() if qr_id in k]
+                for key in keys_to_remove:
+                    self._bag_id_cache.pop(key, None)
+                    self._cache_timestamps.pop(key, None)
+            
+            if bag_id:
+                keys_to_remove = [k for k, v in self._bag_id_cache.items() if v == bag_id]
+                for key in keys_to_remove:
+                    self._bag_id_cache.pop(key, None)
+                    self._cache_timestamps.pop(key, None)
     
     def invalidate_all_cache(self):
         """
-        Clear all cached data
+        Clear all cached data (Redis or in-memory)
         Call this after bulk operations or when cache coherence is critical
         """
-        self._bag_id_cache.clear()
-        self._cache_timestamps.clear()
-        logger.debug("All query optimizer caches cleared")
+        if self.redis_client:
+            try:
+                # Delete all bag_id:* keys in Redis
+                cursor = 0
+                while True:
+                    cursor, keys = self.redis_client.scan(cursor, match="bag_id:*", count=1000)
+                    if keys:
+                        self.redis_client.delete(*keys)
+                    if cursor == 0:
+                        break
+                logger.debug("All Redis query optimizer caches cleared")
+            except Exception as e:
+                logger.warning(f"Redis cache clear failed: {e}")
+        
+        # In-memory cache (development fallback)
+        elif self._bag_id_cache is not None:
+            self._bag_id_cache.clear()
+            self._cache_timestamps.clear()
+            logger.debug("All in-memory query optimizer caches cleared")
     
     def get_cache_stats(self):
-        """Get cache performance statistics"""
+        """Get cache performance statistics (works with both Redis and in-memory cache)"""
         total_requests = self._cache_hits + self._cache_misses
         hit_rate = (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
+        
+        # Count cached entries
+        if self.redis_client:
+            # Redis mode: count bag_id:* keys
+            try:
+                cursor = 0
+                count = 0
+                while True:
+                    cursor, keys = self.redis_client.scan(cursor, match="bag_id:*", count=1000)
+                    count += len(keys)
+                    if cursor == 0:
+                        break
+                cached_entries = count
+            except Exception as e:
+                logger.warning(f"Failed to count Redis cache entries: {e}")
+                cached_entries = None
+        elif self._bag_id_cache is not None:
+            # In-memory mode
+            cached_entries = len(self._bag_id_cache)
+        else:
+            cached_entries = None
         
         return {
             'hits': self._cache_hits,
             'misses': self._cache_misses,
             'hit_rate': f"{hit_rate:.1f}%",
-            'cached_entries': len(self._bag_id_cache),
-            'ttl_seconds': self._cache_ttl
+            'cached_entries': cached_entries,
+            'ttl_seconds': self._cache_ttl,
+            'backend': 'redis' if self.redis_client else 'in-memory'
         }
     
     def get_child_count_fast(self, parent_bag_id):

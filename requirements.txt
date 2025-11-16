@@ -42,3 +42,6 @@ ujson
 hiredis
 redis
 playwright
+beautifulsoup4
+nanoid
+requests

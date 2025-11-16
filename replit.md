@@ -36,6 +36,12 @@ The project utilizes a standard Flask application structure, organizing code int
 
 **System Design Choices:**
 - **Production-Scale Optimizations**: Includes a statistics cache, optimized connection pooling, API pagination, comprehensive database indexing, a high-performance query optimizer, role-aware caching with invalidation, optimized request logging, and streamlined authentication.
+- **Redis-Backed Multi-Worker Caching (November 2025)**: All caching layers now support Redis for multi-worker coherence:
+  - `query_optimizer.py`: Bag ID lookups use Redis with 30s TTL, falling back to in-memory only in development
+  - `cache_utils.py`: Statistics and role-based caching use Redis backend
+  - Cache invalidation propagates across all workers via Redis
+  - Automatic fallback to in-memory caching in development with warnings
+  - Production deployments fail-fast if Redis is unavailable
 - **Ultra-Optimized Query Performance (November 2025)**: Critical endpoints refactored to eliminate N+1 queries using PostgreSQL CTEs and bulk fetching:
   - `api_delete_bag`: Single CTE query consolidates all validations (bill links, multi-parent checks, child counts) reducing 10+ queries to 2-3 queries total. Atomic deletion using cascading CTEs.
   - `bag_details`: Single CTE query fetches bag, children, parent, and bills using row_to_json/json_agg, then bulk-loads all Bag/Bill objects in 2 additional queries (total: 3 queries vs. N+1 previously).
