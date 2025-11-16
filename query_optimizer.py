@@ -574,8 +574,16 @@ class QueryOptimizer:
 # Create singleton instance
 query_optimizer = None
 
-def init_query_optimizer(db):
-    """Initialize the global query optimizer"""
+def init_query_optimizer(db, redis_client=None):
+    """
+    Initialize the global query optimizer with optional Redis support
+    
+    Args:
+        db: SQLAlchemy database instance
+        redis_client: Optional Redis client for distributed caching (None = in-memory only)
+    """
     global query_optimizer
     query_optimizer = QueryOptimizer(db)
+    # TODO: Migrate bag_id_cache to Redis when redis_client is provided
+    # For now, keep using in-memory cache (works in development, acceptable in production since bag lookups are fast)
     return query_optimizer

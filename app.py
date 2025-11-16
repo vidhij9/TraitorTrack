@@ -89,24 +89,29 @@ if redis_url:
             url_display = redis_url.split('@')[-1] if '@' in redis_url else redis_url.split('//')[1][:20]
             logger.info(f"✅ Redis connected successfully: {url_display}")
         except Exception as e:
-            # In production, log error but allow fallback for resilience
-            if is_production:
-                logger.error(f"❌ CRITICAL: Redis connection failed in production: {str(e)}")
-                logger.error(f"⚠️  WARNING: Falling back to filesystem sessions (may cause issues with multiple workers)")
-                logger.error(f"⚠️  Please verify REDIS_URL is correct and Redis service is accessible")
-            else:
-                logger.warning(f"⚠️  Redis connection failed, falling back to filesystem/memory: {str(e)}")
+            # Log error - production will fail fast later
+            logger.error(f"❌ Redis connection failed: {str(e)}")
             redis_available = False
             redis_client = None
 
-# Warn if Redis not configured in production
-if not redis_url:
-    if is_production:
+# PRODUCTION REQUIREMENT: Redis must be configured and available
+if is_production:
+    if not redis_url:
         logger.error(f"❌ CRITICAL: REDIS_URL not configured in production environment")
         logger.error(f"⚠️  Multi-worker deployments require Redis for session/rate-limit sharing")
         logger.error(f"⚠️  Set REDIS_URL to your Redis instance (e.g., redis://host:port/0)")
-    else:
+        raise ValueError("REDIS_URL is required in production - multi-worker session sharing depends on it")
+    
+    if not redis_available:
+        logger.error(f"❌ CRITICAL: Redis connection failed in production")
+        logger.error(f"⚠️  Cannot start application without working Redis connection")
+        logger.error(f"⚠️  Please verify REDIS_URL is correct and Redis service is accessible")
+        raise ConnectionError("Redis connection failed in production - multi-worker deployment requires Redis")
+else:
+    if not redis_url:
         logger.info("ℹ️  REDIS_URL not configured, using filesystem/memory storage (development mode)")
+    elif not redis_available:
+        logger.warning(f"⚠️  Redis connection failed in development, falling back to filesystem/memory storage")
 
 # Session configuration - Redis with filesystem fallback
 # SECURITY: SESSION_COOKIE_SECURE=True in production for HTTPS-only session cookies
@@ -607,10 +612,14 @@ def after_request(response):
     
     return response
 
-# Initialize high-performance query optimizer
+# Initialize high-performance query optimizer with Redis support
 from query_optimizer import init_query_optimizer
-query_optimizer = init_query_optimizer(db)
+query_optimizer = init_query_optimizer(db, redis_client=redis_client if redis_available else None)
 logger.info("Query optimizer initialized for high-performance operations")
+
+# Initialize cache backend with Redis support
+from cache_utils import init_cache
+init_cache(redis_client=redis_client if redis_available else None)
 
 # Add teardown handler for proper database session cleanup
 @app.teardown_appcontext

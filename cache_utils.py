@@ -1,6 +1,7 @@
 """
 Smart role-aware caching utility with security fixes
 Provides 10x performance boost while maintaining role-based access control
+PRODUCTION-READY: Uses Redis for multi-worker deployments
 """
 
 from functools import wraps
@@ -9,11 +10,19 @@ import hashlib
 import json
 import pytz
 from flask import session
+import logging
+import pickle
+
+logger = logging.getLogger(__name__)
 
 # India timezone
 IST = pytz.timezone('Asia/Kolkata')
 
-# Separate cache storage for global and user-specific data
+# Redis client (set during app initialization)
+_redis_client = None
+_use_redis_cache = False
+
+# Fallback in-memory cache for development (single-worker only)
 _global_cache = {}
 _user_cache = {}
 _cache_stats = {'hits': 0, 'misses': 0, 'global_hits': 0, 'user_hits': 0}
@@ -24,10 +33,27 @@ MAX_GLOBAL_CACHE_SIZE = 500  # Max entries in global cache
 MAX_USER_CACHE_SIZE = 1000   # Max entries in user cache
 CLEANUP_INTERVAL_SECONDS = 300  # Clean up every 5 minutes
 
+def init_cache(redis_client=None):
+    """
+    Initialize cache backend - must be called during app startup
+    
+    Args:
+        redis_client: Redis client instance (None = use in-memory fallback)
+    """
+    global _redis_client, _use_redis_cache
+    _redis_client = redis_client
+    _use_redis_cache = redis_client is not None
+    
+    if _use_redis_cache:
+        logger.info("✅ Cache backend: Redis (multi-worker ready)")
+    else:
+        logger.warning("⚠️  Cache backend: In-memory (single-worker only - NOT production-safe)")
+
 def cached_global(seconds=60, prefix=''):
     """
     Cache global data that's the same for all users (bag lookups, counts, etc.)
     SECURE: Safe to use for data that doesn't vary by user or role
+    PRODUCTION-READY: Uses Redis in production for multi-worker consistency
     
     Args:
         seconds: Cache TTL in seconds
@@ -38,19 +64,40 @@ def cached_global(seconds=60, prefix=''):
         def wrapper(*args, **kwargs):
             from flask import request
             
-            # Proactive cleanup every 5 minutes
-            _proactive_cleanup()
-            
             # Include request query parameters in cache key
             query_params = sorted(request.args.items()) if request and hasattr(request, 'args') else []
             
             # Generate cache key from function name, prefix, arguments, and query params
-            cache_key = hashlib.md5(
-                f"{prefix}:{f.__name__}:{args}:{kwargs}:{query_params}".encode()
-            ).hexdigest()
+            cache_key_raw = f"{prefix}:{f.__name__}:{args}:{kwargs}:{query_params}"
+            cache_key = f"tt:global:{hashlib.md5(cache_key_raw.encode()).hexdigest()}"
             
-            # Check cache
+            # REDIS-BACKED CACHE (production)
+            if _use_redis_cache and _redis_client:
+                try:
+                    # Check Redis cache
+                    cached_data = _redis_client.get(cache_key)
+                    if cached_data:
+                        _cache_stats['hits'] += 1
+                        _cache_stats['global_hits'] += 1
+                        return pickle.loads(cached_data)
+                    
+                    # Cache miss - execute function
+                    _cache_stats['misses'] += 1
+                    result = f(*args, **kwargs)
+                    
+                    # Store in Redis with TTL
+                    _redis_client.setex(cache_key, seconds, pickle.dumps(result))
+                    return result
+                    
+                except Exception as e:
+                    logger.warning(f"Redis cache error (falling back to uncached): {str(e)}")
+                    # Fall through to execute function without caching
+                    return f(*args, **kwargs)
+            
+            # IN-MEMORY FALLBACK (development only)
+            _proactive_cleanup()
             now = datetime.utcnow()
+            
             if cache_key in _global_cache:
                 entry = _global_cache[cache_key]
                 if entry['expires'] > now:
@@ -83,6 +130,7 @@ def cached_user(seconds=60, prefix=''):
     """
     Cache user-specific data that varies by user ID and role
     SECURE: Includes user_id and role in cache key to prevent data leaks
+    PRODUCTION-READY: Uses Redis in production for multi-worker consistency
     
     Args:
         seconds: Cache TTL in seconds
@@ -93,9 +141,6 @@ def cached_user(seconds=60, prefix=''):
         def wrapper(*args, **kwargs):
             from flask import request
             
-            # Proactive cleanup every 5 minutes
-            _proactive_cleanup()
-            
             # Get user context from session
             user_id = session.get('user_id', 'anonymous')
             user_role = session.get('user_role', 'guest')
@@ -104,12 +149,36 @@ def cached_user(seconds=60, prefix=''):
             query_params = sorted(request.args.items()) if request and hasattr(request, 'args') else []
             
             # Generate cache key including user identity and query params
-            cache_key = hashlib.md5(
-                f"{prefix}:{f.__name__}:{user_id}:{user_role}:{args}:{kwargs}:{query_params}".encode()
-            ).hexdigest()
+            cache_key_raw = f"{prefix}:{f.__name__}:{user_id}:{user_role}:{args}:{kwargs}:{query_params}"
+            cache_key = f"tt:user:{hashlib.md5(cache_key_raw.encode()).hexdigest()}"
             
-            # Check cache
+            # REDIS-BACKED CACHE (production)
+            if _use_redis_cache and _redis_client:
+                try:
+                    # Check Redis cache
+                    cached_data = _redis_client.get(cache_key)
+                    if cached_data:
+                        _cache_stats['hits'] += 1
+                        _cache_stats['user_hits'] += 1
+                        return pickle.loads(cached_data)
+                    
+                    # Cache miss - execute function
+                    _cache_stats['misses'] += 1
+                    result = f(*args, **kwargs)
+                    
+                    # Store in Redis with TTL
+                    _redis_client.setex(cache_key, seconds, pickle.dumps(result))
+                    return result
+                    
+                except Exception as e:
+                    logger.warning(f"Redis cache error (falling back to uncached): {str(e)}")
+                    # Fall through to execute function without caching
+                    return f(*args, **kwargs)
+            
+            # IN-MEMORY FALLBACK (development only)
+            _proactive_cleanup()
             now = datetime.utcnow()
+            
             if cache_key in _user_cache:
                 entry = _user_cache[cache_key]
                 if entry['expires'] > now:
@@ -189,29 +258,40 @@ def _evict_oldest(cache_dict, target_size):
 def invalidate_cache(pattern=None, cache_type='all'):
     """
     Invalidate cache entries matching pattern
+    PRODUCTION-READY: Works with both Redis and in-memory caches
     
     Args:
         pattern: String pattern to match in cache metadata (function name, prefix, etc.)
         cache_type: 'global', 'user', or 'all'
     """
+    # REDIS CACHE INVALIDATION (production)
+    if _use_redis_cache and _redis_client:
+        try:
+            if cache_type in ['global', 'all']:
+                # Delete all global cache keys
+                keys = _redis_client.keys('tt:global:*')
+                if keys:
+                    _redis_client.delete(*keys)
+            
+            if cache_type in ['user', 'all']:
+                # Delete all user cache keys
+                keys = _redis_client.keys('tt:user:*')
+                if keys:
+                    _redis_client.delete(*keys)
+        except Exception as e:
+            logger.warning(f"Redis cache invalidation error: {str(e)}")
+    
+    # IN-MEMORY CACHE INVALIDATION (development fallback)
     if cache_type in ['global', 'all']:
-        if pattern is None:
-            _global_cache.clear()
-        else:
-            # For now, clear all global cache when pattern is provided
-            # Could be enhanced to check function names stored in metadata
-            _global_cache.clear()
+        _global_cache.clear()
     
     if cache_type in ['user', 'all']:
-        if pattern is None:
-            _user_cache.clear()
-        else:
-            # For now, clear all user cache when pattern is provided
-            _user_cache.clear()
+        _user_cache.clear()
 
 def invalidate_user_cache(user_id=None):
     """
     Invalidate cache for a specific user or current user
+    PRODUCTION-READY: Works with both Redis and in-memory caches
     
     Args:
         user_id: User ID to invalidate cache for (None = current user)
@@ -220,7 +300,18 @@ def invalidate_user_cache(user_id=None):
         user_id = session.get('user_id')
     
     if user_id is not None:
-        # Remove all cache entries for this user
+        # REDIS CACHE INVALIDATION (production)
+        if _use_redis_cache and _redis_client:
+            try:
+                # Delete all user cache keys (cannot filter by user_id in Redis key)
+                # This is a limitation - we clear all user cache when one user changes
+                keys = _redis_client.keys('tt:user:*')
+                if keys:
+                    _redis_client.delete(*keys)
+            except Exception as e:
+                logger.warning(f"Redis user cache invalidation error: {str(e)}")
+        
+        # IN-MEMORY CACHE INVALIDATION (development fallback)
         keys_to_delete = [
             k for k, v in _user_cache.items() 
             if v.get('user_id') == user_id
