@@ -36,10 +36,12 @@ The project utilizes a standard Flask application structure, organizing code int
 
 **System Design Choices:**
 - **Production-Scale Optimizations**: Includes a statistics cache, optimized connection pooling, API pagination, comprehensive database indexing, a high-performance query optimizer, role-aware caching with invalidation, optimized request logging, and streamlined authentication.
-- **Redis-Backed Multi-Worker Caching (November 2025)**: All caching layers now support Redis for multi-worker coherence:
-  - `query_optimizer.py`: Bag ID lookups use Redis with 30s TTL, falling back to in-memory only in development
-  - `cache_utils.py`: Statistics and role-based caching use Redis backend
-  - Cache invalidation propagates across all workers via Redis
+- **Redis-Backed Multi-Worker Caching (November 2025)**: All caching layers now support Redis for multi-worker coherence with immediate cache invalidation:
+  - `query_optimizer.py`: Bag ID lookups use Redis with 30s TTL (tt:bag_id:* keys), falling back to in-memory only in development
+  - `cache_utils.py`: Statistics and role-based caching use Redis backend (tt:global:* and tt:user:* keys)
+  - Unified `tt:*` namespace for all cache types ensures centralized invalidation
+  - Cache invalidation propagates across all workers via Redis using SCAN (non-blocking)
+  - Stale keys are immediately deleted when underlying data is removed (cache coherency)
   - Automatic fallback to in-memory caching in development with warnings
   - Production deployments fail-fast if Redis is unavailable
 - **Ultra-Optimized Query Performance (November 2025)**: Critical endpoints refactored to eliminate N+1 queries using PostgreSQL CTEs and bulk fetching:
