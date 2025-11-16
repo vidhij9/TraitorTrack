@@ -4757,7 +4757,11 @@ def view_bill(bill_id):
         parent_bag_ids.append(parent_id)
         
         if children_json:
-            children_data = json.loads(children_json)
+            # Handle both JSON strings and pre-parsed lists from psycopg2
+            if isinstance(children_json, str):
+                children_data = json.loads(children_json)
+            else:
+                children_data = children_json
             if children_data:
                 child_ids = [c['id'] for c in children_data if c and c.get('id')]
                 all_bag_ids.extend(child_ids)
@@ -4776,8 +4780,15 @@ def view_bill(bill_id):
         if not parent_bag_obj:
             continue
         
-        # Parse children JSON and fetch from pre-loaded dict
-        children_data = json.loads(children_json) if children_json else []
+        # Parse children JSON and fetch from pre-loaded dict (handle both strings and pre-parsed lists)
+        if children_json:
+            if isinstance(children_json, str):
+                children_data = json.loads(children_json)
+            else:
+                children_data = children_json
+        else:
+            children_data = []
+        
         child_bags = []
         if children_data:
             for c in children_data:
@@ -5479,9 +5490,14 @@ def bag_details(qr_id):
         
         bag_json, children_json, parent_json, bills_json = result
         
-        # Parse bag data
+        # Parse bag data (handle both JSON strings and pre-parsed dicts from psycopg2)
         import json
-        bag_data = json.loads(bag_json) if bag_json else None
+        # psycopg2 may auto-deserialize JSON columns, so check type first
+        if isinstance(bag_json, str):
+            bag_data = json.loads(bag_json)
+        else:
+            bag_data = bag_json  # Already a dict
+        
         if not bag_data:
             flash('Bag not found', 'error')
             return redirect(url_for('bag_management'))
@@ -5491,18 +5507,30 @@ def bag_details(qr_id):
         all_bill_ids = []
         
         if children_json:
-            children_data = json.loads(children_json)
+            # Handle both JSON strings and pre-parsed lists
+            if isinstance(children_json, str):
+                children_data = json.loads(children_json)
+            else:
+                children_data = children_json
             if children_data:
                 child_ids = [c['id'] for c in children_data]
                 all_bag_ids.extend(child_ids)
         
         if parent_json:
-            parent_data = json.loads(parent_json)
+            # Handle both JSON strings and pre-parsed dicts
+            if isinstance(parent_json, str):
+                parent_data = json.loads(parent_json)
+            else:
+                parent_data = parent_json
             if parent_data:
                 all_bag_ids.append(parent_data['id'])
         
         if bills_json:
-            bills_data = json.loads(bills_json)
+            # Handle both JSON strings and pre-parsed lists
+            if isinstance(bills_json, str):
+                bills_data = json.loads(bills_json)
+            else:
+                bills_data = bills_json
             if bills_data:
                 all_bill_ids = [b['id'] for b in bills_data]
         
@@ -5523,7 +5551,11 @@ def bag_details(qr_id):
         
         child_bags = []
         if children_json:
-            children_data = json.loads(children_json)
+            # Handle both JSON strings and pre-parsed lists
+            if isinstance(children_json, str):
+                children_data = json.loads(children_json)
+            else:
+                children_data = children_json
             if children_data:
                 for c in children_data:
                     child_bag = bag_objects_dict.get(c['id'])
@@ -5532,14 +5564,22 @@ def bag_details(qr_id):
         
         parent_bag = None
         if parent_json:
-            parent_data = json.loads(parent_json)
+            # Handle both JSON strings and pre-parsed dicts
+            if isinstance(parent_json, str):
+                parent_data = json.loads(parent_json)
+            else:
+                parent_data = parent_json
             if parent_data:
                 parent_bag = bag_objects_dict.get(parent_data['id'])
         
         bills = []
         link = None
         if bills_json:
-            bills_data = json.loads(bills_json)
+            # Handle both JSON strings and pre-parsed lists
+            if isinstance(bills_json, str):
+                bills_data = json.loads(bills_json)
+            else:
+                bills_data = bills_json
             if bills_data:
                 for b in bills_data:
                     bill = bill_objects_dict.get(b['id'])

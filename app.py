@@ -48,6 +48,18 @@ app = Flask(__name__)
 # This ensures all template variables are HTML-escaped by default
 app.jinja_env.autoescape = True
 
+# Add Python built-in functions to Jinja2 globals for template convenience
+app.jinja_env.globals.update({
+    'min': min,
+    'max': max,
+    'len': len,
+    'sum': sum,
+    'abs': abs,
+    'int': int,
+    'str': str,
+    'float': float
+})
+
 # Proxy fix for correct URL generation
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
