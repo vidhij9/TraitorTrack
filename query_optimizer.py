@@ -39,7 +39,7 @@ class QueryOptimizer:
         """
         from models import Bag
         
-        cache_key = f"bag_id:{qr_id}:{bag_type}" if bag_type else f"bag_id:{qr_id}"
+        cache_key = f"tt:bag_id:{qr_id}:{bag_type}" if bag_type else f"tt:bag_id:{qr_id}"
         bag_id = None
         
         # Try Redis cache first (multi-worker safe)
@@ -50,6 +50,10 @@ class QueryOptimizer:
                     self._cache_hits += 1
                     bag_id = int(cached_value)
                     bag = Bag.query.get(bag_id)
+                    # If bag was deleted, immediately invalidate Redis key for cache coherency
+                    if bag is None:
+                        self.redis_client.delete(cache_key)
+                        logger.debug(f"Removed stale Redis key: {cache_key}")
                     return bag
             except Exception as e:
                 logger.warning(f"Redis cache read failed: {e}, falling back to DB")
@@ -63,6 +67,10 @@ class QueryOptimizer:
                     self._cache_hits += 1
                     bag_id = self._bag_id_cache[cache_key]
                     bag = Bag.query.get(bag_id)
+                    # If bag was deleted, invalidate cache entry
+                    if bag is None:
+                        del self._bag_id_cache[cache_key]
+                        del self._cache_timestamps[cache_key]
                     return bag
                 else:
                     # Expired
@@ -133,10 +141,10 @@ class QueryOptimizer:
             # Redis: Delete keys by pattern (requires SCAN for safety)
             try:
                 if qr_id:
-                    # Delete all variations: bag_id:QR, bag_id:QR:parent, bag_id:QR:child
+                    # Delete all variations: tt:bag_id:QR, tt:bag_id:QR:parent, tt:bag_id:QR:child
                     patterns = [
-                        f"bag_id:{qr_id}",
-                        f"bag_id:{qr_id}:*"
+                        f"tt:bag_id:{qr_id}",
+                        f"tt:bag_id:{qr_id}:*"
                     ]
                     for pattern in patterns:
                         cursor = 0
@@ -171,20 +179,20 @@ class QueryOptimizer:
     
     def invalidate_all_cache(self):
         """
-        Clear all cached data (Redis or in-memory)
+        Clear ALL cached data across all cache layers (Redis or in-memory)
         Call this after bulk operations or when cache coherence is critical
         """
         if self.redis_client:
             try:
-                # Delete all bag_id:* keys in Redis
+                # Delete all tt:* keys in Redis (includes bag_id, global, and user caches)
                 cursor = 0
                 while True:
-                    cursor, keys = self.redis_client.scan(cursor, match="bag_id:*", count=1000)
+                    cursor, keys = self.redis_client.scan(cursor, match="tt:*", count=1000)
                     if keys:
                         self.redis_client.delete(*keys)
                     if cursor == 0:
                         break
-                logger.debug("All Redis query optimizer caches cleared")
+                logger.debug("All Redis caches cleared (QueryOptimizer + cache_utils)")
             except Exception as e:
                 logger.warning(f"Redis cache clear failed: {e}")
         
@@ -201,12 +209,12 @@ class QueryOptimizer:
         
         # Count cached entries
         if self.redis_client:
-            # Redis mode: count bag_id:* keys
+            # Redis mode: count tt:bag_id:* keys
             try:
                 cursor = 0
                 count = 0
                 while True:
-                    cursor, keys = self.redis_client.scan(cursor, match="bag_id:*", count=1000)
+                    cursor, keys = self.redis_client.scan(cursor, match="tt:bag_id:*", count=1000)
                     count += len(keys)
                     if cursor == 0:
                         break

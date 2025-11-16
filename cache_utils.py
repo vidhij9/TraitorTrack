@@ -258,26 +258,33 @@ def _evict_oldest(cache_dict, target_size):
 def invalidate_cache(pattern=None, cache_type='all'):
     """
     Invalidate cache entries matching pattern
-    PRODUCTION-READY: Works with both Redis and in-memory caches
+    PRODUCTION-READY: Works with both Redis and in-memory caches, uses SCAN for non-blocking operation
     
     Args:
         pattern: String pattern to match in cache metadata (function name, prefix, etc.)
-        cache_type: 'global', 'user', or 'all'
+        cache_type: 'global', 'user', 'bag_id', or 'all'
     """
-    # REDIS CACHE INVALIDATION (production)
+    # REDIS CACHE INVALIDATION (production) - Use SCAN instead of KEYS to avoid blocking
     if _use_redis_cache and _redis_client:
         try:
+            patterns_to_clear = []
             if cache_type in ['global', 'all']:
-                # Delete all global cache keys
-                keys = _redis_client.keys('tt:global:*')
-                if keys:
-                    _redis_client.delete(*keys)
-            
+                patterns_to_clear.append('tt:global:*')
             if cache_type in ['user', 'all']:
-                # Delete all user cache keys
-                keys = _redis_client.keys('tt:user:*')
-                if keys:
-                    _redis_client.delete(*keys)
+                patterns_to_clear.append('tt:user:*')
+            if cache_type in ['bag_id', 'all']:
+                patterns_to_clear.append('tt:bag_id:*')
+            
+            for pattern_match in patterns_to_clear:
+                cursor = 0
+                while True:
+                    cursor, keys = _redis_client.scan(cursor, match=pattern_match, count=1000)
+                    if keys:
+                        _redis_client.delete(*keys)
+                    if cursor == 0:
+                        break
+            
+            logger.debug(f"Redis cache invalidated: {cache_type}")
         except Exception as e:
             logger.warning(f"Redis cache invalidation error: {str(e)}")
     
@@ -300,14 +307,18 @@ def invalidate_user_cache(user_id=None):
         user_id = session.get('user_id')
     
     if user_id is not None:
-        # REDIS CACHE INVALIDATION (production)
+        # REDIS CACHE INVALIDATION (production) - Use SCAN instead of KEYS
         if _use_redis_cache and _redis_client:
             try:
                 # Delete all user cache keys (cannot filter by user_id in Redis key)
                 # This is a limitation - we clear all user cache when one user changes
-                keys = _redis_client.keys('tt:user:*')
-                if keys:
-                    _redis_client.delete(*keys)
+                cursor = 0
+                while True:
+                    cursor, keys = _redis_client.scan(cursor, match='tt:user:*', count=1000)
+                    if keys:
+                        _redis_client.delete(*keys)
+                    if cursor == 0:
+                        break
             except Exception as e:
                 logger.warning(f"Redis user cache invalidation error: {str(e)}")
         
@@ -358,19 +369,55 @@ def clear_cache(pattern=None):
     invalidate_cache(pattern=pattern, cache_type='all')
 
 def get_cache_stats():
-    """Get cache hit/miss statistics"""
+    """Get cache hit/miss statistics (works with both Redis and in-memory backends)"""
     total = _cache_stats['hits'] + _cache_stats['misses']
     hit_rate = (_cache_stats['hits'] / total * 100) if total > 0 else 0
+    
+    # Count cached entries
+    if _use_redis_cache and _redis_client:
+        # Redis mode: count tt:global:* and tt:user:* keys
+        try:
+            global_count = 0
+            user_count = 0
+            
+            # Count global cache entries
+            cursor = 0
+            while True:
+                cursor, keys = _redis_client.scan(cursor, match="tt:global:*", count=1000)
+                global_count += len(keys)
+                if cursor == 0:
+                    break
+            
+            # Count user cache entries
+            cursor = 0
+            while True:
+                cursor, keys = _redis_client.scan(cursor, match="tt:user:*", count=1000)
+                user_count += len(keys)
+                if cursor == 0:
+                    break
+            
+            total_entries = global_count + user_count
+        except Exception as e:
+            logger.warning(f"Failed to count Redis cache entries: {e}")
+            global_count = None
+            user_count = None
+            total_entries = None
+    else:
+        # In-memory mode
+        global_count = len(_global_cache)
+        user_count = len(_user_cache)
+        total_entries = global_count + user_count
     
     return {
         'hits': _cache_stats['hits'],
         'misses': _cache_stats['misses'],
         'hit_rate': f"{hit_rate:.1f}%",
-        'global_entries': len(_global_cache),
-        'user_entries': len(_user_cache),
-        'total_entries': len(_global_cache) + len(_user_cache),
+        'global_entries': global_count,
+        'user_entries': user_count,
+        'total_entries': total_entries,
         'global_hits': _cache_stats.get('global_hits', 0),
-        'user_hits': _cache_stats.get('user_hits', 0)
+        'user_hits': _cache_stats.get('user_hits', 0),
+        'backend': 'redis' if _use_redis_cache else 'in-memory'
     }
 
 def format_datetime_ist(dt, format_type='full'):
