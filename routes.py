@@ -2270,18 +2270,14 @@ def api_fast_parent_scan():
             'message': 'No QR code provided'
         }), 400
     
-    # Validate format (case-insensitive) and normalize to uppercase
-    import re
-    if not re.match(r'^[sS][bB]\d{5}$', qr_code):
-        # Show original input in error
+    # Validate format using InputValidator
+    is_valid, qr_code, error_msg = InputValidator.validate_qr_code(qr_code, bag_type='parent')
+    if not is_valid:
         return jsonify({
             'success': False,
-            'message': f'Invalid format! Must be SB##### (accepts: SB, Sb, sB, sb). Got: {qr_code}',
+            'message': f'{error_msg} Got: {qr_code}',
             'show_popup': True
         }), 400
-    
-    # Normalize to uppercase for storage and lookup
-    qr_code = qr_code.upper()
     
     try:
         # Fast SQL query
@@ -2386,12 +2382,10 @@ def process_parent_scan():
             flash('No QR code provided.', 'error')
             return redirect(url_for('scan_parent'))
         
-        # Validate parent bag QR format
-        import re
-        if not re.match(r'^SB\d{5}$', qr_code):
-            # Normalize to uppercase for validation and storage
-            qr_code = qr_code.upper()
-            error_msg = f'❌ Invalid QR format! Parent bags must start with "SB" (any case) followed by exactly 5 digits (e.g., SB00860, sb00736, Sb00736). You scanned: {qr_code}'
+        # Validate parent bag QR format using InputValidator
+        is_valid, qr_code, error_msg = InputValidator.validate_qr_code(qr_code, bag_type='parent')
+        if not is_valid:
+            error_msg = f'❌ {error_msg} You scanned: {qr_code}'
             if is_api:
                 return jsonify({'success': False, 'message': error_msg})
             flash(error_msg, 'error')
@@ -2671,13 +2665,12 @@ def ajax_scan_parent_bag():
             return jsonify({'success': False, 'message': 'Please provide a QR code.'})
         
         try:
-            # Validate QR code format for parent bags
-            # Parent bags must be in format "SB" followed by exactly 5 digits
-            import re
-            if not re.match(r'^SB\d{5}$', qr_id):
+            # Validate QR code format for parent bags using InputValidator
+            is_valid, qr_id, error_msg = InputValidator.validate_qr_code(qr_id, bag_type='parent')
+            if not is_valid:
                 return jsonify({
                     'success': False, 
-                    'message': f'❌ Invalid QR format!\n\nParent bags must start with "SB" followed by exactly 5 digits.\n\nExample: SB00860, SB00736\n\nYou scanned: {qr_id}',
+                    'message': f'❌ {error_msg}\n\nYou scanned: {qr_id}',
                     'show_popup': True
                 })
             
@@ -5110,12 +5103,12 @@ def ultra_fast_bill_parent_scan():
             'error_type': 'missing_data'
         })
     
-    # Validate format
-    import re
-    if not re.match(r'^SB\d{5}$', qr_code):
+    # Validate format using InputValidator
+    is_valid, qr_code, error_msg = InputValidator.validate_qr_code(qr_code, bag_type='parent')
+    if not is_valid:
         return jsonify({
             'success': False,
-            'message': f'🚫 Invalid format! Must be SB##### (e.g., SB12345). You scanned: {qr_code}',
+            'message': f'🚫 {error_msg} You scanned: {qr_code}',
             'show_popup': True,
             'error_type': 'invalid_format'
         })
@@ -5298,14 +5291,12 @@ def process_bill_parent_scan():
         
         app.logger.info(f'Sanitized QR code: {qr_id}')
         
-        # Case-insensitive SB##### format validation
-        import re
-        # Normalize to uppercase for storage
-        qr_id = qr_id.upper()
-        if not re.match(r'^SB\d{5}$', qr_id, re.IGNORECASE):
+        # Validate parent bag QR code format using InputValidator
+        is_valid, qr_id, error_msg = InputValidator.validate_qr_code(qr_id, bag_type='parent')
+        if not is_valid:
             return jsonify({
                 'success': False, 
-                'message': f'❌ Invalid parent bag QR code! Expected format: SB##### (accepts: SB, Sb, sB, sb). You scanned: {qr_id}',
+                'message': f'❌ {error_msg} You scanned: {qr_id}',
                 'show_popup': True
             })
         
@@ -6883,15 +6874,13 @@ def manual_parent_entry():
         manual_qr = manual_qr.upper()
         app.logger.info(f'Manual QR after uppercase: {manual_qr}')
         
-        # Validate format: Must be SB##### (case-insensitive)
-        import re
-        # Normalize to uppercase for storage
-        manual_qr = manual_qr.upper()
-        if not re.match(r'^SB\d{5}$', manual_qr, re.IGNORECASE):
-            app.logger.error(f'Invalid QR format: {manual_qr}')
+        # Validate format using InputValidator
+        is_valid, manual_qr, error_msg = InputValidator.validate_qr_code(manual_qr, bag_type='parent')
+        if not is_valid:
+            app.logger.error(f'Invalid QR format: {manual_qr} - {error_msg}')
             return jsonify({
                 'success': False,
-                'message': f'Invalid format! Parent bag QR must be SB##### (accepts: SB, Sb, sB, sb). You entered: {manual_qr}'
+                'message': f'{error_msg} You entered: {manual_qr}'
             }), 400
         
         # Get the bill

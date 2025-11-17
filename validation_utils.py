@@ -16,7 +16,10 @@ class InputValidator:
     """Centralized input validation utilities"""
     
     # QR Code patterns
-    QR_PARENT_PATTERN = r'^SB\d{5}$'  # Parent bags: SB followed by 5 digits
+    # Parent bags support two formats:
+    # - Mustard bags: SB followed by exactly 5 digits (e.g., SB00001, SB12345)
+    # - Moong bags: M444- followed by exactly 5 digits (e.g., M444-00001, M444-12345)
+    QR_PARENT_PATTERN = r'^(?:SB\d{5}|M444-\d{5})$'
     QR_CHILD_PATTERN = r'^[A-Z0-9]{4,20}$'  # Child bags: 4-20 alphanumeric chars
     QR_MAX_LENGTH = 100
     
@@ -62,7 +65,7 @@ class InputValidator:
         # Type-specific validation
         if bag_type == 'parent':
             if not re.match(InputValidator.QR_PARENT_PATTERN, qr_id):
-                return False, qr_id, "Parent bag QR must be format SB##### (e.g., SB00001)"
+                return False, qr_id, "Parent bag QR must be format SB##### (e.g., SB00001) or M444-##### (e.g., M444-00001)"
         elif bag_type == 'child':
             if not re.match(InputValidator.QR_CHILD_PATTERN, qr_id):
                 return False, qr_id, "Child bag QR must be 4-20 alphanumeric characters"

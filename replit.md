@@ -70,7 +70,12 @@ The project utilizes a standard Flask application structure, organizing code int
 ### Feature Specifications
 
 **Production-Ready Features:**
-- **Bag Management**: Supports parent-child bag relationships and flexible linking.
+- **Bag Management**: Supports parent-child bag relationships and flexible linking. **Parent Bag Format Support (November 2025)**: Supports two parent bag QR code formats for different product types:
+  - **Mustard bags**: SB followed by exactly 5 digits (e.g., SB12345, SB00001)
+  - **Moong bags**: M444- followed by exactly 5 digits (e.g., M444-12345, M444-00001)
+  - Validation pattern: `^(?:SB\d{5}|M444-\d{5})$`
+  - Case-insensitive input with automatic uppercase normalization
+  - Both formats function identically for child linking and bill generation
 - **Scanner Integration**: Designed for HID keyboard scanners with robust error handling, duplicate prevention, and rapid scan throttling.
 - **Bill Generation**: Dynamic weight calculation based on child bag counts.
 - **API Endpoints**: Provides various endpoints for bag, statistics, and system health management.
