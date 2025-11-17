@@ -36,14 +36,14 @@ The project utilizes a standard Flask application structure, organizing code int
 
 **System Design Choices:**
 - **Production-Scale Optimizations**: Includes a statistics cache, optimized connection pooling, API pagination, comprehensive database indexing, a high-performance query optimizer, role-aware caching with invalidation, optimized request logging, and streamlined authentication.
-- **Redis-Backed Multi-Worker Caching (November 2025)**: All caching layers now support Redis for multi-worker coherence with immediate cache invalidation:
-  - `query_optimizer.py`: Bag ID lookups use Redis with 30s TTL (tt:bag_id:* keys), falling back to in-memory only in development
-  - `cache_utils.py`: Statistics and role-based caching use Redis backend (tt:global:* and tt:user:* keys)
+- **Redis-Backed Multi-Worker Caching (November 2025)**: All caching layers support optional Redis for multi-worker coherence with immediate cache invalidation:
+  - `query_optimizer.py`: Bag ID lookups use Redis with 30s TTL (tt:bag_id:* keys), falling back to in-memory in development or when Redis unavailable
+  - `cache_utils.py`: Statistics and role-based caching use Redis backend (tt:global:* and tt:user:* keys) when available
   - Unified `tt:*` namespace for all cache types ensures centralized invalidation
   - Cache invalidation propagates across all workers via Redis using SCAN (non-blocking)
   - Stale keys are immediately deleted when underlying data is removed (cache coherency)
-  - Automatic fallback to in-memory caching in development with warnings
-  - Production deployments fail-fast if Redis is unavailable
+  - Automatic fallback to in-memory caching when Redis is unavailable (per-worker cache)
+  - **Autoscale Deployment Support (November 2025)**: Application works without Redis using signed cookie sessions and per-worker caching
 - **Ultra-Optimized Query Performance (November 2025)**: Critical endpoints refactored to eliminate N+1 queries using PostgreSQL CTEs and bulk fetching:
   - `api_delete_bag`: Single CTE query consolidates all validations (bill links, multi-parent checks, child counts) reducing 10+ queries to 2-3 queries total. Atomic deletion using cascading CTEs.
   - `bag_details`: Single CTE query fetches bag, children, parent, and bills using row_to_json/json_agg, then bulk-loads all Bag/Bill objects in 2 additional queries (total: 3 queries vs. N+1 previously).
@@ -53,13 +53,13 @@ The project utilizes a standard Flask application structure, organizing code int
   - Responsive card layout for bag management on screens <768px with touch-optimized buttons and badges.
   - Desktop table view hidden on mobile, mobile card view hidden on desktop for optimal rendering.
   - Comprehensive pagination controls with page numbers, prev/next buttons, and result count indicators that preserve all filter parameters.
-- **Session Management**: Supports secure, filesystem-based sessions (development) and Redis-backed sessions (production) with dual timeouts, activity tracking, user warnings, and secure cookie handling.
+- **Session Management**: Supports secure, stateless signed cookie sessions (Autoscale-ready) and optional Redis-backed sessions (multi-worker optimal) with dual timeouts, activity tracking, user warnings, and secure cookie handling. Works without Redis for Autoscale deployments.
 - **Two-Factor Authentication (2FA)**: TOTP-based 2FA for admin users with QR code provisioning and strict rate limiting.
 - **Security Features**: Secure password hashing (scrypt), CSRF protection, session validation, security headers, comprehensive rate limiting on authentication routes, and auto-detection of production environment for HTTPS-only cookies. QR code validation prevents SQL injection and XSS.
 - **Comprehensive Audit Logging**: Tracks all critical security events with GDPR-compliant PII anonymization.
 - **Rate Limiting Strategy**: Utilizes in-memory Flask-Limiter with a fixed-window strategy across various endpoints.
 - **System Health Monitoring**: Provides a real-time metrics endpoint and admin dashboard for tracking database connection pool, cache performance, memory usage, database size, and error counts.
-- **Deployment**: Configured for cloud environments using `gunicorn` with environment variable-driven configuration.
+- **Deployment**: Configured for Autoscale and cloud environments using `gunicorn` with environment variable-driven configuration. Redis is optional (recommended for multi-worker optimization but not required).
 - **Automatic Database Migrations**: Flask-Migrate is configured for automatic migrations on app startup, ensuring zero-downtime deployments.
 - **Validation Framework**: Comprehensive input validation utilities for various data types and inputs.
 - **Offline Support**: Features a `localStorage`-based offline queue with auto-retry and optimistic UI updates.

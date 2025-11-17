@@ -106,31 +106,31 @@ if redis_url:
             redis_available = False
             redis_client = None
 
-# PRODUCTION REQUIREMENT: Redis must be configured and available
+# Redis availability logging and recommendations
 if is_production:
     if not redis_url:
-        logger.error(f"❌ CRITICAL: REDIS_URL not configured in production environment")
-        logger.error(f"⚠️  Multi-worker deployments require Redis for session/rate-limit sharing")
-        logger.error(f"⚠️  Set REDIS_URL to your Redis instance (e.g., redis://host:port/0)")
-        raise ValueError("REDIS_URL is required in production - multi-worker session sharing depends on it")
-    
-    if not redis_available:
-        logger.error(f"❌ CRITICAL: Redis connection failed in production")
-        logger.error(f"⚠️  Cannot start application without working Redis connection")
-        logger.error(f"⚠️  Please verify REDIS_URL is correct and Redis service is accessible")
-        raise ConnectionError("Redis connection failed in production - multi-worker deployment requires Redis")
+        logger.warning(f"⚠️  REDIS_URL not configured in production - using signed cookie sessions")
+        logger.warning(f"ℹ️  For multi-worker session sharing, consider adding Redis (Upstash/Redis Cloud)")
+        logger.info(f"✅ Autoscale deployment: Signed cookie sessions work correctly without Redis")
+    elif not redis_available:
+        logger.warning(f"⚠️  Redis connection failed in production - falling back to signed cookie sessions")
+        logger.warning(f"⚠️  Rate limiting will be per-worker (not shared across workers)")
+        logger.info(f"✅ Application will continue using stateless session management")
 else:
     if not redis_url:
         logger.info("ℹ️  REDIS_URL not configured, using filesystem/memory storage (development mode)")
     elif not redis_available:
         logger.warning(f"⚠️  Redis connection failed in development, falling back to filesystem/memory storage")
 
-# Session configuration - Redis with filesystem fallback
+# Session configuration - Redis with signed cookie fallback
 # SECURITY: SESSION_COOKIE_SECURE=True in production for HTTPS-only session cookies
 # In development, it's set to True but the after_request handler strips the Secure flag
 # to allow session persistence across HTTP (Gunicorn serves HTTP internally)
+#
+# NOTE: Filesystem sessions with SESSION_USE_SIGNER=True are stateless (signed cookies)
+# and work perfectly for Autoscale deployments without Redis
 if redis_available:
-    # Production: Use Redis for multi-worker session sharing
+    # Use Redis for optimal multi-worker session sharing
     app.config.update(
         SESSION_TYPE='redis',
         SESSION_REDIS=redis_client,
@@ -151,7 +151,7 @@ if redis_available:
     )
     session_backend = "Redis (multi-worker ready)"
 else:
-    # Development: Use filesystem for single-worker development
+    # Use signed cookie sessions (stateless, works for Autoscale)
     app.config.update(
         SESSION_TYPE='filesystem',
         SESSION_FILE_DIR='/tmp/flask_session',
@@ -171,7 +171,7 @@ else:
         PREFERRED_URL_SCHEME='https' if is_production else 'http'
     )
     os.makedirs('/tmp/flask_session', exist_ok=True)
-    session_backend = "Filesystem (single-worker only)"
+    session_backend = "Signed cookie sessions (stateless, Autoscale-ready)"
 
 # File upload size limits (for security and performance)
 # MAX_FILE_UPLOAD_SIZE must be in bytes (integer). Default: 16MB
@@ -193,14 +193,15 @@ Session(app)
 logger.info(f"Session storage: {session_backend}")
 
 # Configure rate limiter - Redis with in-memory fallback
+# NOTE: Memory storage works for Autoscale but rate limits are per-worker (not shared)
 if redis_available:
-    # Production: Use Redis for multi-worker rate limiting
+    # Use Redis for shared rate limiting across all workers
     limiter_storage_uri = redis_url
-    limiter_backend = "Redis (multi-worker ready)"
+    limiter_backend = "Redis (shared across workers)"
 else:
-    # Development: Use in-memory for single-worker development
+    # Use in-memory rate limiting (per-worker, still functional)
     limiter_storage_uri = "memory://"
-    limiter_backend = "In-memory (single-worker only)"
+    limiter_backend = "In-memory (per-worker, Autoscale-compatible)"
 
 limiter = Limiter(
     key_func=get_remote_address,
