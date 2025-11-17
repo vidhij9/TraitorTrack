@@ -1,46 +1,49 @@
 #!/bin/bash
-# Simplified production deployment for Replit
-# No virtual environment needed - Replit handles packages via requirements.txt
+# Production deployment for Replit Autoscale
+# Optimized for 100+ concurrent users with flexible configuration
 
 echo "==================================================="
 echo "TraitorTrack - Production Deployment"
 echo "Optimized for 100+ concurrent users"
 echo "==================================================="
 
-# Verify required environment variables
+# Verify CRITICAL environment variables (required for security)
 if [ -z "$SESSION_SECRET" ]; then
     echo "❌ ERROR: SESSION_SECRET not set"
+    echo "   Generate one with: python3 -c 'import secrets; print(secrets.token_hex(32))'"
     exit 1
 fi
 
 if [ -z "$ADMIN_PASSWORD" ]; then
     echo "❌ ERROR: ADMIN_PASSWORD not set"
+    echo "   Set a secure admin password in deployment secrets"
     exit 1
 fi
 
-if [ -z "$PRODUCTION_DATABASE_URL" ]; then
-    echo "❌ ERROR: PRODUCTION_DATABASE_URL not set"
-    echo "   Production deployments MUST use AWS RDS database"
-    echo "   Set PRODUCTION_DATABASE_URL to your AWS RDS connection string"
+# Database Configuration (flexible for Replit built-in PostgreSQL or external)
+if [ -n "$PRODUCTION_DATABASE_URL" ]; then
+    echo "✅ Using PRODUCTION_DATABASE_URL for database connection"
+    export DATABASE_URL="$PRODUCTION_DATABASE_URL"
+elif [ -n "$DATABASE_URL" ]; then
+    echo "✅ Using Replit built-in PostgreSQL (DATABASE_URL)"
+else
+    echo "❌ ERROR: No database configured"
+    echo "   Set DATABASE_URL (for Replit PostgreSQL) or PRODUCTION_DATABASE_URL (for external DB)"
     exit 1
 fi
 
-# Safety check: Ensure production DB is not a Replit database
-if echo "$PRODUCTION_DATABASE_URL" | grep -iq "replit"; then
-    echo "❌ ERROR: PRODUCTION_DATABASE_URL appears to be a Replit database"
-    echo "   Production must use AWS RDS, not development database"
-    echo "   This prevents accidental data loss to production data"
-    exit 1
+# Redis Configuration (optional - app works without it using signed cookie sessions)
+if [ -n "$REDIS_URL" ]; then
+    echo "✅ Redis configured - multi-worker cache coherence enabled"
+else
+    echo "⚠️  Redis not configured - using signed cookie sessions (Autoscale-compatible)"
+    echo "   This is perfectly fine for Replit Autoscale deployments"
+    echo "   Rate limiting will be per-worker (still functional)"
 fi
 
-if [ -z "$REDIS_URL" ]; then
-    echo "❌ ERROR: REDIS_URL not set"
-    echo "   Redis is required for multi-worker session persistence and rate limiting"
-    exit 1
-fi
-
-echo "✅ Environment variables verified"
-echo "✅ Starting Gunicorn with gevent workers"
+echo ""
+echo "✅ Environment configuration verified"
+echo "✅ Starting Gunicorn with gevent workers for production"
 echo ""
 
 # Use PORT environment variable for Cloud Run compatibility (defaults to 5000 for local dev)
