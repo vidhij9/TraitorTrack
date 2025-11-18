@@ -1532,7 +1532,7 @@ def dashboard():
     return render_template('dashboard.html')
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per hour")  # Strict rate limiting to prevent brute-force attacks
+@limiter.limit("20 per hour" if os.environ.get('ENVIRONMENT') == 'production' else "1000 per hour")  # Rate limiting: strict in production, relaxed in development
 def login():
     """User login endpoint with improved error handling"""
     if is_logged_in() and request.method == 'GET':
