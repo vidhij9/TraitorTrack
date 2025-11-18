@@ -779,17 +779,18 @@ def edit_user(user_id):
             # Use user's set_password method for consistency
             user.set_password(new_password.strip())
             password_changed = True
-            
-            # CRITICAL: Invalidate all caches for this user
-            invalidate_user_cache(user.id)
-            # Force SQLAlchemy to reload from DB on next access
-            db.session.expire(user)
         
         # Log the changes (simplified to avoid import issues)
         if username != old_username or email != old_email or role != old_role or password_changed:
             app.logger.info(f'User {user.id} updated by admin {current_user_obj.username}: username={username != old_username}, email={email != old_email}, role={role != old_role}, password={password_changed}')
         
         db.session.commit()
+        
+        # CRITICAL: Invalidate caches AFTER commit
+        if password_changed:
+            invalidate_user_cache(user.id)
+            db.session.expire(user)
+            app.logger.info(f'Cache invalidated for user {user.id} after admin password change')
         
         success_message = 'User updated successfully!'
         if password_changed:
@@ -1392,8 +1393,9 @@ def create_user():
         db.session.add(user)
         db.session.commit()
         
-        # CRITICAL: Invalidate caches for new user
+        # CRITICAL: Invalidate caches AFTER commit
         invalidate_user_cache(user.id)
+        db.session.expire(user)
         
         # Cache invalidation skipped - not critical for user creation
         # invalidate_cache() function not implemented
@@ -1888,9 +1890,10 @@ def fix_admin_password():
         user.set_password(new_password)
         db.session.commit()
         
-        # CRITICAL: Invalidate all caches for admin user
+        # CRITICAL: Invalidate caches AFTER commit
         invalidate_user_cache(user.id)
         db.session.expire(user)
+        app.logger.info(f'Cache invalidated for admin user after password change')
         
         flash('Admin password updated successfully.', 'success')
         app.logger.info(f"Admin password updated by {current_user.username}")
@@ -1972,8 +1975,9 @@ def register():
             db.session.add(user)
             db.session.commit()
             
-            # CRITICAL: Invalidate caches for new user
+            # CRITICAL: Invalidate caches AFTER commit
             invalidate_user_cache(user.id)
+            db.session.expire(user)
             
             # Audit log: Successful registration
             log_audit('registration_success', 'auth', user.id, {
@@ -5705,10 +5709,6 @@ def edit_profile():
             db.session.add(user)  # Explicitly mark user for update
             changes_made = True
             
-            # CRITICAL: Invalidate all caches for this user
-            invalidate_user_cache(user.id)
-            db.session.expire(user)
-            
             app.logger.info(f'Password changed for user {user.username} (ID: {user.id})')
             # Audit log: Password changed
             log_audit('password_changed', 'auth', user.id, {
@@ -5722,6 +5722,14 @@ def edit_profile():
         if changes_made:
             try:
                 db.session.commit()
+                
+                # CRITICAL: Invalidate all caches AFTER commit
+                # This must happen after commit so the new password is in the database
+                if new_password:
+                    invalidate_user_cache(user.id)
+                    db.session.expire(user)
+                    app.logger.info(f'Cache invalidated for user {user.id} after password change')
+                
                 # Force session to refresh current user data
                 session.modified = True
                 flash('Profile updated successfully.', 'success')
