@@ -1531,8 +1531,14 @@ def dashboard():
     # Use simple dashboard template
     return render_template('dashboard.html')
 
+def get_login_rate_limit():
+    """Dynamic rate limit function for login - evaluated per request"""
+    if os.environ.get('ENVIRONMENT') == 'production' or os.environ.get('REPLIT_DEPLOYMENT') == '1':
+        return "20 per hour"  # Strict in production
+    return "1000 per hour"  # Relaxed in development
+
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("20 per hour" if os.environ.get('ENVIRONMENT') == 'production' else "1000 per hour")  # Rate limiting: strict in production, relaxed in development
+@limiter.limit(get_login_rate_limit)  # Dynamic rate limiting based on environment
 def login():
     """User login endpoint with improved error handling"""
     if is_logged_in() and request.method == 'GET':
