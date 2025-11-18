@@ -211,6 +211,27 @@ limiter = Limiter(
     swallow_errors=True
 )
 
+# Custom rate limit error handler
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    """Custom error handler for rate limit exceeded"""
+    from flask import render_template, request
+    
+    # Get the retry-after header if available
+    retry_after = getattr(e, 'description', '').split('Retry after ')[1].split(' ')[0] if 'Retry after' in str(getattr(e, 'description', '')) else 'soon'
+    
+    # Check if this is a login rate limit
+    if '/login' in request.path:
+        from flask import flash
+        flash(f'Too many login attempts. Please try again in {retry_after} seconds. If you need immediate access, contact your administrator.', 'error')
+        return render_template('login.html'), 429
+    
+    # Generic rate limit message for other endpoints
+    return render_template('error.html', 
+                         error_code=429,
+                         error_message=f'Too many requests. Please try again in {retry_after} seconds.',
+                         error_title='Rate Limit Exceeded'), 429
+
 logger.info(f"Rate limiting storage: {limiter_backend}")
 
 # Database configuration - flexible for Replit deployments with external DB option
