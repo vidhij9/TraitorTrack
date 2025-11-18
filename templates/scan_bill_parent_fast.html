@@ -199,6 +199,24 @@
 
 {% block scripts %}
 <script>
+// Helper function to get CSRF token
+function getCSRFToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.content;
+    const input = document.querySelector('input[name="csrf_token"]');
+    if (input) return input.value;
+    return '';
+}
+
+// Helper function for fetch with CSRF
+function fetchWithCSRF(url, options = {}) {
+    const token = getCSRFToken();
+    options.headers = options.headers || {};
+    options.headers['X-CSRFToken'] = token;
+    options.credentials = 'same-origin';
+    return fetch(url, options);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const scannerInput = document.getElementById('scanner-input');
     const statusText = document.getElementById('status-text');
@@ -297,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showToast(`Processing ${barcode}...`, 'info');
         
         // Call fast bill parent scan endpoint
-        fetch('/fast/bill_parent_scan', {
+        fetchWithCSRF('/fast/bill_parent_scan', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -381,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        fetch('/remove_bag_from_bill', {
+        fetchWithCSRF('/remove_bag_from_bill', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -441,7 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (confirm(`Complete this bill with ${currentCount} linked bags? Make sure you've scanned all child bags for each parent.`)) {
-            fetch('/complete_bill', {
+            fetchWithCSRF('/complete_bill', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',

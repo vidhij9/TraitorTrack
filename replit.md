@@ -64,7 +64,10 @@ The project utilizes a standard Flask application structure, organizing code int
   - **Routes Fixed**: `/profile/edit`, `/admin/users/<id>/edit`, `/create_user`, `/fix-admin-password`, `/register`
   - **Impact**: Users can now login immediately with new passwords; old passwords are rejected instantly
   - Login flow bypasses all caching layers to prevent stale password hash lookups
-- **CSRF Protection Fix (November 18, 2025)**: Child bag scanning AJAX requests now properly include CSRF tokens using `fetchWithCSRF()` helper function, preventing 400 errors on `/process_child_scan_fast` endpoint
+- **CSRF Protection Fix (November 18, 2025)**: All AJAX requests now properly include CSRF tokens using `fetchWithCSRF()` helper function:
+  - Child bag scanning: `/process_child_scan_fast` endpoint
+  - Bill parent scanning: `/fast/bill_parent_scan`, `/remove_bag_from_bill`, `/complete_bill` endpoints
+  - Prevents 400 "CSRF token missing" errors on all POST requests
 - **Undo Button Visibility Fix (November 18, 2025)**:
   - **Problem**: Undo button visible when no scans exist (count=0), causing potential null reference errors and user confusion
   - **Root Cause**: CSS class `.wh-btn` had `display: inline-flex !important` that overrode inline styles; JavaScript was setting display without `!important` flag
