@@ -199,7 +199,7 @@
                 id="undo-btn" 
                 onclick="undoLast()" 
                 class="wh-btn wh-btn-warning wh-btn-block"
-                style="display: none; min-height: 54px; font-size: 18px; font-weight: 700;"
+                style="display: {% if scanned_child_count > 0 %}inline-flex{% else %}none{% endif %} !important; min-height: 54px; font-size: 18px; font-weight: 700;"
             >
                 <i class="fas fa-undo me-2"></i>Undo Last Scan
             </button>
@@ -383,7 +383,7 @@ async function process(qr) {
             // Track for undo
             lastScannedQr = qr;
             const undoBtn = document.getElementById('undo-btn');
-            if (undoBtn) undoBtn.style.display = 'inline-block';
+            if (undoBtn) undoBtn.style.setProperty('display', 'inline-flex', 'important');
             
             if (d.child_count >= 30) {
                 setTimeout(() => {
@@ -486,12 +486,16 @@ async function undoLast() {
             count = d.child_count || count - 1;
             updateDisplay(count);
             
-            // Remove from scanned set
-            scannedCodes.delete(lastScannedQr.toUpperCase());
+            // Remove from scanned set (null check before toUpperCase)
+            if (lastScannedQr) {
+                scannedCodes.delete(lastScannedQr.toUpperCase());
+                showToast('✅ Removed: ' + lastScannedQr, 'success');
+            } else {
+                showToast('✅ Last scan removed', 'success');
+            }
             
-            showToast('✅ Removed: ' + lastScannedQr, 'success');
             lastScannedQr = null;
-            if (undoBtn) undoBtn.style.display = 'none';
+            if (undoBtn) undoBtn.style.setProperty('display', 'none', 'important');
         } else {
             showToast('❌ ' + (d.message || 'Cannot remove'), 'error');
         }
@@ -548,10 +552,14 @@ setTimeout(() => {
 
 keepFocus(input);
 
-// Show undo button if there are scanned bags
+// Show undo button only if there are scanned bags
 const undoBtn = document.getElementById('undo-btn');
-if (count > 0 && undoBtn) {
-    undoBtn.style.display = 'inline-block';
+if (undoBtn) {
+    if (count > 0) {
+        undoBtn.style.setProperty('display', 'inline-flex', 'important');
+    } else {
+        undoBtn.style.setProperty('display', 'none', 'important');  // Explicitly hide when count is 0
+    }
 }
 
 if (count >= 30 && party) {
