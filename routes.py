@@ -779,6 +779,11 @@ def edit_user(user_id):
             # Use user's set_password method for consistency
             user.set_password(new_password.strip())
             password_changed = True
+            
+            # CRITICAL: Invalidate all caches for this user
+            invalidate_user_cache(user.id)
+            # Force SQLAlchemy to reload from DB on next access
+            db.session.expire(user)
         
         # Log the changes (simplified to avoid import issues)
         if username != old_username or email != old_email or role != old_role or password_changed:
@@ -1387,6 +1392,9 @@ def create_user():
         db.session.add(user)
         db.session.commit()
         
+        # CRITICAL: Invalidate caches for new user
+        invalidate_user_cache(user.id)
+        
         # Cache invalidation skipped - not critical for user creation
         # invalidate_cache() function not implemented
         
@@ -1548,9 +1556,15 @@ def login():
             from password_utils import is_account_locked, record_failed_login, record_successful_login
             from werkzeug.security import check_password_hash
             
-            # Find user
+            # Find user - FORCE FRESH DB LOOKUP (no caching)
+            # Expire any cached SQLAlchemy objects to ensure fresh password hash
+            db.session.expire_all()
             user = User.query.filter_by(username=username).first()
             app.logger.info(f"LOGIN ATTEMPT: {username}")
+            
+            # Debug: Log password hash info (expire_all ensures fresh DB query)
+            if user:
+                app.logger.debug(f"User found in DB - password_hash length: {len(user.password_hash) if user.password_hash else 0}")
             
             # SECURITY: Prevent username enumeration by using constant-time behavior
             # Always perform the same operations regardless of whether user exists
@@ -1873,6 +1887,11 @@ def fix_admin_password():
     if user:
         user.set_password(new_password)
         db.session.commit()
+        
+        # CRITICAL: Invalidate all caches for admin user
+        invalidate_user_cache(user.id)
+        db.session.expire(user)
+        
         flash('Admin password updated successfully.', 'success')
         app.logger.info(f"Admin password updated by {current_user.username}")
         return redirect(url_for('dashboard'))
@@ -1952,6 +1971,9 @@ def register():
             
             db.session.add(user)
             db.session.commit()
+            
+            # CRITICAL: Invalidate caches for new user
+            invalidate_user_cache(user.id)
             
             # Audit log: Successful registration
             log_audit('registration_success', 'auth', user.id, {
@@ -5682,6 +5704,11 @@ def edit_profile():
             user.set_password(new_password)
             db.session.add(user)  # Explicitly mark user for update
             changes_made = True
+            
+            # CRITICAL: Invalidate all caches for this user
+            invalidate_user_cache(user.id)
+            db.session.expire(user)
+            
             app.logger.info(f'Password changed for user {user.username} (ID: {user.id})')
             # Audit log: Password changed
             log_audit('password_changed', 'auth', user.id, {

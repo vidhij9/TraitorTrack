@@ -4,12 +4,12 @@ Password validation and account lockout utilities for TraitorTrack
 import re
 from datetime import datetime, timedelta
 
-# Password complexity requirements
+# Password complexity requirements (simplified for user convenience)
 MIN_PASSWORD_LENGTH = 8
-REQUIRE_UPPERCASE = True
-REQUIRE_LOWERCASE = True
-REQUIRE_NUMBER = True
-REQUIRE_SPECIAL_CHAR = True
+REQUIRE_UPPERCASE = False
+REQUIRE_LOWERCASE = False
+REQUIRE_NUMBER = False
+REQUIRE_SPECIAL_CHAR = False
 
 # Account lockout settings
 MAX_FAILED_ATTEMPTS = 5
@@ -20,11 +20,7 @@ def validate_password_complexity(password):
     Validate password meets complexity requirements.
     
     Requirements:
-    - Minimum 8 characters
-    - At least one uppercase letter
-    - At least one lowercase letter
-    - At least one number
-    - At least one special character
+    - Minimum 8 characters (simple and easy to remember)
     
     Returns:
         tuple: (is_valid: bool, error_message: str)

@@ -56,6 +56,8 @@ The project utilizes a standard Flask application structure, organizing code int
 - **Session Management**: Supports secure, stateless signed cookie sessions (Autoscale-ready) and optional Redis-backed sessions (multi-worker optimal) with dual timeouts, activity tracking, user warnings, and secure cookie handling. Works without Redis for Autoscale deployments.
 - **Two-Factor Authentication (2FA)**: TOTP-based 2FA for admin users with QR code provisioning and strict rate limiting.
 - **Security Features**: Secure password hashing (scrypt), CSRF protection, session validation, security headers, comprehensive rate limiting on authentication routes, and auto-detection of production environment for HTTPS-only cookies. QR code validation prevents SQL injection and XSS.
+- **Password Policy (November 2025)**: Simplified for user convenience - requires only minimum 8 characters (no complexity requirements). This improves usability while maintaining reasonable security for warehouse operations.
+- **Authentication Cache Fix (November 2025)**: Login flow now bypasses all caching layers to prevent stale password hash lookups. All password update operations (user profile, admin reset, password recovery) now include explicit cache invalidation and SQLAlchemy session refresh to ensure immediate authentication with new passwords.
 - **Comprehensive Audit Logging**: Tracks all critical security events with GDPR-compliant PII anonymization.
 - **Rate Limiting Strategy**: Utilizes in-memory Flask-Limiter with a fixed-window strategy across various endpoints.
 - **System Health Monitoring**: Provides a real-time metrics endpoint and admin dashboard for tracking database connection pool, cache performance, memory usage, database size, and error counts.
@@ -82,7 +84,7 @@ The project utilizes a standard Flask application structure, organizing code int
   - **V2 Optimized Endpoints**: `/api/v2/bags`, `/api/v2/bills`, `/api/v2/health` with sub-50ms response times
   - **Gzip Compression**: 60-80% bandwidth reduction for all JSON responses >1KB
   - **Field Filtering**: Client-side payload reduction (30-70%) via `?fields=id,qr_id,type` parameter
-  - **HTTP Caching**: ETag support for 304 responses (near-zero bandwidth for unchanged data)
+  - **HTTP Caching**: Client-side caching disabled for authenticated endpoints (security fix - prevents data leaks on shared devices)
   - **Batch Operations**: `/api/v2/batch/unlink` for efficient mobile operations
   - **Smart Pagination**: Adaptive page sizes based on device type (mobile vs desktop)
   - **Private Caching**: Secure browser caching (never caches user-specific data in proxies)

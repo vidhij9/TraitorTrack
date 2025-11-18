@@ -193,6 +193,12 @@ def reset_password(user, new_password):
         user.last_failed_login = None
         
         db.session.commit()
+        
+        # CRITICAL: Invalidate all caches for this user
+        from cache_utils import invalidate_user_cache
+        invalidate_user_cache(user.id)
+        db.session.expire(user)
+        
         # SECURITY: No logging to prevent enumeration
         return True, None
         
