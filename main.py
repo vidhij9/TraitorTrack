@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 # Import all the main routes to ensure they're registered
 import routes
 import api  # Import consolidated API endpoints
+import api_optimized  # Import optimized v2 API endpoints
 
 # Setup monitoring for all routes
 @app.before_request

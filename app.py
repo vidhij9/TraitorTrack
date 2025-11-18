@@ -695,5 +695,14 @@ def inject_current_user():
     
     return dict(current_user=TemplateUser())
 
+# Initialize compression middleware for mobile bandwidth optimization
+# This reduces API response sizes by 60-80% for JSON responses
+try:
+    from api_middleware import CompressionMiddleware
+    compression = CompressionMiddleware(app, min_size=1024, compress_level=6)
+    logger.info("✅ Compression middleware initialized for mobile optimization")
+except Exception as e:
+    logger.warning(f"⚠️  Compression middleware failed to initialize: {e}")
+
 # Note: Comprehensive error handlers are defined in error_handlers.py
 # and registered via setup_error_handlers(app) call above
