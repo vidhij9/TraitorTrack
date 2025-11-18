@@ -364,9 +364,8 @@ async function process(qr) {
     }, 10000);
     
     try {
-        const r = await fetch('/process_child_scan_fast', {
+        const r = await fetchWithCSRF('/process_child_scan_fast', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ qr_code: qr })
         });
         
@@ -514,9 +513,8 @@ document.getElementById('form').addEventListener('submit', function(e) {
 async function processQueue() {
     const processed = await offlineQueue.processAll(async (item) => {
         try {
-            const r = await fetch('/process_child_scan_fast', {
+            const r = await fetchWithCSRF('/process_child_scan_fast', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ qr_code: item.qr })
             });
             const d = await r.json();
