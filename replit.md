@@ -24,94 +24,43 @@ The project utilizes a standard Flask application structure, organizing code int
 - **ujson**: High-performance JSON parsing.
 
 **UI/UX Decisions:**
-- Clean, production-ready web interfaces for various user roles (dispatchers, billers, administrators).
+- Clean, production-ready web interfaces for various user roles.
 - AJAX-powered dashboard for real-time statistics.
 - Full-screen interfaces for warehouse operations with large fonts and controls.
 - Visual and audio feedback for scanning operations.
 - Optimized for mobile scanners on low-grade devices, featuring simplified UI, audio/vibration feedback, and aggressive auto-focus.
 - Redesigned color scheme to an agriculture industry theme (forest green, earth-tone beige, golden accents).
-- Increased button sizes (minimum 44px height, 18px fonts) and enhanced text readability (heavier font weights, WCAG AA-compliant contrast ratios) for warehouse workers.
-- Mobile-first optimization for core warehouse pages (375px+ screens) with minimal scrolling, compressed spacing, reduced icon sizes, and collapsed secondary content.
-- Implemented a fixed mobile bottom navigation bar (64px) with four primary actions (Home, Scan, Search, Bills) for quick access.
+- Increased button sizes and enhanced text readability for warehouse workers.
+- Mobile-first optimization for core warehouse pages with minimal scrolling, compressed spacing, reduced icon sizes, and collapsed secondary content.
+- Implemented a fixed mobile bottom navigation bar with four primary actions (Home, Scan, Search, Bills) for quick access.
 
 **System Design Choices:**
 - **Production-Scale Optimizations**: Includes a statistics cache, optimized connection pooling, API pagination, comprehensive database indexing, a high-performance query optimizer, role-aware caching with invalidation, optimized request logging, and streamlined authentication.
-- **Redis-Backed Multi-Worker Caching (November 2025)**: All caching layers support optional Redis for multi-worker coherence with immediate cache invalidation:
-  - `query_optimizer.py`: Bag ID lookups use Redis with 30s TTL (tt:bag_id:* keys), falling back to in-memory in development or when Redis unavailable
-  - `cache_utils.py`: Statistics and role-based caching use Redis backend (tt:global:* and tt:user:* keys) when available
-  - Unified `tt:*` namespace for all cache types ensures centralized invalidation
-  - Cache invalidation propagates across all workers via Redis using SCAN (non-blocking)
-  - Stale keys are immediately deleted when underlying data is removed (cache coherency)
-  - Automatic fallback to in-memory caching when Redis is unavailable (per-worker cache)
-  - **Autoscale Deployment Support (November 2025)**: Application works without Redis using signed cookie sessions and per-worker caching
-- **Ultra-Optimized Query Performance (November 2025)**: Critical endpoints refactored to eliminate N+1 queries using PostgreSQL CTEs and bulk fetching:
-  - `api_delete_bag`: Single CTE query consolidates all validations (bill links, multi-parent checks, child counts) reducing 10+ queries to 2-3 queries total. Atomic deletion using cascading CTEs.
-  - `bag_details`: Single CTE query fetches bag, children, parent, and bills using row_to_json/json_agg, then bulk-loads all Bag/Bill objects in 2 additional queries (total: 3 queries vs. N+1 previously).
-  - `view_bill`: Single CTE query with json_agg fetches all parent bags and their children, then bulk-loads all Bag objects in 1 query (total: 3 queries vs. N²+1 previously). Expected 90-95% speed improvement on bills with 50+ parent bags.
-  - `bag_management`: Already optimized with batch queries for child counts, parent links, bill links, and last scans (4-5 total queries for any page size).
-- **Mobile-First UI Enhancements (November 2025)**: 
-  - Responsive card layout for bag management on screens <768px with touch-optimized buttons and badges.
-  - Desktop table view hidden on mobile, mobile card view hidden on desktop for optimal rendering.
-  - Comprehensive pagination controls with page numbers, prev/next buttons, and result count indicators that preserve all filter parameters.
-- **Session Management**: Supports secure, stateless signed cookie sessions (Autoscale-ready) and optional Redis-backed sessions (multi-worker optimal) with dual timeouts, activity tracking, user warnings, and secure cookie handling. Works without Redis for Autoscale deployments.
+- **Redis-Backed Multi-Worker Caching**: All caching layers support optional Redis for multi-worker coherence with immediate cache invalidation. Automatic fallback to in-memory caching when Redis is unavailable.
+- **Ultra-Optimized Query Performance**: Critical endpoints refactored to eliminate N+1 queries using PostgreSQL CTEs and bulk fetching for significant speed improvements (e.g., `api_delete_bag`, `bag_details`, `view_bill`).
+- **Mobile-First UI Enhancements**: Responsive card layout for bag management on mobile, with desktop table view hidden on mobile, and vice-versa. Comprehensive pagination controls preserve filter parameters.
+- **Session Management**: Supports secure, stateless signed cookie sessions and optional Redis-backed sessions with dual timeouts, activity tracking, user warnings, and secure cookie handling.
 - **Two-Factor Authentication (2FA)**: TOTP-based 2FA for admin users with QR code provisioning and strict rate limiting.
-- **Security Features**: Secure password hashing (scrypt), CSRF protection, session validation, security headers, comprehensive rate limiting on authentication routes, and auto-detection of production environment for HTTPS-only cookies. QR code validation prevents SQL injection and XSS.
-- **Password Policy (November 2025)**: Simplified for user convenience - requires only minimum 8 characters (no complexity requirements). This improves usability while maintaining reasonable security for warehouse operations.
-- **Authentication Cache Fix (November 18, 2025)**: 
-  - **Critical Bug Fixed**: Password changes now properly invalidate caches AFTER database commit (not before), preventing stale password hash lookups
-  - **Root Cause**: Previously, `db.session.expire(user)` was called BEFORE `db.session.commit()`, causing SQLAlchemy to discard pending password changes
-  - **Solution**: Moved cache invalidation (`invalidate_user_cache()` + `db.session.expire()`) to execute AFTER successful commit across all 5 password-change routes
-  - **Routes Fixed**: `/profile/edit`, `/admin/users/<id>/edit`, `/create_user`, `/fix-admin-password`, `/register`
-  - **Impact**: Users can now login immediately with new passwords; old passwords are rejected instantly
-  - Login flow bypasses all caching layers to prevent stale password hash lookups
-- **CSRF Protection Fix (November 18, 2025)**: All AJAX requests now properly include CSRF tokens using `fetchWithCSRF()` helper function:
-  - Child bag scanning: `/process_child_scan_fast` endpoint
-  - Bill parent scanning: `/fast/bill_parent_scan`, `/remove_bag_from_bill`, `/complete_bill` endpoints
-  - Prevents 400 "CSRF token missing" errors on all POST requests
-- **Undo Button Visibility Fix (November 18, 2025)**:
-  - **Problem**: Undo button visible when no scans exist (count=0), causing potential null reference errors and user confusion
-  - **Root Cause**: CSS class `.wh-btn` had `display: inline-flex !important` that overrode inline styles; JavaScript was setting display without `!important` flag
-  - **Solution**: Used `style.setProperty('display', 'none', 'important')` in JavaScript and added `!important` to HTML template inline style
-  - **Impact**: Undo button now properly hidden when count=0, visible when count>0, no JavaScript errors
-- **Production Readiness Audit (November 18, 2025)**:
-  - **Security**: Removed all password logging/printing to prevent PII leakage. Admin password now REQUIRES explicit ADMIN_PASSWORD environment variable (app startup fails if not set).
-  - **Type Safety**: Fixed 17 LSP errors in query_optimizer.py by adding proper None checks for redis_client and cache dictionary operations.
-  - **Logging**: Consolidated logging configuration - removed duplicate logging.basicConfig() from routes.py, centralized all logging in app.py. Removed 3 excessive debug statements from production routes.
-  - **Scalability Documentation**: Added comprehensive scaling guide in app.py for 200+ and 500+ concurrent users with worker/pool size formulas and PostgreSQL max_connections guidance.
-  - **Code Quality**: All print() statements are in test files only (production code uses proper logging). No hardcoded secrets or credentials.
+- **Security Features**: Secure password hashing (scrypt), CSRF protection, session validation, security headers, comprehensive rate limiting on authentication routes, auto-detection of production environment for HTTPS-only cookies, and QR code validation to prevent SQL injection and XSS. Password policy requires a minimum of 8 characters.
+- **Login Rate Limiting**: Dynamic rate limit function for login attempts, with different settings for production and development, and custom 429 error handling.
 - **Comprehensive Audit Logging**: Tracks all critical security events with GDPR-compliant PII anonymization.
-- **Rate Limiting Strategy**: Utilizes in-memory Flask-Limiter with a fixed-window strategy across various endpoints.
 - **System Health Monitoring**: Provides a real-time metrics endpoint and admin dashboard for tracking database connection pool, cache performance, memory usage, database size, and error counts.
-- **Deployment**: Configured for Autoscale and cloud environments using `gunicorn` with environment variable-driven configuration. Redis is optional (recommended for multi-worker optimization but not required).
-- **Automatic Database Migrations**: Flask-Migrate is configured for automatic migrations on app startup, ensuring zero-downtime deployments.
-- **Validation Framework**: Comprehensive input validation utilities for various data types and inputs.
+- **Deployment**: Configured for Autoscale and cloud environments using `gunicorn` with environment variable-driven configuration. Redis is optional.
+- **Automatic Database Migrations**: Flask-Migrate is configured for automatic migrations on app startup.
 - **Offline Support**: Features a `localStorage`-based offline queue with auto-retry and optimistic UI updates.
-- **Undo Functionality**: Backend endpoint `/api/unlink_child` and UI for undoing the most recent scan within a 1-hour window.
-- **Concurrency Control**: Employs atomic locking (e.g., `SELECT ... FOR UPDATE`) to prevent race conditions during critical operations.
-- **Cache Coherence**: The `QueryOptimizer` includes cache invalidation methods that are triggered after all bag/link mutations.
+- **Undo Functionality**: Backend endpoint and UI for undoing the most recent scan within a 1-hour window.
+- **Concurrency Control**: Employs atomic locking to prevent race conditions during critical operations.
+- **Cache Coherence**: `QueryOptimizer` includes cache invalidation methods triggered after bag/link mutations.
 
 ### Feature Specifications
 
 **Production-Ready Features:**
-- **Bag Management**: Supports parent-child bag relationships and flexible linking. **Parent Bag Format Support (November 2025)**: Supports two parent bag QR code formats for different product types:
-  - **Mustard bags**: SB followed by exactly 5 digits (e.g., SB12345, SB00001)
-  - **Moong bags**: M444- followed by exactly 5 digits (e.g., M444-12345, M444-00001)
-  - Validation pattern: `^(?:SB\d{5}|M444-\d{5})$`
-  - Case-insensitive input with automatic uppercase normalization
-  - Both formats function identically for child linking and bill generation
+- **Bag Management**: Supports parent-child bag relationships and flexible linking, with support for two parent bag QR code formats (e.g., SB12345, M444-12345).
 - **Scanner Integration**: Designed for HID keyboard scanners with robust error handling, duplicate prevention, and rapid scan throttling.
 - **Bill Generation**: Dynamic weight calculation based on child bag counts.
-- **API Endpoints**: Comprehensive REST API with mobile-first optimizations (November 2025):
-  - **V2 Optimized Endpoints**: `/api/v2/bags`, `/api/v2/bills`, `/api/v2/health` with sub-50ms response times
-  - **Gzip Compression**: 60-80% bandwidth reduction for all JSON responses >1KB
-  - **Field Filtering**: Client-side payload reduction (30-70%) via `?fields=id,qr_id,type` parameter
-  - **HTTP Caching**: Client-side caching disabled for authenticated endpoints (security fix - prevents data leaks on shared devices)
-  - **Batch Operations**: `/api/v2/batch/unlink` for efficient mobile operations
-  - **Smart Pagination**: Adaptive page sizes based on device type (mobile vs desktop)
-  - **Private Caching**: Secure browser caching (never caches user-specific data in proxies)
+- **API Endpoints**: Comprehensive REST API with mobile-first optimizations, including V2 optimized endpoints (sub-50ms response times), Gzip compression (60-80% bandwidth reduction), field filtering, and smart pagination.
 - **Real-time Dashboard**: Displays statistics via AJAX and optimized caching.
 - **System Health Dashboard**: Admin-only interface for system metrics.
-- **Two-Factor Authentication**: TOTP-based 2FA for admin users.
 - **Comprehensive Audit Logging**: Enterprise-grade audit trail with state snapshots and PII anonymization.
 - **Automatic Session Security**: Secure session management with dual timeouts and secure cookie handling.
 - **Brute Force Protection**: Comprehensive rate limiting on authentication endpoints and account lockout.
