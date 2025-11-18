@@ -200,15 +200,9 @@ import time
 import logging
 import os
 
-# Set up comprehensive logging for debugging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    force=True
-)
-app.logger.setLevel(logging.INFO)
+# PRODUCTION: Logging is centralized in app.py
+# Do NOT configure logging here to avoid conflicts
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 # Helper function for audit logging
 # log_audit is now imported from audit_utils
@@ -1564,9 +1558,8 @@ def login():
             user = User.query.filter_by(username=username).first()
             app.logger.info(f"LOGIN ATTEMPT: {username}")
             
-            # Debug: Log password hash info (expire_all ensures fresh DB query)
-            if user:
-                app.logger.debug(f"User found in DB - password_hash length: {len(user.password_hash) if user.password_hash else 0}")
+            # PRODUCTION: Debug logging disabled to reduce log volume
+            # Password hash validation happens in check_password method
             
             # SECURITY: Prevent username enumeration by using constant-time behavior
             # Always perform the same operations regardless of whether user exists
@@ -5962,7 +5955,7 @@ def api_dashboard_stats():
             WHERE id = 1
         """)).fetchone()
         
-        app.logger.debug(f"Stats query result: {stats_result}")
+        # PRODUCTION: Debug logging disabled to reduce log volume
         
         if stats_result:
             # Use cached statistics (instant!) - Access by index for reliability
@@ -5979,7 +5972,7 @@ def api_dashboard_stats():
                 },
                 'cache_updated': stats_result[5].isoformat() if stats_result[5] else None
             }
-            app.logger.debug(f"Stats dict: {stats}")
+            # PRODUCTION: Debug logging disabled to reduce log volume
         else:
             # Fallback to real-time counts (slower but works if cache table doesn't exist)
             stats_result_fallback = db.session.execute(text("""

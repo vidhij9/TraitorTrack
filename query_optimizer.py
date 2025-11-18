@@ -59,7 +59,7 @@ class QueryOptimizer:
                 logger.warning(f"Redis cache read failed: {e}, falling back to DB")
         
         # Fallback to in-memory cache (development only)
-        elif self._bag_id_cache is not None:
+        elif self._bag_id_cache is not None and self._cache_timestamps is not None:
             now = time.time()
             if cache_key in self._bag_id_cache:
                 cached_timestamp = self._cache_timestamps.get(cache_key, 0)
@@ -101,7 +101,7 @@ class QueryOptimizer:
                     logger.warning(f"Redis cache write failed: {e}")
             
             # Store in in-memory cache (development fallback)
-            elif self._bag_id_cache is not None:
+            elif self._bag_id_cache is not None and self._cache_timestamps is not None:
                 self._bag_id_cache[cache_key] = bag_id
                 self._cache_timestamps[cache_key] = time.time()
                 
@@ -117,7 +117,7 @@ class QueryOptimizer:
     
     def _evict_oldest_cache_entries(self):
         """Evict oldest 20% of cache entries to prevent memory bloat"""
-        if not self._cache_timestamps:
+        if not self._cache_timestamps or not self._bag_id_cache:
             return
         
         # Sort by timestamp and remove oldest 20%
@@ -164,7 +164,7 @@ class QueryOptimizer:
                 logger.warning(f"Redis cache invalidation failed: {e}")
         
         # In-memory cache (development fallback)
-        elif self._bag_id_cache is not None:
+        elif self._bag_id_cache is not None and self._cache_timestamps is not None:
             if qr_id:
                 keys_to_remove = [k for k in self._bag_id_cache.keys() if qr_id in k]
                 for key in keys_to_remove:
@@ -197,7 +197,7 @@ class QueryOptimizer:
                 logger.warning(f"Redis cache clear failed: {e}")
         
         # In-memory cache (development fallback)
-        elif self._bag_id_cache is not None:
+        elif self._bag_id_cache is not None and self._cache_timestamps is not None:
             self._bag_id_cache.clear()
             self._cache_timestamps.clear()
             logger.debug("All in-memory query optimizer caches cleared")
@@ -541,31 +541,24 @@ class QueryOptimizer:
             return False, str(e)
     
     def invalidate_cache(self, qr_id=None, bag_type=None):
-        """Invalidate cache for a specific bag or all bags"""
+        """Invalidate cache for a specific bag or all bags (legacy method for compatibility)"""
+        # Delegate to the Redis-aware method
         if qr_id:
-            # Invalidate both type-specific and generic cache keys
-            cache_keys = [qr_id]
-            if bag_type:
-                cache_keys.append(f"{qr_id}:{bag_type}")
-            
-            for cache_key in cache_keys:
-                self._bag_id_cache.pop(cache_key, None)
-                self._cache_timestamps.pop(cache_key, None)
+            self.invalidate_bag_cache(qr_id=qr_id)
         else:
-            # Clear all caches
-            self._bag_id_cache.clear()
-            self._cache_timestamps.clear()
+            self.invalidate_all_cache()
     
     def clear_old_cache(self):
-        """Clear expired cache entries"""
-        now = time.time()
-        expired_keys = [
-            key for key, timestamp in self._cache_timestamps.items()
-            if now - timestamp > self._cache_ttl
-        ]
-        for key in expired_keys:
-            self._bag_id_cache.pop(key, None)
-            self._cache_timestamps.pop(key, None)
+        """Clear expired cache entries (in-memory only, Redis uses TTL)"""
+        if self._cache_timestamps is not None and self._bag_id_cache is not None:
+            now = time.time()
+            expired_keys = [
+                key for key, timestamp in self._cache_timestamps.items()
+                if now - timestamp > self._cache_ttl
+            ]
+            for key in expired_keys:
+                self._bag_id_cache.pop(key, None)
+                self._cache_timestamps.pop(key, None)
     
     def create_bag_optimized(self, qr_id, bag_type, user_id, dispatch_area=None, name=None, weight_kg=None):
         """
@@ -598,9 +591,15 @@ class QueryOptimizer:
             
             # Update cache with bag ID only (minimal memory)
             if bag:
-                cache_key = qr_id
-                self._bag_id_cache[cache_key] = bag.id
-                self._cache_timestamps[cache_key] = time.time()
+                cache_key = f"tt:bag_id:{qr_id}"
+                if self.redis_client:
+                    try:
+                        self.redis_client.setex(cache_key, self._cache_ttl, str(bag.id))
+                    except Exception:
+                        pass  # Silent fail for cache write
+                elif self._bag_id_cache is not None and self._cache_timestamps is not None:
+                    self._bag_id_cache[cache_key] = bag.id
+                    self._cache_timestamps[cache_key] = time.time()
             
             return bag
         except Exception as e:

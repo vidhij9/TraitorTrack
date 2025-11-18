@@ -245,25 +245,49 @@ logger.info(f"Database: {db_source}")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = False
 
-# Optimized connection pool settings - SCALED FOR 100+ CONCURRENT USERS
-# CRITICAL: Pool size must account for multiple Gunicorn workers
-# Formula: (pool_size + max_overflow) * num_workers < postgres max_connections
-# With 2 workers: (25 + 15) * 2 = 80 connections (safe for max_connections=100)
+# ==================================================================================
+# DATABASE CONNECTION POOL - PRODUCTION-SCALE CONFIGURATION
+# ==================================================================================
+# DESIGNED FOR: 100+ concurrent users with horizontal scalability
+# 
+# Current Configuration (2 workers):
+#   - Base pool: 25 connections per worker × 2 = 50 connections
+#   - Overflow:  15 connections per worker × 2 = 30 connections
+#   - Total capacity: 80 connections (safe for PostgreSQL max_connections=100)
+#
+# Scaling Guide for Higher Loads:
+#
+# For 200+ concurrent users (4 workers):
+#   pool_size = 15, max_overflow = 10
+#   Total: (15 + 10) × 4 = 100 connections
+#   Update gunicorn workers: --workers=4
+#
+# For 500+ concurrent users (8 workers):
+#   pool_size = 10, max_overflow = 5
+#   Total: (10 + 5) × 8 = 120 connections
+#   Update gunicorn workers: --workers=8
+#   Increase PostgreSQL max_connections to 150
+#
+# Formula: (pool_size + max_overflow) × workers < postgres_max_connections
+#
+# NOTE: Each worker needs its own connection pool. Always leave 20% headroom
+# for administrative connections and monitoring tools.
+# ==================================================================================
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 25,  # Per-worker pool (25 * 2 workers = 50 base connections)
-    "max_overflow": 15,  # Per-worker overflow (15 * 2 = 30 overflow connections)
-    "pool_recycle": 300,  # Recycle connections every 5 minutes
-    "pool_pre_ping": True,  # Verify connections before use
-    "pool_timeout": 30,  # Wait up to 30s for connection
+    "pool_size": 25,  # Per-worker pool (25 × 2 workers = 50 base connections)
+    "max_overflow": 15,  # Per-worker overflow (15 × 2 = 30 overflow connections)
+    "pool_recycle": 300,  # Recycle connections every 5 minutes (prevents stale connections)
+    "pool_pre_ping": True,  # Verify connections before use (prevents failed queries)
+    "pool_timeout": 30,  # Wait up to 30s for connection (prevents instant failures)
     "echo": False,
     "echo_pool": False,
     "connect_args": {
         "connect_timeout": 10,  # Database connection timeout
-        "application_name": "traitortrack_web"  # For monitoring
+        "application_name": "traitortrack_web"  # For PostgreSQL monitoring/debugging
     }
 }
 
-logger.info("Database connection pool configured: 25 base + 15 overflow per worker (80 total for 2 workers)")
+logger.info("✅ Database connection pool: 25 base + 15 overflow per worker (80 total for 2 workers)")
 
 # Add database pool monitoring function
 def get_db_pool_stats():
@@ -388,15 +412,15 @@ with app.app_context():
             if not admin:
                 # Create new admin user
                 if not admin_password:
-                    # Generate a secure random password
-                    admin_password = secrets.token_urlsafe(16)
-                    print('=' * 80)
-                    print('WARNING: No ADMIN_PASSWORD environment variable set!')
-                    print('Generated secure random password for admin user:')
-                    print(f'USERNAME: admin')
-                    print(f'PASSWORD: {admin_password}')
-                    print('IMPORTANT: Save this password NOW! It will not be displayed again.')
-                    print('=' * 80)
+                    # SECURITY CRITICAL: Admin password MUST be set via ADMIN_PASSWORD env var
+                    # Refuse to create admin with random password to prevent security issues
+                    logger.error('=' * 80)
+                    logger.error('❌ CRITICAL: ADMIN_PASSWORD environment variable is required!')
+                    logger.error('❌ Admin user cannot be created without explicit password.')
+                    logger.error('📝 Set ADMIN_PASSWORD in deployment settings before starting the app.')
+                    logger.error('💡 Example: ADMIN_PASSWORD=YourSecurePassword123')
+                    logger.error('=' * 80)
+                    raise ValueError("ADMIN_PASSWORD environment variable is required for admin user creation")
                 
                 admin = User()
                 admin.username = 'admin'
