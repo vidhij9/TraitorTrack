@@ -57,7 +57,14 @@ The project utilizes a standard Flask application structure, organizing code int
 - **Two-Factor Authentication (2FA)**: TOTP-based 2FA for admin users with QR code provisioning and strict rate limiting.
 - **Security Features**: Secure password hashing (scrypt), CSRF protection, session validation, security headers, comprehensive rate limiting on authentication routes, and auto-detection of production environment for HTTPS-only cookies. QR code validation prevents SQL injection and XSS.
 - **Password Policy (November 2025)**: Simplified for user convenience - requires only minimum 8 characters (no complexity requirements). This improves usability while maintaining reasonable security for warehouse operations.
-- **Authentication Cache Fix (November 2025)**: Login flow now bypasses all caching layers to prevent stale password hash lookups. All password update operations (user profile, admin reset, password recovery) now include explicit cache invalidation and SQLAlchemy session refresh to ensure immediate authentication with new passwords.
+- **Authentication Cache Fix (November 18, 2025)**: 
+  - **Critical Bug Fixed**: Password changes now properly invalidate caches AFTER database commit (not before), preventing stale password hash lookups
+  - **Root Cause**: Previously, `db.session.expire(user)` was called BEFORE `db.session.commit()`, causing SQLAlchemy to discard pending password changes
+  - **Solution**: Moved cache invalidation (`invalidate_user_cache()` + `db.session.expire()`) to execute AFTER successful commit across all 5 password-change routes
+  - **Routes Fixed**: `/profile/edit`, `/admin/users/<id>/edit`, `/create_user`, `/fix-admin-password`, `/register`
+  - **Impact**: Users can now login immediately with new passwords; old passwords are rejected instantly
+  - Login flow bypasses all caching layers to prevent stale password hash lookups
+- **CSRF Protection Fix (November 18, 2025)**: Child bag scanning AJAX requests now properly include CSRF tokens using `fetchWithCSRF()` helper function, preventing 400 errors on `/process_child_scan_fast` endpoint
 - **Comprehensive Audit Logging**: Tracks all critical security events with GDPR-compliant PII anonymization.
 - **Rate Limiting Strategy**: Utilizes in-memory Flask-Limiter with a fixed-window strategy across various endpoints.
 - **System Health Monitoring**: Provides a real-time metrics endpoint and admin dashboard for tracking database connection pool, cache performance, memory usage, database size, and error counts.
