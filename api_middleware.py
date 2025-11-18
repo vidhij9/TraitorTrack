@@ -159,13 +159,13 @@ def add_cache_headers(max_age=None, etag=None, must_revalidate=False, public=Fal
                 return response
             
             # Public endpoint caching (rare, must be explicitly enabled)
+            cache_control = 'no-cache, no-store, must-revalidate'  # Default
             if max_age is not None:
                 cache_control = f"public, max-age={max_age}"
                 if must_revalidate:
                     cache_control += ", must-revalidate"
-                response.headers['Cache-Control'] = cache_control
-            else:
-                response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            
+            response.headers['Cache-Control'] = cache_control
             
             # ETags only for public endpoints (no user context)
             if etag and public:
@@ -183,7 +183,7 @@ def add_cache_headers(max_age=None, etag=None, must_revalidate=False, public=Fal
                     # Return 304 with minimal headers
                     response_304 = make_response('', 304)
                     response_304.headers['ETag'] = f'"{etag_value}"'
-                    response_304.headers['Cache-Control'] = cache_control if max_age else 'no-cache'
+                    response_304.headers['Cache-Control'] = cache_control
                     return response_304
             
             return response
