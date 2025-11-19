@@ -56,6 +56,9 @@ def is_account_locked(user, db=None):
     Returns:
         tuple: (is_locked: bool, unlock_time: datetime or None, minutes_remaining: int or None)
     """
+    import logging
+    logger = logging.getLogger('password_utils')
+    
     if not user:
         return False, None, None
     
@@ -68,15 +71,18 @@ def is_account_locked(user, db=None):
     # Check if lock has expired
     if user.locked_until <= now:
         # Lock has expired, reset failed attempts and lock status
+        logger.info(f"🔓 LOCK EXPIRED: Account {user.username} lock expired at {user.locked_until}, resetting lockout state")
         if db:
             user.failed_login_attempts = 0
             user.locked_until = None
             user.last_failed_login = None
             db.session.commit()
+            logger.info(f"✅ LOCK RESET: Account {user.username} lockout state cleared successfully")
         return False, None, None
     
     # Account is still locked
     minutes_remaining = int((user.locked_until - now).total_seconds() / 60)
+    logger.warning(f"🔒 ACCOUNT LOCKED: Account {user.username} is locked for {minutes_remaining} more minutes (until {user.locked_until})")
     return True, user.locked_until, minutes_remaining
 
 def record_failed_login(user, db):
@@ -90,6 +96,9 @@ def record_failed_login(user, db):
     Returns:
         tuple: (should_lock: bool, attempts_remaining: int or None, lock_duration: int or None)
     """
+    import logging
+    logger = logging.getLogger('password_utils')
+    
     if not user:
         return False, None, None
     
@@ -97,16 +106,20 @@ def record_failed_login(user, db):
     user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
     user.last_failed_login = datetime.utcnow()
     
+    logger.warning(f"⚠️  FAILED LOGIN: Account {user.username} - attempt {user.failed_login_attempts}/{MAX_FAILED_ATTEMPTS}")
+    
     # Check if we should lock the account
     if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
         # Lock the account
         user.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
         db.session.commit()
+        logger.error(f"🔒 ACCOUNT LOCKED: Account {user.username} locked for {LOCKOUT_DURATION_MINUTES} minutes (until {user.locked_until}) after {MAX_FAILED_ATTEMPTS} failed attempts")
         return True, 0, LOCKOUT_DURATION_MINUTES
     
     # Not locked yet
     attempts_remaining = MAX_FAILED_ATTEMPTS - user.failed_login_attempts
     db.session.commit()
+    logger.info(f"📊 LOGIN ATTEMPT: Account {user.username} has {attempts_remaining} attempts remaining")
     return False, attempts_remaining, None
 
 def record_successful_login(user, db):
@@ -117,14 +130,23 @@ def record_successful_login(user, db):
         user: User model instance
         db: Database session
     """
+    import logging
+    logger = logging.getLogger('password_utils')
+    
     if not user:
         return
     
     # Reset failed login attempts and unlock account
+    had_failed_attempts = user.failed_login_attempts > 0
     user.failed_login_attempts = 0
     user.locked_until = None
     user.last_failed_login = None
     db.session.commit()
+    
+    if had_failed_attempts:
+        logger.info(f"✅ LOGIN SUCCESS: Account {user.username} logged in successfully, failed attempt counter reset")
+    else:
+        logger.info(f"✅ LOGIN SUCCESS: Account {user.username} logged in successfully")
 
 def get_password_requirements_text():
     """
