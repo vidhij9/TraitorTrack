@@ -6571,7 +6571,8 @@ def api_delete_bag():
                 SELECT 
                     COUNT(*) as multi_parent_count
                 FROM link l
-                WHERE l.child_bag_id = ANY((SELECT child_ids FROM child_links))
+                CROSS JOIN child_links cl
+                WHERE l.child_bag_id = ANY(cl.child_ids)
                 GROUP BY l.child_bag_id
                 HAVING COUNT(DISTINCT l.parent_bag_id) > 1
             ),
