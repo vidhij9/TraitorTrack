@@ -82,37 +82,61 @@ The project utilizes a standard Flask application structure, organizing code int
 
 ## Database Configuration
 
-**Environment-Based Database Routing:**
-- **Development Mode** (`REPLIT_DEPLOYMENT` != '1' and `REPLIT_ENVIRONMENT` != 'production'):
-  - Uses Replit's built-in PostgreSQL database
-  - Connection: `DATABASE_URL` (auto-provisioned by Replit)
-  - Database: `heliumdb` on `helium` host
-  - Purpose: Testing, development, and agent iterations without affecting production data
-  
-- **Production Mode** (`REPLIT_DEPLOYMENT` == '1' or `REPLIT_ENVIRONMENT` == 'production'):
+**Environment-Based Database Routing (UPDATED 2025-11-19):**
+
+**Safety-First Routing Logic:**
+- **Published Deployment** (`REPLIT_DEPLOYMENT` == '1' **ONLY**):
   - Uses AWS RDS PostgreSQL database
   - Connection: `PRODUCTION_DATABASE_URL` environment variable
   - Database: `traitortrack_prod` on AWS RDS (ap-south-1)
   - Contains 344,683+ production bags and all live user data
   - **CRITICAL**: Never delete or modify production data
+  
+- **Development/Testing** (All other environments):
+  - Uses Replit's built-in PostgreSQL database
+  - Connection: `DATABASE_URL` (auto-provisioned by Replit)
+  - Database: `heliumdb` on `helium` host
+  - Purpose: Testing, development, and agent iterations without affecting production data
+  - **SAFE**: Tests NEVER connect to AWS RDS
 
-**Configuration Logic (app.py lines 239-266):**
+**Safety Improvements (app.py lines 75-308):**
 ```python
-if is_production:
-    # Production: Use PRODUCTION_DATABASE_URL (AWS RDS)
+# Only actual published deployments use AWS RDS
+is_published_deployment = os.environ.get('REPLIT_DEPLOYMENT') == '1'
+
+# Safety override: Force Replit DB even in deployment
+force_dev_db = os.environ.get('FORCE_DEV_DB', '').lower() in ('1', 'true', 'yes')
+
+# Database selection
+if is_published_deployment and not force_dev_db:
+    # Published deployment: Use AWS RDS (PRODUCTION_DATABASE_URL)
     database_url = os.environ.get("PRODUCTION_DATABASE_URL") or os.environ.get("DATABASE_URL")
-    db_source = "External Production Database (PRODUCTION_DATABASE_URL)"
 else:
-    # Development: Use DATABASE_URL (Replit PostgreSQL)
+    # Development/Testing: ALWAYS use Replit PostgreSQL (DATABASE_URL)
     database_url = os.environ.get("DATABASE_URL")
-    db_source = "Replit PostgreSQL (DATABASE_URL)"
 ```
+
+**Key Safety Features:**
+1. Tests and development ALWAYS use Replit PostgreSQL
+2. Only actual published apps (`REPLIT_DEPLOYMENT='1'`) use AWS RDS
+3. `FORCE_DEV_DB=1` can override to use Replit DB even in deployment
+4. Comprehensive logging shows which database is active
+5. Prevents accidental production database access during testing
 
 **Database Schema:**
 Both databases use the same schema with Flask-Migrate for migrations:
 - 11 tables: user, bag, link, bill, bill_bag, scan, audit_log, notification, promotionrequest, statistics_cache, alembic_version
-- Automatic migrations on app startup
+- Automatic migrations on app startup via `flask db upgrade`
+- Latest migration: `d54b4a63f31c` - Syncs audit_log and notification schema
 - Development database is clean/testable; production database is protected
+
+**Schema Synchronization:**
+- Migration `d54b4a63f31c_sync_audit_log_and_notification_schema_.py`:
+  - Adds `before_state`, `after_state`, `request_id` columns to audit_log table
+  - Creates notification table with proper indexes and foreign keys
+  - Uses conditional DDL to safely add columns only if they don't exist
+  - Works on both development (new) and production (manual patches applied) databases
+  - Downgrade is blocked in production to prevent data loss
 
 ## External Dependencies
 - **PostgreSQL**: Primary relational database (Replit for dev, AWS RDS for production).

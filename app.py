@@ -69,11 +69,31 @@ if not session_secret:
     raise ValueError("SESSION_SECRET environment variable is required for security")
 app.secret_key = session_secret
 
-# Detect production environment - check both Replit's standard env vars
+# ==================================================================================
+# ENVIRONMENT DETECTION - Determines which database to use
+# ==================================================================================
+# PUBLISHED DEPLOYMENT: Uses AWS RDS (PRODUCTION_DATABASE_URL) or Replit PostgreSQL
+# DEVELOPMENT/TESTING: Always uses Replit PostgreSQL (DATABASE_URL)
+#
+# Safety: To prevent tests from accidentally using production database:
+# - Only REPLIT_DEPLOYMENT='1' triggers production mode (actual published app)
+# - REPLIT_ENVIRONMENT='production' alone is NOT sufficient
+# - Tests and development ALWAYS use Replit's built-in PostgreSQL
+# - Override with FORCE_DEV_DB=1 to force Replit DB even in deployment
+# ==================================================================================
+
+# Detect if we're in an actual published deployment (not just testing/preview)
+is_published_deployment = os.environ.get('REPLIT_DEPLOYMENT') == '1'
+
+# Safety flag: Allow forcing development database for testing
+force_dev_db = os.environ.get('FORCE_DEV_DB', '').lower() in ('1', 'true', 'yes')
+
+# Determine production mode (for security settings, rate limits, etc.)
+# This affects HTTPS-only cookies, rate limiting strictness, etc.
 is_production = (
-    os.environ.get('REPLIT_DEPLOYMENT') == '1' or
+    is_published_deployment or 
     os.environ.get('REPLIT_ENVIRONMENT') == 'production'
-)
+) and not force_dev_db
 
 # Redis Configuration - for sessions and rate limiting
 # REDIS_URL format: redis://[[username]:[password]]@host:port/db or rediss:// for SSL
@@ -236,11 +256,21 @@ def ratelimit_handler(e):
 
 logger.info(f"Rate limiting storage: {limiter_backend}")
 
-# Database configuration - flexible for Replit deployments with external DB option
-# PRODUCTION: Supports both Replit PostgreSQL (DATABASE_URL) and external databases (PRODUCTION_DATABASE_URL)
-# DEVELOPMENT: Uses Replit PostgreSQL (DATABASE_URL)
-if is_production:
-    # Production: Try PRODUCTION_DATABASE_URL first, fall back to DATABASE_URL
+# ==================================================================================
+# DATABASE CONFIGURATION - Safe environment-based routing
+# ==================================================================================
+# PUBLISHED DEPLOYMENT: Uses AWS RDS (PRODUCTION_DATABASE_URL) if available
+# DEVELOPMENT/TESTING: ALWAYS uses Replit PostgreSQL (DATABASE_URL)
+#
+# Safety Rules:
+# 1. Tests NEVER connect to AWS RDS production database
+# 2. Only actual published deployments (REPLIT_DEPLOYMENT='1') use AWS RDS
+# 3. Force Replit DB with FORCE_DEV_DB=1 for testing in deployed environments
+# ==================================================================================
+
+# Determine which database to use
+if is_published_deployment and not force_dev_db:
+    # Published deployment: Try PRODUCTION_DATABASE_URL first, fall back to DATABASE_URL
     database_url = os.environ.get("PRODUCTION_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if not database_url:
         logger.error("❌ CRITICAL: No database configured in production environment")
@@ -249,21 +279,30 @@ if is_production:
     
     # Determine database source for logging
     if os.environ.get("PRODUCTION_DATABASE_URL"):
-        db_source = "External Production Database (PRODUCTION_DATABASE_URL)"
-        logger.info(f"✅ Production database configured: {database_url.split('@')[-1] if '@' in database_url else 'configured'}")
+        db_source = "AWS RDS Production Database (PRODUCTION_DATABASE_URL)"
+        db_host = database_url.split('@')[-1].split('/')[0] if '@' in database_url else 'configured'
+        logger.info(f"✅ Production deployment using AWS RDS: {db_host}")
     else:
         db_source = "Replit PostgreSQL (DATABASE_URL)"
-        logger.info("✅ Using Replit built-in PostgreSQL for production deployment")
+        logger.info("✅ Production deployment using Replit built-in PostgreSQL")
         logger.info("ℹ️  For dedicated production database, set PRODUCTION_DATABASE_URL")
 else:
-    # Development: Use Replit database
+    # Development/Testing: ALWAYS use Replit PostgreSQL for safety
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        raise ValueError("DATABASE_URL not found - required for development environment")
-    db_source = "Replit PostgreSQL (DATABASE_URL)"
+        raise ValueError("DATABASE_URL not found - required for development/testing")
+    
+    db_source = "Replit PostgreSQL (DATABASE_URL) - Development/Testing"
+    if force_dev_db:
+        logger.info("🔒 FORCE_DEV_DB enabled - using Replit PostgreSQL (safe mode)")
+    logger.info(f"✅ Development/Testing using Replit PostgreSQL")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-logger.info(f"Database: {db_source}")
+logger.info(f"📊 Database: {db_source}")
+
+# Log safety information
+if not is_published_deployment:
+    logger.info("🛡️  Database Safety: Tests and development use Replit PostgreSQL only")
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = False
