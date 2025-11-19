@@ -8537,7 +8537,7 @@ def emergency_admin_management():
     import os
     from models import User, UserRole
     from werkzeug.security import generate_password_hash
-    from auth_utils import create_audit_log
+    from audit_utils import log_audit_with_snapshot
     
     try:
         # SECURITY: Require emergency key
@@ -8553,12 +8553,11 @@ def emergency_admin_management():
         import hmac
         if not hmac.compare_digest(str(provided_key), str(emergency_key)):
             app.logger.warning(f"🚨 EMERGENCY ENDPOINT: Invalid key attempt from {request.remote_addr}")
-            create_audit_log(
-                user_id=None,
+            log_audit_with_snapshot(
                 action='emergency_admin_unauthorized',
-                table_name='user',
-                record_id=None,
-                changes={'ip': request.remote_addr, 'reason': 'Invalid emergency key'}
+                entity_type='user',
+                entity_id=None,
+                details={'ip': request.remote_addr, 'reason': 'Invalid emergency key'}
             )
             return jsonify({'error': 'Unauthorized'}), 403
         
@@ -8580,12 +8579,12 @@ def emergency_admin_management():
             db.session.commit()
             
             app.logger.warning(f"🚨 EMERGENCY UNLOCK: Account {username} unlocked via emergency endpoint")
-            create_audit_log(
-                user_id=user.id,
+            log_audit_with_snapshot(
                 action='emergency_unlock',
-                table_name='user',
-                record_id=user.id,
-                changes={
+                entity_type='user',
+                entity_id=user.id,
+                after_state=user,
+                details={
                     'username': username,
                     'unlocked_by': 'emergency_endpoint',
                     'ip': request.remote_addr
@@ -8635,12 +8634,12 @@ def emergency_admin_management():
             db.session.commit()
             
             app.logger.warning(f"🚨 EMERGENCY CREATE: New admin account {username} created via emergency endpoint")
-            create_audit_log(
-                user_id=new_admin.id,
+            log_audit_with_snapshot(
                 action='emergency_create_admin',
-                table_name='user',
-                record_id=new_admin.id,
-                changes={
+                entity_type='user',
+                entity_id=new_admin.id,
+                after_state=new_admin,
+                details={
                     'username': username,
                     'email': email,
                     'role': 'admin',
