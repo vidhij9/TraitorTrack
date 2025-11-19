@@ -80,8 +80,42 @@ The project utilizes a standard Flask application structure, organizing code int
 - **Link**: Defines parent-child bag relationships.
 - **BillBag**: Association table linking bills to parent bags.
 
+## Database Configuration
+
+**Environment-Based Database Routing:**
+- **Development Mode** (`REPLIT_DEPLOYMENT` != '1' and `REPLIT_ENVIRONMENT` != 'production'):
+  - Uses Replit's built-in PostgreSQL database
+  - Connection: `DATABASE_URL` (auto-provisioned by Replit)
+  - Database: `heliumdb` on `helium` host
+  - Purpose: Testing, development, and agent iterations without affecting production data
+  
+- **Production Mode** (`REPLIT_DEPLOYMENT` == '1' or `REPLIT_ENVIRONMENT` == 'production'):
+  - Uses AWS RDS PostgreSQL database
+  - Connection: `PRODUCTION_DATABASE_URL` environment variable
+  - Database: `traitortrack_prod` on AWS RDS (ap-south-1)
+  - Contains 344,683+ production bags and all live user data
+  - **CRITICAL**: Never delete or modify production data
+
+**Configuration Logic (app.py lines 239-266):**
+```python
+if is_production:
+    # Production: Use PRODUCTION_DATABASE_URL (AWS RDS)
+    database_url = os.environ.get("PRODUCTION_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    db_source = "External Production Database (PRODUCTION_DATABASE_URL)"
+else:
+    # Development: Use DATABASE_URL (Replit PostgreSQL)
+    database_url = os.environ.get("DATABASE_URL")
+    db_source = "Replit PostgreSQL (DATABASE_URL)"
+```
+
+**Database Schema:**
+Both databases use the same schema with Flask-Migrate for migrations:
+- 11 tables: user, bag, link, bill, bill_bag, scan, audit_log, notification, promotionrequest, statistics_cache, alembic_version
+- Automatic migrations on app startup
+- Development database is clean/testable; production database is protected
+
 ## External Dependencies
-- **PostgreSQL**: Primary relational database.
+- **PostgreSQL**: Primary relational database (Replit for dev, AWS RDS for production).
 - **Gunicorn**: WSGI HTTP Server.
 - **psutil**: System and process monitoring.
 - **Flask-Login**: User session and authentication management.
@@ -90,5 +124,5 @@ The project utilizes a standard Flask application structure, organizing code int
 - **werkzeug**: Secure password hashing.
 - **pyotp**: TOTP generation and verification.
 - **qrcode**: QR code generation for 2FA setup.
-- **Redis**: For production session management.
+- **Redis**: Optional for production session management (fallback to signed cookies).
 - **SendGrid**: Email service for password reset and notifications.
