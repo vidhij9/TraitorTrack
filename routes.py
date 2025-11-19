@@ -8510,3 +8510,159 @@ def test_reset_lock():
     except Exception as e:
         app.logger.error(f"TEST RESET ERROR: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/emergency/admin', methods=['POST'])
+@csrf_compat.exempt
+def emergency_admin_management():
+    """
+    EMERGENCY ONLY: Secure endpoint for critical admin account operations
+    
+    Operations:
+    - unlock: Clear account lockout
+    - create: Create new admin account
+    
+    Security: Requires EMERGENCY_ADMIN_KEY environment variable
+    
+    Usage:
+    POST /api/emergency/admin
+    {
+        "key": "your-emergency-key",
+        "operation": "unlock" | "create",
+        "username": "admin",
+        "password": "newpassword123",  // only for create operation
+        "email": "admin@example.com"   // only for create operation
+    }
+    """
+    import os
+    from models import User, UserRole
+    from werkzeug.security import generate_password_hash
+    from auth_utils import create_audit_log
+    
+    try:
+        # SECURITY: Require emergency key
+        emergency_key = os.environ.get('EMERGENCY_ADMIN_KEY')
+        if not emergency_key:
+            app.logger.error("🚨 EMERGENCY ENDPOINT: EMERGENCY_ADMIN_KEY not configured")
+            return jsonify({'error': 'Emergency endpoint not configured'}), 503
+        
+        data = request.get_json(silent=True) or {}
+        provided_key = data.get('key', '')
+        
+        # Constant-time comparison to prevent timing attacks
+        import hmac
+        if not hmac.compare_digest(str(provided_key), str(emergency_key)):
+            app.logger.warning(f"🚨 EMERGENCY ENDPOINT: Invalid key attempt from {request.remote_addr}")
+            create_audit_log(
+                user_id=None,
+                action='emergency_admin_unauthorized',
+                table_name='user',
+                record_id=None,
+                changes={'ip': request.remote_addr, 'reason': 'Invalid emergency key'}
+            )
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        operation = data.get('operation', '').lower()
+        username = data.get('username', '').strip()
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        # OPERATION: Unlock account
+        if operation == 'unlock':
+            user = User.query.filter_by(username=username).first()
+            if not user:
+                return jsonify({'error': f'User {username} not found'}), 404
+            
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            user.last_failed_login = None
+            db.session.commit()
+            
+            app.logger.warning(f"🚨 EMERGENCY UNLOCK: Account {username} unlocked via emergency endpoint")
+            create_audit_log(
+                user_id=user.id,
+                action='emergency_unlock',
+                table_name='user',
+                record_id=user.id,
+                changes={
+                    'username': username,
+                    'unlocked_by': 'emergency_endpoint',
+                    'ip': request.remote_addr
+                }
+            )
+            
+            return jsonify({
+                'success': True,
+                'operation': 'unlock',
+                'username': username,
+                'message': f'Account {username} unlocked successfully'
+            }), 200
+        
+        # OPERATION: Create admin account
+        elif operation == 'create':
+            email = data.get('email', '').strip()
+            password = data.get('password', '').strip()
+            
+            if not email or not password:
+                return jsonify({'error': 'Email and password required for create operation'}), 400
+            
+            # Check if user already exists
+            existing_user = User.query.filter(
+                (User.username == username) | (User.email == email)
+            ).first()
+            
+            if existing_user:
+                return jsonify({'error': f'User with username {username} or email {email} already exists'}), 409
+            
+            # Validate password strength
+            if len(password) < 8:
+                return jsonify({'error': 'Password must be at least 8 characters'}), 400
+            
+            # Create new admin user
+            new_admin = User(
+                username=username,
+                email=email,
+                password_hash=generate_password_hash(password),
+                role=UserRole.ADMIN.value,
+                verified=True,
+                failed_login_attempts=0,
+                locked_until=None,
+                last_failed_login=None
+            )
+            
+            db.session.add(new_admin)
+            db.session.commit()
+            
+            app.logger.warning(f"🚨 EMERGENCY CREATE: New admin account {username} created via emergency endpoint")
+            create_audit_log(
+                user_id=new_admin.id,
+                action='emergency_create_admin',
+                table_name='user',
+                record_id=new_admin.id,
+                changes={
+                    'username': username,
+                    'email': email,
+                    'role': 'admin',
+                    'created_by': 'emergency_endpoint',
+                    'ip': request.remote_addr
+                }
+            )
+            
+            return jsonify({
+                'success': True,
+                'operation': 'create',
+                'username': username,
+                'email': email,
+                'role': 'admin',
+                'message': f'Admin account {username} created successfully'
+            }), 201
+        
+        else:
+            return jsonify({'error': f'Invalid operation: {operation}. Must be "unlock" or "create"'}), 400
+    
+    except Exception as e:
+        app.logger.error(f"🚨 EMERGENCY ENDPOINT ERROR: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
