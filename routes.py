@@ -1535,8 +1535,7 @@ def get_login_rate_limit():
     """Dynamic rate limit function for login - evaluated per request"""
     # Check all possible production environment indicators
     if (os.environ.get('REPLIT_DEPLOYMENT') == '1' or 
-        os.environ.get('REPLIT_ENVIRONMENT') == 'production' or
-        os.environ.get('ENVIRONMENT') == 'production'):
+        os.environ.get('REPLIT_ENVIRONMENT') == 'production'):
         return "20 per hour"  # Strict in production
     return "1000 per hour"  # Relaxed in development
 
@@ -8440,8 +8439,7 @@ def config_check():
     
     is_production = (
         os.environ.get('REPLIT_DEPLOYMENT') == '1' or
-        os.environ.get('REPLIT_ENVIRONMENT') == 'production' or
-        os.environ.get('ENVIRONMENT') == 'production'
+        os.environ.get('REPLIT_ENVIRONMENT') == 'production'
     )
     
     config = {

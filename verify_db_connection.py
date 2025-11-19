@@ -14,7 +14,7 @@ def verify_database_connection(db_url=None):
         # Auto-detect based on environment (same logic as app.py)
         is_production = (
             os.environ.get('REPLIT_DEPLOYMENT') == '1' or
-            os.environ.get('ENVIRONMENT') == 'production'
+            os.environ.get('REPLIT_ENVIRONMENT') == 'production'
         )
         
         if is_production:
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     # Check environment
     is_production = (
         os.environ.get('REPLIT_DEPLOYMENT') == '1' or
-        os.environ.get('ENVIRONMENT') == 'production'
+        os.environ.get('REPLIT_ENVIRONMENT') == 'production'
     )
     
     print(f"\n🌍 Environment: {'PRODUCTION' if is_production else 'DEVELOPMENT'}")

@@ -72,8 +72,7 @@ app.secret_key = session_secret
 # Detect production environment - check both Replit's standard env vars
 is_production = (
     os.environ.get('REPLIT_DEPLOYMENT') == '1' or
-    os.environ.get('REPLIT_ENVIRONMENT') == 'production' or
-    os.environ.get('ENVIRONMENT') == 'production'
+    os.environ.get('REPLIT_ENVIRONMENT') == 'production'
 )
 
 # Redis Configuration - for sessions and rate limiting
@@ -606,7 +605,7 @@ def after_request(response):
         # Restrict form submissions to self only
         "form-action 'self'",
         # Upgrade insecure requests in production
-        "upgrade-insecure-requests" if (os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production' or os.environ.get('ENVIRONMENT') == 'production') else ""
+        "upgrade-insecure-requests" if (os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production') else ""
     ]
     # Filter out empty directives and join with semicolons
     csp_policy = "; ".join([directive for directive in csp_directives if directive])
@@ -614,7 +613,7 @@ def after_request(response):
     
     # Strict Transport Security (HSTS) - Force HTTPS in production
     # Tells browsers to only connect via HTTPS for 1 year (31536000 seconds)
-    if os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production' or os.environ.get('ENVIRONMENT') == 'production':
+    if os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production':
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
     
     # Referrer Policy - Control referrer information leakage
@@ -653,7 +652,7 @@ def after_request(response):
     # Flask overrides SESSION_COOKIE_SECURE based on X-Forwarded-Proto from Replit proxy
     # This causes cookies to be Secure=true even though gunicorn serves HTTP
     # Browsers then refuse to send Secure cookies over HTTP, breaking session persistence
-    if not (os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production' or os.environ.get('ENVIRONMENT') == 'production'):
+    if not (os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production'):
         # Get all Set-Cookie headers
         cookies = response.headers.getlist('Set-Cookie')
         if cookies:

@@ -271,7 +271,7 @@ def setup_health_monitoring(app):
         check_redis = request.args.get('check_redis', 'false').lower() == 'true'
         detailed = request.args.get('detailed', 'false').lower() == 'true'
         
-        is_production = os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('ENVIRONMENT') == 'production'
+        is_production = os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production'
         
         response_data = {
             'status': 'healthy',

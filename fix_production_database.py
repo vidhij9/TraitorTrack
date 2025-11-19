@@ -125,7 +125,7 @@ if __name__ == "__main__":
     # Check if we're in production
     is_production = (
         os.environ.get('REPLIT_DEPLOYMENT') == '1' or
-        os.environ.get('ENVIRONMENT') == 'production'
+        os.environ.get('REPLIT_ENVIRONMENT') == 'production'
     )
     
     if not is_production:
