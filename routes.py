@@ -8470,3 +8470,43 @@ def config_check():
     }
     
     return jsonify(config)
+
+
+@app.route('/api/test/reset_lock', methods=['POST'])
+@csrf_compat.exempt
+def test_reset_lock():
+    """TEST ONLY: Reset account lockout for testing purposes (flag-gated, CSRF-exempt)"""
+    import os
+    from models import User
+    
+    test_mode = os.environ.get('TEST_MODE', '').lower() in ('1', 'true', 'yes')
+    is_dev = os.environ.get('REPLIT_DEPLOYMENT') != '1'
+    
+    if not (test_mode or is_dev):
+        app.logger.warning("TEST ENDPOINT ACCESS DENIED: /api/test/reset_lock called in production without TEST_MODE")
+        return jsonify({'error': 'Endpoint disabled in production'}), 403
+    
+    try:
+        data = request.get_json(silent=True) or {}
+        username = data.get('username', 'admin')
+        
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            return jsonify({'error': f'User {username} not found'}), 404
+        
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        user.last_failed_login = None
+        db.session.commit()
+        
+        app.logger.info(f"TEST RESET: Lockout cleared for user {username}")
+        
+        return jsonify({
+            'success': True,
+            'username': username,
+            'message': 'Lockout reset successfully'
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"TEST RESET ERROR: {str(e)}")
+        return jsonify({'error': str(e)}), 500
