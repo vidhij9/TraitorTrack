@@ -46,6 +46,7 @@ The project utilizes a standard Flask application structure, organizing code int
 - **Comprehensive Audit Logging**: Tracks all critical security events with GDPR-compliant PII anonymization.
 - **System Health Monitoring**: Provides a real-time metrics endpoint and admin dashboard for tracking database connection pool, cache performance, memory usage, database size, and error counts.
 - **Deployment**: Configured for Autoscale and cloud environments using `gunicorn` with environment variable-driven configuration. Redis is optional.
+- **Production Environment Detection**: Uses REPLIT_DEPLOYMENT (=='1') or REPLIT_ENVIRONMENT (=='production') for automatic production mode detection. When detected, enables HTTPS-only cookies, HSTS headers, strict rate limiting (20 login attempts/hour), and CSP upgrade-insecure-requests. Development mode uses relaxed settings (HTTP cookies OK, 1000 login attempts/hour) for local testing.
 - **Automatic Database Migrations**: Flask-Migrate is configured for automatic migrations on app startup.
 - **Offline Support**: Features a `localStorage`-based offline queue with auto-retry and optimistic UI updates.
 - **Undo Functionality**: Backend endpoint and UI for undoing the most recent scan within a 1-hour window.
