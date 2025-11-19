@@ -1591,8 +1591,14 @@ def login():
                 flash('Invalid username or password.', 'error')
                 return render_template('login.html')
             
+            # CRITICAL: Expire user object again to ensure fresh lockout data
+            # This prevents cached lockout state from blocking valid logins
+            db.session.expire(user)
+            db.session.refresh(user)
+            
             # Check if account is locked (pass db to allow reset of expired locks)
             is_locked, unlock_time, minutes_remaining = is_account_locked(user, db)
+            app.logger.info(f"LOCKOUT CHECK: is_locked={is_locked}, failed_attempts={user.failed_login_attempts}, locked_until={user.locked_until}")
             if is_locked:
                 app.logger.warning(f"LOGIN BLOCKED: Account {username} is locked for {minutes_remaining} more minutes")
                 # Audit log: Blocked login attempt (account locked)
