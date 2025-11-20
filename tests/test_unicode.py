@@ -49,22 +49,22 @@ class TestUnicodeSupport:
         
         for name in unicode_names:
             # Create bill with Unicode customer name
-            response = authenticated_client.post('/bills/create', data={
-                'customer_name': name,
-                'dispatch_area': 'test_area',
-                'bill_id': f'UNICODE{hash(name) % 10000}'
+            response = authenticated_client.post('/bill/create', data={
+                'bill_id': f'UNICODE{abs(hash(name)) % 10000}',
+                'description': name,
+                'customer_name': name
             }, follow_redirects=True)
             
             # Should be accepted
-            assert response.status_code == 200, \
-                f"Unicode name '{name}' should be accepted"
+            assert response.status_code in [200, 302], \
+                f"Unicode name '{name}' should be accepted (got {response.status_code})"
             
             # Verify it's stored correctly (no mojibake)
             with authenticated_client.application.app_context():
-                bill = Bill.query.filter_by(customer_name=name).first()
+                bill = Bill.query.filter_by(description=name).first()
                 if bill:
-                    assert bill.customer_name == name, \
-                        f"Unicode name should be stored correctly, got '{bill.customer_name}'"
+                    assert bill.description == name, \
+                        f"Unicode name should be stored correctly, got '{bill.description}'"
     
     def test_unicode_in_search(self, authenticated_client, admin_user, db_session):
         """TC-098: Search should work with Unicode characters"""

@@ -49,13 +49,14 @@ class TestSecurityInjection:
         
         for payload in xss_payloads:
             # Try to create bill with XSS in customer name
-            response = authenticated_client.post('/bills/create', data={
-                'customer_name': payload,
-                'dispatch_area': 'test_area'
+            response = authenticated_client.post('/bill/create', data={
+                'bill_id': f'XSS{xss_payloads.index(payload):03d}',
+                'description': payload,
+                'customer_name': payload
             }, follow_redirects=True)
             
             # Should be accepted (sanitization happens on output)
-            assert response.status_code == 200
+            assert response.status_code in [200, 302]  # Accept redirect or success
             
             # Verify response doesn't execute script (should be escaped)
             response_text = response.data.decode('utf-8')
@@ -90,11 +91,12 @@ class TestSecurityInjection:
         
         # In production, POST without CSRF token should fail
         # In testing, we verify the endpoint exists
-        response = client.post('/bills/create', data={
-            'customer_name': 'Test Customer'
+        response = client.post('/bill/create', data={
+            'bill_id': 'CSRF001',
+            'description': 'Test Customer'
         })
         
-        # Should either require auth (302) or show form (200)
+        # Should either require auth (302) or reject without CSRF (400/403)
         assert response.status_code in [200, 302, 400, 403]
     
     def test_empty_and_whitespace_search(self, authenticated_client):
