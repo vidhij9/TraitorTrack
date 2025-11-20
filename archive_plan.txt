@@ -1,0 +1,57 @@
+# File Archive Plan - Organized Cleanup
+
+## KEEP (Essential Current Documentation)
+- replit.md (main project documentation)
+- TEST_CASES.md (comprehensive testing guide)
+- FEATURES.md (feature documentation)
+- USER_GUIDE_DISPATCHERS_BILLERS.md (end-user guide)
+- OPERATIONAL_RUNBOOK.md (operational procedures)
+- ADMIN_GUIDE_TROUBLESHOOTING.md (admin troubleshooting)
+
+## ARCHIVE - Redundant Deployment Guides (7 files)
+- DEPLOYMENT_CHECKLIST.md
+- DEPLOYMENT_LOGIN_ISSUE.md (specific issue - resolved)
+- DEPLOYMENT.md
+- DEPLOYMENT_READINESS.md
+- PRE_DEPLOYMENT_CHECKLIST.md
+- PRODUCTION_DEPLOYMENT_CHECKLIST.md
+- PRODUCTION_DEPLOYMENT_GUIDE.md
+
+## ARCHIVE - Database Fix Guides (completed work, 4 files)
+- AWS_DATABASE_FIX_GUIDE.md
+- production_database_fix.md
+- DATABASE_SETUP_SUMMARY.md
+- AWS_RDS_SETUP.md (use replit.md instead)
+
+## ARCHIVE - Optimization/Performance Reports (historical, 5 files)
+- API_OPTIMIZATION_SUMMARY.md
+- performance_optimization_report.md
+- PERFORMANCE_RESULTS.md
+- CHANGES_SUMMARY.md
+- BUG_REPORT_AND_FIXES.md
+- CSRF_SECURITY_ANALYSIS.md (completed analysis)
+
+## ARCHIVE - Testing Summaries (outdated, 3 files)
+- TESTING.md
+- TESTING_SUMMARY.md
+- TEST_RESULTS.md
+
+## ARCHIVE - Future Feature Guides (not needed yet, 3 files)
+- STATIC_ASSET_CDN_GUIDE.md
+- DATABASE_BACKUP_AUTOMATION.md
+- DATABASE_READ_REPLICA_GUIDE.md
+- DISASTER_RECOVERY_PROCEDURES.md
+- PERFORMANCE_BENCHMARKING_GUIDE.md
+
+## ARCHIVE - All Load Test Results (16 CSV files)
+- load_test_*.csv (all variants)
+
+## CONSOLIDATE/KEEP - Configuration Guides (review individually)
+- REDIS_CONFIGURATION.md (keep - important config)
+- SESSION_CONFIGURATION.md (keep - important config)
+- REQUEST_TRACKING_README.md (keep - feature doc)
+- API_OPTIMIZATION_GUIDE.md (keep - reference)
+- AUDIT_LOGGING_GUIDE.md (keep - important feature)
+- OPTIMIZATION_RECOMMENDATIONS.md (keep - future improvements)
+
+Total files to archive: ~30 files
