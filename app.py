@@ -493,13 +493,14 @@ with app.app_context():
                 db.session.add(admin)
                 db.session.commit()
                 logger.info("Admin user created successfully")
-            elif admin_password:
-                # Update existing admin password if ADMIN_PASSWORD is set
+            elif admin_password and os.environ.get('FORCE_ADMIN_PASSWORD_RESET') == '1':
+                # Only update existing admin password if explicitly requested via FORCE_ADMIN_PASSWORD_RESET
+                # This prevents accidental password resets on every deployment
                 admin.set_password(admin_password)
                 admin.role = 'admin'
                 admin.verified = True
                 db.session.commit()
-                logger.info("Admin password synchronized with ADMIN_PASSWORD environment variable")
+                logger.info("Admin password force reset via FORCE_ADMIN_PASSWORD_RESET flag")
             
             logger.info("Database initialized successfully")
             
