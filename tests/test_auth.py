@@ -1,6 +1,8 @@
 import pytest
 from flask import session
 
+pytestmark = pytest.mark.integration  # Mark all tests as integration tests
+
 class TestAuthentication:
     def test_login_page_loads(self, client):
         """Test that login page loads"""

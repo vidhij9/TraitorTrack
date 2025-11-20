@@ -2,6 +2,8 @@ import pytest
 from models import Bag, Link
 from flask import session
 
+pytestmark = pytest.mark.integration  # Mark all tests as integration tests
+
 class TestBagManagement:
     def test_create_parent_bag(self, authenticated_client, db_session):
         """Test creating a parent bag via web interface"""

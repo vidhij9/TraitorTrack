@@ -1,6 +1,8 @@
 import pytest
 from models import User, Bag, Bill, Link, BillBag, UserRole, BagType
 
+pytestmark = pytest.mark.unit  # Mark all tests in this file as unit tests
+
 class TestUserModel:
     def test_create_user(self, db_session):
         """Test creating a user"""
