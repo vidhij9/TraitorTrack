@@ -82,7 +82,7 @@ The project utilizes a standard Flask application structure, organizing code int
 
 ## Database Configuration
 
-**Environment-Based Database Routing (UPDATED 2025-11-19):**
+**Environment-Based Database Routing (UPDATED 2025-11-20):**
 
 **Safety-First Routing Logic:**
 - **Published Deployment** (`REPLIT_DEPLOYMENT` == '1' **ONLY**):
@@ -129,6 +129,23 @@ Both databases use the same schema with Flask-Migrate for migrations:
 - Automatic migrations on app startup via `flask db upgrade`
 - Latest migration: `d54b4a63f31c` - Syncs audit_log and notification schema
 - Development database is clean/testable; production database is protected
+
+## Admin Password Management (CRITICAL - Updated 2025-11-20)
+
+**Password Reset Prevention:**
+- **Problem Fixed**: Admin password was being reset on every app startup due to ADMIN_PASSWORD environment variable
+- **Solution**: Modified app.py to only reset password when FORCE_ADMIN_PASSWORD_RESET=1 is explicitly set
+- **Production Fix**: Run `python fix_admin_passwords.py` once to properly set admin passwords
+
+**Admin Accounts:**
+- Primary: `admin` / `vidhi2029`
+- Backup: `superadmin` / `vidhi2029`
+- Both have full admin role access
+
+**Emergency Recovery:**
+- Use `/api/emergency/admin` endpoint with EMERGENCY_ADMIN_KEY to unlock or create admin accounts
+- Script `fix_admin_passwords.py` safely resets passwords without affecting bag data
+- Always verify bag count before and after any admin operations
 
 **Schema Synchronization:**
 - Migration `d54b4a63f31c_sync_audit_log_and_notification_schema_.py`:
