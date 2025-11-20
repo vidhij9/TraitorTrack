@@ -3663,6 +3663,8 @@ def delete_bag(bag_id):
         
         # Re-query bag with lock held
         bag = Bag.query.get(bag_id)
+        if not bag:
+            return jsonify({'success': False, 'message': 'Bag not found'}), 404
         
         # Check if bag is linked to a bill (re-query WITH locks)
         if bag.type == 'parent':
@@ -4840,7 +4842,7 @@ def view_bill(bill_id):
     scans = []
     if parent_bag_ids:
         from sqlalchemy.orm import joinedload
-        scans = Scan.query.options(joinedload(Scan.user)).filter(
+        scans = Scan.query.options(joinedload(Scan.user)).filter(  # type: ignore[arg-type]
             Scan.parent_bag_id.in_(parent_bag_ids)
         ).order_by(desc(Scan.timestamp)).limit(100).all()
     
@@ -5579,6 +5581,9 @@ def bag_details(qr_id):
         
         # Build objects from pre-fetched data
         bag = bag_objects_dict.get(bag_data['id'])
+        if not bag:
+            flash('Bag not found', 'error')
+            return redirect(url_for('bag_management'))
         
         child_bags = []
         if children_json:
@@ -5626,11 +5631,11 @@ def bag_details(qr_id):
         # Get scans with eager loading in single query
         scans = []
         if bag.type == 'parent':
-            scans = Scan.query.options(joinedload(Scan.user)).filter(
+            scans = Scan.query.options(joinedload(Scan.user)).filter(  # type: ignore[arg-type]
                 Scan.parent_bag_id == bag.id
             ).order_by(desc(Scan.timestamp)).limit(50).all()
         else:
-            scans = Scan.query.options(joinedload(Scan.user)).filter(
+            scans = Scan.query.options(joinedload(Scan.user)).filter(  # type: ignore[arg-type]
                 Scan.child_bag_id == bag.id
             ).order_by(desc(Scan.timestamp)).limit(50).all()
         
@@ -8619,7 +8624,7 @@ def emergency_admin_management():
                 return jsonify({'error': 'Password must be at least 8 characters'}), 400
             
             # Create new admin user
-            new_admin = User(
+            new_admin = User(  # type: ignore[call-arg]
                 username=username,
                 email=email,
                 password_hash=generate_password_hash(password),
