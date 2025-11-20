@@ -2121,6 +2121,322 @@ If you MUST verify production (read-only checks only):
 
 ---
 
+## Section 13: Advanced Edge Cases & Race Conditions
+
+### TC-094: Race Condition - Simultaneous Bag Scan (NEGATIVE)
+**Steps:**
+1. Open two browser tabs with same dispatcher account
+2. In Tab 1: Start scanning parent bag SB12345
+3. In Tab 2: Immediately scan the SAME bag SB12345
+4. Both tabs submit within 1 second
+
+**Expected Result:**
+- ✅ First submission succeeds
+- ✅ Second submission shows error: "Bag already scanned"
+- ✅ No duplicate scans created in database
+- ✅ Atomic lock prevents race condition
+- ✅ Audit log shows both attempts
+- ✅ Database integrity maintained
+
+**Type:** NEGATIVE (Race Condition)  
+**Priority:** HIGH
+
+---
+
+### TC-095: Race Condition - Simultaneous User Deletion (NEGATIVE)
+**Steps:**
+1. Login as admin in two browser tabs
+2. Navigate to user management
+3. In Tab 1: Click delete on user "test_dispatcher"
+4. In Tab 2: Click delete on SAME user simultaneously
+5. Observe results
+
+**Expected Result:**
+- ✅ First deletion succeeds
+- ✅ Second deletion shows: "User already deleted or not found"
+- ✅ No database errors
+- ✅ No orphaned records
+- ✅ Transaction rollback works correctly
+- ✅ User is deleted exactly once
+
+**Type:** NEGATIVE (Race Condition)  
+**Priority:** HIGH
+
+---
+
+### TC-096: Race Condition - Simultaneous Bill Finalization (NEGATIVE)
+**Steps:**
+1. Create draft bill #999
+2. Open bill in two browser tabs as admin
+3. In Tab 1: Click "Finalize Bill"
+4. In Tab 2: Click "Finalize Bill" at same time
+5. Check bill status
+
+**Expected Result:**
+- ✅ Bill finalized exactly once
+- ✅ Second attempt shows: "Bill already finalized"
+- ✅ No duplicate finalization
+- ✅ Locks prevent concurrent modification
+- ✅ Bill status consistent
+- ✅ Weight calculated once
+
+**Type:** NEGATIVE (Race Condition)  
+**Priority:** HIGH
+
+---
+
+### TC-097: Unicode Characters in Bag QR Code (EDGE CASE)
+**Steps:**
+1. Try to manually create bag with Unicode QR: "SB123€45"
+2. Try to scan bag with emoji: "SB123😀"
+3. Try Arabic characters: "SB١٢٣٤٥"
+4. Try Chinese characters: "SB中文123"
+
+**Expected Result:**
+- ✅ System rejects non-ASCII QR codes
+- ✅ Error message: "QR code must contain only letters and numbers"
+- ✅ No database corruption
+- ✅ Validation prevents Unicode in critical fields
+- ✅ Search doesn't crash on Unicode input
+- ✅ ASCII-only enforcement for QR codes
+
+**Type:** NEGATIVE (Unicode Edge Case)  
+**Priority:** MEDIUM
+
+---
+
+### TC-098: Unicode Characters in Customer Names (POSITIVE)
+**Steps:**
+1. Create bill with customer name: "राज कुमार" (Hindi)
+2. Create bill with customer name: "José García" (Spanish)
+3. Create bill with customer name: "北京公司" (Chinese)
+4. Search for these customers
+5. Export to CSV
+
+**Expected Result:**
+- ✅ Unicode names accepted and stored correctly
+- ✅ Search finds Unicode names
+- ✅ Display renders properly (no mojibake)
+- ✅ CSV export preserves UTF-8 encoding
+- ✅ Sorting works with Unicode
+- ✅ PDF bills show Unicode correctly
+
+**Type:** POSITIVE (Unicode Support)  
+**Priority:** LOW
+
+---
+
+### TC-099: Special Characters in Search (EDGE CASE)
+**Steps:**
+1. Search for: `'; DROP TABLE bags; --` (SQL injection attempt)
+2. Search for: `<script>alert('xss')</script>` (XSS attempt)
+3. Search for: `%` (SQL wildcard)
+4. Search for: `\` (escape character)
+5. Search with only spaces: `     `
+
+**Expected Result:**
+- ✅ No SQL injection occurs
+- ✅ No XSS execution
+- ✅ Special characters escaped properly
+- ✅ Search returns empty results safely
+- ✅ No server errors
+- ✅ Input sanitization working correctly
+
+**Type:** NEGATIVE (Security Edge Case)  
+**Priority:** CRITICAL
+
+---
+
+### TC-100: Transaction Rollback on Error (POSITIVE)
+**Steps:**
+1. Start creating a bill with 10 parent bags
+2. During save, simulate database error (disconnect briefly)
+3. Reconnect database
+4. Check database state
+
+**Expected Result:**
+- ✅ Transaction rolled back completely
+- ✅ No partial bill created
+- ✅ No orphaned bill-bag associations
+- ✅ Error message: "Failed to save bill, please retry"
+- ✅ Database remains consistent
+- ✅ User can retry operation successfully
+
+**Type:** POSITIVE (Error Recovery)  
+**Priority:** HIGH
+
+---
+
+### TC-101: CSV Import with Partial Failures (NEGATIVE)
+**Steps:**
+1. Upload CSV with 100 bags
+2. Row 50 has invalid data (missing required field)
+3. Row 75 has duplicate QR code
+4. Complete import process
+
+**Expected Result:**
+- ✅ First 49 rows imported successfully
+- ✅ Row 50 skipped with error logged
+- ✅ Rows 51-74 continue importing
+- ✅ Row 75 skipped (duplicate detected)
+- ✅ Rows 76-100 imported successfully
+- ✅ Summary: "97 imported, 3 failed"
+- ✅ Error report downloadable with failed rows
+- ✅ No database corruption
+
+**Type:** NEGATIVE (Partial Failure Recovery)  
+**Priority:** MEDIUM
+
+---
+
+### TC-102: Cache Invalidation After Error (EDGE CASE)
+**Steps:**
+1. View dashboard (statistics cached)
+2. Start creating bag SB99999
+3. Save fails due to validation error
+4. Fix error and save successfully
+5. Refresh dashboard
+
+**Expected Result:**
+- ✅ Failed operation doesn't corrupt cache
+- ✅ Successful save invalidates cache
+- ✅ Dashboard shows updated statistics immediately
+- ✅ Cache coherence maintained across errors
+- ✅ No stale data displayed
+- ✅ Next request refreshes from database
+
+**Type:** POSITIVE (Cache Coherence)  
+**Priority:** MEDIUM
+
+---
+
+### TC-103: Undo Last Scan Edge Cases (EDGE CASE)
+**Steps:**
+1. Scan bag SB11111 (create scan)
+2. Wait 61 minutes (beyond 1-hour undo window)
+3. Try to undo the scan
+4. Scan bag SB22222
+5. Undo immediately
+6. Try to undo again (already undone)
+
+**Expected Result:**
+- ✅ Old scan (>1 hour): "Cannot undo, scan too old"
+- ✅ Recent scan undone successfully
+- ✅ Second undo attempt: "No scan to undo"
+- ✅ Audit log records all undo attempts
+- ✅ 1-hour window enforced consistently
+- ✅ Undo operation is idempotent
+
+**Type:** NEGATIVE (Edge Case)  
+**Priority:** LOW
+
+---
+
+### TC-104: Large CSV Export with Special Characters (EDGE CASE)
+**Steps:**
+1. Create 1000 bags with various Unicode customer names
+2. Include special characters: commas, quotes, newlines in notes
+3. Export to CSV
+4. Open CSV in Excel
+5. Re-import CSV back into system
+
+**Expected Result:**
+- ✅ Export completes without timeout
+- ✅ CSV properly escapes commas and quotes
+- ✅ Unicode preserved in UTF-8 encoding
+- ✅ Excel opens file correctly (no corruption)
+- ✅ Re-import successful with all data intact
+- ✅ No data loss in round-trip
+- ✅ File size reasonable (<10MB for 1000 bags)
+
+**Type:** POSITIVE (Data Integrity)  
+**Priority:** MEDIUM
+
+---
+
+### TC-105: Concurrent Cache Invalidation (EDGE CASE)
+**Steps:**
+1. 5 users viewing dashboard (cache populated)
+2. Admin deletes 100 bags simultaneously
+3. All 5 users refresh dashboard
+4. Check database query count
+
+**Expected Result:**
+- ✅ Cache invalidated immediately after deletion
+- ✅ All users see updated statistics
+- ✅ No stale cache served
+- ✅ Database queries batched efficiently
+- ✅ No cache stampede (all users hitting DB at once)
+- ✅ Response time under 2 seconds for all users
+
+**Type:** POSITIVE (Concurrent Operations)  
+**Priority:** MEDIUM
+
+---
+
+### TC-106: Atomic Parent Bag Duplicate Prevention (NEGATIVE)
+**Steps:**
+1. Two dispatchers scan parent bag M444-12345 simultaneously
+2. Both are first-time scans (new parent bag)
+3. System should create bag exactly once
+4. Check database for duplicates
+
+**Expected Result:**
+- ✅ Exactly one parent bag M444-12345 created
+- ✅ Second scan either:
+  - Links to existing parent bag, OR
+  - Shows error: "Bag already exists"
+- ✅ No duplicate parent bags in database
+- ✅ Database unique constraint enforced
+- ✅ Transaction isolation level prevents race
+- ✅ Both scans recorded in audit log
+
+**Type:** NEGATIVE (Atomic Operations)  
+**Priority:** CRITICAL
+
+---
+
+### TC-107: Session Timeout During Form Submission (NEGATIVE)
+**Steps:**
+1. Login and start filling bill creation form
+2. Fill form slowly (take 35 minutes)
+3. Session timeout occurs (30 min default)
+4. Submit form
+
+**Expected Result:**
+- ✅ Redirect to login page
+- ✅ Message: "Session expired, please login again"
+- ✅ Form data NOT saved (security)
+- ✅ No partial data in database
+- ✅ After re-login: user can re-enter data
+- ✅ Warning shown at 25 minutes: "Session expiring soon"
+
+**Type:** NEGATIVE (Session Management)  
+**Priority:** LOW
+
+---
+
+### TC-108: Bulk Delete with Foreign Key Constraints (EDGE CASE)
+**Steps:**
+1. Create parent bag SB55555 with 10 child bags
+2. Try to delete parent bag (has children linked)
+3. Check error handling
+4. Delete all child bags first
+5. Then delete parent bag
+
+**Expected Result:**
+- ✅ First deletion blocked by foreign key constraint
+- ✅ Error: "Cannot delete bag with active links"
+- ✅ Suggestion: "Delete child bags first or use cascade delete"
+- ✅ After children deleted: parent deletion succeeds
+- ✅ Database integrity maintained
+- ✅ No orphaned records
+
+**Type:** NEGATIVE (Database Constraints)  
+**Priority:** MEDIUM
+
+---
+
 ## 📊 Summary & Reporting
 
 ### After Testing
@@ -2132,7 +2448,7 @@ If you MUST verify production (read-only checks only):
 
 **Overall Test Results:**
 ```
-Total Test Cases: 93
+Total Test Cases: 108 (93 original + 15 advanced edge cases)
 Passed: ___
 Failed: ___
 Partial: ___
@@ -2211,4 +2527,4 @@ Pass Rate: ___%
 
 *Last Updated: November 20, 2025*  
 *Version: 2.0*  
-*Total Test Cases: 93*
+*Total Test Cases: 108 (93 original + 15 advanced edge cases for race conditions, Unicode, and error recovery)*
