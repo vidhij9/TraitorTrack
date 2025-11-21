@@ -29,23 +29,79 @@ import string
 import time
 from locust import HttpUser, task, between, SequentialTaskSet, tag
 from locust.exception import RescheduleTask
+from bs4 import BeautifulSoup
 
 
 class AuthMixin:
-    """Mixin to handle authentication for all user types"""
+    """Mixin to handle authentication for all user types with CSRF token support"""
+    
+    def extract_csrf_token(self, response):
+        """Extract CSRF token from HTML response"""
+        try:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Try meta tag first (most common in Flask apps)
+            csrf_meta = soup.find('meta', {'name': 'csrf-token'})
+            if csrf_meta and csrf_meta.get('content'):
+                return csrf_meta['content']
+            
+            # Try hidden input field
+            csrf_input = soup.find('input', {'name': 'csrf_token'})
+            if csrf_input and csrf_input.get('value'):
+                return csrf_input['value']
+            
+            return None
+        except Exception as e:
+            print(f"Error extracting CSRF token: {e}")
+            return None
     
     def login(self, username, password):
-        """Login and store session"""
-        response = self.client.post("/login", data={
-            "username": username,
-            "password": password
-        }, allow_redirects=False)
-        
-        if response.status_code != 302:
-            print(f"Login failed for {username}: {response.status_code}")
+        """Login with CSRF token handling"""
+        try:
+            # First, get the login page to extract CSRF token
+            login_page = self.client.get("/login", name="GET /login")
+            
+            if login_page.status_code != 200:
+                print(f"❌ Failed to get login page: {login_page.status_code}")
+                return False
+            
+            # Extract CSRF token
+            csrf_token = self.extract_csrf_token(login_page)
+            
+            if not csrf_token:
+                print(f"⚠️  No CSRF token found for {username} - login may fail")
+                # Try without CSRF (will fail but good for debugging)
+                login_data = {
+                    "username": username,
+                    "password": password
+                }
+            else:
+                login_data = {
+                    "username": username,
+                    "password": password,
+                    "csrf_token": csrf_token
+                }
+            
+            # Attempt login
+            response = self.client.post("/login", 
+                                       data=login_data, 
+                                       allow_redirects=False,
+                                       name="POST /login")
+            
+            if response.status_code == 302:
+                print(f"✅ Login successful for {username}")
+                return True
+            else:
+                print(f"❌ Login failed for {username}: {response.status_code}")
+                if response.status_code == 400:
+                    print(f"   → CSRF validation likely failed")
+                elif response.status_code == 429:
+                    print(f"   → Rate limit hit - too many login attempts")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Login exception for {username}: {e}")
             return False
-        
-        return True
     
     def ensure_logged_in(self):
         """Ensure user is logged in before performing actions"""
@@ -55,6 +111,17 @@ class AuthMixin:
             # Need to login
             return self.login(self.username, self.password)
         return True
+    
+    def get_csrf_token_from_page(self, url):
+        """Get CSRF token from any page"""
+        try:
+            response = self.client.get(url, catch_response=True)
+            if response.status_code == 200:
+                return self.extract_csrf_token(response)
+            return None
+        except Exception as e:
+            print(f"Error getting CSRF from {url}: {e}")
+            return None
 
 
 class DispatcherBehavior(SequentialTaskSet, AuthMixin):
@@ -243,6 +310,11 @@ class DispatcherUser(HttpUser):
     tasks = [DispatcherBehavior]
     weight = 60  # 60% of users are dispatchers
     wait_time = between(1, 5)  # Wait 1-5 seconds between task sets
+    
+    def on_start(self):
+        """Disable SSL verification for development/testing"""
+        # WARNING: Never use this in production!
+        self.client.verify = False
 
 
 class BillerUser(HttpUser):
@@ -250,6 +322,10 @@ class BillerUser(HttpUser):
     tasks = [BillerBehavior]
     weight = 30  # 30% of users are billers
     wait_time = between(2, 8)
+    
+    def on_start(self):
+        """Disable SSL verification for development/testing"""
+        self.client.verify = False
 
 
 class AdminUser(HttpUser):
@@ -257,15 +333,25 @@ class AdminUser(HttpUser):
     tasks = [AdminBehavior]
     weight = 10  # 10% of users are admins
     wait_time = between(5, 15)
+    
+    def on_start(self):
+        """Disable SSL verification for development/testing"""
+        self.client.verify = False
 
 
 class APIPerfUser(HttpUser):
     """
     Dedicated API performance testing user
-    Tests critical API endpoints for performance
+    Tests critical API endpoints for performance without authentication
+    
+    Usage: locust -f tests/load/locustfile.py --host=http://localhost:5000 --users 50 --spawn-rate 5 --run-time 2m --only-summary
     """
-    weight = 0  # Not included in normal load tests (use --tags api-perf)
+    weight = 0  # Not included in normal load tests (set weight > 0 to include)
     wait_time = between(0.1, 0.5)  # Rapid-fire API testing
+    
+    def on_start(self):
+        """Disable SSL verification for development/testing"""
+        self.client.verify = False
     
     @tag('api-perf')
     @task(10)
@@ -291,3 +377,33 @@ class APIPerfUser(HttpUser):
     def test_api_stats(self):
         """Test statistics API"""
         self.client.get("/api/statistics", name="API: Statistics")
+
+
+class QuickTestUser(HttpUser):
+    """
+    Simple test user for quick validation - no authentication required
+    Tests public endpoints and basic functionality
+    Useful for validating the load test setup works
+    """
+    weight = 100  # Used for quick tests
+    wait_time = between(1, 3)
+    
+    def on_start(self):
+        """Disable SSL verification for development/testing"""
+        self.client.verify = False
+    
+    @task(5)
+    def test_login_page(self):
+        """Test login page loads"""
+        self.client.get("/login", name="Login Page")
+    
+    @task(3)
+    def test_home_redirect(self):
+        """Test home page redirect"""
+        self.client.get("/", name="Home Redirect")
+    
+    @task(1)
+    def test_static_assets(self):
+        """Test static assets load"""
+        # Test that error pages work
+        self.client.get("/nonexistent-page", name="404 Page")
