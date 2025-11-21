@@ -56,48 +56,69 @@ class AuthMixin:
             return None
     
     def login(self, username, password):
-        """Login with CSRF token handling"""
+        """Login with CSRF token handling and session management"""
         try:
-            # First, get the login page to extract CSRF token
-            login_page = self.client.get("/login", name="GET /login")
+            # Step 1: GET the login page to establish session and get CSRF token
+            with self.client.get("/login", catch_response=True, name="GET /login") as login_page:
+                if login_page.status_code != 200:
+                    login_page.failure(f"Failed to get login page: {login_page.status_code}")
+                    print(f"❌ Failed to get login page: {login_page.status_code}")
+                    return False
+                
+                # Extract CSRF token from the response
+                csrf_token = self.extract_csrf_token(login_page)
+                
+                if not csrf_token:
+                    login_page.failure("No CSRF token found in login page")
+                    print(f"❌ No CSRF token found for {username}")
+                    return False
+                
+                login_page.success()
             
-            if login_page.status_code != 200:
-                print(f"❌ Failed to get login page: {login_page.status_code}")
-                return False
+            # Step 2: Prepare login form data (match Flask-WTF expectations)
+            login_data = {
+                "username": username,
+                "password": password,
+                "csrf_token": csrf_token
+            }
             
-            # Extract CSRF token
-            csrf_token = self.extract_csrf_token(login_page)
-            
-            if not csrf_token:
-                print(f"⚠️  No CSRF token found for {username} - login may fail")
-                # Try without CSRF (will fail but good for debugging)
-                login_data = {
-                    "username": username,
-                    "password": password
-                }
-            else:
-                login_data = {
-                    "username": username,
-                    "password": password,
-                    "csrf_token": csrf_token
-                }
-            
-            # Attempt login
-            response = self.client.post("/login", 
-                                       data=login_data, 
-                                       allow_redirects=False,
-                                       name="POST /login")
-            
-            if response.status_code == 302:
-                print(f"✅ Login successful for {username}")
-                return True
-            else:
-                print(f"❌ Login failed for {username}: {response.status_code}")
-                if response.status_code == 400:
-                    print(f"   → CSRF validation likely failed")
-                elif response.status_code == 429:
-                    print(f"   → Rate limit hit - too many login attempts")
-                return False
+            # Step 3: POST to login endpoint
+            # Note: Locust's self.client maintains session cookies automatically
+            with self.client.post("/login", 
+                                 data=login_data,
+                                 allow_redirects=False,  # Don't follow redirect so we can check 302
+                                 catch_response=True,
+                                 name="POST /login") as response:
+                
+                # Check for successful redirect (302 to dashboard)
+                if response.status_code == 302:
+                    redirect_url = response.headers.get('Location', '')
+                    print(f"✅ Login successful for {username} - redirecting to {redirect_url}")
+                    response.success()
+                    
+                    # Step 4: Verify we can access authenticated page
+                    with self.client.get("/dashboard", catch_response=True, name="Verify Login") as dashboard:
+                        if dashboard.status_code == 200:
+                            dashboard.success()
+                            print(f"✅ Dashboard access confirmed for {username}")
+                            return True
+                        else:
+                            dashboard.failure(f"Cannot access dashboard after login: {dashboard.status_code}")
+                            print(f"❌ Dashboard access failed: {dashboard.status_code}")
+                            return False
+                else:
+                    # Login failed - mark as failure with details
+                    response.failure(f"Login returned {response.status_code} instead of 302")
+                    print(f"❌ Login failed for {username}: {response.status_code}")
+                    
+                    if response.status_code == 400:
+                        print(f"   → CSRF validation failed - check token/session pairing")
+                    elif response.status_code == 429:
+                        print(f"   → Rate limit hit - too many login attempts")
+                    elif response.status_code == 200:
+                        print(f"   → Login page re-rendered - credentials or CSRF issue")
+                    
+                    return False
                 
         except Exception as e:
             print(f"❌ Login exception for {username}: {e}")
