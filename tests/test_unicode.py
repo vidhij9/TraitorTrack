@@ -36,9 +36,9 @@ class TestUnicodeSupport:
             assert response.status_code in [200, 201, 400, 422], \
                 f"Unicode QR '{qr_id}' should be handled (accepted or rejected)"
     
-    def test_unicode_support_in_customer_names(self, authenticated_client, admin_user, db_session):
-        """TC-098: Customer names should support Unicode"""
-        unicode_names = [
+    def test_unicode_support_in_descriptions(self, authenticated_client, admin_user, db_session):
+        """TC-098: Bill descriptions should support Unicode"""
+        unicode_descriptions = [
             "राज कुमार",  # Hindi
             "José García",  # Spanish with accents
             "北京公司",  # Chinese
@@ -47,24 +47,23 @@ class TestUnicodeSupport:
             "Владимир Петров",  # Cyrillic
         ]
         
-        for name in unicode_names:
-            # Create bill with Unicode customer name
+        for description in unicode_descriptions:
+            # Create bill with Unicode description
             response = authenticated_client.post('/bill/create', data={
-                'bill_id': f'UNICODE{abs(hash(name)) % 10000}',
-                'description': name,
-                'customer_name': name
+                'bill_id': f'UNICODE{abs(hash(description)) % 10000}',
+                'description': description
             }, follow_redirects=True)
             
             # Should be accepted
             assert response.status_code in [200, 302], \
-                f"Unicode name '{name}' should be accepted (got {response.status_code})"
+                f"Unicode description '{description}' should be accepted (got {response.status_code})"
             
             # Verify it's stored correctly (no mojibake)
             with authenticated_client.application.app_context():
-                bill = Bill.query.filter_by(description=name).first()
+                bill = Bill.query.filter_by(description=description).first()
                 if bill:
-                    assert bill.description == name, \
-                        f"Unicode name should be stored correctly, got '{bill.description}'"
+                    assert bill.description == description, \
+                        f"Unicode description should be stored correctly, got '{bill.description}'"
     
     def test_unicode_in_search(self, authenticated_client, admin_user, db_session):
         """TC-098: Search should work with Unicode characters"""
@@ -104,7 +103,7 @@ class TestUnicodeSupport:
             db_session.commit()
         
         # Export to CSV
-        response = authenticated_client.get('/export/bags?format=csv')
+        response = authenticated_client.get('/export/bags/csv')
         
         if response.status_code == 200:
             # Parse CSV
@@ -141,7 +140,7 @@ class TestUnicodeSupport:
             db_session.commit()
         
         # Export to CSV
-        response = authenticated_client.get('/export/bags?format=csv')
+        response = authenticated_client.get('/export/bags/csv')
         
         if response.status_code == 200:
             csv_data = response.data.decode('utf-8')

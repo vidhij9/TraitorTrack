@@ -37,8 +37,8 @@ class TestSecurityInjection:
             assert bags is not None
             assert users is not None
     
-    def test_xss_in_customer_name(self, authenticated_client, admin_user, db_session):
-        """TC-099: XSS attempts in customer names should be escaped"""
+    def test_xss_in_description(self, authenticated_client, admin_user, db_session):
+        """TC-099: XSS attempts in bill descriptions should be escaped"""
         xss_payloads = [
             "<script>alert('xss')</script>",
             "<img src=x onerror=alert('xss')>",
@@ -48,11 +48,10 @@ class TestSecurityInjection:
         ]
         
         for payload in xss_payloads:
-            # Try to create bill with XSS in customer name
+            # Try to create bill with XSS in description
             response = authenticated_client.post('/bill/create', data={
                 'bill_id': f'XSS{xss_payloads.index(payload):03d}',
-                'description': payload,
-                'customer_name': payload
+                'description': payload
             }, follow_redirects=True)
             
             # Should be accepted (sanitization happens on output)
