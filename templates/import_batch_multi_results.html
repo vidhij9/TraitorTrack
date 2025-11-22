@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block title %}Import Results - TraitorTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Import Results
+                    </h4>
+                </div>
+
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-file-excel fa-5x text-warning mb-3"></i>
+                        <h5>Some errors occurred during the import process</h5>
+                        <p class="text-muted">
+                            A detailed error report has been generated with information about all issues encountered.
+                        </p>
+                    </div>
+
+                    <div class="alert alert-info" role="alert">
+                        <h6><i class="fas fa-info-circle"></i> Error Report Contents</h6>
+                        <p class="mb-0">The report includes:</p>
+                        <ul class="mb-0 text-start">
+                            <li>File names and import types</li>
+                            <li>Success/failure status for each file</li>
+                            <li>Detailed error messages</li>
+                            <li>Row numbers and batch information</li>
+                            <li>Timestamps for tracking</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <a href="{{ url_for('download_error_report', report_id=report_id) }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-download"></i> Download Error Report<br>
+                            <small class="text-light">{{ filename }} {% if file_size %}({{ file_size }}){% endif %}</small>
+                        </a>
+                        
+                        <a href="{{ url_for('import_batch_multi') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-redo"></i> Import More Files
+                        </a>
+                        
+                        <a href="{{ url_for('bag_management') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-list"></i> View Bag Management
+                        </a>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="alert alert-warning" role="alert">
+                        <small>
+                            <i class="fas fa-clock"></i> This error report will be available for download until you navigate away or your session expires.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

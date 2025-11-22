@@ -8035,6 +8035,264 @@ def import_batch_parent_bill():
         return redirect(url_for('import_batch_parent_bill'))
 
 
+@app.route('/import/batch_multi', methods=['GET', 'POST'])
+@login_required
+def import_batch_multi():
+    """Multi-file batch import - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for bulk imports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'GET':
+        max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024) / (1024 * 1024)
+        return render_template('import_batch_multi.html', max_file_size_mb=max_size_mb)
+    
+    # Handle POST - multiple file upload
+    try:
+        from import_utils import MultiFileBatchProcessor
+        import uuid
+        import os
+        import tempfile
+        from datetime import datetime, timedelta
+        
+        # Get import type
+        import_type = request.form.get('import_type', 'child_parent')
+        
+        # Get all files
+        files = request.files.getlist('files')
+        
+        if not files or len(files) == 0:
+            flash('No files uploaded.', 'error')
+            return redirect(url_for('import_batch_multi'))
+        
+        # Validate all files are Excel
+        for file in files:
+            if file.filename:
+                filename = file.filename.lower()
+                if not filename.endswith(('.xlsx', '.xls')):
+                    flash(f'Invalid file type: {file.filename}. Only Excel files (.xlsx, .xls) are allowed.', 'error')
+                    return redirect(url_for('import_batch_multi'))
+        
+        # Process files based on import type
+        if import_type == 'child_parent':
+            dispatch_area = request.form.get('dispatch_area', '').strip() or None
+            results, has_errors = MultiFileBatchProcessor.process_child_parent_files(
+                files, current_user.id, dispatch_area  # type: ignore
+            )
+        elif import_type == 'parent_bill':
+            results, has_errors = MultiFileBatchProcessor.process_parent_bill_files(
+                files, current_user.id  # type: ignore
+            )
+        else:
+            flash('Invalid import type.', 'error')
+            return redirect(url_for('import_batch_multi'))
+        
+        # Count successes and failures
+        success_count = sum(1 for r in results if r.get('status') == 'Success')
+        partial_count = sum(1 for r in results if r.get('status') == 'Partial Success')
+        failed_count = sum(1 for r in results if r.get('status') == 'Failed')
+        
+        # Show summary
+        flash(f'Processed {len(files)} files: {success_count} successful, {partial_count} partial, {failed_count} failed.', 'info')
+        
+        # If there are errors, generate error report and store in filesystem
+        if has_errors:
+            # Generate error report
+            error_report_bytes = MultiFileBatchProcessor.generate_error_report(results)
+            
+            if not error_report_bytes:
+                flash('Error generating report: Excel support not available.', 'error')
+                return redirect(url_for('import_batch_multi'))
+            
+            # Create temp directory for error reports if it doesn't exist
+            temp_dir = os.path.join(tempfile.gettempdir(), 'traitortrack_error_reports')
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            # Store report with unique ID FIRST (before cleanup)
+            report_id = str(uuid.uuid4())
+            filename = f'import_errors_{report_id[:8]}.xlsx'
+            file_path = os.path.join(temp_dir, f'{report_id}.xlsx')
+            current_time = datetime.now()
+            
+            try:
+                # Write the new report file
+                with open(file_path, 'wb') as f:
+                    f.write(error_report_bytes)
+                
+                # Verify file was written successfully
+                if not os.path.exists(file_path):
+                    raise Exception("Report file not written successfully")
+                
+                app.logger.info(f"Error report generated: {filename} ({len(error_report_bytes)} bytes)")
+                
+                # NOW clean up old reports (older than 1 hour) AFTER saving new one
+                # Skip the file we just created
+                try:
+                    cutoff_time = current_time - timedelta(hours=1)
+                    for old_file in os.listdir(temp_dir):
+                        # Skip the file we just created
+                        if old_file == f'{report_id}.xlsx':
+                            continue
+                        
+                        file_to_check = os.path.join(temp_dir, old_file)
+                        if os.path.isfile(file_to_check):
+                            file_mtime = datetime.fromtimestamp(os.path.getmtime(file_to_check))
+                            if file_mtime < cutoff_time:
+                                os.remove(file_to_check)
+                                app.logger.info(f"Cleaned up old error report: {old_file}")
+                except Exception as cleanup_error:
+                    app.logger.warning(f"Error during cleanup: {str(cleanup_error)}")
+                
+                # Store metadata in session with user binding
+                session[f'error_report_id_{report_id}'] = report_id
+                session[f'error_report_user_{report_id}'] = current_user.id  # type: ignore
+                session[f'error_report_filename_{report_id}'] = filename
+                session[f'error_report_size_{report_id}'] = len(error_report_bytes)
+                
+                flash('Some errors occurred during import. Download the error report for details.', 'warning')
+                
+                # Redirect to results page with download option
+                return redirect(url_for('import_batch_multi_results', report_id=report_id))
+                
+            except Exception as save_error:
+                # Clean up partial file if save failed
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except:
+                        pass
+                app.logger.error(f"Error saving report: {str(save_error)}")
+                flash('Error saving error report. Please try again.', 'error')
+                return redirect(url_for('import_batch_multi'))
+        
+        flash('All files imported successfully!', 'success')
+        
+        # Redirect based on import type
+        if import_type == 'child_parent':
+            return redirect(url_for('bag_management'))
+        else:
+            return redirect(url_for('bill_management'))
+    
+    except Exception as e:
+        app.logger.error(f"Multi-file batch import error: {str(e)}")
+        flash(f'Error during multi-file import: {str(e)}', 'error')
+        return redirect(url_for('import_batch_multi'))
+
+
+@app.route('/import/batch_multi/results/<report_id>')
+@login_required
+def import_batch_multi_results(report_id):
+    """Display results and allow error report download"""
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Check if report exists in session metadata
+    report_key = f'error_report_id_{report_id}'
+    if report_key not in session:
+        flash('Error report not found or expired.', 'error')
+        return redirect(url_for('import_batch_multi'))
+    
+    filename = session.get(f'error_report_filename_{report_id}', 'error_report.xlsx')
+    file_size = session.get(f'error_report_size_{report_id}', 0)
+    
+    # Format file size for display
+    if file_size > 1024 * 1024:
+        size_display = f"{file_size / (1024 * 1024):.2f} MB"
+    elif file_size > 1024:
+        size_display = f"{file_size / 1024:.2f} KB"
+    else:
+        size_display = f"{file_size} bytes"
+    
+    return render_template('import_batch_multi_results.html', 
+                         report_id=report_id, 
+                         filename=filename,
+                         file_size=size_display)
+
+
+@app.route('/import/batch_multi/download/<report_id>')
+@login_required
+def download_error_report(report_id):
+    """Download error report Excel file"""
+    import os
+    import tempfile
+    
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Check if report exists in session metadata
+    report_key = f'error_report_id_{report_id}'
+    if report_key not in session:
+        flash('Error report not found or expired.', 'error')
+        return redirect(url_for('import_batch_multi'))
+    
+    # Verify user binding - only the user who generated the report can download it
+    report_user_id = session.get(f'error_report_user_{report_id}')
+    if report_user_id != current_user.id:  # type: ignore
+        app.logger.warning(f"User {current_user.id} attempted to download report owned by user {report_user_id}")  # type: ignore
+        flash('Access denied. This report belongs to another user.', 'error')
+        return redirect(url_for('import_batch_multi'))
+    
+    filename = session.get(f'error_report_filename_{report_id}', 'error_report.xlsx')
+    
+    # Get file from temp directory
+    temp_dir = os.path.join(tempfile.gettempdir(), 'traitortrack_error_reports')
+    file_path = os.path.join(temp_dir, f'{report_id}.xlsx')
+    
+    # Verify file exists before attempting download
+    if not os.path.exists(file_path):
+        app.logger.error(f"Error report file not found: {file_path} (report_id: {report_id})")
+        # Clean up stale session data
+        session.pop(report_key, None)
+        session.pop(f'error_report_user_{report_id}', None)
+        session.pop(f'error_report_filename_{report_id}', None)
+        session.pop(f'error_report_size_{report_id}', None)
+        flash('Error report file not found. It may have expired or been cleaned up.', 'error')
+        return redirect(url_for('import_batch_multi'))
+    
+    # Verify file is readable
+    try:
+        if not os.access(file_path, os.R_OK):
+            raise Exception("File not readable")
+    except Exception as e:
+        app.logger.error(f"Error report file not accessible: {file_path} - {str(e)}")
+        flash('Error report file cannot be accessed. Please try again.', 'error')
+        return redirect(url_for('import_batch_multi'))
+    
+    # Clean up session metadata after successful verification
+    session.pop(report_key, None)
+    session.pop(f'error_report_user_{report_id}', None)
+    session.pop(f'error_report_filename_{report_id}', None)
+    session.pop(f'error_report_size_{report_id}', None)
+    
+    # Send file and delete after sending
+    try:
+        response = send_file(
+            file_path,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+        # Schedule file deletion after response
+        @response.call_on_close
+        def cleanup():
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    app.logger.info(f"Cleaned up error report after download: {filename}")
+            except Exception as e:
+                app.logger.warning(f"Error cleaning up report file: {str(e)}")
+        
+        return response
+        
+    except Exception as e:
+        app.logger.error(f"Error sending file: {str(e)}")
+        flash('Error downloading error report. Please try again.', 'error')
+        return redirect(url_for('import_batch_multi'))
+
+
 @app.route('/import/bills', methods=['GET', 'POST'])
 @login_required
 def import_bills():

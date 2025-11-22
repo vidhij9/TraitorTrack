@@ -1100,3 +1100,237 @@ class ParentBillBatchImporter:
             logger.error(f"Batch import error: {str(e)}")
             errors.append(f"Database error: {str(e)}")
             return bills_created, links_created, parents_not_found, errors
+
+
+class MultiFileBatchProcessor:
+    """
+    Handles processing multiple Excel files in a single upload session.
+    Generates detailed error reports for any issues encountered.
+    """
+    
+    @staticmethod
+    def generate_error_report(results: List[Dict]) -> bytes:
+        """
+        Generate an Excel error report from processing results.
+        
+        Args:
+            results: List of file processing results
+            
+        Returns:
+            Excel file as bytes
+        """
+        if not EXCEL_AVAILABLE:
+            return b""
+        
+        from openpyxl import Workbook
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Import Errors"
+        
+        # Add headers
+        headers = ['File Name', 'Import Type', 'Status', 'Row/Batch', 'Error Details', 'Timestamp']
+        for col, header in enumerate(headers, 1):
+            ws.cell(1, col, header)
+            ws.cell(1, col).font = ws.cell(1, col).font.copy(bold=True)
+        
+        # Add error data
+        row = 2
+        for result in results:
+            filename = result.get('filename', 'Unknown')
+            import_type = result.get('import_type', 'Unknown')
+            status = result.get('status', 'Unknown')
+            timestamp = result.get('timestamp', '')
+            
+            # Add main file status
+            ws.cell(row, 1, filename)
+            ws.cell(row, 2, import_type)
+            ws.cell(row, 3, status)
+            ws.cell(row, 4, '')
+            ws.cell(row, 5, result.get('summary', ''))
+            ws.cell(row, 6, timestamp)
+            row += 1
+            
+            # Add detailed errors if any
+            errors = result.get('errors', [])
+            for error in errors:
+                ws.cell(row, 1, filename)
+                ws.cell(row, 2, import_type)
+                ws.cell(row, 3, 'Error')
+                ws.cell(row, 4, '')
+                ws.cell(row, 5, error)
+                ws.cell(row, 6, timestamp)
+                row += 1
+        
+        # Auto-adjust column widths
+        for col in range(1, 7):
+            max_length = 0
+            column_letter = ws.cell(1, col).column_letter
+            for cell in ws[column_letter]:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Save to bytes
+        import io
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return output.read()
+    
+    @staticmethod
+    def process_child_parent_files(files: List[FileStorage], user_id: int, dispatch_area: Optional[str] = None) -> Tuple[List[Dict], bool]:
+        """
+        Process multiple child-parent batch import files.
+        
+        Args:
+            files: List of uploaded Excel files
+            user_id: ID of user performing import
+            dispatch_area: Optional dispatch area filter
+            
+        Returns:
+            Tuple of (results_list, has_errors)
+        """
+        from datetime import datetime
+        
+        results = []
+        has_errors = False
+        
+        for file in files:
+            filename = file.filename or 'unknown.xlsx'
+            result = {
+                'filename': filename,
+                'import_type': 'Child → Parent',
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'errors': [],
+                'summary': ''
+            }
+            
+            try:
+                # Reset stream position
+                file.stream.seek(0)
+                
+                # Parse batches
+                batches, parse_errors, stats = ChildParentBatchImporter.parse_excel_batch(file)
+                
+                # Add parse errors
+                if parse_errors:
+                    result['errors'].extend(parse_errors[:20])  # Limit to first 20 errors
+                    has_errors = True
+                
+                if not batches:
+                    result['status'] = 'Failed'
+                    result['summary'] = 'No valid batches found'
+                    has_errors = True
+                    results.append(result)
+                    continue
+                
+                # Import batches
+                parents_created, children_created, links_created, import_errors = ChildParentBatchImporter.import_batches(
+                    db, batches, user_id, dispatch_area
+                )
+                
+                # Add import errors
+                if import_errors:
+                    result['errors'].extend(import_errors[:20])  # Limit to first 20 errors
+                    has_errors = True
+                
+                # Set status
+                if import_errors or parse_errors:
+                    result['status'] = 'Partial Success'
+                else:
+                    result['status'] = 'Success'
+                
+                result['summary'] = f'{len(batches)} batches, {parents_created} parents, {children_created} children, {links_created} links'
+                
+            except Exception as e:
+                logger.error(f"Error processing file {filename}: {str(e)}")
+                result['status'] = 'Failed'
+                result['summary'] = f'Fatal error: {str(e)}'
+                result['errors'].append(str(e))
+                has_errors = True
+            
+            results.append(result)
+        
+        return results, has_errors
+    
+    @staticmethod
+    def process_parent_bill_files(files: List[FileStorage], user_id: int) -> Tuple[List[Dict], bool]:
+        """
+        Process multiple parent-bill batch import files.
+        
+        Args:
+            files: List of uploaded Excel files
+            user_id: ID of user performing import
+            
+        Returns:
+            Tuple of (results_list, has_errors)
+        """
+        from datetime import datetime
+        
+        results = []
+        has_errors = False
+        
+        for file in files:
+            filename = file.filename or 'unknown.xlsx'
+            result = {
+                'filename': filename,
+                'import_type': 'Parent → Bill',
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'errors': [],
+                'summary': ''
+            }
+            
+            try:
+                # Reset stream position
+                file.stream.seek(0)
+                
+                # Parse batches
+                batches, parse_errors, stats = ParentBillBatchImporter.parse_excel_batch(file)
+                
+                # Add parse errors
+                if parse_errors:
+                    result['errors'].extend(parse_errors[:20])  # Limit to first 20 errors
+                    has_errors = True
+                
+                if not batches:
+                    result['status'] = 'Failed'
+                    result['summary'] = 'No valid batches found'
+                    has_errors = True
+                    results.append(result)
+                    continue
+                
+                # Import batches
+                bills_created, links_created, parents_not_found, import_errors = ParentBillBatchImporter.import_batches(
+                    db, batches, user_id
+                )
+                
+                # Add import errors
+                if import_errors:
+                    result['errors'].extend(import_errors[:20])  # Limit to first 20 errors
+                    has_errors = True
+                
+                # Set status
+                if import_errors or parse_errors:
+                    result['status'] = 'Partial Success'
+                else:
+                    result['status'] = 'Success'
+                
+                result['summary'] = f'{len(batches)} batches, {bills_created} bills, {links_created} links'
+                if parents_not_found > 0:
+                    result['summary'] += f', {parents_not_found} parents not found'
+                
+            except Exception as e:
+                logger.error(f"Error processing file {filename}: {str(e)}")
+                result['status'] = 'Failed'
+                result['summary'] = f'Fatal error: {str(e)}'
+                result['errors'].append(str(e))
+                has_errors = True
+            
+            results.append(result)
+        
+        return results, has_errors

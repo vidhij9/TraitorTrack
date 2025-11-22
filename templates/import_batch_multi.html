@@ -1,0 +1,262 @@
+{% extends "layout.html" %}
+
+{% block title %}Multi-File Batch Import - TraitorTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-upload"></i> Multi-File Batch Import
+                    </h4>
+                </div>
+
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <h5><i class="fas fa-info-circle"></i> Upload Multiple Files</h5>
+                        <p class="mb-2">Select multiple Excel files to import at once. The system will process all files and generate an error report if any issues are found.</p>
+                        <ul class="mb-0">
+                            <li><strong>Child → Parent</strong>: Import child bags linked to parent bags</li>
+                            <li><strong>Parent → Bill</strong>: Import parent bags linked to bills</li>
+                        </ul>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        {{ csrf_token() }}
+                        
+                        <!-- Import Type Selection -->
+                        <div class="mb-3">
+                            <label for="import_type" class="form-label">
+                                <i class="fas fa-list"></i> Import Type
+                            </label>
+                            <select class="form-select" id="import_type" name="import_type" required>
+                                <option value="child_parent">Child → Parent (Bag Linking)</option>
+                                <option value="parent_bill">Parent → Bill (Bill Generation)</option>
+                            </select>
+                        </div>
+
+                        <!-- Dispatch Area (optional, for child-parent only) -->
+                        <div class="mb-3" id="dispatch_area_container">
+                            <label for="dispatch_area" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> Dispatch Area (Optional)
+                            </label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="dispatch_area" 
+                                name="dispatch_area"
+                                placeholder="e.g., LUCKNOW, INDORE"
+                            >
+                            <small class="form-text text-muted">
+                                Leave empty to use default dispatch area
+                            </small>
+                        </div>
+
+                        <!-- File Upload with Drag & Drop -->
+                        <div class="mb-3">
+                            <label for="files" class="form-label">
+                                <i class="fas fa-file-excel"></i> Select Excel Files
+                            </label>
+                            <div class="drop-zone" id="dropZone">
+                                <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-muted"></i>
+                                <p class="mb-2">Drag and drop files here or click to browse</p>
+                                <input 
+                                    type="file" 
+                                    class="form-control d-none" 
+                                    id="files" 
+                                    name="files" 
+                                    accept=".xlsx,.xls"
+                                    multiple
+                                    required
+                                >
+                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('files').click()">
+                                    <i class="fas fa-folder-open"></i> Browse Files
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">
+                                Max file size: {{ max_file_size_mb }}MB per file. Supported formats: .xlsx, .xls
+                            </small>
+                        </div>
+
+                        <!-- Selected Files List -->
+                        <div class="mb-3" id="fileListContainer" style="display: none;">
+                            <label class="form-label"><i class="fas fa-list"></i> Selected Files</label>
+                            <div id="fileList" class="list-group"></div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                                <i class="fas fa-upload"></i> Upload and Process Files
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <div class="alert alert-warning" role="alert">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Important Notes</h5>
+                        <ul class="mb-0">
+                            <li>All files must be in Excel format (.xlsx or .xls)</li>
+                            <li>Files will be processed individually</li>
+                            <li>If any errors occur, you'll receive a downloadable error report</li>
+                            <li>Processing may take time for large files or many files</li>
+                            <li>Each file should follow the appropriate batch pattern</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.drop-zone.dragover {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+}
+
+.drop-zone:hover {
+    border-color: #0d6efd;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+}
+
+.file-item .remove-file {
+    cursor: pointer;
+    color: #dc3545;
+}
+</style>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('files');
+const fileList = document.getElementById('fileList');
+const fileListContainer = document.getElementById('fileListContainer');
+const submitBtn = document.getElementById('submitBtn');
+const importTypeSelect = document.getElementById('import_type');
+const dispatchAreaContainer = document.getElementById('dispatch_area_container');
+
+// Show/hide dispatch area based on import type
+importTypeSelect.addEventListener('change', function() {
+    if (this.value === 'child_parent') {
+        dispatchAreaContainer.style.display = 'block';
+    } else {
+        dispatchAreaContainer.style.display = 'none';
+    }
+});
+
+// Drag and drop functionality
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    
+    const dt = new DataTransfer();
+    const droppedFiles = e.dataTransfer.files;
+    
+    // Add dropped files to input
+    for (let i = 0; i < droppedFiles.length; i++) {
+        dt.items.add(droppedFiles[i]);
+    }
+    
+    fileInput.files = dt.files;
+    updateFileList();
+});
+
+// File input change
+fileInput.addEventListener('change', updateFileList);
+
+function updateFileList() {
+    const files = fileInput.files;
+    fileList.innerHTML = '';
+    
+    if (files.length === 0) {
+        fileListContainer.style.display = 'none';
+        submitBtn.disabled = true;
+        return;
+    }
+    
+    fileListContainer.style.display = 'block';
+    submitBtn.disabled = false;
+    
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const item = document.createElement('div');
+        item.className = 'list-group-item file-item';
+        
+        const fileName = document.createElement('span');
+        fileName.innerHTML = `<i class="fas fa-file-excel text-success"></i> ${file.name} <small class="text-muted">(${formatBytes(file.size)})</small>`;
+        
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'remove-file';
+        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        removeBtn.onclick = () => removeFile(i);
+        
+        item.appendChild(fileName);
+        item.appendChild(removeBtn);
+        fileList.appendChild(item);
+    }
+}
+
+function removeFile(index) {
+    const dt = new DataTransfer();
+    const files = fileInput.files;
+    
+    for (let i = 0; i < files.length; i++) {
+        if (i !== index) {
+            dt.items.add(files[i]);
+        }
+    }
+    
+    fileInput.files = dt.files;
+    updateFileList();
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Form submission
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const files = fileInput.files;
+    if (files.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one file');
+        return;
+    }
+    
+    // Show loading indicator
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+});
+</script>
+{% endblock %}
