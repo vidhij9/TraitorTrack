@@ -1,0 +1,121 @@
+1. Structure of incoming sheet
+	1.	Data comes in batches.
+	2.	Each batch has:
+	•	Multiple child bag rows.
+	•	Followed by one parent bag row.
+	3.	Pattern repeats across the sheet.
+
+⸻
+
+2. How to identify a CHILD BAG row
+	1.	Sr. No. column is numeric, like 1, 2, 3…
+	2.	QR Code column starts with
+LABEL NO.
+	3.	Nothing else matters.
+
+⸻
+
+3. What to extract from CHILD BAG
+	1.	ONLY the label number, which appears immediately after:
+LABEL NO.XXXXXXXX
+(Example: 0016586)
+	2.	Ignore:
+	•	LOT NO.
+	•	DOT
+	•	Any other text.
+
+⸻
+
+4. How to identify a PARENT BAG row
+	1.	Sr. No. column contains the text:
+Parent Code
+	2.	QR Code column contains the parent bag code, like:
+	•	SB12260
+	•	SB03581
+	•	(whatever format your parent numbers have)
+
+⸻
+
+5. What to do when a PARENT BAG row appears
+	1.	All child labels above it belong to this parent.
+	2.	Create mapping:
+	•	Each child label → this parent code
+	3.	After mapping:
+	•	Clear the child list
+(new batch begins)
+
+⸻
+
+6. Blank rows
+	1.	Skip completely.
+	2.	Do not treat them as boundaries.
+
+⸻
+
+7. End of sheet behaviour
+	1.	If child labels exist without a parent after them:
+	•	Mark as unassigned children
+OR
+	•	Flag as error
+(You decide and keep consistent)
+
+⸻
+
+8. DB storage rules
+
+Parent bags table
+	•	parent_code
+
+Child bags table
+	•	label_no
+	•	parent_bag_id (FK)
+
+Relationship
+	•	Every label points to exactly one parent bag.
+
+⸻
+
+9. At runtime (during scanning)
+
+A. When a CHILD BAG QR is scanned
+	1.	Detect using LABEL NO. present.
+	2.	Extract label number only.
+	3.	Search DB → find parent bag ID.
+	4.	Return:
+	•	label number
+	•	parent bag
+	•	(later) linked bill if available
+
+⸻
+
+B. When a PARENT BAG QR is scanned
+	1.	Detect using your parent-code format (e.g., SB + digits).
+	2.	Search using full parent code.
+	3.	Return:
+	•	parent bag
+	•	all child labels under it
+
+⸻
+
+C. For BILLS (same rules as parent-child)
+	1.	Many parent bag codes
+	2.	Then one Bill No. row
+	3.	Mapping rule:
+	•	Each parent bag → that bill number
+
+Which creates full hierarchy:
+
+Child label → Parent Bag → Bill
+
+⸻
+
+10. Replit Dev Summary
+	1.	Read sheet top to bottom.
+	2.	Build batches:
+	•	Collect child labels.
+	•	When Parent Code appears → tie them.
+	3.	Store clean mappings in DB.
+	4.	On scan:
+	•	Child → only label number is used.
+	•	Parent → whole code is used.
+	5.	Bill linking follows the same pattern as child→parent.
