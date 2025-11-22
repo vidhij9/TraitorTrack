@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+
+{% block title %}Batch Import Parent-Bill Bags - TraitorTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-layer-group"></i> Batch Import: Parent → Bill Bags
+                    </h4>
+                </div>
+
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <h5><i class="fas fa-info-circle"></i> Import Format</h5>
+                        <p class="mb-2">Upload an Excel file (.xlsx) with the following pattern:</p>
+                        <ul class="mb-0">
+                            <li><strong>Multiple rows</strong> with parent bag QR codes (Sr. No. = numeric: 1, 2, 3...)</li>
+                            <li><strong>One bill row</strong> with "Bill No" or similar in Sr. No. column, bill number in next column</li>
+                            <li>Pattern repeats for each batch</li>
+                        </ul>
+                        <hr class="my-2">
+                        <p class="small mb-0"><strong>Example:</strong></p>
+                        <pre class="mb-0" style="font-size: 0.85rem;"><code>Sr. No. | Parent Bag
+1       | SB12260
+2       | SB12248
+Bill No | BILL001</code></pre>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        {{ csrf_token() }}
+                        
+                        <div class="mb-3">
+                            <label for="file" class="form-label">
+                                <i class="fas fa-file-excel"></i> Select Excel File
+                            </label>
+                            <input 
+                                type="file" 
+                                class="form-control" 
+                                id="file" 
+                                name="file" 
+                                accept=".xlsx,.xls"
+                                required
+                            >
+                            <small class="form-text text-muted">
+                                Max file size: {{ max_file_size_mb }}MB
+                            </small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-upload"></i> Import Batches
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <div class="alert alert-warning" role="alert">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Important Notes</h5>
+                        <ul class="mb-0">
+                            <li>All parent bags must exist in the database</li>
+                            <li>Bills will be created if they don't exist</li>
+                            <li>Parent bags are linked to bills automatically</li>
+                            <li>Duplicate links are skipped silently</li>
+                            <li>Failed batches don't affect other batches</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const file = document.getElementById('file').files[0];
+    if (!file) {
+        e.preventDefault();
+        alert('Please select a file');
+        return;
+    }
+});
+</script>
+{% endblock %}

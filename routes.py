@@ -7960,6 +7960,81 @@ def import_batch_child_parent():
         return redirect(url_for('import_batch_child_parent'))
 
 
+@app.route('/import/batch_parent_bill', methods=['GET', 'POST'])
+@login_required
+def import_batch_parent_bill():
+    """Batch import parent bags linked to bills from Excel - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for bulk imports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'GET':
+        max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024) / (1024 * 1024)
+        return render_template('import_batch_parent_bill.html', max_file_size_mb=max_size_mb)
+    
+    # Handle POST - file upload
+    try:
+        from import_utils import ParentBillBatchImporter
+        
+        if 'file' not in request.files:
+            flash('No file uploaded.', 'error')
+            return redirect(url_for('import_batch_parent_bill'))
+        
+        file = request.files['file']
+        
+        if not file.filename or file.filename == '':
+            flash('No file selected.', 'error')
+            return redirect(url_for('import_batch_parent_bill'))
+        
+        # Validate file extension
+        filename = (file.filename or '').lower()
+        if not filename.endswith(('.xlsx', '.xls')):
+            flash('Please upload an Excel file (.xlsx or .xls).', 'error')
+            return redirect(url_for('import_batch_parent_bill'))
+        
+        # Parse Excel file with batch pattern
+        batches, parse_errors, stats = ParentBillBatchImporter.parse_excel_batch(file)
+        
+        # Show parsing errors
+        if parse_errors:
+            for error in parse_errors[:10]:  # Show first 10 errors
+                flash(error, 'warning')
+            if len(parse_errors) > 10:
+                flash(f'... and {len(parse_errors) - 10} more warnings', 'warning')
+        
+        if not batches:
+            flash('No valid batches found in file.', 'error')
+            return redirect(url_for('import_batch_parent_bill'))
+        
+        # Import batches
+        bills_created, links_created, parents_not_found, import_errors = ParentBillBatchImporter.import_batches(
+            db, batches, current_user.id  # type: ignore
+        )
+        
+        # Show results
+        if bills_created > 0 or links_created > 0:
+            flash(f'Successfully imported {len(batches)} batches: {bills_created} bills created, {links_created} parent-bill links created.', 'success')
+        
+        if import_errors:
+            for error in import_errors[:5]:
+                flash(error, 'warning')
+            if len(import_errors) > 5:
+                flash(f'... and {len(import_errors) - 5} more warnings', 'warning')
+        
+        if parents_not_found > 0:
+            flash(f'Warning: {parents_not_found} parent bags referenced in file were not found in database.', 'warning')
+        
+        # Show stats
+        flash(f'File statistics: {stats.get("total_parents", 0)} total parents, {stats.get("total_bills", 0)} total bills, {stats.get("skipped_rows", 0)} skipped rows.', 'info')
+        
+        return redirect(url_for('bill_management'))
+    
+    except Exception as e:
+        app.logger.error(f"Batch parent-bill import error: {str(e)}")
+        flash(f'Error importing batches: {str(e)}', 'error')
+        return redirect(url_for('import_batch_parent_bill'))
+
+
 @app.route('/import/bills', methods=['GET', 'POST'])
 @login_required
 def import_bills():

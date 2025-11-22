@@ -168,7 +168,8 @@ class BagImporter:
         
         try:
             # Load workbook
-            wb = load_workbook(file_storage)
+            file_storage.stream.seek(0)
+            wb = load_workbook(file_storage.stream)
             ws = wb.active
             
             # Get header row
@@ -587,7 +588,8 @@ class ChildParentBatchImporter:
             return [], ["Excel support not available - openpyxl not installed"], {}
         
         try:
-            wb = load_workbook(file_storage)
+            file_storage.stream.seek(0)
+            wb = load_workbook(file_storage.stream)
             ws = wb.active
             
             batches = []
@@ -895,7 +897,8 @@ class ParentBillBatchImporter:
             return [], ["Excel support not available - openpyxl not installed"], {}
         
         try:
-            wb = load_workbook(file_storage)
+            file_storage.stream.seek(0)
+            wb = load_workbook(file_storage.stream)
             ws = wb.active
             
             batches = []
