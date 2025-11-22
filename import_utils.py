@@ -802,3 +802,298 @@ class ChildParentBatchImporter:
             logger.error(f"Batch import error: {str(e)}")
             errors.append(f"Database error: {str(e)}")
             return parents_created, children_created, links_created, errors
+
+
+class ParentBillBatchImporter:
+    """
+    Handles batch import of parent bags linked to bills from Excel files.
+    
+    Expected format (similar to child→parent pattern):
+    - Multiple rows with parent bag QR codes (Sr. No. is numeric)
+    - Followed by one bill number row (Sr. No. contains 'Bill No' or similar marker)
+    - Pattern repeats for each batch
+    
+    Example:
+    Row 1: Sr. No.=1, Parent Bag='SB12260'     <- Parent bag
+    Row 2: Sr. No.=2, Parent Bag='SB12248'     <- Parent bag
+    Row 3: Sr. No.='Bill No', Bill='BILL001'   <- Bill number (marks end of batch)
+    """
+    
+    @staticmethod
+    def is_parent_bag_row(sr_no, parent_code) -> bool:
+        """
+        Determine if a row represents a parent bag.
+        
+        Parent bag criteria:
+        - Sr. No. is numeric (1, 2, 3, etc.)
+        - Parent code/QR is not empty
+        
+        Args:
+            sr_no: Value from Sr. No. column
+            parent_code: Value from parent bag column
+            
+        Returns:
+            True if this is a parent bag row
+        """
+        try:
+            if sr_no is not None:
+                float(sr_no)  # Can be 1.0 or 1
+                
+                # Check if parent code exists
+                if parent_code and isinstance(parent_code, str) and parent_code.strip():
+                    return True
+        except (ValueError, TypeError):
+            pass
+        
+        return False
+    
+    @staticmethod
+    def is_bill_row(sr_no, bill_code) -> Tuple[bool, Optional[str]]:
+        """
+        Determine if a row represents a bill and extract bill number.
+        
+        Bill row criteria:
+        - Sr. No. contains 'Bill' text (case-insensitive)
+        - Bill code column contains the bill number
+        
+        Args:
+            sr_no: Value from Sr. No. column
+            bill_code: Value from bill code column
+            
+        Returns:
+            Tuple of (is_bill_row, bill_number)
+        """
+        if sr_no and isinstance(sr_no, str) and 'bill' in sr_no.lower():
+            # Extract bill number
+            bill_number = str(bill_code).strip() if bill_code else None
+            return True, bill_number
+        
+        return False, None
+    
+    @staticmethod
+    def parse_excel_batch(file_storage: FileStorage) -> Tuple[List[Dict], List[str], Dict]:
+        """
+        Parse Excel file with batch pattern (parent bags followed by bill).
+        
+        Args:
+            file_storage: Uploaded Excel file
+            
+        Returns:
+            Tuple of (batches_list, error_list, stats_dict)
+            
+            batches_list format:
+            [
+                {
+                    'bill_number': 'BILL001',
+                    'parent_bags': ['SB12260', 'SB12248', ...],
+                    'row_range': '2-10'
+                },
+                ...
+            ]
+        """
+        if not EXCEL_AVAILABLE:
+            return [], ["Excel support not available - openpyxl not installed"], {}
+        
+        try:
+            wb = load_workbook(file_storage)
+            ws = wb.active
+            
+            batches = []
+            errors = []
+            current_parents = []
+            batch_start_row = None
+            
+            total_parents = 0
+            total_bills = 0
+            skipped_rows = 0
+            
+            # Process rows (skip header row 1)
+            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                # Skip completely blank rows
+                if not any(row):
+                    skipped_rows += 1
+                    continue
+                
+                sr_no = row[0] if len(row) > 0 else None
+                parent_or_bill = row[1] if len(row) > 1 else None
+                
+                # Check if this is a parent bag row
+                if ParentBillBatchImporter.is_parent_bag_row(sr_no, parent_or_bill):
+                    if batch_start_row is None:
+                        batch_start_row = row_num
+                    
+                    parent_code = str(parent_or_bill).strip()
+                    current_parents.append(parent_code)
+                    total_parents += 1
+                
+                # Check if this is a bill row
+                is_bill, bill_number = ParentBillBatchImporter.is_bill_row(sr_no, parent_or_bill)
+                if is_bill:
+                    if not bill_number:
+                        errors.append(f"Row {row_num}: Bill row found but bill number is blank/missing")
+                        # Clear parents and start fresh
+                        current_parents = []
+                        batch_start_row = None
+                        continue
+                    
+                    if not current_parents:
+                        errors.append(f"Row {row_num}: Bill number '{bill_number}' found but no parent bags above it")
+                        continue
+                    
+                    # Create batch
+                    batches.append({
+                        'bill_number': bill_number,
+                        'parent_bags': current_parents.copy(),
+                        'row_range': f"{batch_start_row}-{row_num}"
+                    })
+                    total_bills += 1
+                    
+                    # Reset for next batch
+                    current_parents = []
+                    batch_start_row = None
+            
+            # Handle orphaned parents at end of sheet
+            if current_parents:
+                errors.append(f"Warning: {len(current_parents)} parent bags found at end of sheet without a bill number")
+                batches.append({
+                    'bill_number': None,
+                    'parent_bags': current_parents,
+                    'row_range': f"{batch_start_row}-END",
+                    'orphaned': True
+                })
+            
+            stats = {
+                'total_batches': len(batches),
+                'total_parents': total_parents,
+                'total_bills': total_bills,
+                'skipped_rows': skipped_rows
+            }
+            
+            return batches, errors, stats
+        
+        except Exception as e:
+            logger.error(f"Excel batch parsing error: {str(e)}")
+            return [], [f"Error parsing Excel file: {str(e)}"], {}
+    
+    @staticmethod
+    def import_batches(db, batches: List[Dict], user_id: int) -> Tuple[int, int, int, List[str]]:
+        """
+        Import batches of parent bag → bill relationships.
+        
+        Args:
+            db: Database session
+            batches: List of batch dictionaries from parse_excel_batch
+            user_id: ID of user performing import
+            
+        Returns:
+            Tuple of (bills_created, links_created, parents_not_found, error_list)
+        """
+        from models import Bag, Bill, BillBag, BagType
+        
+        bills_created = 0
+        links_created = 0
+        parents_not_found = 0
+        errors = []
+        
+        try:
+            for batch_num, batch in enumerate(batches, 1):
+                bill_number = batch['bill_number']
+                parent_codes = batch['parent_bags']
+                row_range = batch['row_range']
+                is_orphaned = batch.get('orphaned', False)
+                
+                # Skip orphaned batches
+                if is_orphaned:
+                    errors.append(f"Batch {batch_num} (rows {row_range}): Skipped {len(parent_codes)} orphaned parents without bill")
+                    continue
+                
+                # Start a savepoint for this batch
+                savepoint = db.session.begin_nested()
+                
+                try:
+                    # Check if bill already exists
+                    bill = Bill.query.filter_by(bill_id=bill_number.upper()).first()
+                    
+                    if not bill:
+                        # Create bill
+                        bill = Bill(
+                            bill_id=bill_number,
+                            parent_bag_count=len(parent_codes),
+                            created_by_id=user_id
+                        )
+                        db.session.add(bill)
+                        db.session.flush()  # Get bill ID
+                        bills_created += 1
+                    else:
+                        # Bill exists - we'll add parent bags to it
+                        logger.info(f"Bill {bill_number} already exists, adding parent bags to it")
+                    
+                    # Link parent bags to bill
+                    batch_links_created = 0
+                    batch_parents_not_found = 0
+                    
+                    for parent_code in parent_codes:
+                        # Find parent bag
+                        parent_bag = Bag.query.filter_by(
+                            qr_id=parent_code.upper(),
+                            type=BagType.PARENT.value
+                        ).first()
+                        
+                        if not parent_bag:
+                            batch_parents_not_found += 1
+                            errors.append(f"Batch {batch_num}: Parent bag '{parent_code}' not found in database")
+                            continue
+                        
+                        # Check if link already exists
+                        existing_link = BillBag.query.filter_by(
+                            bill_id=bill.id,
+                            bag_id=parent_bag.id
+                        ).first()
+                        
+                        if not existing_link:
+                            # Create link
+                            bill_bag = BillBag(
+                                bill_id=bill.id,
+                                bag_id=parent_bag.id
+                            )
+                            db.session.add(bill_bag)
+                            batch_links_created += 1
+                    
+                    # Update bill's parent bag count
+                    actual_parent_count = BillBag.query.filter_by(bill_id=bill.id).count()
+                    bill.parent_bag_count = actual_parent_count
+                    
+                    # Commit this batch
+                    savepoint.commit()
+                    db.session.flush()
+                    
+                    links_created += batch_links_created
+                    parents_not_found += batch_parents_not_found
+                    
+                    logger.info(f"Batch {batch_num} ({row_range}): Linked bill '{bill_number}' to {batch_links_created} parent bags ({batch_parents_not_found} not found)")
+                
+                except Exception as batch_error:
+                    savepoint.rollback()
+                    error_msg = f"Batch {batch_num} (rows {row_range}, bill '{bill_number}'): {str(batch_error)}"
+                    errors.append(error_msg)
+                    logger.error(f"Batch import error: {error_msg}")
+            
+            # Final commit
+            db.session.commit()
+            
+            # Log audit
+            from audit_utils import log_audit
+            log_audit(
+                action='BATCH_IMPORT_PARENT_BILL',
+                entity_type='bill',
+                entity_id=None,
+                details=f"Imported {len(batches)} batches: {bills_created} bills, {links_created} parent-bill links ({parents_not_found} parents not found)"
+            )
+            
+            return bills_created, links_created, parents_not_found, errors
+        
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Batch import error: {str(e)}")
+            errors.append(f"Database error: {str(e)}")
+            return bills_created, links_created, parents_not_found, errors
