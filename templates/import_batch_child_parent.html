@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+
+{% block title %}Batch Import Child-Parent Bags - TraitorTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-layer-group"></i> Batch Import: Child → Parent Bags
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Upload Excel file</strong> with batches of child bags followed by parent bag codes.
+                        Maximum file size: <strong>{{ max_file_size_mb|int }}MB</strong>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" id="importForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="mb-3">
+                            <label for="file" class="form-label">
+                                <i class="fas fa-file-excel"></i> Select Excel File
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="file" 
+                                   name="file" 
+                                   accept=".xlsx,.xls"
+                                   required>
+                            <div class="form-text">
+                                Accepted formats: Excel (.xlsx, .xls) - Max {{ max_file_size_mb|int }}MB
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="dispatch_area" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> Dispatch Area (Optional)
+                            </label>
+                            <select class="form-select" id="dispatch_area" name="dispatch_area">
+                                <option value="">-- Select Dispatch Area --</option>
+                                <option value="lucknow">Lucknow</option>
+                                <option value="indore">Indore</option>
+                                <option value="jaipur">Jaipur</option>
+                                <option value="hisar">Hisar</option>
+                                <option value="sri_ganganagar">Sri Ganganagar</option>
+                                <option value="sangaria">Sangaria</option>
+                                <option value="bathinda">Bathinda</option>
+                                <option value="raipur">Raipur</option>
+                                <option value="ranchi">Ranchi</option>
+                                <option value="akola">Akola</option>
+                            </select>
+                            <div class="form-text">
+                                All imported bags will be assigned to this dispatch area
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h6><i class="fas fa-file-alt"></i> Expected Excel Format:</h6>
+                            <div class="bg-light p-3 rounded">
+                                <p class="mb-2"><strong>Pattern:</strong> Multiple child bag rows, followed by one parent bag row. This pattern repeats for each batch.</p>
+                                
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Sr. No.</th>
+                                            <th>QR Code</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="table-success">
+                                            <td>1</td>
+                                            <td><code>LABEL NO.0016586 LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bag</span></td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td>2</td>
+                                            <td><code>LABEL NO.0016587 LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bag</span></td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td>3</td>
+                                            <td><code>LABEL NO.0016585 LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bag</span></td>
+                                        </tr>
+                                        <tr class="table-primary">
+                                            <td><strong>Parent Code</strong></td>
+                                            <td><code>SB12260</code></td>
+                                            <td><span class="badge bg-primary">Parent Bag</span> (ends batch)</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted"><em>(blank row optional)</em></td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td>1</td>
+                                            <td><code>LABEL NO.0016621 LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bag</span> (new batch starts)</td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td>2</td>
+                                            <td><code>LABEL NO.0016624 LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bag</span></td>
+                                        </tr>
+                                        <tr class="table-primary">
+                                            <td><strong>Parent Code</strong></td>
+                                            <td><code>SB12248</code></td>
+                                            <td><span class="badge bg-primary">Parent Bag</span> (ends batch)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                
+                                <div class="mt-3">
+                                    <p class="mb-1"><strong>How it works:</strong></p>
+                                    <ul class="small mb-0">
+                                        <li><strong>Child Bags:</strong> Sr. No. is numeric (1, 2, 3...), QR Code contains "LABEL NO." followed by the label number</li>
+                                        <li><strong>Parent Bag:</strong> Sr. No. contains "Parent Code", QR Code contains the parent bag ID (e.g., SB12260)</li>
+                                        <li><strong>Extraction:</strong> Only the label number is extracted from child QR codes (e.g., "0016586" from "LABEL NO.0016586...")</li>
+                                        <li><strong>Blank rows:</strong> Are automatically skipped</li>
+                                        <li><strong>Result:</strong> All child bags in a batch are automatically linked to their parent bag</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                            <a href="{{ url_for('bag_management') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-upload"></i> Upload & Import Batches
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-4">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Important Notes:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Duplicate bags and links will be skipped automatically</li>
+                                <li>If a parent bag already exists, new children will be added to it</li>
+                                <li>Orphaned children (at end of sheet without parent) will be reported but skipped</li>
+                                <li>Each batch is processed independently - if one fails, others continue</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('importForm').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('file');
+    const file = fileInput.files[0];
+    const maxSizeMB = {{ max_file_size_mb|int }};
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    
+    if (file && file.size > maxSizeBytes) {
+        e.preventDefault();
+        alert('File size exceeds ' + maxSizeMB + 'MB limit. Please upload a smaller file.');
+        return false;
+    }
+    
+    // Show loading indicator
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+});
+</script>
+{% endblock %}

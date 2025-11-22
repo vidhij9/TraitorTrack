@@ -7884,6 +7884,82 @@ def import_bags():
         return redirect(url_for('import_bags'))
 
 
+@app.route('/import/batch_child_parent', methods=['GET', 'POST'])
+@login_required
+def import_batch_child_parent():
+    """Batch import child bags linked to parent bags from Excel - admin only"""
+    if not current_user.is_admin():
+        flash('Admin access required for bulk imports.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'GET':
+        max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024) / (1024 * 1024)
+        return render_template('import_batch_child_parent.html', max_file_size_mb=max_size_mb)
+    
+    # Handle POST - file upload
+    try:
+        from import_utils import ChildParentBatchImporter
+        
+        if 'file' not in request.files:
+            flash('No file uploaded.', 'error')
+            return redirect(url_for('import_batch_child_parent'))
+        
+        file = request.files['file']
+        
+        if not file.filename or file.filename == '':
+            flash('No file selected.', 'error')
+            return redirect(url_for('import_batch_child_parent'))
+        
+        # Validate file extension
+        filename = (file.filename or '').lower()
+        if not filename.endswith(('.xlsx', '.xls')):
+            flash('Please upload an Excel file (.xlsx or .xls).', 'error')
+            return redirect(url_for('import_batch_child_parent'))
+        
+        # Get dispatch area if provided
+        dispatch_area = request.form.get('dispatch_area', '').strip() or None
+        
+        # Parse Excel file with batch pattern
+        batches, parse_errors, stats = ChildParentBatchImporter.parse_excel_batch(file)
+        
+        # Show parsing errors
+        if parse_errors:
+            for error in parse_errors[:10]:  # Show first 10 errors
+                flash(error, 'warning')
+            if len(parse_errors) > 10:
+                flash(f'... and {len(parse_errors) - 10} more warnings', 'warning')
+        
+        if not batches:
+            flash('No valid batches found in file.', 'error')
+            return redirect(url_for('import_batch_child_parent'))
+        
+        # Show preview and ask for confirmation if needed
+        # For now, we'll import directly
+        parents_created, children_created, links_created, import_errors = ChildParentBatchImporter.import_batches(
+            db, batches, current_user.id, dispatch_area  # type: ignore
+        )
+        
+        # Show results
+        if parents_created > 0 or children_created > 0:
+            flash(f'Successfully imported {len(batches)} batches: {parents_created} parent bags, {children_created} child bags, {links_created} links created.', 'success')
+        
+        if import_errors:
+            for error in import_errors[:5]:
+                flash(error, 'warning')
+            if len(import_errors) > 5:
+                flash(f'... and {len(import_errors) - 5} more warnings', 'warning')
+        
+        # Show stats
+        flash(f'File statistics: {stats.get("total_children", 0)} total children, {stats.get("total_parents", 0)} total parents, {stats.get("skipped_rows", 0)} skipped rows.', 'info')
+        
+        return redirect(url_for('bag_management'))
+    
+    except Exception as e:
+        app.logger.error(f"Batch import error: {str(e)}")
+        flash(f'Error importing batches: {str(e)}', 'error')
+        return redirect(url_for('import_batch_child_parent'))
+
+
 @app.route('/import/bills', methods=['GET', 'POST'])
 @login_required
 def import_bills():

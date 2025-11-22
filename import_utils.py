@@ -468,3 +468,337 @@ class BillImporter:
             logger.error(f"Bill import error: {str(e)}")
             errors.append(f"Database error: {str(e)}")
             return imported, skipped, errors
+
+
+class ChildParentBatchImporter:
+    """
+    Handles batch import of child bags linked to parent bags from Excel files.
+    
+    Expected format:
+    - Multiple rows with child bag QR codes (Sr. No. is numeric, QR Code starts with 'LABEL NO.')
+    - Followed by one parent bag row (Sr. No. contains 'Parent Code', QR Code contains parent bag ID)
+    - Pattern repeats for each batch
+    
+    Example:
+    Row 1: Sr. No.=1, QR Code='LABEL NO.0016586 LOT NO.:...'  <- Child bag
+    Row 2: Sr. No.=2, QR Code='LABEL NO.0016587 LOT NO.:...'  <- Child bag
+    Row 3: Sr. No.='Parent Code', QR Code='SB12260'           <- Parent bag (marks end of batch)
+    """
+    
+    @staticmethod
+    def extract_label_number(qr_text: str) -> Optional[str]:
+        """
+        Extract only the label number from QR code text.
+        
+        Example input: 'LABEL NO.0016586 LOT NO.:STAR44GG24611, D.O.T.:30/09/2025...'
+        Expected output: '0016586'
+        
+        Args:
+            qr_text: Full QR code text
+            
+        Returns:
+            Label number string or None if not found
+        """
+        if not qr_text or not isinstance(qr_text, str):
+            return None
+        
+        # Look for 'LABEL NO.' followed by digits
+        import re
+        match = re.search(r'LABEL\s*NO\.(\d+)', qr_text, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        
+        return None
+    
+    @staticmethod
+    def is_child_row(sr_no, qr_code) -> bool:
+        """
+        Determine if a row represents a child bag.
+        
+        Child bag criteria:
+        - Sr. No. is numeric (1, 2, 3, etc.)
+        - QR Code starts with 'LABEL NO.'
+        
+        Args:
+            sr_no: Value from Sr. No. column
+            qr_code: Value from QR Code column
+            
+        Returns:
+            True if this is a child bag row
+        """
+        # Check if Sr. No. is numeric
+        try:
+            if sr_no is not None:
+                float(sr_no)  # Can be 1.0 or 1
+                
+                # Check if QR code contains 'LABEL NO.'
+                if qr_code and isinstance(qr_code, str) and 'LABEL NO.' in qr_code.upper():
+                    return True
+        except (ValueError, TypeError):
+            pass
+        
+        return False
+    
+    @staticmethod
+    def is_parent_row(sr_no, qr_code) -> Tuple[bool, Optional[str]]:
+        """
+        Determine if a row represents a parent bag and extract parent code.
+        
+        Parent bag criteria:
+        - Sr. No. contains 'Parent Code' text
+        - QR Code contains the parent bag code (e.g., 'SB12260')
+        
+        Args:
+            sr_no: Value from Sr. No. column
+            qr_code: Value from QR Code column
+            
+        Returns:
+            Tuple of (is_parent_row, parent_code)
+        """
+        if sr_no and isinstance(sr_no, str) and 'parent code' in sr_no.lower():
+            # Extract parent code from QR Code column
+            parent_code = str(qr_code).strip() if qr_code else None
+            return True, parent_code
+        
+        return False, None
+    
+    @staticmethod
+    def parse_excel_batch(file_storage: FileStorage) -> Tuple[List[Dict], List[str], Dict]:
+        """
+        Parse Excel file with batch pattern (children followed by parent).
+        
+        Args:
+            file_storage: Uploaded Excel file
+            
+        Returns:
+            Tuple of (batches_list, error_list, stats_dict)
+            
+            batches_list format:
+            [
+                {
+                    'parent_code': 'SB12260',
+                    'children': ['0016586', '0016587', '0016585', ...],
+                    'row_range': '2-17'
+                },
+                ...
+            ]
+        """
+        if not EXCEL_AVAILABLE:
+            return [], ["Excel support not available - openpyxl not installed"], {}
+        
+        try:
+            wb = load_workbook(file_storage)
+            ws = wb.active
+            
+            batches = []
+            errors = []
+            current_children = []
+            batch_start_row = None
+            
+            total_children = 0
+            total_parents = 0
+            skipped_rows = 0
+            
+            # Process rows (skip header row 1)
+            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                # Skip completely blank rows
+                if not any(row):
+                    skipped_rows += 1
+                    continue
+                
+                sr_no = row[0] if len(row) > 0 else None
+                qr_code = row[1] if len(row) > 1 else None
+                
+                # Check if this is a child bag row
+                if ChildParentBatchImporter.is_child_row(sr_no, qr_code):
+                    label_number = ChildParentBatchImporter.extract_label_number(qr_code)
+                    
+                    if label_number:
+                        if batch_start_row is None:
+                            batch_start_row = row_num
+                        current_children.append(label_number)
+                        total_children += 1
+                    else:
+                        errors.append(f"Row {row_num}: Could not extract label number from QR code")
+                
+                # Check if this is a parent bag row
+                is_parent, parent_code = ChildParentBatchImporter.is_parent_row(sr_no, qr_code)
+                if is_parent:
+                    if not parent_code:
+                        errors.append(f"Row {row_num}: Parent row found but parent code is blank/missing")
+                        # Clear children and start fresh
+                        current_children = []
+                        batch_start_row = None
+                        continue
+                    
+                    if not current_children:
+                        errors.append(f"Row {row_num}: Parent code '{parent_code}' found but no child bags above it")
+                        continue
+                    
+                    # Create batch
+                    batches.append({
+                        'parent_code': parent_code,
+                        'children': current_children.copy(),
+                        'row_range': f"{batch_start_row}-{row_num}"
+                    })
+                    total_parents += 1
+                    
+                    # Reset for next batch
+                    current_children = []
+                    batch_start_row = None
+            
+            # Handle orphaned children at end of sheet
+            if current_children:
+                errors.append(f"Warning: {len(current_children)} child bags found at end of sheet without a parent code")
+                batches.append({
+                    'parent_code': None,
+                    'children': current_children,
+                    'row_range': f"{batch_start_row}-END",
+                    'orphaned': True
+                })
+            
+            stats = {
+                'total_batches': len(batches),
+                'total_children': total_children,
+                'total_parents': total_parents,
+                'skipped_rows': skipped_rows
+            }
+            
+            return batches, errors, stats
+        
+        except Exception as e:
+            logger.error(f"Excel batch parsing error: {str(e)}")
+            return [], [f"Error parsing Excel file: {str(e)}"], {}
+    
+    @staticmethod
+    def import_batches(db, batches: List[Dict], user_id: int, dispatch_area: Optional[str] = None) -> Tuple[int, int, int, List[str]]:
+        """
+        Import batches of child-parent bag relationships.
+        
+        Args:
+            db: Database session
+            batches: List of batch dictionaries from parse_excel_batch
+            user_id: ID of user performing import
+            dispatch_area: Optional dispatch area for the bags
+            
+        Returns:
+            Tuple of (parents_created, children_created, links_created, error_list)
+        """
+        from models import Bag, Link, BagType
+        
+        parents_created = 0
+        children_created = 0
+        links_created = 0
+        errors = []
+        
+        try:
+            for batch_num, batch in enumerate(batches, 1):
+                parent_code = batch['parent_code']
+                child_labels = batch['children']
+                row_range = batch['row_range']
+                is_orphaned = batch.get('orphaned', False)
+                
+                # Skip orphaned batches unless user explicitly wants them
+                if is_orphaned:
+                    errors.append(f"Batch {batch_num} (rows {row_range}): Skipped {len(child_labels)} orphaned children without parent")
+                    continue
+                
+                # Start a savepoint for this batch
+                savepoint = db.session.begin_nested()
+                
+                try:
+                    # Check if parent already exists
+                    parent_bag = Bag.query.filter_by(qr_id=parent_code.upper()).first()
+                    
+                    if not parent_bag:
+                        # Create parent bag
+                        parent_bag = Bag(
+                            qr_id=parent_code,
+                            type=BagType.PARENT.value,
+                            user_id=user_id,
+                            dispatch_area=dispatch_area,
+                            child_count=len(child_labels),
+                            weight_kg=len(child_labels) * 1.0  # 1kg per child
+                        )
+                        db.session.add(parent_bag)
+                        db.session.flush()  # Get parent bag ID
+                        parents_created += 1
+                    else:
+                        # Parent exists - we'll add children to it
+                        logger.info(f"Parent bag {parent_code} already exists, adding children to it")
+                    
+                    # Create child bags and links
+                    batch_children_created = 0
+                    batch_links_created = 0
+                    
+                    for label_number in child_labels:
+                        # Check if child already exists
+                        child_bag = Bag.query.filter_by(qr_id=label_number.upper()).first()
+                        
+                        if not child_bag:
+                            # Create child bag
+                            child_bag = Bag(
+                                qr_id=label_number,
+                                type=BagType.CHILD.value,
+                                user_id=user_id,
+                                dispatch_area=dispatch_area,
+                                weight_kg=1.0  # Each child is 1kg
+                            )
+                            db.session.add(child_bag)
+                            db.session.flush()  # Get child bag ID
+                            batch_children_created += 1
+                        
+                        # Check if link already exists
+                        existing_link = Link.query.filter_by(
+                            parent_bag_id=parent_bag.id,
+                            child_bag_id=child_bag.id
+                        ).first()
+                        
+                        if not existing_link:
+                            # Create link
+                            link = Link(
+                                parent_bag_id=parent_bag.id,
+                                child_bag_id=child_bag.id
+                            )
+                            db.session.add(link)
+                            batch_links_created += 1
+                    
+                    # Update parent's child count
+                    actual_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+                    parent_bag.child_count = actual_child_count
+                    parent_bag.weight_kg = actual_child_count * 1.0
+                    
+                    # Commit this batch
+                    savepoint.commit()
+                    db.session.flush()
+                    
+                    children_created += batch_children_created
+                    links_created += batch_links_created
+                    
+                    logger.info(f"Batch {batch_num} ({row_range}): Created parent '{parent_code}', {batch_children_created} children, {batch_links_created} links")
+                
+                except Exception as batch_error:
+                    savepoint.rollback()
+                    error_msg = f"Batch {batch_num} (rows {row_range}, parent '{parent_code}'): {str(batch_error)}"
+                    errors.append(error_msg)
+                    logger.error(f"Batch import error: {error_msg}")
+            
+            # Final commit
+            db.session.commit()
+            
+            # Log audit
+            from audit_utils import log_audit
+            log_audit(
+                action='BATCH_IMPORT_CHILD_PARENT',
+                entity_type='bag',
+                entity_id=None,
+                details=f"Imported {len(batches)} batches: {parents_created} parents, {children_created} children, {links_created} links"
+            )
+            
+            return parents_created, children_created, links_created, errors
+        
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Batch import error: {str(e)}")
+            errors.append(f"Database error: {str(e)}")
+            return parents_created, children_created, links_created, errors
