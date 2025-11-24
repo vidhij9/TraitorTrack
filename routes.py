@@ -12,11 +12,9 @@ from auth_utils import (
     get_current_user_id, get_current_username, get_current_user_role
 )
 
-# Import caching and timezone utilities
+# Import timezone utilities only (caching disabled)
 from cache_utils import (
-    cached_global, cached_user, invalidate_cache, invalidate_user_cache,
-    invalidate_bags_cache, invalidate_stats_cache, get_cache_stats,
-    format_datetime_ist, get_ist_now, CACHE_TTL
+    format_datetime_ist, get_ist_now
 )
 
 # Import enhanced audit logging utilities
@@ -216,7 +214,6 @@ logger = logging.getLogger(__name__)
 @app.route('/user_management')
 @login_required
 @limiter.exempt  # Exempt from rate limiting for admin functionality
-@cached_user(seconds=CACHE_TTL['user_management'], prefix='user_management')
 def user_management():
     """Ultra-optimized user management dashboard for admins with caching"""
     try:
@@ -348,7 +345,6 @@ def get_user_details(user_id):
 @app.route('/admin/users/<int:user_id>/profile')
 @login_required
 @limiter.exempt  # Exempt admin functionality from rate limiting
-@cached_user(seconds=CACHE_TTL['user_profile'], prefix='user_profile')
 def admin_user_profile(user_id):
     """Comprehensive user profile page for admins with caching and IST timezone"""
     if not current_user.is_admin():
@@ -782,7 +778,6 @@ def edit_user(user_id):
         
         # CRITICAL: Invalidate caches AFTER commit
         if password_changed:
-            invalidate_user_cache(user.id)
             db.session.expire(user)
             app.logger.info(f'Cache invalidated for user {user.id} after admin password change')
         
@@ -1388,7 +1383,6 @@ def create_user():
         db.session.commit()
         
         # CRITICAL: Invalidate caches AFTER commit
-        invalidate_user_cache(user.id)
         db.session.expire(user)
         
         # Cache invalidation skipped - not critical for user creation
@@ -1459,8 +1453,6 @@ def seed_sample_data():
                     db.session.add(link)
             
             db.session.commit()
-            invalidate_bags_cache()  # Invalidate bags cache after bulk link creation
-            query_optimizer.invalidate_all_cache()  # Clear all optimizer cache after bulk import
         
         # Create sample scans for the past 30 days
         bags = Bag.query.all()
@@ -1815,8 +1807,6 @@ def link_to_bill(qr_id):
                     return render_template('link_to_bill.html', parent_bag=parent_bag)
                 
             db.session.commit()
-            invalidate_bags_cache()  # Invalidate bags cache after bill linking
-            invalidate_stats_cache()  # Invalidate stats cache after bill linking
             flash(f'Parent bag {qr_id} linked to bill {bill_id}', 'success')
             return redirect(url_for('dashboard'))
         
@@ -1867,7 +1857,6 @@ def log_scan():
         
         db.session.add(scan)
         db.session.commit()
-        invalidate_stats_cache()  # Invalidate stats cache after scan
         
         flash(f'Scan logged successfully for {bag.type} bag {qr_id}', 'success')
         return redirect(url_for('scan'))
@@ -1905,7 +1894,6 @@ def fix_admin_password():
         db.session.commit()
         
         # CRITICAL: Invalidate caches AFTER commit
-        invalidate_user_cache(user.id)
         db.session.expire(user)
         app.logger.info(f'Cache invalidated for admin user after password change')
         
@@ -1990,7 +1978,6 @@ def register():
             db.session.commit()
             
             # CRITICAL: Invalidate caches AFTER commit
-            invalidate_user_cache(user.id)
             db.session.expire(user)
             
             # Audit log: Successful registration
@@ -2653,11 +2640,6 @@ def process_child_scan():
         
         # Single atomic commit (includes link, scan, AND status update if 30th child)
         db.session.commit()
-        invalidate_bags_cache()  # Invalidate bags cache after link creation
-        invalidate_stats_cache()  # Invalidate stats cache after scan
-        # Invalidate query optimizer cache for affected bags
-        query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
-        query_optimizer.invalidate_bag_cache(qr_id=qr_code)
         
         return jsonify({
             'success': True,
@@ -2922,11 +2904,6 @@ def process_child_scan_fast():
         
         # Single atomic commit (includes link, scan, AND status update if 30th child)
         db.session.commit()
-        invalidate_bags_cache()  # Invalidate bags cache after link creation
-        invalidate_stats_cache()  # Invalidate stats cache after scan
-        # Invalidate query optimizer cache for affected bags
-        query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
-        query_optimizer.invalidate_bag_cache(qr_id=qr_id)
         
         return jsonify({
             'success': True,
@@ -3024,11 +3001,6 @@ def api_unlink_child():
             app.logger.info(f'No recent scan found to delete for child {qr_id}')
         
         db.session.commit()
-        invalidate_bags_cache()
-        invalidate_stats_cache()
-        # Invalidate query optimizer cache for affected bags
-        query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
-        query_optimizer.invalidate_bag_cache(qr_id=qr_id)
         
         # Get new count
         new_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
@@ -3039,7 +3011,6 @@ def api_unlink_child():
             parent_bag.child_count = new_count
             parent_bag.weight_kg = float(new_count)
             db.session.commit()
-            invalidate_bags_cache()
         
         app.logger.info(f'User {current_user.id} unlinked child {qr_id} from parent {parent_qr}')
         
@@ -3727,9 +3698,6 @@ def delete_bag(bag_id):
         bag_qr = bag.qr_id  # Save QR before deletion
         db.session.delete(bag)
         db.session.commit()
-        invalidate_bags_cache()
-        invalidate_stats_cache()
-        query_optimizer.invalidate_bag_cache(qr_id=bag_qr)
         
         return jsonify({
             'success': True,
@@ -5745,7 +5713,6 @@ def edit_profile():
                 # CRITICAL: Invalidate all caches AFTER commit
                 # This must happen after commit so the new password is in the database
                 if new_password:
-                    invalidate_user_cache(user.id)
                     db.session.expire(user)
                     app.logger.info(f'Cache invalidated for user {user.id} after password change')
                 
@@ -6522,10 +6489,6 @@ def api_delete_child_scan():
         db.session.delete(child_bag)
         
         db.session.commit()
-        invalidate_bags_cache()
-        invalidate_stats_cache()
-        query_optimizer.invalidate_bag_cache(qr_id=qr_code)
-        query_optimizer.invalidate_bag_cache(qr_id=parent_qr)
         
         app.logger.info(f"Removed link and deleted child bag {qr_code} from parent {parent_qr}")
         
@@ -6681,9 +6644,6 @@ def api_delete_bag():
                 message += f' (was linked to parent {parent_qr})'
         
         db.session.commit()
-        invalidate_bags_cache()
-        invalidate_stats_cache()
-        query_optimizer.invalidate_bag_cache(qr_id=bag_qr)
         
         log_audit('delete_bag', 'bag', bag_id, {
             'qr_id': bag_qr, 'bag_type': bag_type,
@@ -6814,9 +6774,6 @@ def api_edit_parent_children():
                     db.session.add(new_link)
         
         db.session.commit()
-        invalidate_bags_cache()
-        invalidate_stats_cache()
-        query_optimizer.invalidate_all_cache()  # Bulk operation - clear all caches
         
         return jsonify({
             'success': True,

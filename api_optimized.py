@@ -357,9 +357,6 @@ def api_batch_unlink():
         # Commit all changes
         db.session.commit()
         
-        # Invalidate cache
-        invalidate_bags_cache()
-        
         return jsonify({
             'success': True,
             'unlinked_count': len(unlinked),

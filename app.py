@@ -716,8 +716,10 @@ query_optimizer = init_query_optimizer(db, redis_client=redis_client if redis_av
 logger.info("Query optimizer initialized for high-performance operations")
 
 # Initialize cache backend with Redis support
-from cache_utils import init_cache
-init_cache(redis_client=redis_client if redis_available else None)
+# Cache disabled - using live data only
+# from cache_utils import init_cache
+# init_cache(redis_client=redis_client if redis_available else None)
+logger.info("Cache system disabled - all data fetched live from database")
 
 # Add teardown handler for proper database session cleanup
 @app.teardown_appcontext

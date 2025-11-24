@@ -2,10 +2,7 @@
 High-Performance Query Optimizer for TraitorTrack
 Optimizes critical scanner and linking operations for sub-50ms response times
 """
-from flask import session
 from sqlalchemy import text
-from functools import lru_cache
-import time
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,226 +13,26 @@ class QueryOptimizer:
     def __init__(self, db, redis_client=None):
         self.db = db
         self.redis_client = redis_client
-        self._cache_ttl = 30  # 30 second cache TTL for aggressive caching
-        self._cache_hits = 0
-        self._cache_misses = 0
-        
-        # Fallback to in-memory cache only if Redis unavailable (development mode)
-        if not redis_client:
-            logger.warning("QueryOptimizer: Using in-memory cache (not production-safe for multi-worker)")
-            self._bag_id_cache = {}  # Maps qr_id -> bag_id for minimal memory footprint
-            self._cache_timestamps = {}
-        else:
-            logger.info("QueryOptimizer: Using Redis-backed cache for multi-worker coherence")
-            self._bag_id_cache = None  # Not used when Redis is available
-            self._cache_timestamps = None
     
     def get_bag_by_qr(self, qr_id, bag_type=None):
         """
-        Ultra-fast bag lookup with Redis or in-memory caching
-        Target: <1ms (cached), <10ms (uncached with indexes)
-        
-        Strategy: Cache only bag_id in Redis/memory, then use SQLAlchemy's identity map
+        Fast bag lookup using optimized SQL query with indexes
+        Target: <10ms with proper indexing
         """
         from models import Bag
+        from sqlalchemy import func
         
-        cache_key = f"tt:bag_id:{qr_id}:{bag_type}" if bag_type else f"tt:bag_id:{qr_id}"
-        bag_id = None
-        
-        # Try Redis cache first (multi-worker safe)
-        if self.redis_client:
-            try:
-                cached_value = self.redis_client.get(cache_key)
-                if cached_value:
-                    self._cache_hits += 1
-                    bag_id = int(cached_value)
-                    bag = Bag.query.get(bag_id)
-                    # If bag was deleted, immediately invalidate Redis key for cache coherency
-                    if bag is None:
-                        self.redis_client.delete(cache_key)
-                        logger.debug(f"Removed stale Redis key: {cache_key}")
-                    return bag
-            except Exception as e:
-                logger.warning(f"Redis cache read failed: {e}, falling back to DB")
-        
-        # Fallback to in-memory cache (development only)
-        elif self._bag_id_cache is not None and self._cache_timestamps is not None:
-            now = time.time()
-            if cache_key in self._bag_id_cache:
-                cached_timestamp = self._cache_timestamps.get(cache_key, 0)
-                if now - cached_timestamp < self._cache_ttl:
-                    self._cache_hits += 1
-                    bag_id = self._bag_id_cache[cache_key]
-                    bag = Bag.query.get(bag_id)
-                    # If bag was deleted, invalidate cache entry
-                    if bag is None:
-                        del self._bag_id_cache[cache_key]
-                        del self._cache_timestamps[cache_key]
-                    return bag
-                else:
-                    # Expired
-                    del self._bag_id_cache[cache_key]
-                    del self._cache_timestamps[cache_key]
-        
-        # Cache miss - query database
-        self._cache_misses += 1
         if bag_type:
-            result = self.db.session.execute(
-                text("SELECT id FROM bag WHERE qr_id = :qr_id AND type = :bag_type LIMIT 1"),
-                {"qr_id": qr_id, "bag_type": bag_type}
-            ).scalar()
+            bag = Bag.query.filter(
+                func.upper(Bag.qr_id) == func.upper(qr_id),
+                Bag.type == bag_type
+            ).first()
         else:
-            result = self.db.session.execute(
-                text("SELECT id FROM bag WHERE qr_id = :qr_id LIMIT 1"),
-                {"qr_id": qr_id}
-            ).scalar()
+            bag = Bag.query.filter(
+                func.upper(Bag.qr_id) == func.upper(qr_id)
+            ).first()
         
-        if result:
-            bag_id = result
-            
-            # Store in Redis (multi-worker safe)
-            if self.redis_client:
-                try:
-                    self.redis_client.setex(cache_key, self._cache_ttl, str(bag_id))
-                except Exception as e:
-                    logger.warning(f"Redis cache write failed: {e}")
-            
-            # Store in in-memory cache (development fallback)
-            elif self._bag_id_cache is not None and self._cache_timestamps is not None:
-                self._bag_id_cache[cache_key] = bag_id
-                self._cache_timestamps[cache_key] = time.time()
-                
-                # Enforce size limit
-                if len(self._bag_id_cache) > 5000:
-                    self._evict_oldest_cache_entries()
-            
-            # Return full object
-            bag = Bag.query.get(bag_id)
-            return bag
-        
-        return None
-    
-    def _evict_oldest_cache_entries(self):
-        """Evict oldest 20% of cache entries to prevent memory bloat"""
-        if not self._cache_timestamps or not self._bag_id_cache:
-            return
-        
-        # Sort by timestamp and remove oldest 20%
-        sorted_keys = sorted(self._cache_timestamps.items(), key=lambda x: x[1])
-        num_to_evict = len(sorted_keys) // 5  # Remove 20%
-        
-        for cache_key, _ in sorted_keys[:num_to_evict]:
-            self._bag_id_cache.pop(cache_key, None)
-            self._cache_timestamps.pop(cache_key, None)
-    
-    def invalidate_bag_cache(self, qr_id=None, bag_id=None):
-        """
-        Invalidate cache for a specific bag by QR ID or bag ID (Redis or in-memory)
-        Call this after any bag mutation (create, update, delete, link, unlink)
-        
-        Args:
-            qr_id: QR code of the bag to invalidate
-            bag_id: Database ID of the bag to invalidate
-        """
-        if self.redis_client:
-            # Redis: Delete keys by pattern (requires SCAN for safety)
-            try:
-                if qr_id:
-                    # Delete all variations: tt:bag_id:QR, tt:bag_id:QR:parent, tt:bag_id:QR:child
-                    patterns = [
-                        f"tt:bag_id:{qr_id}",
-                        f"tt:bag_id:{qr_id}:*"
-                    ]
-                    for pattern in patterns:
-                        cursor = 0
-                        while True:
-                            cursor, keys = self.redis_client.scan(cursor, match=pattern, count=100)
-                            if keys:
-                                self.redis_client.delete(*keys)
-                            if cursor == 0:
-                                break
-                
-                # For bag_id, we'd need reverse lookup which is expensive
-                # Instead, rely on TTL expiration (30s) for bag_id invalidations
-                if bag_id:
-                    logger.debug(f"bag_id invalidation in Redis relies on TTL (30s)")
-                    
-            except Exception as e:
-                logger.warning(f"Redis cache invalidation failed: {e}")
-        
-        # In-memory cache (development fallback)
-        elif self._bag_id_cache is not None and self._cache_timestamps is not None:
-            if qr_id:
-                keys_to_remove = [k for k in self._bag_id_cache.keys() if qr_id in k]
-                for key in keys_to_remove:
-                    self._bag_id_cache.pop(key, None)
-                    self._cache_timestamps.pop(key, None)
-            
-            if bag_id:
-                keys_to_remove = [k for k, v in self._bag_id_cache.items() if v == bag_id]
-                for key in keys_to_remove:
-                    self._bag_id_cache.pop(key, None)
-                    self._cache_timestamps.pop(key, None)
-    
-    def invalidate_all_cache(self):
-        """
-        Clear ALL cached data across all cache layers (Redis or in-memory)
-        Call this after bulk operations or when cache coherence is critical
-        """
-        if self.redis_client:
-            try:
-                # Delete all tt:* keys in Redis (includes bag_id, global, and user caches)
-                cursor = 0
-                while True:
-                    cursor, keys = self.redis_client.scan(cursor, match="tt:*", count=1000)
-                    if keys:
-                        self.redis_client.delete(*keys)
-                    if cursor == 0:
-                        break
-                logger.debug("All Redis caches cleared (QueryOptimizer + cache_utils)")
-            except Exception as e:
-                logger.warning(f"Redis cache clear failed: {e}")
-        
-        # In-memory cache (development fallback)
-        elif self._bag_id_cache is not None and self._cache_timestamps is not None:
-            self._bag_id_cache.clear()
-            self._cache_timestamps.clear()
-            logger.debug("All in-memory query optimizer caches cleared")
-    
-    def get_cache_stats(self):
-        """Get cache performance statistics (works with both Redis and in-memory cache)"""
-        total_requests = self._cache_hits + self._cache_misses
-        hit_rate = (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
-        
-        # Count cached entries
-        if self.redis_client:
-            # Redis mode: count tt:bag_id:* keys
-            try:
-                cursor = 0
-                count = 0
-                while True:
-                    cursor, keys = self.redis_client.scan(cursor, match="tt:bag_id:*", count=1000)
-                    count += len(keys)
-                    if cursor == 0:
-                        break
-                cached_entries = count
-            except Exception as e:
-                logger.warning(f"Failed to count Redis cache entries: {e}")
-                cached_entries = None
-        elif self._bag_id_cache is not None:
-            # In-memory mode
-            cached_entries = len(self._bag_id_cache)
-        else:
-            cached_entries = None
-        
-        return {
-            'hits': self._cache_hits,
-            'misses': self._cache_misses,
-            'hit_rate': f"{hit_rate:.1f}%",
-            'cached_entries': cached_entries,
-            'ttl_seconds': self._cache_ttl,
-            'backend': 'redis' if self.redis_client else 'in-memory'
-        }
+        return bag
     
     def get_child_count_fast(self, parent_bag_id):
         """
@@ -542,23 +339,8 @@ class QueryOptimizer:
     
     def invalidate_cache(self, qr_id=None, bag_type=None):
         """Invalidate cache for a specific bag or all bags (legacy method for compatibility)"""
-        # Delegate to the Redis-aware method
-        if qr_id:
-            self.invalidate_bag_cache(qr_id=qr_id)
-        else:
-            self.invalidate_all_cache()
-    
-    def clear_old_cache(self):
-        """Clear expired cache entries (in-memory only, Redis uses TTL)"""
-        if self._cache_timestamps is not None and self._bag_id_cache is not None:
-            now = time.time()
-            expired_keys = [
-                key for key, timestamp in self._cache_timestamps.items()
-                if now - timestamp > self._cache_ttl
-            ]
-            for key in expired_keys:
-                self._bag_id_cache.pop(key, None)
-                self._cache_timestamps.pop(key, None)
+        # Cache invalidation calls removed
+        pass
     
     def create_bag_optimized(self, qr_id, bag_type, user_id, dispatch_area=None, name=None, weight_kg=None):
         """
@@ -588,18 +370,6 @@ class QueryOptimizer:
             
             # Return the created bag object
             bag = Bag.query.get(bag_id)
-            
-            # Update cache with bag ID only (minimal memory)
-            if bag:
-                cache_key = f"tt:bag_id:{qr_id}"
-                if self.redis_client:
-                    try:
-                        self.redis_client.setex(cache_key, self._cache_ttl, str(bag.id))
-                    except Exception:
-                        pass  # Silent fail for cache write
-                elif self._bag_id_cache is not None and self._cache_timestamps is not None:
-                    self._bag_id_cache[cache_key] = bag.id
-                    self._cache_timestamps[cache_key] = time.time()
             
             return bag
         except Exception as e:
@@ -676,14 +446,12 @@ query_optimizer = None
 
 def init_query_optimizer(db, redis_client=None):
     """
-    Initialize the global query optimizer with optional Redis support
+    Initialize the global query optimizer
     
     Args:
         db: SQLAlchemy database instance
-        redis_client: Optional Redis client for distributed caching (None = in-memory only)
+        redis_client: Optional Redis client (may be used for session management)
     """
     global query_optimizer
-    query_optimizer = QueryOptimizer(db)
-    # TODO: Migrate bag_id_cache to Redis when redis_client is provided
-    # For now, keep using in-memory cache (works in development, acceptable in production since bag lookups are fast)
+    query_optimizer = QueryOptimizer(db, redis_client)
     return query_optimizer

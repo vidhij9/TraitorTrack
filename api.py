@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from flask import jsonify, request, make_response
 from sqlalchemy import func, or_, desc, text
 from app import app, db, limiter
-from models import User, Bag, BagType, Link, Scan, Bill, BillBag, StatisticsCache
+from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
 from validation_utils import InputValidator
 from cache_utils import (
@@ -43,7 +43,6 @@ logger = logging.getLogger(__name__)
 @app.route('/api/dashboard/analytics')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached_user(seconds=30, prefix='dashboard_analytics')
 def get_dashboard_analytics():
     """Comprehensive dashboard analytics endpoint with role-based data"""
     try:
@@ -55,14 +54,37 @@ def get_dashboard_analytics():
         # Get current user role
         user_role = current_user.role if hasattr(current_user, 'role') else 'dispatcher'
         
-        # OPTIMIZED: Use cached statistics for instant response
-        cached_stats = StatisticsCache.get_cached_stats()
+        # OPTIMIZED: Use real-time aggregate SQL query for statistics
+        stats_result = db.session.execute(text("""
+            WITH stats AS (
+                SELECT 
+                    COUNT(*) FILTER (WHERE type = 'parent') as parent_bags,
+                    COUNT(*) FILTER (WHERE type = 'child') as child_bags,
+                    COUNT(*) as total_bags
+                FROM bag
+            ), scan_stats AS (
+                SELECT COUNT(*) as total_scans FROM scan
+            ), bill_stats AS (
+                SELECT COUNT(*) as total_bills FROM bill
+            ), user_stats AS (
+                SELECT COUNT(*) as total_users FROM "user"
+            )
+            SELECT * FROM stats, scan_stats, bill_stats, user_stats
+        """)).fetchone()
+        
+        # Extract statistics from query result
+        parent_bags = stats_result[0] or 0
+        child_bags = stats_result[1] or 0
+        total_bags = stats_result[2] or 0
+        total_scans = stats_result[3] or 0
+        total_bills = stats_result[4] or 0
+        total_users = stats_result[5] or 0
         
         # System metrics (admin only)
         system_metrics = {}
         if user_role == 'admin':
             system_metrics = {
-                'total_users': cached_stats.total_users,
+                'total_users': total_users,
                 'active_users_today': db.session.query(func.count(func.distinct(Scan.user_id))).filter(
                     func.date(Scan.timestamp) == today
                 ).scalar() or 0,
@@ -71,11 +93,6 @@ def get_dashboard_analytics():
                 'uptime_hours': int((now - datetime(2025, 8, 19)).total_seconds() / 3600),
                 'system_alerts': 0  # Placeholder for alerts
             }
-        
-        # Operations metrics (all roles) - OPTIMIZED: Read from cache instead of 3 COUNT queries
-        total_bags = cached_stats.total_bags
-        parent_bags = cached_stats.parent_bags
-        child_bags = cached_stats.child_bags
         
         # OPTIMIZED: Calculate unlinked children using efficient indexed query
         # Instead of outer join + NULL check (full table scan), use NOT EXISTS subquery
@@ -129,7 +146,7 @@ def get_dashboard_analytics():
             
             if bill_counts_result:
                 billing_metrics = {
-                    'total_bills': cached_stats.total_bills,
+                    'total_bills': total_bills,
                     'completed_bills': bill_counts_result[0] or 0,
                     'in_progress_bills': bill_counts_result[1] or 0,
                     'pending_bills': bill_counts_result[2] or 0,
@@ -251,7 +268,6 @@ def get_dashboard_analytics():
 @app.route('/api/bags/parent/list')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached_global(seconds=30, prefix='parent_bags')
 def get_all_parent_bags():
     """Ultra-optimized parent bags using raw SQL with pagination - Target: <5ms"""
     try:
@@ -329,7 +345,6 @@ def get_all_parent_bags():
 @app.route('/api/bags/<int:bag_id>/children')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached_global(seconds=60, prefix='bag_children')
 def get_bag_children(bag_id):
     """Ultra-optimized child bags using raw SQL - Target: <5ms"""
     try:
@@ -455,7 +470,6 @@ def get_bag_children_by_qr(qr_id):
 @app.route('/api/dashboard/stats')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached_user(seconds=5, prefix='dashboard_stats')  # Aggressive 5s cache for sub-10ms response
 def get_dashboard_statistics():
     """Ultra-optimized dashboard stats using single aggregated query - Target: <5ms (cached), <50ms (uncached)"""
     try:
@@ -535,7 +549,6 @@ def get_dashboard_statistics():
 @app.route('/api/scans/recent')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached_global(seconds=60, prefix='recent_scans')
 def get_recent_scans():
     """Ultra-optimized recent scans using raw SQL - Target: <5ms"""
     try:
@@ -604,7 +617,6 @@ def get_recent_scans():
 @app.route('/api/bags/search')
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
-@cached_global(seconds=30, prefix='bags_search')
 def search_bags_api():
     """Ultra-optimized bag search using raw SQL - Target: <5ms"""
     try:
@@ -767,7 +779,6 @@ def clear_api_cache():
     
     try:
         pattern = request.json.get('pattern') if request.json else None
-        invalidate_cache(pattern)
         
         return jsonify({
             'success': True,
