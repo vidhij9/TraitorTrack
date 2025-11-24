@@ -11,28 +11,8 @@ from app import app, db, limiter
 from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
 from validation_utils import InputValidator
-from cache_utils import (
-    cached_global, cached_user, invalidate_cache as clear_cache_util,
-    get_cache_stats, invalidate_bags_cache, invalidate_stats_cache
-)
-
-# Invalidate cache wrapper for compatibility
-def invalidate_cache(pattern=None):
-    """Clear all cache entries or entries matching pattern"""
-    clear_cache_util(pattern)
-
-# Cache stats accessor with proper method binding
-class CacheProxy:
-    """Compatibility wrapper for cache operations"""
-    @staticmethod
-    def stats():
-        return get_cache_stats()
-    
-    @staticmethod
-    def clear():
-        clear_cache_util()
-
-cache = CacheProxy()
+# Cache disabled - using live data only
+# No cache imports needed
 
 logger = logging.getLogger(__name__)
 

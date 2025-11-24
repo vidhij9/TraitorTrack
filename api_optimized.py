@@ -10,7 +10,7 @@ from sqlalchemy import text
 from app import app, db, limiter
 from auth_utils import require_auth, current_user
 from validation_utils import InputValidator
-from cache_utils import cached_global, cached_user, invalidate_bags_cache
+# Cache disabled - using live data only
 from api_middleware import add_cache_headers, filter_fields, get_optimal_page_size, is_health_check_request
 
 logger = logging.getLogger(__name__)
@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 @app.route('/api/v2/bags', methods=['GET'])
 @require_auth
 @limiter.limit("10000 per minute")
-# NOTE: Client-side caching disabled for authenticated endpoints (security)
-# Relies on server-side caching (cached_user/cached_global) instead
+# NOTE: All caching disabled - using live data from database for real-time accuracy
 def api_bags_optimized():
     """
     Ultra-optimized bags endpoint with field filtering and mobile optimization

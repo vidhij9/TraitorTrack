@@ -3,14 +3,25 @@
 ## Overview
 TraitorTrack is a high-performance, web-based bag tracking system for warehouse and logistics operations. It manages parent-child bag relationships, scanning processes, and bill generation. The system is designed for scalability, supporting over 100 concurrent users and managing up to 1.8 million bags, aiming to streamline logistics, enhance operational efficiency, and provide real-time tracking for dispatchers, billers, and administrators.
 
-## Current Status (November 22, 2025)
-✅ **PRODUCTION READY** - All features complete and tested
+## Current Status (November 24, 2025)
+✅ **PRODUCTION READY** - All features complete with live data architecture
 - ✅ PostgreSQL database fully operational (11 tables created)
 - ✅ All 53 backend tests passing
 - ✅ Admin credentials configured (superadmin/vidhi2029)
 - ✅ Makefile fixed and operational
 - ✅ Load testing infrastructure validated
 - ✅ Application running without errors
+- ✅ **LIVE DATA ARCHITECTURE**: All caching removed, real-time database queries only
+  - ✅ Removed all @cached_global and @cached_user decorators
+  - ✅ StatisticsCache replaced with real-time SQL aggregate queries
+  - ✅ QueryOptimizer simplified to direct database lookups
+  - ✅ Cache invalidation calls removed from all routes
+  - ✅ Comprehensive database indexes optimized for live queries
+  - ✅ E2E tests confirm zero cache errors and acceptable performance
+- ✅ **One-Child-One-Parent Constraint**: Database enforces business rule
+  - ✅ UNIQUE constraint on link.child_bag_id
+  - ✅ Batch import validates duplicate parent links
+  - ✅ Clear error messages for constraint violations
 - ✅ Batch import feature complete and thoroughly tested:
   - ✅ Child→Parent batch importer (ChildParentBatchImporter)
   - ✅ Parent→Bill batch importer (ParentBillBatchImporter)
@@ -56,11 +67,11 @@ The project uses a standard Flask application structure with modules for models,
 - Fixed mobile bottom navigation bar with four primary actions (Home, Scan, Search, Bills).
 
 **System Design Choices:**
-- **Production-Scale Optimizations**: Statistics cache, optimized connection pooling, API pagination, comprehensive database indexing, high-performance query optimizer, role-aware caching with invalidation, optimized request logging, and streamlined authentication.
-- **Redis-Backed Multi-Worker Caching**: Optional Redis support for multi-worker coherence and immediate cache invalidation, with automatic fallback to in-memory caching.
-- **Ultra-Optimized Query Performance**: Critical endpoints refactored to eliminate N+1 queries using PostgreSQL CTEs and bulk fetching.
+- **Live Data Architecture**: ALL caching removed (November 24, 2025) - every query fetches fresh data from PostgreSQL with optimized indexes for fast response times.
+- **Production-Scale Optimizations**: Optimized connection pooling, API pagination, comprehensive database indexing, high-performance query optimizer with direct SQL, optimized request logging, and streamlined authentication.
+- **Ultra-Optimized Query Performance**: Critical endpoints use PostgreSQL CTEs, bulk fetching, and direct SQL to eliminate N+1 queries. Dashboard statistics calculated in real-time using aggregate queries.
 - **Mobile-First UI Enhancements**: Responsive card layout for bag management on mobile; desktop table view hidden on mobile, and vice-versa. Comprehensive pagination controls.
-- **Session Management**: Secure, stateless signed cookie sessions and optional Redis-backed sessions with dual timeouts, activity tracking, user warnings, and secure cookie handling.
+- **Session Management**: Secure, stateless signed cookie sessions and optional Redis-backed sessions with dual timeouts, activity tracking, user warnings, and secure cookie handling. Redis used ONLY for sessions/rate-limiting, NOT for data caching.
 - **Two-Factor Authentication (2FA)**: TOTP-based 2FA for admin users with QR code provisioning and strict rate limiting.
 - **Security Features**: Secure password hashing (scrypt), CSRF protection, session validation, security headers, comprehensive rate limiting, auto-detection of production environment for HTTPS-only cookies, QR code validation, and password policy.
 - **Login Rate Limiting**: Dynamic rate limit for login attempts.
@@ -72,7 +83,6 @@ The project uses a standard Flask application structure with modules for models,
 - **Offline Support**: `localStorage`-based offline queue with auto-retry and optimistic UI updates.
 - **Undo Functionality**: Backend endpoint and UI for undoing the most recent scan within a 1-hour window.
 - **Concurrency Control**: Atomic locking to prevent race conditions.
-- **Cache Coherence**: `QueryOptimizer` includes cache invalidation methods.
 
 ### Feature Specifications
 
@@ -81,7 +91,7 @@ The project uses a standard Flask application structure with modules for models,
 - **Scanner Integration**: Designed for HID keyboard scanners with robust error handling, duplicate prevention, and rapid scan throttling.
 - **Bill Generation**: Dynamic weight calculation based on child bag counts.
 - **API Endpoints**: Comprehensive REST API with mobile-first optimizations, V2 optimized endpoints (sub-50ms), Gzip compression, field filtering, and smart pagination.
-- **Real-time Dashboard**: Displays statistics via AJAX and optimized caching.
+- **Real-time Dashboard**: Displays statistics via AJAX with live database queries.
 - **System Health Dashboard**: Admin-only interface for system metrics.
 - **Comprehensive Audit Logging**: Enterprise-grade audit trail with state snapshots and PII anonymization.
 - **Automatic Session Security**: Secure session management with dual timeouts and secure cookie handling.
@@ -98,9 +108,8 @@ The project uses a standard Flask application structure with modules for models,
 - **AuditLog**: Comprehensive audit trail.
 - **PromotionRequest**: Manages admin promotion requests.
 - **Notification**: In-app user notifications.
-- **StatisticsCache**: Single-row table for dashboard statistics.
 - **Bill**: Manages bill generation.
-- **Link**: Defines parent-child bag relationships.
+- **Link**: Defines parent-child bag relationships with UNIQUE constraint on child_bag_id (one child = one parent).
 - **BillBag**: Association table linking bills to parent bags.
 
 ## External Dependencies
