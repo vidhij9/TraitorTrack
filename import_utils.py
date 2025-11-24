@@ -760,20 +760,31 @@ class ChildParentBatchImporter:
                             logger.error(f"Child bag '{label_number}' has no ID - skipping link creation")
                             continue
                         
-                        # Check if link already exists
-                        existing_link = Link.query.filter_by(
+                        # CRITICAL: Check if child already has ANY parent link (one child = one parent rule)
+                        existing_parent_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+                        
+                        if existing_parent_link:
+                            # Child already has a parent link
+                            if existing_parent_link.parent_bag_id == parent_bag.id:
+                                # Already linked to this same parent - skip silently
+                                logger.debug(f"Child '{label_number}' already linked to parent '{parent_code}' - skipping")
+                                continue
+                            else:
+                                # Child linked to a DIFFERENT parent - this violates the one-child-one-parent rule
+                                existing_parent_bag = Bag.query.get(existing_parent_link.parent_bag_id)
+                                existing_parent_qr = existing_parent_bag.qr_id if existing_parent_bag else "Unknown"
+                                error_msg = f"Row {row_range}: Child '{label_number}' already linked to parent '{existing_parent_qr}', cannot link to '{parent_code}'"
+                                errors.append(error_msg)
+                                logger.warning(error_msg)
+                                continue
+                        
+                        # No existing parent link - safe to create new link
+                        link = Link(
                             parent_bag_id=parent_bag.id,
                             child_bag_id=child_bag.id
-                        ).first()
-                        
-                        if not existing_link:
-                            # Create link
-                            link = Link(
-                                parent_bag_id=parent_bag.id,
-                                child_bag_id=child_bag.id
-                            )
-                            db.session.add(link)
-                            batch_links_created += 1
+                        )
+                        db.session.add(link)
+                        batch_links_created += 1
                     
                     # Update parent's child count
                     actual_child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
