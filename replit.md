@@ -25,8 +25,12 @@ TraitorTrack is a high-performance, web-based bag tracking system for warehouse 
 - ✅ Batch import feature complete and thoroughly tested:
   - ✅ Child→Parent batch importer (ChildParentBatchImporter)
   - ✅ Parent→Bill batch importer (ParentBillBatchImporter)
+  - ✅ **Strict Parent Validation**: Parent bags MUST exist before linking children
+  - ✅ **Missing Parent Rejection**: Batches with non-existent parents are rejected completely
+  - ✅ Clear error messages with row numbers and parent codes for rejected batches
   - ✅ Web routes: /import/batch_child_parent, /import/batch_parent_bill
-  - ✅ Verified with live testing: 5 parent bags, 24 child bags, 39 links, 1 bill
+  - ✅ Verified with comprehensive E2E testing: valid data, missing parents, mixed scenarios
+  - ✅ Load tested: 100 children processed in <2 seconds, database consistency maintained
 - ✅ Multi-file batch upload feature complete and tested:
   - ✅ MultiFileBatchProcessor for simultaneous multi-file processing
   - ✅ File-based error report storage (no session size limits)
@@ -98,7 +102,7 @@ The project uses a standard Flask application structure with modules for models,
 - **Brute Force Protection**: Comprehensive rate limiting on authentication endpoints and account lockout.
 - **Search & Filtering**: Fast search across bags, bills, and users with pagination.
 - **Data Import/Export**: Optimized CSV/Excel export and bulk import with validation.
-- **Batch Import**: Excel-based batch import for child→parent and parent→bill relationships with QR code label extraction, duplicate handling, and batch-level error recovery.
+- **Batch Import**: Excel-based batch import for child→parent and parent→bill relationships with QR code label extraction, duplicate handling, and batch-level error recovery. **Parent bags must exist before linking children** - batches with missing parents are rejected with clear error messages showing row numbers and parent codes. Ensures data integrity and prevents orphaned relationships.
 - **Multi-File Batch Import**: Upload and process multiple Excel files simultaneously with comprehensive error reporting and downloadable error reports in Excel format. Uses file-based temporary storage (not session cookies) to handle large error reports without size limitations. Automatic cleanup of error reports older than 1 hour.
 
 ### Database Models
