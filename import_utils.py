@@ -24,6 +24,8 @@ from typing import List, Dict, Tuple, Optional
 from flask import flash
 from sqlalchemy import text
 from werkzeug.datastructures import FileStorage
+from app import db
+from models import Bag, Bill, Link, BillBag, User
 
 logger = logging.getLogger(__name__)
 
