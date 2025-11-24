@@ -711,8 +711,9 @@ class ChildParentBatchImporter:
                 savepoint = db.session.begin_nested()
                 
                 try:
-                    # Check if parent already exists
-                    parent_bag = Bag.query.filter_by(qr_id=parent_code.upper()).first()
+                    # Check if parent already exists (case-insensitive search)
+                    from sqlalchemy import func
+                    parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == parent_code.upper()).first()
                     
                     if not parent_bag:
                         # Create parent bag
@@ -736,11 +737,12 @@ class ChildParentBatchImporter:
                     batch_links_created = 0
                     
                     for label_number in child_labels:
-                        # Check if child already exists
-                        child_bag = Bag.query.filter_by(qr_id=label_number.upper()).first()
+                        # Check if child already exists (case-insensitive search)
+                        from sqlalchemy import func
+                        child_bag = Bag.query.filter(func.upper(Bag.qr_id) == label_number.upper()).first()
                         
                         if not child_bag:
-                            # Create child bag
+                            # Create child bag with exact label number (no case conversion)
                             child_bag = Bag(
                                 qr_id=label_number,
                                 type=BagType.CHILD.value,
@@ -751,6 +753,12 @@ class ChildParentBatchImporter:
                             db.session.add(child_bag)
                             db.session.flush()  # Get child bag ID
                             batch_children_created += 1
+                        
+                        # Verify child_bag has ID before creating link
+                        if not child_bag or not child_bag.id:
+                            errors.append(f"Batch {batch_num}: Child bag '{label_number}' could not be created or found")
+                            logger.error(f"Child bag '{label_number}' has no ID - skipping link creation")
+                            continue
                         
                         # Check if link already exists
                         existing_link = Link.query.filter_by(
@@ -779,7 +787,12 @@ class ChildParentBatchImporter:
                     children_created += batch_children_created
                     links_created += batch_links_created
                     
-                    logger.info(f"Batch {batch_num} ({row_range}): Created parent '{parent_code}', {batch_children_created} children, {batch_links_created} links")
+                    # Clearer logging to distinguish new vs reused children
+                    children_reused = len(child_labels) - batch_children_created
+                    if children_reused > 0:
+                        logger.info(f"Batch {batch_num} ({row_range}): Parent '{parent_code}', {batch_children_created} new children + {children_reused} existing children, {batch_links_created} new links")
+                    else:
+                        logger.info(f"Batch {batch_num} ({row_range}): Created parent '{parent_code}', {batch_children_created} children, {batch_links_created} links")
                 
                 except Exception as batch_error:
                     savepoint.rollback()
