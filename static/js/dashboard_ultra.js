@@ -73,31 +73,44 @@
      * Update dashboard statistics
      */
     async function updateStats() {
+        console.log('[Dashboard] Starting updateStats() - Endpoint:', API_CONFIG.statsEndpoint);
         try {
             // Fetch stats from API
+            console.log('[Dashboard] Fetching from:', API_CONFIG.statsEndpoint);
             let data = await fetchWithRetry(API_CONFIG.statsEndpoint);
+            console.log('[Dashboard] Received data:', data);
             
             // Cache the data
             dataCache.stats = data;
             dataCache.lastUpdate = Date.now();
             
             // Update UI with stats data (handle both API response formats)
-            const stats = data.statistics || data;
+            const stats = data.stats || data.statistics || data;
+            console.log('[Dashboard] Stats object:', stats);
+            console.log('[Dashboard] Updating elements:', {
+                parents: stats.total_parent_bags || stats.parent_bags || 0,
+                children: stats.total_child_bags || stats.child_bags || 0,
+                bills: stats.total_bills || stats.active_bills || 0,
+                scans: stats.total_scans || stats.recent_scans || 0
+            });
+            
             updateElementSafely('total-parent-bags', stats.total_parent_bags || stats.parent_bags || 0);
             updateElementSafely('total-child-bags', stats.total_child_bags || stats.child_bags || 0);
             updateElementSafely('total-bills', stats.total_bills || stats.active_bills || 0);
             updateElementSafely('total-scans', stats.total_scans || stats.recent_scans || 0);
             
+            console.log('[Dashboard] Stats update complete');
+            
             // Show success indicator
             showStatusIndicator('success');
             
         } catch (error) {
-            console.error('Failed to update stats:', error);
+            console.error('[Dashboard] Failed to update stats:', error);
             showStatusIndicator('error');
             
             // Use cached data if available
             if (dataCache.stats && (Date.now() - dataCache.lastUpdate) < 300000) {
-                console.log('Using cached stats data');
+                console.log('[Dashboard] Using cached stats data');
                 return;
             }
         }
@@ -189,15 +202,22 @@
      * Safely update element text content
      */
     function updateElementSafely(id, value) {
+        console.log('[Dashboard] updateElementSafely - ID:', id, 'Value:', value);
         const element = document.getElementById(id);
         if (element) {
+            console.log('[Dashboard] Element found:', id, 'Current:', element.textContent);
             // Animate number changes
             const currentValue = parseInt(element.textContent) || 0;
             const targetValue = parseInt(value) || 0;
             
             if (currentValue !== targetValue) {
                 animateNumber(element, currentValue, targetValue, 500);
+                console.log('[Dashboard] Animating', id, 'from', currentValue, 'to', targetValue);
+            } else {
+                console.log('[Dashboard] No change needed for', id);
             }
+        } else {
+            console.error('[Dashboard] Element NOT found with ID:', id);
         }
     }
     
@@ -324,13 +344,17 @@
      * Initialize dashboard
      */
     function initDashboard() {
+        console.log('[Dashboard] ========= INITIALIZING DASHBOARD =========');
+        console.log('[Dashboard] API Config:', API_CONFIG);
+        console.log('[Dashboard] DOM Ready State:', document.readyState);
+        
         // Initial load
         Promise.all([
             updateStats(),
             updateRecentScans(),
             updateSystemHealth()  // Load system health if admin
         ]).catch(error => {
-            console.error('Dashboard initialization error:', error);
+            console.error('[Dashboard] Initialization error:', error);
         });
         
         // Set up refresh button
