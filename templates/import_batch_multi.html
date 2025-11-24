@@ -24,7 +24,7 @@
                     </div>
 
                     <form method="POST" enctype="multipart/form-data" id="uploadForm">
-                        {{ csrf_token() }}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <!-- Import Type Selection -->
                         <div class="mb-3">
