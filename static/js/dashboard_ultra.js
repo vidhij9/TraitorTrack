@@ -8,9 +8,9 @@
     
     // Configuration
     const API_CONFIG = {
-        statsEndpoint: '/api/stats',
-        fallbackStatsEndpoint: '/api/stats',
-        scansEndpoint: '/api/scans',
+        statsEndpoint: '/api/dashboard/stats',
+        fallbackStatsEndpoint: '/api/dashboard/stats',
+        scansEndpoint: '/api/scans/recent',
         refreshInterval: 30000, // 30 seconds
         requestTimeout: 5000,   // 5 seconds timeout
         retryAttempts: 2,

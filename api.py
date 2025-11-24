@@ -453,10 +453,11 @@ def get_bag_children_by_qr(qr_id):
 def get_dashboard_statistics():
     """Ultra-optimized dashboard stats using single aggregated query - Target: <5ms (cached), <50ms (uncached)"""
     try:
-        # Single aggregated query for all core stats
+        # Single aggregated query for all core stats with parent/child breakdown
         stats_result = db.session.execute(text("""
             SELECT 
-                (SELECT COUNT(*) FROM bag) as total_bags,
+                (SELECT COUNT(*) FROM bag WHERE type = 'parent') as parent_bags,
+                (SELECT COUNT(*) FROM bag WHERE type = 'child') as child_bags,
                 (SELECT COUNT(*) FROM scan) as total_scans,
                 (SELECT COUNT(DISTINCT user_id) FROM scan WHERE user_id IS NOT NULL) as active_users,
                 (SELECT COUNT(*) FROM bill) as total_bills
@@ -487,10 +488,11 @@ def get_dashboard_statistics():
             recent_scans_result = []
         
         stats = {
-            'total_bags': stats_result[0] if stats_result else 0,
-            'total_scans': stats_result[1] if stats_result else 0,
-            'active_users': stats_result[2] if stats_result else 0,
-            'total_bills': stats_result[3] if stats_result else 0
+            'total_parent_bags': stats_result[0] if stats_result else 0,
+            'total_child_bags': stats_result[1] if stats_result else 0,
+            'total_scans': stats_result[2] if stats_result else 0,
+            'active_users': stats_result[3] if stats_result else 0,
+            'total_bills': stats_result[4] if stats_result else 0
         }
         
         recent_activity = []
