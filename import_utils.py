@@ -675,7 +675,7 @@ class ChildParentBatchImporter:
             return [], [f"Error parsing Excel file: {str(e)}"], {}
     
     @staticmethod
-    def import_batches(db, batches: List[Dict], user_id: int, dispatch_area: Optional[str] = None) -> Tuple[int, int, int, List[str]]:
+    def import_batches(db, batches: List[Dict], user_id: int, dispatch_area: Optional[str] = None) -> Tuple[int, int, int, int, List[str]]:
         """
         Import batches of child-parent bag relationships.
         
@@ -686,13 +686,14 @@ class ChildParentBatchImporter:
             dispatch_area: Optional dispatch area for the bags
             
         Returns:
-            Tuple of (parents_created, children_created, links_created, error_list)
+            Tuple of (parents_created, children_created, links_created, parents_not_found, error_list)
         """
         from models import Bag, Link, BagType
         
         parents_created = 0
         children_created = 0
         links_created = 0
+        parents_not_found = 0
         errors = []
         
         try:
@@ -716,21 +717,17 @@ class ChildParentBatchImporter:
                     parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == parent_code.upper()).first()
                     
                     if not parent_bag:
-                        # Create parent bag
-                        parent_bag = Bag(
-                            qr_id=parent_code,
-                            type=BagType.PARENT.value,
-                            user_id=user_id,
-                            dispatch_area=dispatch_area,
-                            child_count=len(child_labels),
-                            weight_kg=len(child_labels) * 1.0  # 1kg per child
-                        )
-                        db.session.add(parent_bag)
-                        db.session.flush()  # Get parent bag ID
-                        parents_created += 1
-                    else:
-                        # Parent exists - we'll add children to it
-                        logger.info(f"Parent bag {parent_code} already exists, adding children to it")
+                        # REJECT batch - parent bag does NOT exist in database
+                        # Do not create parent bags automatically - user must create them first
+                        parents_not_found += 1
+                        error_msg = f"Batch {batch_num} (rows {row_range}): Parent bag '{parent_code}' not found in database - {len(child_labels)} child bags rejected"
+                        errors.append(error_msg)
+                        logger.warning(error_msg)
+                        savepoint.rollback()
+                        continue
+                    
+                    # Parent exists - process children
+                    logger.info(f"Parent bag {parent_code} found, processing {len(child_labels)} children")
                     
                     # Create child bags and links
                     batch_children_created = 0
@@ -820,16 +817,16 @@ class ChildParentBatchImporter:
                 action='BATCH_IMPORT_CHILD_PARENT',
                 entity_type='bag',
                 entity_id=None,
-                details=f"Imported {len(batches)} batches: {parents_created} parents, {children_created} children, {links_created} links"
+                details=f"Imported {len(batches)} batches: {parents_created} parents, {children_created} children, {links_created} links ({parents_not_found} parents not found)"
             )
             
-            return parents_created, children_created, links_created, errors
+            return parents_created, children_created, links_created, parents_not_found, errors
         
         except Exception as e:
             db.session.rollback()
             logger.error(f"Batch import error: {str(e)}")
             errors.append(f"Database error: {str(e)}")
-            return parents_created, children_created, links_created, errors
+            return parents_created, children_created, links_created, parents_not_found, errors
 
 
 class ParentBillBatchImporter:
@@ -1256,7 +1253,7 @@ class MultiFileBatchProcessor:
                     continue
                 
                 # Import batches
-                parents_created, children_created, links_created, import_errors = ChildParentBatchImporter.import_batches(
+                parents_created, children_created, links_created, parents_not_found, import_errors = ChildParentBatchImporter.import_batches(
                     db, batches, user_id, dispatch_area
                 )
                 
@@ -1272,6 +1269,8 @@ class MultiFileBatchProcessor:
                     result['status'] = 'Success'
                 
                 result['summary'] = f'{len(batches)} batches, {parents_created} parents, {children_created} children, {links_created} links'
+                if parents_not_found > 0:
+                    result['summary'] += f', {parents_not_found} parents not found'
                 
             except Exception as e:
                 logger.error(f"Error processing file {filename}: {str(e)}")

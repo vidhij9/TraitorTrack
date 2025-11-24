@@ -7892,13 +7892,16 @@ def import_batch_child_parent():
         
         # Show preview and ask for confirmation if needed
         # For now, we'll import directly
-        parents_created, children_created, links_created, import_errors = ChildParentBatchImporter.import_batches(
+        parents_created, children_created, links_created, parents_not_found, import_errors = ChildParentBatchImporter.import_batches(
             db, batches, current_user.id, dispatch_area  # type: ignore
         )
         
         # Show results
         if parents_created > 0 or children_created > 0:
             flash(f'Successfully imported {len(batches)} batches: {parents_created} parent bags, {children_created} child bags, {links_created} links created.', 'success')
+        
+        if parents_not_found > 0:
+            flash(f'Warning: {parents_not_found} parent bags not found in database - their child bags were rejected.', 'warning')
         
         if import_errors:
             for error in import_errors[:5]:
