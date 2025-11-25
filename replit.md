@@ -39,13 +39,13 @@ The project utilizes a standard Flask application structure, organizing code int
 -   **Production-Scale Optimizations**: Includes optimized connection pooling, API pagination, comprehensive database indexing, high-performance query optimizer using direct SQL, optimized request logging, and streamlined authentication.
 -   **Ultra-Optimized Query Performance**: Critical endpoints leverage PostgreSQL CTEs, bulk fetching, and direct SQL to prevent N+1 query issues. Dashboard statistics are calculated in real-time using aggregate queries.
 -   **Mobile-First UI Enhancements**: Features a responsive card layout for bag management on mobile, with desktop table views hidden and vice-versa. Includes comprehensive pagination controls.
--   **Session Management**: Employs secure, stateless signed cookie sessions, with optional Redis-backed sessions offering dual timeouts, activity tracking, user warnings, and secure cookie handling. Redis is strictly used for sessions/rate-limiting, not for data caching.
+-   **Session Management**: Uses Flask's native stateless signed cookie sessions (no server-side storage required). Session data is cryptographically signed and stored in the client cookie, enabling true Autoscale-ready deployments across any number of workers/instances.
 -   **Two-Factor Authentication (2FA)**: TOTP-based 2FA for admin users, including QR code provisioning and stringent rate limiting.
 -   **Security Features**: Incorporates scrypt for password hashing, CSRF protection, robust session validation, security headers, comprehensive rate limiting, auto-detection of production environment for HTTPS-only cookies, QR code validation, and a strong password policy.
 -   **Login Rate Limiting**: Dynamic rate limiting applied to login attempts.
 -   **Comprehensive Audit Logging**: Tracks critical security events, with GDPR-compliant PII anonymization.
 -   **System Health Monitoring**: Provides a real-time metrics endpoint and an admin dashboard.
--   **Deployment**: Configured for Autoscale and cloud environments using Gunicorn, with environment variable-driven configuration and optional Redis integration.
+-   **Deployment**: Configured for Autoscale and cloud environments using Gunicorn, with fully environment variable-driven configuration. Rate limiting (RATE_LIMIT_PER_DAY/HOUR/MINUTE) and database pool sizing (DB_POOL_SIZE, DB_MAX_OVERFLOW) are configurable via environment variables.
 -   **Production Environment Detection**: Automatically detects the production environment via `REPLIT_DEPLOYMENT` or `REPLIT_ENVIRONMENT`, enabling HTTPS-only cookies, HSTS headers, strict rate limiting, and CSP.
 -   **Automatic Database Migrations**: Uses Flask-Migrate for automated migrations upon application startup.
 -   **Offline Support**: Implements a `localStorage`-based offline queue with auto-retry mechanisms and optimistic UI updates.
