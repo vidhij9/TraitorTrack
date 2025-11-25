@@ -345,6 +345,14 @@ def api_batch_unlink():
                 
                 if link:
                     db.session.delete(link)
+                    
+                    # Delete ALL scan records for this child bag
+                    from models import Scan
+                    Scan.query.filter_by(child_bag_id=child_bag.id).delete()
+                    
+                    # Delete the child bag itself - no unlinked child bags should exist
+                    db.session.delete(child_bag)
+                    
                     unlinked.append(child_qr)
                 else:
                     errors.append(f"{child_qr}: Not linked to parent")

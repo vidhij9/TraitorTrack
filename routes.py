@@ -3003,12 +3003,16 @@ def api_unlink_child():
             app.logger.warning(f'Scan too old to undo: {scan.timestamp}')
             scan = None  # Don't delete old scans
         
-        # Delete both in a single transaction
+        # Delete link first
         db.session.delete(link)
-        if scan:
-            db.session.delete(scan)
-        else:
-            app.logger.info(f'No recent scan found to delete for child {qr_id}')
+        
+        # Delete ALL scan records for this child bag (not just recent ones)
+        all_child_scans = Scan.query.filter_by(child_bag_id=child_bag.id).all()
+        for child_scan in all_child_scans:
+            db.session.delete(child_scan)
+        
+        # Delete the child bag itself - no unlinked child bags should exist in the database
+        db.session.delete(child_bag)
         
         db.session.commit()
         
@@ -3022,12 +3026,12 @@ def api_unlink_child():
             parent_bag.weight_kg = float(new_count)
             db.session.commit()
         
-        app.logger.info(f'User {current_user.id} unlinked child {qr_id} from parent {parent_qr}')
+        app.logger.info(f'User {current_user.id} unlinked and deleted child {qr_id} from parent {parent_qr}')
         
         return jsonify({
             'success': True,
             'child_count': new_count,
-            'message': f'Removed {qr_id} from {parent_qr}'
+            'message': f'Removed and deleted {qr_id} from {parent_qr}'
         })
         
     except Exception as e:
