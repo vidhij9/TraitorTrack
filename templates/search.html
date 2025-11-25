@@ -1,0 +1,432 @@
+{% extends "warehouse_layout.html" %}
+
+{% block title %} - Search Bags{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+.search-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 15px;
+}
+
+.search-form {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.search-input {
+    font-size: 1.2rem;
+    padding: 15px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    width: 100%;
+}
+
+.search-input:focus {
+    border-color: #2d5016;
+    box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+    outline: none;
+}
+
+.search-btn {
+    background: #2d5016;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.search-btn:hover {
+    background: #3d6b1f;
+}
+
+.result-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 15px;
+    overflow: hidden;
+}
+
+.result-header {
+    background: linear-gradient(135deg, #2d5016 0%, #3d6b1f 100%);
+    color: white;
+    padding: 15px 20px;
+}
+
+.result-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+.result-body {
+    padding: 20px;
+}
+
+.bag-type-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.bag-type-badge.parent {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.bag-type-badge.child {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.info-item {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    border-radius: 8px;
+}
+
+.info-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.info-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #212529;
+    word-break: break-all;
+}
+
+.linked-section {
+    border-top: 1px solid #dee2e6;
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.linked-section h3 {
+    font-size: 1rem;
+    color: #495057;
+    margin-bottom: 12px;
+}
+
+.linked-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.2s;
+}
+
+.linked-item:hover {
+    background: #e9ecef;
+    text-decoration: none;
+}
+
+.linked-item .qr-code {
+    font-weight: 600;
+    color: #2d5016;
+    margin-right: 10px;
+}
+
+.linked-item .badge {
+    margin-left: auto;
+}
+
+.bill-card {
+    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    border: 2px solid #ff9800;
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.bill-card h4 {
+    color: #e65100;
+    margin: 0 0 10px 0;
+    font-size: 1rem;
+}
+
+.no-result {
+    text-align: center;
+    padding: 40px 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.no-result i {
+    font-size: 3rem;
+    color: #dee2e6;
+    margin-bottom: 15px;
+}
+
+.no-result h3 {
+    color: #495057;
+    margin-bottom: 10px;
+}
+
+.no-result p {
+    color: #6c757d;
+}
+
+.scan-history {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #dee2e6;
+}
+
+.scan-history h3 {
+    font-size: 1rem;
+    color: #495057;
+    margin-bottom: 12px;
+}
+
+.scan-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+}
+
+.scan-item .time {
+    color: #6c757d;
+    margin-right: 10px;
+}
+
+.scan-item .user {
+    color: #2d5016;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .search-container {
+        padding: 10px;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <div class="search-form">
+        <form method="GET" action="{{ url_for('search_bag') }}">
+            <div class="mb-3">
+                <label for="qr_code" class="form-label fw-bold">
+                    <i class="fas fa-qrcode me-2"></i>Enter QR Code
+                </label>
+                <input type="text" 
+                       class="search-input" 
+                       id="qr_code" 
+                       name="q" 
+                       value="{{ query or '' }}"
+                       placeholder="Scan or type QR code..."
+                       autocomplete="off"
+                       autofocus>
+            </div>
+            <button type="submit" class="search-btn">
+                <i class="fas fa-search me-2"></i>Search
+            </button>
+        </form>
+    </div>
+
+    {% if query and not bag %}
+    <div class="no-result">
+        <i class="fas fa-box-open"></i>
+        <h3>No Bag Found</h3>
+        <p>No bag found with QR code: <strong>{{ query }}</strong></p>
+        <p class="text-muted small">Try checking the code and searching again</p>
+    </div>
+    {% endif %}
+
+    {% if bag %}
+    <div class="result-card">
+        <div class="result-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-box me-2"></i>{{ bag.qr_id }}</h2>
+                <span class="bag-type-badge {{ bag.type }}">{{ bag.type }}</span>
+            </div>
+        </div>
+        <div class="result-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">QR Code</div>
+                    <div class="info-value">{{ bag.qr_id }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Type</div>
+                    <div class="info-value">{{ bag.type|capitalize }}</div>
+                </div>
+                {% if bag.name %}
+                <div class="info-item">
+                    <div class="info-label">Name</div>
+                    <div class="info-value">{{ bag.name }}</div>
+                </div>
+                {% endif %}
+                {% if bag.dispatch_area %}
+                <div class="info-item">
+                    <div class="info-label">Dispatch Area</div>
+                    <div class="info-value">{{ bag.dispatch_area|replace('_', ' ')|title }}</div>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value">{{ bag.status|capitalize if bag.status else 'Pending' }}</div>
+                </div>
+                {% if bag.weight_kg %}
+                <div class="info-item">
+                    <div class="info-label">Weight</div>
+                    <div class="info-value">{{ bag.weight_kg }} kg</div>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <div class="info-label">Created</div>
+                    <div class="info-value">{{ bag.created_at.strftime('%Y-%m-%d %H:%M') if bag.created_at else 'N/A' }}</div>
+                </div>
+                {% if bag.updated_at %}
+                <div class="info-item">
+                    <div class="info-label">Last Updated</div>
+                    <div class="info-value">{{ bag.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if bag.type == 'parent' %}
+            <div class="linked-section">
+                <h3><i class="fas fa-sitemap me-2"></i>Linked Child Bags ({{ child_bags|length }})</h3>
+                {% if child_bags %}
+                <div class="linked-bags-list">
+                    {% for child in child_bags[:20] %}
+                    <a href="{{ url_for('search_bag', q=child.qr_id) }}" class="linked-item">
+                        <span class="qr-code">{{ child.qr_id }}</span>
+                        <span class="badge bg-success">Child</span>
+                    </a>
+                    {% endfor %}
+                    {% if child_bags|length > 20 %}
+                    <div class="text-muted text-center py-2">
+                        <small>...and {{ child_bags|length - 20 }} more children</small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-muted"><i class="fas fa-info-circle me-1"></i>No child bags linked yet</p>
+                {% endif %}
+            </div>
+
+            {% if bill %}
+            <div class="bill-card">
+                <h4><i class="fas fa-file-invoice me-2"></i>Linked to Bill</h4>
+                <div class="info-grid">
+                    <div class="info-item" style="background: white;">
+                        <div class="info-label">Bill ID</div>
+                        <div class="info-value">{{ bill.bill_id }}</div>
+                    </div>
+                    <div class="info-item" style="background: white;">
+                        <div class="info-label">Status</div>
+                        <div class="info-value">{{ bill.status|capitalize if bill.status else 'New' }}</div>
+                    </div>
+                    <div class="info-item" style="background: white;">
+                        <div class="info-label">Total Weight</div>
+                        <div class="info-value">{{ bill.total_weight_kg|default(0) }} kg</div>
+                    </div>
+                    <div class="info-item" style="background: white;">
+                        <div class="info-label">Child Bags</div>
+                        <div class="info-value">{{ bill.total_child_bags|default(0) }}</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('bill_detail', bill_id=bill.bill_id) }}" class="btn btn-outline-warning btn-sm mt-2">
+                    <i class="fas fa-eye me-1"></i>View Bill Details
+                </a>
+            </div>
+            {% else %}
+            <div class="text-muted mt-3">
+                <i class="fas fa-info-circle me-1"></i>Not linked to any bill yet
+            </div>
+            {% endif %}
+
+            {% elif bag.type == 'child' %}
+            <div class="linked-section">
+                <h3><i class="fas fa-link me-2"></i>Parent Bag</h3>
+                {% if parent_bag %}
+                <a href="{{ url_for('search_bag', q=parent_bag.qr_id) }}" class="linked-item">
+                    <span class="qr-code">{{ parent_bag.qr_id }}</span>
+                    <span class="badge bg-primary">Parent</span>
+                </a>
+                
+                {% if parent_bill %}
+                <div class="bill-card">
+                    <h4><i class="fas fa-file-invoice me-2"></i>Parent's Bill</h4>
+                    <div class="info-grid">
+                        <div class="info-item" style="background: white;">
+                            <div class="info-label">Bill ID</div>
+                            <div class="info-value">{{ parent_bill.bill_id }}</div>
+                        </div>
+                        <div class="info-item" style="background: white;">
+                            <div class="info-label">Status</div>
+                            <div class="info-value">{{ parent_bill.status|capitalize if parent_bill.status else 'New' }}</div>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('bill_detail', bill_id=parent_bill.bill_id) }}" class="btn btn-outline-warning btn-sm mt-2">
+                        <i class="fas fa-eye me-1"></i>View Bill Details
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>Parent bag not linked to any bill yet
+                </div>
+                {% endif %}
+                {% else %}
+                <p class="text-muted"><i class="fas fa-info-circle me-1"></i>Not linked to a parent bag yet</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if recent_scans %}
+            <div class="scan-history">
+                <h3><i class="fas fa-history me-2"></i>Recent Scan History</h3>
+                {% for scan in recent_scans[:5] %}
+                <div class="scan-item">
+                    <span class="time">{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                    <span class="user">{{ scan.user.username if scan.user else 'Unknown' }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

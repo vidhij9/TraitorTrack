@@ -228,7 +228,7 @@
                         </li>
                         
                         <li class="nav-item">
-                            <a class="nav-link{% if '/child_lookup' in request.path %} active{% endif %}" href="{{ url_for('child_lookup', s=request.args.get('s')) }}">
+                            <a class="nav-link{% if '/search' in request.path %} active{% endif %}" href="{{ url_for('search_bag', s=request.args.get('s')) }}">
                                 <i class="fas fa-search"></i> Search
                             </a>
                         </li>
@@ -393,7 +393,7 @@
             <i class="fas fa-qrcode"></i>
             <span>Scan</span>
         </a>
-        <a href="{{ url_for('child_lookup', s=request.args.get('s')) }}" class="nav-item{% if '/child_lookup' in request.path %} active{% endif %}">
+        <a href="{{ url_for('search_bag', s=request.args.get('s')) }}" class="nav-item{% if '/search' in request.path %} active{% endif %}">
             <i class="fas fa-search"></i>
             <span>Search</span>
         </a>

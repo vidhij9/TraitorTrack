@@ -4210,6 +4210,66 @@ def bag_management():
                          date_error=date_error,
                          users_with_scans=users_with_scans)
 
+
+@app.route('/search')
+@login_required
+def search_bag():
+    """
+    Dedicated search page for looking up bags by QR code.
+    Returns full bag details including:
+    - For parent bags: linked child bags and associated bill
+    - For child bags: parent bag and parent's bill
+    """
+    from models import Bag, Link, BillBag, Bill, Scan
+    from sqlalchemy import func
+    
+    query = request.args.get('q', '').strip().upper()
+    
+    bag = None
+    child_bags = []
+    parent_bag = None
+    bill = None
+    parent_bill = None
+    recent_scans = []
+    
+    if query:
+        bag = Bag.query.filter(func.upper(Bag.qr_id) == query).first()
+        
+        if bag:
+            if bag.type == 'parent':
+                links = Link.query.filter_by(parent_bag_id=bag.id).all()
+                child_bags = [link.child_bag for link in links if link.child_bag]
+                
+                bill_link = BillBag.query.filter_by(bag_id=bag.id).first()
+                if bill_link:
+                    bill = bill_link.bill
+                
+                recent_scans = Scan.query.filter_by(parent_bag_id=bag.id)\
+                    .order_by(Scan.timestamp.desc()).limit(5).all()
+                    
+            elif bag.type == 'child':
+                link = Link.query.filter_by(child_bag_id=bag.id).first()
+                if link:
+                    parent_bag = link.parent_bag
+                    
+                    if parent_bag:
+                        parent_bill_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
+                        if parent_bill_link:
+                            parent_bill = parent_bill_link.bill
+                
+                recent_scans = Scan.query.filter_by(child_bag_id=bag.id)\
+                    .order_by(Scan.timestamp.desc()).limit(5).all()
+    
+    return render_template('search.html',
+                         query=query,
+                         bag=bag,
+                         child_bags=child_bags,
+                         parent_bag=parent_bag,
+                         bill=bill,
+                         parent_bill=parent_bill,
+                         recent_scans=recent_scans)
+
+
 # Bill management routes
 @app.route('/bills')
 @app.route('/bill_management')  # Alias for compatibility

@@ -65,6 +65,7 @@ The project utilizes a standard Flask application structure, organizing code int
 -   **Automatic Session Security**: Secure session management with dual timeouts and secure cookie handling.
 -   **Brute Force Protection**: Comprehensive rate limiting on authentication endpoints and account lockout.
 -   **Search & Filtering**: Fast search capabilities across bags, bills, and users with pagination.
+-   **Dedicated Bag Search (/search)**: Mobile-friendly bag lookup with full relationship display - shows linked child bags (for parents), parent bag (for children), bill details, and recent scan history. Accessible from main nav, dashboard, and mobile bottom nav.
 -   **Data Import/Export**: Optimized CSV/Excel export and bulk import with validation.
 -   **Batch Import**: Excel-based batch import for child→parent and parent→bill relationships, featuring QR code label extraction, duplicate handling, and batch-level error recovery. Parent bags must exist before linking children; batches with missing parents are rejected with clear error messages showing row numbers and parent codes, ensuring data integrity.
 -   **Multi-File Batch Import**: Allows simultaneous upload and processing of multiple Excel files with comprehensive error reporting and downloadable Excel error reports. Utilizes file-based temporary storage to handle large error reports without session size limitations, with automatic cleanup of reports older than 1 hour.
