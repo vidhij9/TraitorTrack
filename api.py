@@ -52,13 +52,15 @@ def get_dashboard_analytics():
             SELECT * FROM stats, scan_stats, bill_stats, user_stats
         """)).fetchone()
         
-        # Extract statistics from query result
-        parent_bags = stats_result[0] or 0
-        child_bags = stats_result[1] or 0
-        total_bags = stats_result[2] or 0
-        total_scans = stats_result[3] or 0
-        total_bills = stats_result[4] or 0
-        total_users = stats_result[5] or 0
+        if stats_result is None:
+            parent_bags, child_bags, total_bags, total_scans, total_bills, total_users = 0, 0, 0, 0, 0, 0
+        else:
+            parent_bags = stats_result[0] or 0
+            child_bags = stats_result[1] or 0
+            total_bags = stats_result[2] or 0
+            total_scans = stats_result[3] or 0
+            total_bills = stats_result[4] or 0
+            total_users = stats_result[5] or 0
         
         # System metrics (admin only)
         system_metrics = {}
@@ -748,29 +750,22 @@ def search_unified():
         return jsonify({'success': False, 'error': 'Search failed'}), 500
 
 # =============================================================================
-# CACHE MANAGEMENT ENDPOINTS
+# LEGACY CACHE ENDPOINT (retained for backward compatibility)
 # =============================================================================
 
 @app.route('/api/cache/clear', methods=['POST'])
 @require_auth
-@limiter.limit("5000 per minute")  # Increased for 100+ concurrent users
+@limiter.limit("10 per minute")
 def clear_api_cache():
-    """Clear API cache (admin only)"""
+    """Legacy cache clear endpoint - caching removed, returns success for compatibility"""
     if not current_user.is_admin():
         return jsonify({'success': False, 'error': 'Admin access required'}), 403
     
-    try:
-        pattern = request.json.get('pattern') if request.json else None
-        
-        return jsonify({
-            'success': True,
-            'message': f'Cache cleared{" for pattern: " + pattern if pattern else " completely"}',
-            'timestamp': time.time()
-        })
-        
-    except Exception as e:
-        logger.error(f"Cache clear error: {str(e)}")
-        return jsonify({'success': False, 'error': 'Cache clear failed'}), 500
+    return jsonify({
+        'success': True,
+        'message': 'No-op: caching disabled in this version',
+        'timestamp': time.time()
+    })
 
 # Removed duplicate /api/system/health endpoint - use /api/system_health in routes.py instead
 

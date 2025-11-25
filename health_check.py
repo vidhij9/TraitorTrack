@@ -86,39 +86,32 @@ class ComponentHealthChecker:
     
     def check_cache(self) -> Tuple[HealthStatus, Dict[str, Any]]:
         """
-        Check cache system health
+        Check cache system health (database-level caching via StatisticsCache)
         
         Returns:
             (status, details) tuple
         """
         try:
-            from cache_utils import get_cache_stats
+            from sqlalchemy import text
             
-            cache_stats = get_cache_stats()
+            result = self.db.session.execute(text("""
+                SELECT COUNT(*) FROM statistics_cache WHERE last_updated > NOW() - INTERVAL '5 minutes'
+            """)).scalar()
             
-            # Parse hit rate
-            hit_rate_str = cache_stats.get('hit_rate', '0%')
-            hit_rate = float(hit_rate_str.rstrip('%'))
-            
-            # Determine status based on hit rate
-            if hit_rate >= 60:
+            if result and result > 0:
                 status = HealthStatus.HEALTHY
-            elif hit_rate >= 30:
-                status = HealthStatus.DEGRADED
-            elif cache_stats.get('hits', 0) == 0 and cache_stats.get('misses', 0) == 0:
-                # No cache activity yet - still healthy
-                status = HealthStatus.HEALTHY
+                details = {
+                    'enabled': True,
+                    'type': 'database',
+                    'message': 'Statistics cache is up-to-date'
+                }
             else:
-                status = HealthStatus.DEGRADED
-            
-            details = {
-                'enabled': True,
-                'hit_rate': hit_rate,
-                'total_hits': cache_stats.get('hits', 0),
-                'total_misses': cache_stats.get('misses', 0),
-                'entries': cache_stats.get('entries', 0),
-                'message': f'Cache operational with {hit_rate}% hit rate'
-            }
+                status = HealthStatus.HEALTHY
+                details = {
+                    'enabled': True,
+                    'type': 'database',
+                    'message': 'Statistics cache available (may need refresh)'
+                }
             
             return status, details
             
@@ -127,7 +120,7 @@ class ComponentHealthChecker:
             return HealthStatus.DEGRADED, {
                 'enabled': False,
                 'error': str(e),
-                'message': 'Cache system unavailable'
+                'message': 'Statistics cache unavailable'
             }
     
     def check_email_service(self) -> Tuple[HealthStatus, Dict[str, Any]]:

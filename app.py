@@ -8,7 +8,6 @@ from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_session import Session
 from flask_migrate import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -41,7 +40,7 @@ class CSRFExempt:
 
 csrf_compat = CSRFExempt()
 
-# Create Flask application (moved before Redis configuration)
+# Create Flask application
 app = Flask(__name__)
 
 # SECURITY: Enable Jinja2 autoescape for XSS protection
@@ -95,103 +94,27 @@ is_production = (
     os.environ.get('REPLIT_ENVIRONMENT') == 'production'
 ) and not force_dev_db
 
-# Redis Configuration - for sessions and rate limiting
-# REDIS_URL format: redis://[[username]:[password]]@host:port/db or rediss:// for SSL
-redis_url = os.environ.get('REDIS_URL', '').strip()
-redis_available = False
-redis_client = None
-
-# Validate and connect to Redis if URL is provided
-if redis_url:
-    # Validate Redis URL format
-    valid_schemes = ['redis://', 'rediss://', 'unix://']
-    if not any(redis_url.startswith(scheme) for scheme in valid_schemes):
-        logger.error(f"❌ Invalid REDIS_URL format: '{redis_url[:20]}...'")
-        logger.error(f"⚠️  REDIS_URL must start with: {', '.join(valid_schemes)}")
-        logger.error(f"⚠️  Falling back to filesystem/memory storage")
-        redis_url = ''  # Clear invalid URL
-    else:
-        try:
-            import redis
-            redis_client = redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
-            # Test connection
-            redis_client.ping()
-            redis_available = True
-            # Mask password in logs for security
-            url_display = redis_url.split('@')[-1] if '@' in redis_url else redis_url.split('//')[1][:20]
-            logger.info(f"✅ Redis connected successfully: {url_display}")
-        except Exception as e:
-            # Log error - production will fail fast later
-            logger.error(f"❌ Redis connection failed: {str(e)}")
-            redis_available = False
-            redis_client = None
-
-# Redis availability logging and recommendations
-if is_production:
-    if not redis_url:
-        logger.warning(f"⚠️  REDIS_URL not configured in production - using signed cookie sessions")
-        logger.warning(f"ℹ️  For multi-worker session sharing, consider adding Redis (Upstash/Redis Cloud)")
-        logger.info(f"✅ Autoscale deployment: Signed cookie sessions work correctly without Redis")
-    elif not redis_available:
-        logger.warning(f"⚠️  Redis connection failed in production - falling back to signed cookie sessions")
-        logger.warning(f"⚠️  Rate limiting will be per-worker (not shared across workers)")
-        logger.info(f"✅ Application will continue using stateless session management")
-else:
-    if not redis_url:
-        logger.info("ℹ️  REDIS_URL not configured, using filesystem/memory storage (development mode)")
-    elif not redis_available:
-        logger.warning(f"⚠️  Redis connection failed in development, falling back to filesystem/memory storage")
-
-# Session configuration - Redis with signed cookie fallback
-# SECURITY: SESSION_COOKIE_SECURE=True in production for HTTPS-only session cookies
-# In development, it's set to True but the after_request handler strips the Secure flag
-# to allow session persistence across HTTP (Gunicorn serves HTTP internally)
-#
-# NOTE: Filesystem sessions with SESSION_USE_SIGNER=True are stateless (signed cookies)
-# and work perfectly for Autoscale deployments without Redis
-if redis_available:
-    # Use Redis for optimal multi-worker session sharing
-    app.config.update(
-        SESSION_TYPE='redis',
-        SESSION_REDIS=redis_client,
-        SESSION_PERMANENT=False,
-        SESSION_USE_SIGNER=True,
-        SESSION_KEY_PREFIX='traitortrack:session:',
-        SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE='Lax',
-        SESSION_COOKIE_NAME='traitortrack_session',
-        PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
-        SEND_FILE_MAX_AGE_DEFAULT=0,
-        WTF_CSRF_ENABLED=True,
-        WTF_CSRF_TIME_LIMIT=None,
-        WTF_CSRF_CHECK_DEFAULT=True,
-        WTF_CSRF_SSL_STRICT=False,
-        PREFERRED_URL_SCHEME='https' if is_production else 'http'
-    )
-    session_backend = "Redis (multi-worker ready)"
-else:
-    # Use signed cookie sessions (stateless, works for Autoscale)
-    app.config.update(
-        SESSION_TYPE='filesystem',
-        SESSION_FILE_DIR='/tmp/flask_session',
-        SESSION_PERMANENT=False,
-        SESSION_USE_SIGNER=True,
-        SESSION_FILE_THRESHOLD=500,
-        SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE='Lax',
-        SESSION_COOKIE_NAME='traitortrack_session',
-        PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
-        SEND_FILE_MAX_AGE_DEFAULT=0,
-        WTF_CSRF_ENABLED=True,
-        WTF_CSRF_TIME_LIMIT=None,
-        WTF_CSRF_CHECK_DEFAULT=True,
-        WTF_CSRF_SSL_STRICT=False,
-        PREFERRED_URL_SCHEME='https' if is_production else 'http'
-    )
-    os.makedirs('/tmp/flask_session', exist_ok=True)
-    session_backend = "Signed cookie sessions (stateless, Autoscale-ready)"
+# ==================================================================================
+# SESSION CONFIGURATION - True stateless signed cookie sessions (Autoscale-ready)
+# ==================================================================================
+# Uses Flask's built-in client-side signed cookie sessions - NO server-side storage.
+# Session data is cryptographically signed and stored entirely in the client cookie.
+# This is truly stateless and works across any number of workers/instances.
+# SECURITY: SESSION_COOKIE_SECURE=True in production for HTTPS-only cookies
+# ==================================================================================
+app.config.update(
+    SESSION_COOKIE_SECURE=is_production,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_NAME='traitortrack_session',
+    PERMANENT_SESSION_LIFETIME=3600,  # 1 hour
+    SEND_FILE_MAX_AGE_DEFAULT=0,
+    WTF_CSRF_ENABLED=True,
+    WTF_CSRF_TIME_LIMIT=None,
+    WTF_CSRF_CHECK_DEFAULT=True,
+    WTF_CSRF_SSL_STRICT=False,
+    PREFERRED_URL_SCHEME='https' if is_production else 'http'
+)
 
 # File upload size limits (for security and performance)
 # MAX_FILE_UPLOAD_SIZE must be in bytes (integer). Default: 16MB
@@ -208,25 +131,27 @@ except ValueError as e:
 
 logger.info(f"Environment: {'production' if is_production else 'development'} - HTTPS cookies: {is_production}")
 
-# Initialize Flask-Session
-Session(app)
-logger.info(f"Session storage: {session_backend}")
+logger.info("Session storage: Stateless signed cookies (true Autoscale-ready)")
 
-# Configure rate limiter - Redis with in-memory fallback
-# NOTE: Memory storage works for Autoscale but rate limits are per-worker (not shared)
-if redis_available:
-    # Use Redis for shared rate limiting across all workers
-    limiter_storage_uri = redis_url
-    limiter_backend = "Redis (shared across workers)"
-else:
-    # Use in-memory rate limiting (per-worker, still functional)
-    limiter_storage_uri = "memory://"
-    limiter_backend = "In-memory (per-worker, Autoscale-compatible)"
+# ==================================================================================
+# RATE LIMITING CONFIGURATION - Environment-driven with production-safe defaults
+# ==================================================================================
+# Uses in-memory storage (per-worker). For high-traffic production, rate limits
+# are per-worker which provides effective protection without external dependencies.
+#
+# Configure via environment variables:
+# - RATE_LIMIT_PER_DAY: Daily limit per IP (default: 50000 for production workloads)
+# - RATE_LIMIT_PER_HOUR: Hourly limit per IP (default: 10000)
+# - RATE_LIMIT_PER_MINUTE: Per-minute limit per IP (default: 500)
+# ==================================================================================
+rate_limit_day = os.environ.get('RATE_LIMIT_PER_DAY', '50000')
+rate_limit_hour = os.environ.get('RATE_LIMIT_PER_HOUR', '10000')
+rate_limit_minute = os.environ.get('RATE_LIMIT_PER_MINUTE', '500')
 
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["2000 per day", "500 per hour"],
-    storage_uri=limiter_storage_uri,
+    default_limits=[f"{rate_limit_day} per day", f"{rate_limit_hour} per hour", f"{rate_limit_minute} per minute"],
+    storage_uri="memory://",
     strategy="fixed-window",
     swallow_errors=True
 )
@@ -254,7 +179,7 @@ def ratelimit_handler(e):
                          error_message=f'Too many requests. Please try again in {retry_after} seconds.',
                          error_title='Rate Limit Exceeded'), 429
 
-logger.info(f"Rate limiting storage: {limiter_backend}")
+logger.info(f"Rate limiting: {rate_limit_day}/day, {rate_limit_hour}/hour, {rate_limit_minute}/minute per IP")
 
 # ==================================================================================
 # DATABASE CONFIGURATION - Safe environment-based routing
@@ -308,48 +233,38 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = False
 
 # ==================================================================================
-# DATABASE CONNECTION POOL - PRODUCTION-SCALE CONFIGURATION
+# DATABASE CONNECTION POOL - Environment-driven configuration for scalable load handling
 # ==================================================================================
-# DESIGNED FOR: 100+ concurrent users with horizontal scalability
-# 
-# Current Configuration (2 workers):
-#   - Base pool: 25 connections per worker × 2 = 50 connections
-#   - Overflow:  15 connections per worker × 2 = 30 connections
-#   - Total capacity: 80 connections (safe for PostgreSQL max_connections=100)
-#
-# Scaling Guide for Higher Loads:
-#
-# For 200+ concurrent users (4 workers):
-#   pool_size = 15, max_overflow = 10
-#   Total: (15 + 10) × 4 = 100 connections
-#   Update gunicorn workers: --workers=4
-#
-# For 500+ concurrent users (8 workers):
-#   pool_size = 10, max_overflow = 5
-#   Total: (10 + 5) × 8 = 120 connections
-#   Update gunicorn workers: --workers=8
-#   Increase PostgreSQL max_connections to 150
+# Configure via environment variables for different deployment scales:
+#   - DB_POOL_SIZE: Base pool size per worker (default: 10)
+#   - DB_MAX_OVERFLOW: Overflow connections per worker (default: 5)
+#   - DB_POOL_RECYCLE: Seconds before connection recycle (default: 300)
+#   - DB_POOL_TIMEOUT: Seconds to wait for connection (default: 30)
+#   - DB_CONNECT_TIMEOUT: Database connection timeout (default: 10)
 #
 # Formula: (pool_size + max_overflow) × workers < postgres_max_connections
-#
-# NOTE: Each worker needs its own connection pool. Always leave 20% headroom
-# for administrative connections and monitoring tools.
 # ==================================================================================
+db_pool_size = int(os.environ.get('DB_POOL_SIZE', '10'))
+db_max_overflow = int(os.environ.get('DB_MAX_OVERFLOW', '5'))
+db_pool_recycle = int(os.environ.get('DB_POOL_RECYCLE', '300'))
+db_pool_timeout = int(os.environ.get('DB_POOL_TIMEOUT', '30'))
+db_connect_timeout = int(os.environ.get('DB_CONNECT_TIMEOUT', '10'))
+
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_size": 25,  # Per-worker pool (25 × 2 workers = 50 base connections)
-    "max_overflow": 15,  # Per-worker overflow (15 × 2 = 30 overflow connections)
-    "pool_recycle": 300,  # Recycle connections every 5 minutes (prevents stale connections)
-    "pool_pre_ping": True,  # Verify connections before use (prevents failed queries)
-    "pool_timeout": 30,  # Wait up to 30s for connection (prevents instant failures)
+    "pool_size": db_pool_size,
+    "max_overflow": db_max_overflow,
+    "pool_recycle": db_pool_recycle,
+    "pool_pre_ping": True,
+    "pool_timeout": db_pool_timeout,
     "echo": False,
     "echo_pool": False,
     "connect_args": {
-        "connect_timeout": 10,  # Database connection timeout
-        "application_name": "traitortrack_web"  # For PostgreSQL monitoring/debugging
+        "connect_timeout": db_connect_timeout,
+        "application_name": "traitortrack_web"
     }
 }
 
-logger.info("✅ Database connection pool: 25 base + 15 overflow per worker (80 total for 2 workers)")
+logger.info(f"Database pool: {db_pool_size} base + {db_max_overflow} overflow per worker")
 
 # Add database pool monitoring function
 def get_db_pool_stats():
@@ -710,16 +625,10 @@ def after_request(response):
     
     return response
 
-# Initialize high-performance query optimizer with Redis support
+# Initialize high-performance query optimizer
 from query_optimizer import init_query_optimizer
-query_optimizer = init_query_optimizer(db, redis_client=redis_client if redis_available else None)
+query_optimizer = init_query_optimizer(db)
 logger.info("Query optimizer initialized for high-performance operations")
-
-# Initialize cache backend with Redis support
-# Cache disabled - using live data only
-# from cache_utils import init_cache
-# init_cache(redis_client=redis_client if redis_available else None)
-logger.info("Cache system disabled - all data fetched live from database")
 
 # Add teardown handler for proper database session cleanup
 @app.teardown_appcontext

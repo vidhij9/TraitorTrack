@@ -256,7 +256,6 @@ def setup_health_monitoring(app):
         
         Query Parameters:
             check_db (bool): If 'true', performs database connectivity check
-            check_redis (bool): If 'true', performs Redis connectivity check
             detailed (bool): If 'true', returns detailed system metrics
         
         Returns:
@@ -266,9 +265,7 @@ def setup_health_monitoring(app):
         from flask import request
         import time
         
-        # Parse query parameters
         check_db = request.args.get('check_db', 'false').lower() == 'true'
-        check_redis = request.args.get('check_redis', 'false').lower() == 'true'
         detailed = request.args.get('detailed', 'false').lower() == 'true'
         
         is_production = os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production'
@@ -280,12 +277,9 @@ def setup_health_monitoring(app):
             'environment': 'production' if is_production else 'development'
         }
         
-        # In production, always check critical services
         if is_production:
             check_db = True
-            check_redis = True
         
-        # Database connectivity check
         if check_db:
             try:
                 from app import db
@@ -301,7 +295,6 @@ def setup_health_monitoring(app):
                         'query_time_ms': round(query_time_ms, 2)
                     }
                     
-                    # Add detailed database metrics if requested
                     if detailed:
                         pool = db.engine.pool
                         response_data['database']['pool'] = {
@@ -326,62 +319,6 @@ def setup_health_monitoring(app):
                 }
                 return jsonify(response_data), 503
         
-        # Redis connectivity check
-        if check_redis:
-            try:
-                from app import redis_client, redis_available
-                
-                if not redis_available or redis_client is None:
-                    if is_production:
-                        # Redis is critical in production
-                        response_data['status'] = 'unhealthy'
-                        response_data['message'] = 'Redis is unavailable (required in production)'
-                        response_data['redis'] = {'connected': False}
-                        return jsonify(response_data), 503
-                    else:
-                        # Redis is optional in development
-                        response_data['redis'] = {
-                            'connected': False,
-                            'warning': 'Redis unavailable (acceptable in development)'
-                        }
-                else:
-                    start_time = time.time()
-                    redis_client.ping()
-                    ping_time_ms = (time.time() - start_time) * 1000
-                    
-                    response_data['redis'] = {
-                        'connected': True,
-                        'ping_time_ms': round(ping_time_ms, 2)
-                    }
-                    
-                    # Add detailed Redis metrics if requested
-                    if detailed:
-                        info = redis_client.info('stats')
-                        response_data['redis']['stats'] = {
-                            'total_connections': info.get('total_connections_received', 0),
-                            'total_commands': info.get('total_commands_processed', 0),
-                            'keyspace_hits': info.get('keyspace_hits', 0),
-                            'keyspace_misses': info.get('keyspace_misses', 0)
-                        }
-                    
-            except Exception as e:
-                app.logger.error(f"Redis health check failed: {str(e)}", exc_info=True)
-                if is_production:
-                    response_data['status'] = 'unhealthy'
-                    response_data['message'] = 'Redis connection failed (critical in production)'
-                    response_data['redis'] = {
-                        'connected': False,
-                        'error': str(e)
-                    }
-                    return jsonify(response_data), 503
-                else:
-                    response_data['redis'] = {
-                        'connected': False,
-                        'warning': 'Redis connection failed (acceptable in development)',
-                        'error': str(e)
-                    }
-        
-        # Add system resource metrics if detailed
         if detailed:
             try:
                 import psutil

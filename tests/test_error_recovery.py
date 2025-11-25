@@ -100,26 +100,21 @@ class TestErrorRecovery:
             assert error_count == 2, f"Should have 2 errors, got {error_count}"
             assert len(errors) == 2, "Should track error details"
     
-    def test_cache_invalidation_after_errors(self, app, admin_user, db_session):
-        """TC-102: Cache should remain coherent even after failed operations"""
+    def test_database_consistency_after_errors(self, app, admin_user, db_session):
+        """TC-102: Database should remain consistent even after failed operations"""
         with app.app_context():
-            # Create initial bag
             bag = Bag()
             bag.qr_id = 'CACHE001'
             bag.type = 'parent'
             bag.name = 'Cache Test'
             db_session.add(bag)
             db_session.commit()
-            bag_id = bag.id
             
-            # Get initial count (may populate cache)
-            from cache_utils import invalidate_bags_cache
             initial_count = Bag.query.count()
             
-            # Try to create duplicate (should fail)
             try:
                 dup_bag = Bag()
-                dup_bag.qr_id = 'CACHE001'  # Duplicate
+                dup_bag.qr_id = 'CACHE001'
                 dup_bag.type = 'parent'
                 dup_bag.name = 'Duplicate'
                 db_session.add(dup_bag)
@@ -127,13 +122,9 @@ class TestErrorRecovery:
             except Exception:
                 db_session.rollback()
             
-            # Invalidate cache after error
-            invalidate_bags_cache()
-            
-            # Count should still be accurate
             final_count = Bag.query.count()
             assert final_count == initial_count, \
-                "Cache should reflect accurate count after failed operation"
+                "Database should reflect accurate count after failed operation"
     
     def test_undo_time_window_enforcement(self, app, admin_user, db_session):
         """TC-103: Undo should only work within 1-hour window"""

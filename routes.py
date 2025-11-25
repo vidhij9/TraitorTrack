@@ -12,10 +12,8 @@ from auth_utils import (
     get_current_user_id, get_current_username, get_current_user_role
 )
 
-# Import timezone utilities only (caching disabled)
-from cache_utils import (
-    format_datetime_ist, get_ist_now
-)
+# Import timezone utilities
+from timezone_utils import format_datetime_ist, get_ist_now
 
 # Import enhanced audit logging utilities
 from audit_utils import (
@@ -6073,15 +6071,13 @@ def api_system_health():
         import os
         import time
         from datetime import datetime
-        from cache_utils import get_cache_stats
         from pool_monitor import get_pool_monitor
         
-        # Database connection pool stats from monitor
         pool_stats = {
             'size': 0,
             'checked_out': 0,
             'overflow': 0,
-            'configured_max': 40,  # 25 base + 15 overflow
+            'configured_max': 40,
             'usage_percent': 0,
             'health_status': 'unknown'
         }
@@ -6097,7 +6093,6 @@ def api_system_health():
                     pool_stats['recommendations'] = health_summary.get('recommendations', [])
                     pool_stats['trend_analysis'] = health_summary.get('trend_analysis', {})
             else:
-                # Fallback to direct pool access
                 pool = db.engine.pool
                 pool_stats['size'] = pool.size()  # type: ignore
                 pool_stats['checked_out'] = pool.checkedout()  # type: ignore
@@ -6105,15 +6100,10 @@ def api_system_health():
         except:
             pass
         
-        # Cache statistics using proper helper function
-        cache_info = get_cache_stats()
         cache_stats = {
             'enabled': True,
-            'hit_rate': float(cache_info['hit_rate'].rstrip('%')),
-            'total_hits': cache_info['hits'],
-            'total_misses': cache_info['misses'],
-            'total_requests': cache_info['hits'] + cache_info['misses'],
-            'size': cache_info['total_entries']
+            'type': 'database',
+            'message': 'Using database-level StatisticsCache'
         }
         
         # Database size

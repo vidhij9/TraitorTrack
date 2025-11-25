@@ -10,9 +10,8 @@ logger = logging.getLogger(__name__)
 class QueryOptimizer:
     """Optimized database operations for maximum performance"""
     
-    def __init__(self, db, redis_client=None):
+    def __init__(self, db):
         self.db = db
-        self.redis_client = redis_client
     
     def get_bag_by_qr(self, qr_id, bag_type=None):
         """
@@ -444,14 +443,13 @@ class QueryOptimizer:
 # Create singleton instance
 query_optimizer = None
 
-def init_query_optimizer(db, redis_client=None):
+def init_query_optimizer(db):
     """
     Initialize the global query optimizer
     
     Args:
         db: SQLAlchemy database instance
-        redis_client: Optional Redis client (may be used for session management)
     """
     global query_optimizer
-    query_optimizer = QueryOptimizer(db, redis_client)
+    query_optimizer = QueryOptimizer(db)
     return query_optimizer
