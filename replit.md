@@ -86,9 +86,8 @@ The project utilizes a standard Flask application structure, organizing code int
 -   **psutil**: System and process monitoring.
 -   **Flask-Login**: User session and authentication management.
 -   **Flask-WTF**: Web forms and CSRF protection.
--   **Flask-Limiter**: Rate limiting.
+-   **Flask-Limiter**: In-memory rate limiting (per-worker).
 -   **werkzeug**: Secure password hashing.
 -   **pyotp**: TOTP generation and verification.
 -   **qrcode**: QR code generation for 2FA setup.
--   **Redis**: Optional for production session management.
 -   **SendGrid**: Email service for password reset and notifications.
