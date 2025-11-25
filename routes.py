@@ -1606,7 +1606,10 @@ def login():
                     'reason': 'account_locked'
                 })
                 flash(f'Account locked due to too many failed login attempts. Please try again in {minutes_remaining} minutes.', 'error')
-                return render_template('login.html')
+                return render_template('login.html', login_attempts={
+                    'is_locked': True,
+                    'lockout_time': f'{minutes_remaining} minutes'
+                })
             
             app.logger.info(f"USER FOUND: {user.username}, role: {user.role}, verified: {user.verified}")
             
@@ -1633,14 +1636,23 @@ def login():
                     'reason': 'invalid_password'
                 })
                 
+                login_attempts_info = None
                 if should_lock:
                     flash(f'Too many failed login attempts. Account locked for {lock_duration} minutes.', 'error')
+                    login_attempts_info = {
+                        'is_locked': True,
+                        'lockout_time': f'{lock_duration} minutes'
+                    }
                 elif attempts_remaining is not None:
                     flash(f'Invalid username or password. {attempts_remaining} attempts remaining.', 'error')
+                    login_attempts_info = {
+                        'is_locked': False,
+                        'attempts_remaining': attempts_remaining
+                    }
                 else:
                     flash('Invalid username or password.', 'error')
                     
-                return render_template('login.html')
+                return render_template('login.html', login_attempts=login_attempts_info)
                 
             if not user.verified:
                 app.logger.warning(f"LOGIN FAILED: User {username} not verified")

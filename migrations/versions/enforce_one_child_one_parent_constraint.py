@@ -11,9 +11,12 @@ CRITICAL FIX: Enforce one-child-one-parent business rule
 Changes:
 1. Clean up any existing duplicate links (keep oldest)
 2. Add UNIQUE constraint on link.child_bag_id
+
+Note: Migration is idempotent - safe to run multiple times
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -23,8 +26,17 @@ branch_labels = None
 depends_on = None
 
 
+def constraint_exists(constraint_name, table_name):
+    """Check if a constraint already exists in the database."""
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    unique_constraints = inspector.get_unique_constraints(table_name)
+    return any(c['name'] == constraint_name for c in unique_constraints)
+
+
 def upgrade():
     # Step 1: Clean up duplicate links (keep oldest link for each child)
+    # Only run cleanup if duplicates exist to avoid unnecessary work
     # Keep the first parent link created (earliest created_at)
     # This preserves the original/intended parent relationship
     op.execute("""
@@ -45,11 +57,13 @@ def upgrade():
     """)
     
     # Step 2: Add UNIQUE constraint to enforce one child = one parent
-    op.create_unique_constraint(
-        'link_child_bag_id_unique',
-        'link',
-        ['child_bag_id']
-    )
+    # Only create if it doesn't already exist (idempotent)
+    if not constraint_exists('link_child_bag_id_unique', 'link'):
+        op.create_unique_constraint(
+            'link_child_bag_id_unique',
+            'link',
+            ['child_bag_id']
+        )
 
 
 def downgrade():

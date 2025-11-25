@@ -362,15 +362,23 @@ with app.app_context():
             else:
                 logger.info(f"📝 Applying pending migrations: {current_rev or 'base'} → {head_rev}")
                 
-                # Run migrations
-                flask_migrate_upgrade()
-                
-                logger.info(f"✅ Database migrations applied successfully! Current revision: {head_rev}")
+                # Run migrations with explicit error handling
+                try:
+                    flask_migrate_upgrade()
+                    logger.info(f"✅ Database migrations applied successfully! Current revision: {head_rev}")
+                except Exception as upgrade_error:
+                    # Log the specific migration error
+                    logger.error(f"❌ Migration upgrade failed: {str(upgrade_error)}")
+                    logger.error(f"   Current revision: {current_rev or 'base'}")
+                    logger.error(f"   Target revision: {head_rev}")
+                    raise  # Re-raise to be caught by outer handler
         
         except Exception as migration_error:
-            # Log migration errors but don't crash the app
+            # Log migration errors with full context but don't crash the app
             # This allows the app to start even if migrations fail (e.g., schema already up-to-date manually)
-            logger.error(f"⚠️  Migration check failed (non-critical): {str(migration_error)}")
+            import traceback
+            logger.error(f"⚠️  Migration check failed: {str(migration_error)}")
+            logger.error(f"   Traceback: {traceback.format_exc()}")
             logger.info("📌 App will continue startup - database may already be up-to-date")
         
         # NOTE: Schema management is now handled by Alembic migrations above
