@@ -158,12 +158,12 @@
 
                     <!-- Actions -->
                     <div class="wh-mt-xl">
-                        <div class="wh-alert wh-alert-info wh-mb-lg">
-                            <i class="fas fa-info-circle me-2"></i><strong>Next Step:</strong> After linking parent bags, scan child bags for each parent before completing the bill.
+                        <div class="wh-alert wh-alert-success wh-mb-lg" id="success-message" style="display: none;">
+                            <i class="fas fa-check-circle me-2"></i><span id="success-text">Parent bag linked! Ready to scan next parent bag.</span>
                         </div>
                         <div class="wh-flex wh-flex-col wh-flex-gap-md">
-                            <button id="scan-children-btn" class="wh-btn wh-btn-primary wh-btn-lg wh-btn-block" onclick="scanChildBags()" {% if linked_bags|length == 0 %}disabled{% endif %}>
-                                <i class="fas fa-cubes wh-icon"></i>Scan Child Bags
+                            <button id="scan-next-btn" class="wh-btn wh-btn-primary wh-btn-lg wh-btn-block" onclick="focusScanner()">
+                                <i class="fas fa-qrcode wh-icon"></i>Scan Next Parent Bag
                             </button>
                             <button id="complete-bill-btn" class="wh-btn wh-btn-success wh-btn-lg wh-btn-block" onclick="completeBill()">
                                 <i class="fas fa-check-circle wh-icon"></i>Complete Bill
@@ -338,12 +338,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 const currentCount = parseInt(bagCount.textContent) + 1;
                 updateProgress(currentCount);
                 
-                updateStatus('Ready for next scan', 'check-circle', '');
+                // Show success message and auto-focus for next scan
+                const successMsg = document.getElementById('success-message');
+                const successText = document.getElementById('success-text');
+                if (successMsg && successText) {
+                    successText.textContent = `✓ ${barcode} linked! Ready for next parent bag.`;
+                    successMsg.style.display = 'block';
+                    setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+                }
                 
                 // Check if bill is complete
                 if (targetCount > 0 && currentCount >= targetCount) {
                     showToast('✅ Bill complete! All parent bags linked.', 'success');
                     updateStatus('Bill complete!', 'check-circle', '#28a745');
+                    scannerInput.focus();
+                } else {
+                    // Auto-continue: clear input and ready for next scan
+                    scannerInput.value = '';
+                    scannerInput.focus();
+                    updateStatus('✓ Linked! Scan next parent bag', 'check-circle', '');
                 }
             } else {
                 showToast(data.message || 'Scan failed', 'error');
@@ -352,11 +365,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Re-enable after 1 second
                 setTimeout(() => {
                     updateStatus('Ready for next scan', 'check-circle', '');
+                    scannerInput.value = '';
+                    scannerInput.focus();
                 }, 1500);
             }
-            
-            // Always refocus
-            scannerInput.focus();
         })
         .catch(error => {
             isProcessing = false;
@@ -433,20 +445,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
     
-    // Scan child bags function
-    window.scanChildBags = function() {
-        const currentCount = parseInt(bagCount.textContent);
-        
-        if (currentCount === 0) {
-            showToast('Please link at least one parent bag first.', 'warning');
-            return;
-        }
-        
-        // Redirect to child scanning page - session already has parent info
-        showToast('Redirecting to child bag scanning...', 'info');
-        setTimeout(() => {
-            window.location.href = '/scan_child';
-        }, 500);
+    // Focus scanner function for next scan
+    window.focusScanner = function() {
+        scannerInput.value = '';
+        scannerInput.focus();
+        updateStatus('Ready - Scan next parent bag', 'check-circle', '');
+        showToast('Scanner ready for next parent bag', 'info');
     };
     
     // Complete bill function
@@ -458,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (confirm(`Complete this bill with ${currentCount} linked bags? Make sure you've scanned all child bags for each parent.`)) {
+        if (confirm(`Complete this bill with ${currentCount} linked parent bags?`)) {
             fetchWithCSRF('/complete_bill', {
                 method: 'POST',
                 headers: {

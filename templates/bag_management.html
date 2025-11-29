@@ -66,8 +66,11 @@
                 <i class="fas fa-plus"></i><span class="d-none d-lg-inline ms-1">New</span>
             </a>
             {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('import_batch_child_parent') }}" class="btn btn-info wh-btn" title="Batch Import Child→Parent">
+                <i class="fas fa-file-import"></i><span class="d-none d-lg-inline ms-1">Import</span>
+            </a>
             <a href="{{ url_for('excel_upload') }}" class="btn btn-success wh-btn">
-                <i class="fas fa-file-excel"></i><span class="d-none d-lg-inline ms-1">Excel Upload</span>
+                <i class="fas fa-file-excel"></i><span class="d-none d-lg-inline ms-1">Upload</span>
             </a>
             {% endif %}
             <button type="button" class="btn btn-outline-secondary wh-btn" onclick="clearFilters()">

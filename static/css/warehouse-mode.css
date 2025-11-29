@@ -722,6 +722,192 @@ body.warehouse-mode {
     }
 }
 
+/* Mobile Compact Mode - For small phone screens */
+@media (max-width: 480px) {
+    :root {
+        /* Compact Mobile Typography - Much smaller for minimal scrolling */
+        --wh-font-xs: 0.65rem !important;   /* 10px */
+        --wh-font-sm: 0.75rem !important;   /* 12px */
+        --wh-font-base: 0.8rem !important;  /* 13px */
+        --wh-font-lg: 0.9rem !important;    /* 14px */
+        --wh-font-xl: 1rem !important;      /* 16px */
+        --wh-font-2xl: 1.25rem !important;  /* 20px */
+        --wh-font-3xl: 1.5rem !important;   /* 24px */
+        --wh-font-4xl: 2rem !important;     /* 32px */
+        
+        /* Compact spacing */
+        --wh-space-xs: 0.25rem !important;  /* 4px */
+        --wh-space-sm: 0.375rem !important; /* 6px */
+        --wh-space-md: 0.5rem !important;   /* 8px */
+        --wh-space-lg: 0.75rem !important;  /* 12px */
+        --wh-space-xl: 1rem !important;     /* 16px */
+        --wh-space-2xl: 1.5rem !important;  /* 24px */
+        
+        /* Smaller touch targets */
+        --wh-touch-min: 36px !important;
+        --wh-touch-md: 44px !important;
+        --wh-touch-lg: 52px !important;
+    }
+    
+    body.warehouse-mode {
+        font-size: 0.8rem !important;
+        line-height: 1.3 !important;
+    }
+    
+    /* Compact buttons for mobile */
+    .wh-btn {
+        min-height: 36px !important;
+        padding: 0.375rem 0.5rem !important;
+        font-size: 0.75rem !important;
+        gap: 0.25rem !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+    }
+    
+    .wh-btn-lg {
+        min-height: 44px !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.85rem !important;
+    }
+    
+    .wh-btn-xl {
+        min-height: 52px !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 0.9rem !important;
+    }
+    
+    /* Compact icons */
+    .wh-icon, .wh-icon-sm, .wh-icon-lg, .wh-icon-xl {
+        font-size: 0.9rem !important;
+    }
+    
+    /* Compact cards */
+    .wh-card {
+        padding: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .wh-card-header {
+        padding: 0.5rem !important;
+        margin: -0.5rem -0.5rem 0.5rem -0.5rem !important;
+    }
+    
+    .wh-card-header h1, .wh-card-header h2, .wh-card-header h3, .wh-card-header h4 {
+        font-size: 0.9rem !important;
+    }
+    
+    /* Compact inputs */
+    .wh-input, .wh-select {
+        min-height: 36px !important;
+        font-size: 0.8rem !important;
+        padding: 0.375rem 0.5rem !important;
+    }
+    
+    .wh-scanner-input {
+        font-size: 1rem !important;
+        padding: 0.5rem !important;
+        min-height: 44px !important;
+    }
+    
+    /* Compact labels */
+    .wh-label {
+        font-size: 0.7rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+    
+    /* Compact alerts */
+    .wh-alert {
+        padding: 0.5rem !important;
+        font-size: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Compact text classes */
+    .wh-text-xs { font-size: 0.65rem !important; }
+    .wh-text-sm { font-size: 0.7rem !important; }
+    .wh-text-base { font-size: 0.75rem !important; }
+    .wh-text-lg { font-size: 0.85rem !important; }
+    .wh-text-xl { font-size: 0.9rem !important; }
+    .wh-text-2xl { font-size: 1rem !important; }
+    .wh-text-3xl { font-size: 1.25rem !important; }
+    .wh-text-4xl { font-size: 1.5rem !important; }
+    
+    /* Compact containers */
+    .container, .container-fluid {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    
+    /* Compact rows and margins */
+    .row { margin-left: -0.25rem !important; margin-right: -0.25rem !important; }
+    .row > [class*="col-"] { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
+    
+    .mb-4, .my-4 { margin-bottom: 0.5rem !important; }
+    .mb-3, .my-3 { margin-bottom: 0.375rem !important; }
+    .mb-2, .my-2 { margin-bottom: 0.25rem !important; }
+    .mt-4, .my-4 { margin-top: 0.5rem !important; }
+    .mt-3, .my-3 { margin-top: 0.375rem !important; }
+    
+    .p-3 { padding: 0.5rem !important; }
+    .p-4 { padding: 0.75rem !important; }
+    .py-2 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+    
+    /* Compact card body */
+    .card-body { padding: 0.5rem !important; }
+    .card-header { padding: 0.5rem !important; }
+    
+    /* Compact headings */
+    h1, .h1 { font-size: 1rem !important; }
+    h2, .h2 { font-size: 0.95rem !important; }
+    h3, .h3 { font-size: 0.9rem !important; }
+    h4, .h4 { font-size: 0.85rem !important; }
+    h5, .h5 { font-size: 0.8rem !important; }
+    h6, .h6 { font-size: 0.75rem !important; }
+    
+    /* Fix button text overflow */
+    .wh-btn-block {
+        white-space: normal !important;
+        text-align: center !important;
+        line-height: 1.2 !important;
+    }
+    
+    /* Compact form elements */
+    .form-label { font-size: 0.7rem !important; margin-bottom: 0.125rem !important; }
+    .form-control, .form-select { 
+        font-size: 0.8rem !important; 
+        padding: 0.375rem 0.5rem !important;
+        min-height: 32px !important;
+    }
+    
+    /* Compact list groups */
+    .list-group-item { padding: 0.375rem 0.5rem !important; font-size: 0.75rem !important; }
+    
+    /* Compact alerts */
+    .alert { padding: 0.5rem !important; font-size: 0.75rem !important; margin-bottom: 0.5rem !important; }
+    
+    /* Compact progress bar */
+    .progress { height: 16px !important; }
+    
+    /* Compact tables */
+    .table td, .table th { padding: 0.25rem 0.375rem !important; font-size: 0.7rem !important; }
+    
+    /* Compact badge */
+    .badge { font-size: 0.65rem !important; padding: 0.2rem 0.4rem !important; }
+    
+    /* Prevent horizontal scrolling */
+    .scanner-input-container { 
+        padding: 0.75rem !important; 
+        margin: 0.5rem 0 !important;
+    }
+    
+    /* Compact flex gaps */
+    .wh-flex-gap-md { gap: 0.375rem !important; }
+    .wh-flex-gap-lg { gap: 0.5rem !important; }
+    
+    /* Shrink counter display for mobile */
+    .wh-counter { font-size: 1.5rem !important; }
+}
+
 /* Print Styles - Hide Interactive Elements */
 @media print {
     .wh-btn,
