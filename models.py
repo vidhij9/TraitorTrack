@@ -238,17 +238,50 @@ class Link(db.Model):
     def __repr__(self):
         return f"<Link Parent:{self.parent_bag_id} -> Child:{self.child_bag_id}>"
 
+def get_parent_bag_specs(qr_id):
+    """
+    Determine parent bag specifications based on QR ID prefix.
+    
+    Rules:
+    - SB prefix: Standard bag - 30kg expected, max 30 child bags
+    - Mxxx-xx prefix (M followed by digits-digits pattern): Mini bag - 15kg expected, max 15 child bags
+    - Default: Standard bag specs
+    
+    Returns:
+        tuple: (expected_weight_kg, max_child_bags)
+    """
+    import re
+    if not qr_id:
+        return (30.0, 30)  # Default to standard
+    
+    qr_upper = qr_id.upper().strip()
+    
+    # Check for Mxxx-xx pattern (e.g., M444-00030, M123-45)
+    if re.match(r'^M\d{3,4}-\d+', qr_upper):
+        return (15.0, 15)  # Mini bag
+    
+    # SB prefix or default
+    return (30.0, 30)  # Standard bag
+
+
 class Bill(db.Model):
     """Bill model for tracking bills and associated parent bags
     
     Capacity Tracking:
     - parent_bag_count: The CAPACITY target (how many parent bags should be linked)
     - linked_parent_count: Actual number of parent bags currently linked
-    - When linked_parent_count >= parent_bag_count, bill is auto-closed
+    - When linked_parent_count >= parent_bag_count, bill is auto-completed
     
-    Weight Calculation:
+    Weight Calculation (based on parent bag type):
+    - SB bags: 30kg expected weight, max 30 child bags each
+    - Mxxx-xx bags: 15kg expected weight, max 15 child bags each
     - total_weight_kg: Actual weight = total_child_bags * 1kg (each child bag = 1kg)
-    - expected_weight_kg: Expected weight = parent_bag_count * 30kg
+    - expected_weight_kg: Sum of expected weights based on linked parent bag types
+    
+    Status Flow:
+    - new: Bill created, no bags linked
+    - processing: Has bags linked but capacity not yet met
+    - completed: Capacity is met (auto or manual)
     """
     __tablename__ = 'bill'
     id = db.Column(db.Integer, primary_key=True)
@@ -257,9 +290,9 @@ class Bill(db.Model):
     parent_bag_count = db.Column(db.Integer, default=1)  # CAPACITY TARGET: expected number of parent bags
     linked_parent_count = db.Column(db.Integer, default=0)  # Actual linked parent bags (denormalized for speed)
     total_weight_kg = db.Column(db.Float, default=0.0)  # Actual weight = child_count * 1kg
-    expected_weight_kg = db.Column(db.Float, default=0.0)  # Expected weight = parent_bag_count * 30kg
+    expected_weight_kg = db.Column(db.Float, default=0.0)  # Expected weight based on linked bag types
     total_child_bags = db.Column(db.Integer, default=0)  # Total number of child bags linked
-    status = db.Column(db.String(20), default='new')  # new, processing, completed, at_capacity
+    status = db.Column(db.String(20), default='new')  # new, processing, completed
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -296,7 +329,7 @@ class Bill(db.Model):
     
     def can_link_more_bags(self):
         """Check if more parent bags can be linked to this bill"""
-        if self.status in ('completed', 'at_capacity'):
+        if self.status == 'completed':
             return False
         return not self.is_at_capacity()
     
@@ -308,14 +341,18 @@ class Bill(db.Model):
         Creates a critical section that blocks all concurrent bill_bag, bag, and link
         operations for this specific bill.
         
+        Weight calculation now based on parent bag type:
+        - SB bags: 30kg expected weight
+        - Mxxx-xx bags: 15kg expected weight
+        
         Args:
-            auto_close: If True, automatically set status to 'at_capacity' when capacity is reached
+            auto_close: If True, automatically set status to 'completed' when capacity is reached
         
         IMPORTANT: Must be called within an active transaction (db.session.begin()).
         Does not commit - caller must commit the transaction.
         
         Returns:
-            tuple: (actual_weight, expected_weight, parent_count, child_count, is_at_capacity)
+            tuple: (actual_weight, expected_weight, parent_count, child_count, is_completed)
         """
         from sqlalchemy import select, text
         
@@ -366,31 +403,39 @@ class Bill(db.Model):
             {'bill_id': self.id}
         )
         
-        # Step 6: Calculate all metrics in a single atomic query under all locks
-        # Advisory lock + row locks ensure complete isolation
-        result = db.session.execute(
+        # Step 6: Get parent bag info for weight calculations based on type
+        # Also calculate counts in one atomic query under all locks
+        parent_bags_result = db.session.execute(
             text("""
                 SELECT 
-                    COUNT(DISTINCT parent.id) as parent_count,
+                    parent.qr_id,
                     COUNT(DISTINCT child.id) as child_count
                 FROM bill_bag bb
                 JOIN bag parent ON bb.bag_id = parent.id
                 LEFT JOIN link l ON parent.id = l.parent_bag_id
                 LEFT JOIN bag child ON l.child_bag_id = child.id
                 WHERE bb.bill_id = :bill_id AND parent.type = 'parent'
+                GROUP BY parent.id, parent.qr_id
             """),
             {'bill_id': self.id}
-        ).fetchone()
+        ).fetchall()
         
-        # Handle None result (no bags linked to this bill)
-        parent_count = int(result[0] if result else 0)
-        child_count = int(result[1] if result else 0)
+        # Calculate totals based on parent bag types
+        parent_count = len(parent_bags_result)
+        child_count = 0
+        expected_weight = 0.0
+        
+        for row in parent_bags_result:
+            qr_id = row[0]
+            bag_child_count = int(row[1]) if row[1] else 0
+            child_count += bag_child_count
+            
+            # Get expected weight based on bag type
+            bag_expected_weight, max_children = get_parent_bag_specs(qr_id)
+            expected_weight += bag_expected_weight
         
         # Actual weight: 1kg per child bag
         actual_weight = float(child_count)
-        
-        # Expected weight: 30kg per parent bag (based on capacity target)
-        expected_weight = self.parent_bag_count * 30.0
         
         # Update bill fields while locks are held
         self.linked_parent_count = parent_count
@@ -398,13 +443,13 @@ class Bill(db.Model):
         self.expected_weight_kg = expected_weight
         self.total_child_bags = child_count
         
-        # Auto-close if capacity is reached
+        # Auto-complete if capacity is reached (use 'completed', not 'at_capacity')
         is_full = parent_count >= self.parent_bag_count
-        if auto_close and is_full and self.status not in ('completed', 'at_capacity'):
-            self.status = 'at_capacity'
+        if auto_close and is_full and self.status != 'completed':
+            self.status = 'completed'
         
-        # If we had capacity but now don't (e.g., after editing), reopen
-        if not is_full and self.status == 'at_capacity':
+        # If we had capacity but now don't (e.g., after removing bags), reopen
+        if not is_full and self.status == 'completed':
             self.status = 'processing' if parent_count > 0 else 'new'
         
         # Advisory lock automatically released when transaction commits/rolls back

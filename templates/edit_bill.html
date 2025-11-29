@@ -3,116 +3,111 @@
 {% block title %}Edit Bill - traitor track{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-2 mt-md-4 px-2 px-md-3">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-12 col-md-10 col-lg-8">
             <div class="card">
-                <div class="card-header bg-warning bg-opacity-25">
-                    <h3 class="mb-0">
+                <div class="card-header bg-warning bg-opacity-25 py-2 py-md-3">
+                    <h4 class="mb-0 fs-5 fs-md-4">
                         <i class="fas fa-edit me-2"></i>Edit Bill: {{ bill.bill_id }}
-                    </h3>
+                    </h4>
                 </div>
-                <div class="card-body">
-                    <div class="alert alert-info mb-4">
-                        <div class="row">
-                            <div class="col-md-4 text-center border-end">
-                                <small class="text-muted d-block">Linked Parent Bags</small>
-                                <span class="fs-3 fw-bold">{{ bill.linked_parent_count }}/{{ bill.parent_bag_count }}</span>
+                <div class="card-body p-2 p-md-4">
+                    <div class="alert alert-info mb-3 p-2 p-md-3">
+                        <div class="row g-2">
+                            <div class="col-4 text-center">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Linked Bags</small>
+                                <span class="fs-5 fs-md-3 fw-bold">{{ bill.linked_parent_count }}/{{ bill.parent_bag_count }}</span>
                             </div>
-                            <div class="col-md-4 text-center border-end">
-                                <small class="text-muted d-block">Total Child Bags</small>
-                                <span class="fs-3 fw-bold text-info">{{ bill.total_child_bags or 0 }}</span>
+                            <div class="col-4 text-center border-start border-end">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Child Bags</small>
+                                <span class="fs-5 fs-md-3 fw-bold text-info">{{ bill.total_child_bags or 0 }}</span>
                             </div>
-                            <div class="col-md-4 text-center">
-                                <small class="text-muted d-block">Actual Weight</small>
-                                <span class="fs-3 fw-bold text-success">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</span>
+                            <div class="col-4 text-center">
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Actual Weight</small>
+                                <span class="fs-5 fs-md-3 fw-bold text-success">{{ "%.1f"|format(bill.total_weight_kg or 0) }}kg</span>
                             </div>
                         </div>
-                        <div class="progress mt-3" style="height: 10px;">
+                        <div class="progress mt-2" style="height: 8px;">
                             {% set capacity_pct = ((bill.linked_parent_count / bill.parent_bag_count) * 100) if bill.parent_bag_count > 0 else 0 %}
                             {% set capped_pct = capacity_pct if capacity_pct <= 100 else 100 %}
                             <div class="progress-bar {% if capacity_pct >= 100 %}bg-success{% elif capacity_pct >= 50 %}bg-warning{% else %}bg-info{% endif %}" 
                                  style="width: {{ capped_pct }}%"></div>
                         </div>
-                        <small class="text-muted d-block mt-2">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Weight = {{ bill.total_child_bags or 0 }} child bags × 1kg per bag
-                        </small>
                     </div>
 
                     <form method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         
                         <div class="mb-3">
-                            <label for="bill_id" class="form-label">Bill ID</label>
-                            <input type="text" class="form-control" id="bill_id" value="{{ bill.bill_id }}" readonly>
-                            <small class="form-text text-muted">Bill ID cannot be changed after creation.</small>
+                            <label for="bill_id" class="form-label fw-bold">Bill ID</label>
+                            <input type="text" class="form-control form-control-lg" id="bill_id" value="{{ bill.bill_id }}" readonly style="background: #f8f9fa;">
                         </div>
                         
                         <div class="mb-3">
-                            <label for="description" class="form-label wh-label">Description</label>
-                            <textarea class="form-control wh-input" id="description" name="description" rows="3" placeholder="Enter bill description">{{ bill.description or '' }}</textarea>
+                            <label for="description" class="form-label fw-bold">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="2" placeholder="Enter bill description">{{ bill.description or '' }}</textarea>
                         </div>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="parent_bag_count" class="form-label wh-label">
-                                    <i class="fas fa-boxes me-1"></i>Expected Parent Bags (Capacity)
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label for="parent_bag_count" class="form-label fw-bold" style="font-size: 0.85rem;">
+                                    <i class="fas fa-boxes me-1"></i>Capacity
                                 </label>
-                                <input type="number" class="form-control wh-input" id="parent_bag_count" name="parent_bag_count" 
+                                <input type="number" class="form-control form-control-lg text-center" id="parent_bag_count" name="parent_bag_count" 
                                        value="{{ bill.parent_bag_count or 1 }}" min="{{ bill.linked_parent_count }}" max="500">
-                                <small class="form-text text-muted">
-                                    Min: {{ bill.linked_parent_count }} (already linked), Max: 500
+                                <small class="form-text text-muted" style="font-size: 0.7rem;">
+                                    Min: {{ bill.linked_parent_count }}, Max: 500
                                 </small>
                             </div>
                             
-                            <div class="col-md-6 mb-3">
-                                <label for="status" class="form-label wh-label">
+                            <div class="col-6">
+                                <label for="status" class="form-label fw-bold" style="font-size: 0.85rem;">
                                     <i class="fas fa-flag me-1"></i>Status
                                 </label>
-                                <select class="form-select wh-input" id="status" name="status">
+                                <select class="form-select form-select-lg" id="status" name="status">
                                     <option value="new" {% if bill.status == 'new' %}selected{% endif %}>New</option>
-                                    <option value="processing" {% if bill.status == 'processing' %}selected{% endif %}>Processing</option>
-                                    <option value="at_capacity" {% if bill.status == 'at_capacity' %}selected{% endif %}>At Capacity</option>
+                                    <option value="processing" {% if bill.status == 'processing' or bill.status == 'at_capacity' %}selected{% endif %}>Processing</option>
                                     <option value="completed" {% if bill.status == 'completed' %}selected{% endif %}>Completed</option>
                                 </select>
-                                <small class="form-text text-muted">
-                                    Status auto-updates when capacity is reached. Manual override available.
+                                <small class="form-text text-muted" style="font-size: 0.7rem;">
+                                    Auto-completes at capacity
                                 </small>
                             </div>
                         </div>
                         
-                        <div class="card bg-light mb-4">
-                            <div class="card-body">
-                                <h6 class="card-title"><i class="fas fa-calculator me-2"></i>Weight Summary</h6>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <small class="text-muted">Actual Weight (1kg × child bags):</small>
-                                        <p class="mb-1 fw-bold text-success">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</p>
+                        <div class="card bg-light mt-3 mb-3">
+                            <div class="card-body p-2 p-md-3">
+                                <h6 class="card-title mb-2" style="font-size: 0.9rem;"><i class="fas fa-calculator me-2"></i>Weight Summary</h6>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Actual (1kg × child bags):</small>
+                                        <p class="mb-0 fw-bold text-success">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</p>
                                     </div>
-                                    <div class="col-md-6">
-                                        <small class="text-muted">Expected Weight (30kg × capacity):</small>
-                                        <p class="mb-1 fw-bold text-info">{{ "%.1f"|format(bill.expected_weight_kg or 0) }} kg</p>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Expected (by bag type):</small>
+                                        <p class="mb-0 fw-bold text-info">{{ "%.1f"|format(bill.expected_weight_kg or 0) }} kg</p>
                                     </div>
                                 </div>
                                 {% if bill.expected_weight_kg and bill.total_weight_kg %}
-                                <small class="text-muted">
-                                    Difference: 
-                                    <span class="fw-bold {% if bill.total_weight_kg < bill.expected_weight_kg %}text-warning{% else %}text-success{% endif %}">
-                                        {{ "%.1f"|format(bill.total_weight_kg - bill.expected_weight_kg) }} kg
-                                    </span>
-                                </small>
+                                <div class="mt-2 pt-2 border-top">
+                                    <small class="text-muted">Difference: 
+                                        <span class="fw-bold {% if bill.total_weight_kg < bill.expected_weight_kg %}text-warning{% else %}text-success{% endif %}">
+                                            {{ "%.1f"|format(bill.total_weight_kg - bill.expected_weight_kg) }} kg
+                                        </span>
+                                    </small>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>
                         
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
-                            <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-secondary wh-btn">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg py-3">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                            <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-times me-1"></i>Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary wh-btn">
-                                <i class="fas fa-save me-1"></i>Save Changes
-                            </button>
                         </div>
                     </form>
                 </div>

@@ -4966,7 +4966,7 @@ def edit_bill(bill_id):
             
             # Handle manual status changes (allow reopening or completing)
             status_changed = False
-            if new_status and new_status in ['new', 'processing', 'completed', 'at_capacity']:
+            if new_status and new_status in ['new', 'processing', 'completed']:
                 if new_status != original_status:
                     bill.status = new_status
                     status_changed = True
