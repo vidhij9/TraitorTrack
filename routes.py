@@ -4965,20 +4965,22 @@ def edit_bill(bill_id):
                     capacity_changed = True
             
             # Handle manual status changes (allow reopening or completing)
+            status_changed = False
             if new_status and new_status in ['new', 'processing', 'completed', 'at_capacity']:
                 if new_status != original_status:
                     bill.status = new_status
+                    status_changed = True
                     app.logger.info(f'Bill {bill_id} status manually changed from {original_status} to {new_status}')
             
             # Check if anything actually changed
             if bill.description != original_description or bill.parent_bag_count != original_count or bill.status != original_status:
                 db.session.commit()
                 
-                # CRITICAL: Recalculate weights after capacity change (may trigger auto-close/reopen)
-                if capacity_changed:
+                # CRITICAL: Recalculate weights after capacity OR status changes to sync state
+                if capacity_changed or status_changed:
                     actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
                     db.session.commit()
-                    app.logger.info(f'Bill {bill_id} recalculated after capacity change: {bill.linked_parent_count}/{bill.parent_bag_count}, status: {bill.status}')
+                    app.logger.info(f'Bill {bill_id} recalculated: {bill.linked_parent_count}/{bill.parent_bag_count}, status: {bill.status}, weight: {bill.total_weight_kg}kg')
                 
                 app.logger.info(f'Bill {bill_id} updated successfully')
                 flash('Bill updated successfully!', 'success')

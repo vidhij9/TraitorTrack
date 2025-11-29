@@ -77,8 +77,9 @@
                         </div>
                         <div class="progress" style="height: 10px;">
                             {% set capacity_pct = ((bill.linked_parent_count / bill.parent_bag_count) * 100) if bill.parent_bag_count > 0 else 0 %}
+                            {% set capped_pct = capacity_pct if capacity_pct <= 100 else 100 %}
                             <div class="progress-bar {% if capacity_pct >= 100 %}bg-success{% else %}bg-warning{% endif %}" 
-                                 style="width: {{ capacity_pct|min(100) }}%"></div>
+                                 style="width: {{ capped_pct }}%"></div>
                         </div>
                     </div>
                     
