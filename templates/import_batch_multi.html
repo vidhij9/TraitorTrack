@@ -54,6 +54,19 @@
                             </small>
                         </div>
 
+                        <!-- Auto-create Parents (for child-parent only) -->
+                        <div class="mb-3" id="auto_create_container">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="auto_create_parents" name="auto_create_parents" checked>
+                                <label class="form-check-label" for="auto_create_parents">
+                                    <i class="fas fa-magic"></i> <strong>Auto-create parent bags if missing</strong>
+                                </label>
+                            </div>
+                            <small class="form-text text-muted ms-4">
+                                When enabled, parent bags (M444-XXXXX, SB#####) will be automatically created if they don't exist.
+                            </small>
+                        </div>
+
                         <!-- File Upload with Drag & Drop -->
                         <div class="mb-3">
                             <label for="files" class="form-label">
@@ -67,7 +80,7 @@
                                     class="form-control d-none" 
                                     id="files" 
                                     name="files" 
-                                    accept=".xlsx,.xls"
+                                    accept=".xlsx,.xls,.xlsm"
                                     multiple
                                     required
                                 >
@@ -76,7 +89,7 @@
                                 </button>
                             </div>
                             <small class="form-text text-muted">
-                                Max file size: {{ max_file_size_mb }}MB per file. Supported formats: .xlsx, .xls
+                                Max file size: {{ max_file_size_mb }}MB per file. Supported formats: .xlsx, .xls, .xlsm
                             </small>
                         </div>
 
@@ -99,7 +112,7 @@
                     <div class="alert alert-warning" role="alert">
                         <h5><i class="fas fa-exclamation-triangle"></i> Important Notes</h5>
                         <ul class="mb-0">
-                            <li>All files must be in Excel format (.xlsx or .xls)</li>
+                            <li>All files must be in Excel format (.xlsx, .xls, or .xlsm)</li>
                             <li>Files will be processed individually</li>
                             <li>If any errors occur, you'll receive a downloadable error report</li>
                             <li>Processing may take time for large files or many files</li>
@@ -152,15 +165,18 @@ const fileListContainer = document.getElementById('fileListContainer');
 const submitBtn = document.getElementById('submitBtn');
 const importTypeSelect = document.getElementById('import_type');
 const dispatchAreaContainer = document.getElementById('dispatch_area_container');
+const autoCreateContainer = document.getElementById('auto_create_container');
 
-// Show/hide dispatch area based on import type
-importTypeSelect.addEventListener('change', function() {
-    if (this.value === 'child_parent') {
-        dispatchAreaContainer.style.display = 'block';
-    } else {
-        dispatchAreaContainer.style.display = 'none';
-    }
-});
+// Show/hide dispatch area and auto-create based on import type
+function updateImportTypeOptions() {
+    const isChildParent = importTypeSelect.value === 'child_parent';
+    dispatchAreaContainer.style.display = isChildParent ? 'block' : 'none';
+    autoCreateContainer.style.display = isChildParent ? 'block' : 'none';
+}
+
+importTypeSelect.addEventListener('change', updateImportTypeOptions);
+// Initial state
+updateImportTypeOptions();
 
 // Drag and drop functionality
 dropZone.addEventListener('dragover', (e) => {

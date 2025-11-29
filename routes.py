@@ -7949,13 +7949,17 @@ def import_batch_child_parent():
         # Get dispatch area if provided
         dispatch_area = request.form.get('dispatch_area', '').strip() or None
         
+        # Check if auto-create parents is enabled
+        auto_create_parents = request.form.get('auto_create_parents') == 'on'
+        
         # Use streaming importer for memory efficiency with large files
-        app.logger.info(f"Processing batch import using streaming: {file.filename}")
+        app.logger.info(f"Processing batch import using streaming: {file.filename} (auto_create_parents={auto_create_parents})")
         
         stats, row_results = LargeScaleChildParentImporter.process_file_streaming(
             file_storage=file,
             user_id=current_user.id,  # type: ignore
-            dispatch_area=dispatch_area
+            dispatch_area=dispatch_area,
+            auto_create_parents=auto_create_parents
         )
         
         # Generate result file
@@ -7990,10 +7994,14 @@ def import_batch_child_parent():
         session['import_result_filename'] = f"import_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         
         # Show results
-        flash(f'Processed {stats.get("total_rows", 0)} rows: {stats.get("children_created", 0)} children created, {stats.get("links_created", 0)} links created.', 'success')
+        success_msg = f'Processed {stats.get("total_rows", 0)} rows: '
+        if stats.get('parents_created', 0) > 0:
+            success_msg += f'{stats.get("parents_created", 0)} parent bags created, '
+        success_msg += f'{stats.get("children_created", 0)} children created, {stats.get("links_created", 0)} links created.'
+        flash(success_msg, 'success')
         
         if stats.get('parents_not_found', 0) > 0:
-            flash(f'Warning: {stats.get("parents_not_found", 0)} batches rejected - parent bags not found.', 'warning')
+            flash(f'Warning: {stats.get("parents_not_found", 0)} batches rejected - parent bags not found. Enable "Auto-create parent bags" to create missing parents.', 'warning')
         
         if stats.get('errors', 0) > 0:
             flash(f'{stats.get("errors", 0)} errors occurred. Download result file for details.', 'warning')
@@ -8013,6 +8021,45 @@ def import_batch_child_parent():
         app.logger.error(f"Batch import error: {str(e)}")
         flash(f'Error importing batches: {str(e)}', 'error')
         return redirect(url_for('import_batch_child_parent'))
+
+
+@app.route('/import/download_result')
+@login_required
+def download_import_result():
+    """Download the import result file stored in session"""
+    import os
+    
+    if not current_user.is_admin():
+        flash('Admin access required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    result_file = session.get('import_result_file')
+    result_filename = session.get('import_result_filename', 'import_results.xlsx')
+    
+    if not result_file or not os.path.exists(result_file):
+        flash('No result file available for download.', 'error')
+        return redirect(url_for('bag_management'))
+    
+    try:
+        # Read the file
+        with open(result_file, 'rb') as f:
+            file_data = f.read()
+        
+        # Clean up
+        os.remove(result_file)
+        session.pop('import_result_file', None)
+        session.pop('import_result_filename', None)
+        
+        # Send file
+        response = make_response(file_data)
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename="{result_filename}"'
+        return response
+        
+    except Exception as e:
+        app.logger.error(f"Error downloading result file: {str(e)}")
+        flash(f'Error downloading result file: {str(e)}', 'error')
+        return redirect(url_for('bag_management'))
 
 
 @app.route('/import/batch_parent_bill', methods=['GET', 'POST'])
@@ -8133,9 +8180,10 @@ def import_batch_multi():
         
         if import_type == 'child_parent':
             dispatch_area = request.form.get('dispatch_area', '').strip() or None
+            auto_create_parents = request.form.get('auto_create_parents') == 'on'
             # Use streaming method for memory efficiency with large files
             results, all_row_results, has_errors = MultiFileBatchProcessor.process_child_parent_files_streaming(
-                files, current_user.id, dispatch_area  # type: ignore
+                files, current_user.id, dispatch_area, auto_create_parents  # type: ignore
             )
         elif import_type == 'parent_bill':
             results, has_errors = MultiFileBatchProcessor.process_parent_bill_files(

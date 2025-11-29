@@ -606,7 +606,8 @@ class LargeScaleChildParentImporter:
         file_storage: FileStorage,
         user_id: int,
         dispatch_area: Optional[str] = None,
-        progress_callback: callable = None
+        progress_callback: callable = None,
+        auto_create_parents: bool = False
     ) -> Tuple[Dict, List[RowResult]]:
         """
         Process large Excel file using streaming for memory efficiency.
@@ -616,6 +617,7 @@ class LargeScaleChildParentImporter:
             user_id: ID of importing user
             dispatch_area: Optional dispatch area
             progress_callback: Optional callback for progress updates (row_num, total)
+            auto_create_parents: If True, automatically create parent bags if they don't exist
             
         Returns:
             Tuple of (stats_dict, row_results_list)
@@ -628,6 +630,7 @@ class LargeScaleChildParentImporter:
         stats = {
             'total_rows': 0,
             'batches_processed': 0,
+            'parents_created': 0,
             'parents_found': 0,
             'parents_not_found': 0,
             'children_created': 0,
@@ -716,7 +719,8 @@ class LargeScaleChildParentImporter:
                         user_id=user_id,
                         dispatch_area=dispatch_area,
                         batch_num=batch_num,
-                        parent_row_num=row_num
+                        parent_row_num=row_num,
+                        auto_create_parent=auto_create_parents
                     )
                     
                     # Accumulate stats
@@ -724,7 +728,10 @@ class LargeScaleChildParentImporter:
                                'links_existing', 'errors']:
                         stats[key] += batch_stats.get(key, 0)
                     
-                    if batch_stats.get('parent_found'):
+                    # Handle parent_created (singular in batch stats -> parents_created in global stats)
+                    stats['parents_created'] += batch_stats.get('parent_created', 0)
+                    
+                    if batch_stats.get('parent_found') or batch_stats.get('parent_created'):
                         stats['parents_found'] += 1
                     else:
                         stats['parents_not_found'] += 1
@@ -827,11 +834,15 @@ class LargeScaleChildParentImporter:
         user_id: int,
         dispatch_area: Optional[str],
         batch_num: int,
-        parent_row_num: int
+        parent_row_num: int,
+        auto_create_parent: bool = False
     ) -> Tuple[Dict, List[RowResult]]:
         """
         Process a single batch of children for one parent.
         Uses SAVEPOINT for batch-level rollback.
+        
+        Args:
+            auto_create_parent: If True, create parent bag if it doesn't exist
         """
         from models import Bag, Link, BagType
         from sqlalchemy import func
@@ -839,6 +850,7 @@ class LargeScaleChildParentImporter:
         results = []
         stats = {
             'parent_found': False,
+            'parent_created': 0,
             'children_created': 0,
             'children_existing': 0,
             'links_created': 0,
@@ -854,20 +866,39 @@ class LargeScaleChildParentImporter:
             parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == parent_code.upper()).first()
             
             if not parent_bag:
-                # Parent not found - reject entire batch
-                savepoint.rollback()
+                if auto_create_parent:
+                    # Auto-create parent bag
+                    parent_bag = Bag(
+                        qr_id=parent_code,
+                        type=BagType.PARENT.value,
+                        user_id=user_id,
+                        dispatch_area=dispatch_area,
+                        weight_kg=0.0,
+                        child_count=0
+                    )
+                    db.session.add(parent_bag)
+                    db.session.flush()
+                    stats['parent_created'] = 1
+                    results.append(RowResult(
+                        parent_row_num, parent_code, RowResult.PARENT_CREATED,
+                        f"Parent bag auto-created, processing {len(children)} children"
+                    ))
+                    logger.info(f"Auto-created parent bag: {parent_code}")
+                else:
+                    # Parent not found and auto-create disabled - reject entire batch
+                    savepoint.rollback()
+                    results.append(RowResult(
+                        parent_row_num, parent_code, RowResult.ERROR,
+                        f"Parent bag not found - {len(children)} children rejected. Enable 'Auto-create parent bags' to create missing parents."
+                    ))
+                    stats['errors'] += len(children)
+                    return stats, results
+            else:
+                stats['parent_found'] = True
                 results.append(RowResult(
-                    parent_row_num, parent_code, RowResult.ERROR,
-                    f"Parent bag not found - {len(children)} children rejected"
+                    parent_row_num, parent_code, RowResult.SUCCESS,
+                    f"Parent bag found, processing {len(children)} children"
                 ))
-                stats['errors'] += len(children)
-                return stats, results
-            
-            stats['parent_found'] = True
-            results.append(RowResult(
-                parent_row_num, parent_code, RowResult.SUCCESS,
-                f"Parent bag found, processing {len(children)} children"
-            ))
             
             # Bulk fetch existing children in one query
             child_labels = [c['label'] for c in children]
@@ -1885,7 +1916,8 @@ class MultiFileBatchProcessor:
     def process_child_parent_files_streaming(
         files: List[FileStorage], 
         user_id: int, 
-        dispatch_area: Optional[str] = None
+        dispatch_area: Optional[str] = None,
+        auto_create_parents: bool = False
     ) -> Tuple[List[Dict], List[RowResult], bool]:
         """
         Process multiple child-parent batch import files using streaming for large files.
@@ -1895,6 +1927,7 @@ class MultiFileBatchProcessor:
             files: List of uploaded Excel files
             user_id: ID of user performing import
             dispatch_area: Optional dispatch area filter
+            auto_create_parents: If True, automatically create parent bags if missing
             
         Returns:
             Tuple of (file_results_list, all_row_results, has_errors)
@@ -1921,11 +1954,12 @@ class MultiFileBatchProcessor:
                 file.stream.seek(0)
                 
                 # Use streaming importer for memory efficiency
-                logger.info(f"Processing {filename} with streaming importer")
+                logger.info(f"Processing {filename} with streaming importer (auto_create_parents={auto_create_parents})")
                 stats, row_results = LargeScaleChildParentImporter.process_file_streaming(
                     file_storage=file,
                     user_id=user_id,
-                    dispatch_area=dispatch_area
+                    dispatch_area=dispatch_area,
+                    auto_create_parents=auto_create_parents
                 )
                 
                 result['stats'] = stats
