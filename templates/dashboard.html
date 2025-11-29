@@ -39,29 +39,43 @@
     </button>
 </div>
 
-<!-- Stats - Compact layout for above-the-fold -->
+<!-- Stats - Ultra Compact 2x2 Grid -->
 <div class="mb-2">
-    <div class="bg-white rounded border py-2">
-        <div class="row text-center g-0">
-            <div class="col-3">
-                <i class="fas fa-boxes d-block text-primary" style="font-size: 1.3rem; margin-bottom: 4px;"></i>
-                <span class="fw-bold text-primary d-block" id="total-parent-bags" style="font-size: 1.6rem; line-height: 1.2;">0</span>
-                <small class="d-block text-muted fw-semibold" style="font-size: 13px;">Parents</small>
+    <div class="row g-1">
+        <div class="col-6">
+            <div class="bg-white rounded border p-2 d-flex align-items-center">
+                <i class="fas fa-boxes text-primary me-2" style="font-size: 1.1rem;"></i>
+                <div>
+                    <span class="fw-bold text-primary" id="total-parent-bags" style="font-size: 1.3rem;">0</span>
+                    <small class="text-muted ms-1" style="font-size: 11px;">Parents</small>
+                </div>
             </div>
-            <div class="col-3">
-                <i class="fas fa-box d-block text-success" style="font-size: 1.3rem; margin-bottom: 4px;"></i>
-                <span class="fw-bold text-success d-block" id="total-child-bags" style="font-size: 1.6rem; line-height: 1.2;">0</span>
-                <small class="d-block text-muted fw-semibold" style="font-size: 13px;">Children</small>
+        </div>
+        <div class="col-6">
+            <div class="bg-white rounded border p-2 d-flex align-items-center">
+                <i class="fas fa-box text-success me-2" style="font-size: 1.1rem;"></i>
+                <div>
+                    <span class="fw-bold text-success" id="total-child-bags" style="font-size: 1.3rem;">0</span>
+                    <small class="text-muted ms-1" style="font-size: 11px;">Children</small>
+                </div>
             </div>
-            <div class="col-3">
-                <i class="fas fa-file-invoice d-block text-warning" style="font-size: 1.3rem; margin-bottom: 4px;"></i>
-                <span class="fw-bold text-warning d-block" id="total-bills" style="font-size: 1.6rem; line-height: 1.2;">0</span>
-                <small class="d-block text-muted fw-semibold" style="font-size: 13px;">Bills</small>
+        </div>
+        <div class="col-6">
+            <div class="bg-white rounded border p-2 d-flex align-items-center">
+                <i class="fas fa-file-invoice text-warning me-2" style="font-size: 1.1rem;"></i>
+                <div>
+                    <span class="fw-bold text-warning" id="total-bills" style="font-size: 1.3rem;">0</span>
+                    <small class="text-muted ms-1" style="font-size: 11px;">Bills</small>
+                </div>
             </div>
-            <div class="col-3">
-                <i class="fas fa-qrcode d-block text-danger" style="font-size: 1.3rem; margin-bottom: 4px;"></i>
-                <span class="fw-bold text-danger d-block" id="total-scans" style="font-size: 1.6rem; line-height: 1.2;">0</span>
-                <small class="d-block text-muted fw-semibold" style="font-size: 13px;">Scans</small>
+        </div>
+        <div class="col-6">
+            <div class="bg-white rounded border p-2 d-flex align-items-center">
+                <i class="fas fa-qrcode text-danger me-2" style="font-size: 1.1rem;"></i>
+                <div>
+                    <span class="fw-bold text-danger" id="total-scans" style="font-size: 1.3rem;">0</span>
+                    <small class="text-muted ms-1" style="font-size: 11px;">Scans</small>
+                </div>
             </div>
         </div>
     </div>

@@ -8013,9 +8013,8 @@ def import_batch_child_parent():
         if len(file_result['errors']) > 5:
             flash(f'... and {len(file_result["errors"]) - 5} more warnings. Download result file for full details.', 'warning')
         
-        flash('Result file ready for download.', 'info')
-        
-        return redirect(url_for('bag_management'))
+        # Auto-download: redirect with flag to trigger download
+        return redirect(url_for('bag_management', auto_download='1'))
     
     except Exception as e:
         app.logger.error(f"Batch import error: {str(e)}")

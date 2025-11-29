@@ -300,29 +300,22 @@
                                                     <span class="badge bg-secondary">Empty</span>
                                                 {% endif %}
                                             </td>
-                                            <td>
-                                                <div class="d-flex flex-wrap gap-2">
+                                            <td class="bill-actions-cell">
+                                                <div class="btn-group btn-group-sm" role="group">
                                                     {% if data.parent_count > 0 %}
-                                                        <!-- Completed bill - View only, no editing for regular users -->
-                                                        <a href="{{ url_for('view_bill', bill_id=data.bill.id) }}" class="wh-btn wh-btn-primary" style="font-size: 1rem; min-height: 50px; padding: 0.75rem 1rem;">
-                                                            <i class="fas fa-eye"></i> View
+                                                        <a href="{{ url_for('view_bill', bill_id=data.bill.id) }}" class="btn btn-primary btn-sm" title="View">
+                                                            <i class="fas fa-eye"></i>
                                                         </a>
-
                                                     {% else %}
-                                                        <!-- Incomplete bill - Continue scanning -->
-                                                        <a href="{{ url_for('scan_bill_parent', bill_id=data.bill.id) }}" class="wh-btn wh-btn-primary" style="font-size: 1rem; min-height: 50px; padding: 0.75rem 1rem;">
-                                                            <i class="fas fa-qrcode"></i> Continue
+                                                        <a href="{{ url_for('scan_bill_parent', bill_id=data.bill.id) }}" class="btn btn-primary btn-sm" title="Continue">
+                                                            <i class="fas fa-qrcode"></i>
                                                         </a>
                                                     {% endif %}
-                                                    
                                                     {% if current_user.is_admin() %}
-                                                        <!-- Only admin can delete bills -->
-                                                        <button type="button" class="wh-btn wh-btn-danger" 
-                                                                style="font-size: 1rem; min-height: 50px; padding: 0.75rem 1rem;"
-                                                                data-bs-toggle="modal" 
-                                                                data-bs-target="#deleteModal"
-                                                                onclick="setupDelete('{{ data.bill.id }}', '{{ data.bill.bill_id }}')">
-                                                            <i class="fas fa-trash"></i> Delete
+                                                        <button type="button" class="btn btn-danger btn-sm" 
+                                                                data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                                                onclick="setupDelete('{{ data.bill.id }}', '{{ data.bill.bill_id }}')" title="Delete">
+                                                            <i class="fas fa-trash"></i>
                                                         </button>
                                                     {% endif %}
                                                 </div>

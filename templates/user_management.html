@@ -87,16 +87,16 @@
         <div class="col-12">
             <div class="card bg-light">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h2 class="card-title mb-0">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h2 class="card-title mb-0" style="font-size: 1.1rem;">
                             <i class="fas fa-users-cog me-2"></i>User Management
                         </h2>
-                        <div>
-                            <button type="button" class="btn btn-success btn-sm px-3 py-1 me-2" data-bs-toggle="modal" data-bs-target="#createUserModal" title="Create New User">
-                                <i class="fas fa-user-plus me-1"></i>Create New User
+                        <div class="d-flex flex-wrap gap-1 user-mgmt-buttons">
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createUserModal" title="Create New User">
+                                <i class="fas fa-user-plus"></i><span class="d-none d-sm-inline ms-1">New</span>
                             </button>
-                            <a href="{{ url_for('comprehensive_user_deletion') }}" class="btn btn-danger btn-sm px-2 py-1" title="Comprehensive User Deletion">
-                                <i class="fas fa-user-slash me-1"></i>Advanced Delete
+                            <a href="{{ url_for('comprehensive_user_deletion') }}" class="btn btn-danger btn-sm" title="Advanced Delete">
+                                <i class="fas fa-user-slash"></i><span class="d-none d-sm-inline ms-1">Delete</span>
                             </a>
                         </div>
                     </div>
@@ -105,33 +105,24 @@
         </div>
     </div>
     
-    <!-- Role Statistics -->
-    <div class="row mb-3">
-        <div class="col-md-4 mb-2">
-            <div class="card border-warning">
-                <div class="card-body text-center py-2">
-                    <h6 class="mb-1">Admins</h6>
-                    <h3 class="mb-0 text-warning">{{ role_counts.admins if role_counts else 0 }}</h3>
-                    <small class="text-muted">Full system access</small>
-                </div>
+    <!-- Role Statistics - Compact Horizontal -->
+    <div class="row mb-2 g-1">
+        <div class="col-4">
+            <div class="bg-white border rounded p-2 text-center">
+                <span class="fw-bold text-warning" style="font-size: 1.2rem;">{{ role_counts.admins if role_counts else 0 }}</span>
+                <small class="text-muted d-block" style="font-size: 10px;">Admins</small>
             </div>
         </div>
-        <div class="col-md-4 mb-2">
-            <div class="card border-info">
-                <div class="card-body text-center py-2">
-                    <h6 class="mb-1">Billers</h6>
-                    <h3 class="mb-0 text-info">{{ role_counts.billers if role_counts else 0 }}</h3>
-                    <small class="text-muted">Bill management</small>
-                </div>
+        <div class="col-4">
+            <div class="bg-white border rounded p-2 text-center">
+                <span class="fw-bold text-info" style="font-size: 1.2rem;">{{ role_counts.billers if role_counts else 0 }}</span>
+                <small class="text-muted d-block" style="font-size: 10px;">Billers</small>
             </div>
         </div>
-        <div class="col-md-4 mb-2">
-            <div class="card border-secondary">
-                <div class="card-body text-center py-2">
-                    <h6 class="mb-1">Dispatchers</h6>
-                    <h3 class="mb-0 text-secondary">{{ role_counts.dispatchers if role_counts else 0 }}</h3>
-                    <small class="text-muted">Bag operations</small>
-                </div>
+        <div class="col-4">
+            <div class="bg-white border rounded p-2 text-center">
+                <span class="fw-bold text-secondary" style="font-size: 1.2rem;">{{ role_counts.dispatchers if role_counts else 0 }}</span>
+                <small class="text-muted d-block" style="font-size: 10px;">Dispatchers</small>
             </div>
         </div>
     </div>

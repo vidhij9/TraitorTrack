@@ -69,9 +69,6 @@
             <a href="{{ url_for('import_batch_child_parent') }}" class="btn btn-info wh-btn" title="Batch Import Child→Parent">
                 <i class="fas fa-file-import"></i><span class="d-none d-lg-inline ms-1">Import</span>
             </a>
-            <a href="{{ url_for('excel_upload') }}" class="btn btn-success wh-btn">
-                <i class="fas fa-file-excel"></i><span class="d-none d-lg-inline ms-1">Upload</span>
-            </a>
             {% endif %}
             <button type="button" class="btn btn-outline-secondary wh-btn" onclick="clearFilters()">
                 <i class="fas fa-refresh"></i><span class="d-none d-lg-inline ms-1">Clear</span>
@@ -443,6 +440,24 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-download import result file if redirected from import
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auto_download') === '1') {
+        // Remove the parameter from URL to prevent re-download on refresh
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        
+        // Trigger download after a brief delay
+        setTimeout(function() {
+            const downloadLink = document.createElement('a');
+            downloadLink.href = '{{ url_for("download_import_result") }}';
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }, 500);
+    }
+    
     // Handle delete button clicks
     const deleteButtons = document.querySelectorAll('.delete-bag-btn');
     
