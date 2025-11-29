@@ -92,3 +92,23 @@ The project utilizes a standard Flask application structure, organizing code int
 -   **pyotp**: TOTP generation and verification.
 -   **qrcode**: QR code generation for 2FA setup.
 -   **SendGrid**: Email service for password reset and notifications.
+
+## Recent Changes (November 2025)
+
+### Bug Fixes & Optimizations
+1. **Bill ID Validation Enhancement**: Added robust input sanitization using regex `[\x00-\x1F\x7F\u200B-\u200D\uFEFF]` to remove invisible scanner characters (null bytes, control characters, zero-width spaces) from barcode scanner input. Implemented case-insensitive duplicate detection with `UPPER(bill_id)`.
+
+2. **Flexible Bill Completion**: Removed rigid parent bag count requirement - bills can now be completed with ANY number of linked bags (≥1) instead of requiring an exact match. This allows for real-world flexibility in warehouse operations.
+
+3. **Real-Time Weight Tracking**: Added weight tracking display to bill scanning page showing:
+   - Current Weight: Sum of all linked bags' child counts × 1kg
+   - Expected Weight: Expected parent bag count × 30kg
+   - Updates dynamically when bags are added or removed using server-returned child counts
+
+4. **Global Error Handlers**: Added user-friendly error pages for HTTP errors (400, 403, 404, 405, 429, 500, 502, 503) with:
+   - Friendly error messages without technical jargon
+   - Navigation buttons (Dashboard, Back, Login where appropriate)
+   - Proper HTTP status codes returned (not masked as 200)
+   - JSON responses for AJAX requests
+
+5. **Mobile Optimization**: Enhanced mobile user management with role-based dispatch area toggles, compact headers, and improved touch targets for warehouse workers.
