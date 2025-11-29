@@ -290,8 +290,10 @@
                                             <td>{{ data.bill.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                             <td>{{ data.parent_count }}</td>
                                             <td>
-                                                {% if data.parent_count == data.bill.parent_bag_count %}
-                                                    <span class="badge bg-success">Complete</span>
+                                                {% if data.bill.status == 'completed' %}
+                                                    <span class="badge bg-success">Completed</span>
+                                                {% elif data.parent_count == data.bill.parent_bag_count %}
+                                                    <span class="badge bg-info">Ready to Complete</span>
                                                 {% elif data.parent_count > 0 %}
                                                     <span class="badge bg-warning">In Progress ({{ data.parent_count }}/{{ data.bill.parent_bag_count }})</span>
                                                 {% else %}

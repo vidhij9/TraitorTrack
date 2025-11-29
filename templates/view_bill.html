@@ -50,8 +50,10 @@
                     
                     <div class="mb-3">
                         <p class="text-muted mb-1">Status</p>
-                        {% if bag_links_count == bill.parent_bag_count %}
-                            <span class="badge bg-success fs-6 px-3 py-2">Complete</span>
+                        {% if bill.status == 'completed' %}
+                            <span class="badge bg-success fs-6 px-3 py-2">Completed</span>
+                        {% elif bag_links_count == bill.parent_bag_count %}
+                            <span class="badge bg-info fs-6 px-3 py-2">Ready to Complete</span>
                         {% elif bag_links_count > 0 %}
                             <span class="badge bg-warning fs-6 px-3 py-2">In Progress</span>
                         {% else %}
@@ -104,6 +106,14 @@
                             <div class="alert alert-success mb-2">
                                 <i class="fas fa-check-circle me-2"></i>Bill is complete with all required parent bags!
                             </div>
+                            {% if bill.status == 'completed' and (current_user.is_admin() or current_user.role == 'biller') %}
+                            <button type="button" class="btn btn-outline-warning" onclick="reopenBill({{ bill.id }})">
+                                <i class="fas fa-unlock me-2"></i>Reopen Bill
+                            </button>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle me-1"></i>Reopening allows adding/removing parent bags. Use Edit to change bill details.
+                            </small>
+                            {% endif %}
                         {% endif %}
                         
                         {% if bag_links_count > bill.parent_bag_count %}
@@ -292,4 +302,39 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+function reopenBill(billId) {
+    if (!confirm('Are you sure you want to reopen this bill? This will allow adding or removing parent bags.')) {
+        return;
+    }
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || 
+                      document.querySelector('input[name="csrf_token"]')?.value;
+    
+    const formData = new FormData();
+    formData.append('bill_id', billId);
+    if (csrfToken) {
+        formData.append('csrf_token', csrfToken);
+    }
+    
+    fetch('/reopen_bill', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Bill reopened successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to reopen bill'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error reopening bill. Please try again.');
+    });
+}
+</script>
 {% endblock %}
