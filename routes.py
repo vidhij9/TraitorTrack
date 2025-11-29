@@ -7910,7 +7910,11 @@ def import_bags():
 @app.route('/import/batch_child_parent', methods=['GET', 'POST'])
 @login_required
 def import_batch_child_parent():
-    """Batch import child bags linked to parent bags from Excel - admin only"""
+    """Batch import child bags linked to parent bags from Excel - admin only
+    
+    Supports large files (lakhs of rows) with streaming processing.
+    Returns downloadable result file with per-row status.
+    """
     if not current_user.is_admin():
         flash('Admin access required for bulk imports.', 'error')
         return redirect(url_for('dashboard'))
@@ -7921,7 +7925,10 @@ def import_batch_child_parent():
     
     # Handle POST - file upload
     try:
-        from import_utils import ChildParentBatchImporter
+        from import_utils import LargeScaleChildParentImporter, MultiFileBatchProcessor, RowResult
+        import uuid
+        import os
+        import tempfile
         
         if 'file' not in request.files:
             flash('No file uploaded.', 'error')
@@ -7942,41 +7949,63 @@ def import_batch_child_parent():
         # Get dispatch area if provided
         dispatch_area = request.form.get('dispatch_area', '').strip() or None
         
-        # Parse Excel file with batch pattern
-        batches, parse_errors, stats = ChildParentBatchImporter.parse_excel_batch(file)
+        # Use streaming importer for memory efficiency with large files
+        app.logger.info(f"Processing batch import using streaming: {file.filename}")
         
-        # Show parsing errors
-        if parse_errors:
-            for error in parse_errors[:10]:  # Show first 10 errors
-                flash(error, 'warning')
-            if len(parse_errors) > 10:
-                flash(f'... and {len(parse_errors) - 10} more warnings', 'warning')
-        
-        if not batches:
-            flash('No valid batches found in file.', 'error')
-            return redirect(url_for('import_batch_child_parent'))
-        
-        # Show preview and ask for confirmation if needed
-        # For now, we'll import directly
-        parents_created, children_created, links_created, parents_not_found, import_errors = ChildParentBatchImporter.import_batches(
-            db, batches, current_user.id, dispatch_area  # type: ignore
+        stats, row_results = LargeScaleChildParentImporter.process_file_streaming(
+            file_storage=file,
+            user_id=current_user.id,  # type: ignore
+            dispatch_area=dispatch_area
         )
         
+        # Generate result file
+        file_result = {
+            'filename': file.filename,
+            'status': 'Success' if stats.get('errors', 0) == 0 and stats.get('parents_not_found', 0) == 0 else 'Partial Success',
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'stats': stats,
+            'errors': []
+        }
+        
+        # Extract error messages for display
+        error_rows = [r for r in row_results if r.status == RowResult.ERROR]
+        if error_rows:
+            file_result['errors'] = [f"Row {r.row_num}: {r.message}" for r in error_rows[:20]]
+        
+        # Generate downloadable result file
+        result_file_bytes = MultiFileBatchProcessor.generate_detailed_result_file(
+            file_results=[file_result],
+            row_results=row_results,
+            include_successful=True
+        )
+        
+        # Save result file temporarily
+        result_filename = f"import_results_{uuid.uuid4().hex[:8]}.xlsx"
+        result_path = os.path.join(tempfile.gettempdir(), result_filename)
+        with open(result_path, 'wb') as f:
+            f.write(result_file_bytes)
+        
+        # Store result file path in session for download
+        session['import_result_file'] = result_path
+        session['import_result_filename'] = f"import_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
         # Show results
-        if parents_created > 0 or children_created > 0:
-            flash(f'Successfully imported {len(batches)} batches: {parents_created} parent bags, {children_created} child bags, {links_created} links created.', 'success')
+        flash(f'Processed {stats.get("total_rows", 0)} rows: {stats.get("children_created", 0)} children created, {stats.get("links_created", 0)} links created.', 'success')
         
-        if parents_not_found > 0:
-            flash(f'Warning: {parents_not_found} parent bags not found in database - their child bags were rejected.', 'warning')
+        if stats.get('parents_not_found', 0) > 0:
+            flash(f'Warning: {stats.get("parents_not_found", 0)} batches rejected - parent bags not found.', 'warning')
         
-        if import_errors:
-            for error in import_errors[:5]:
-                flash(error, 'warning')
-            if len(import_errors) > 5:
-                flash(f'... and {len(import_errors) - 5} more warnings', 'warning')
+        if stats.get('errors', 0) > 0:
+            flash(f'{stats.get("errors", 0)} errors occurred. Download result file for details.', 'warning')
         
-        # Show stats
-        flash(f'File statistics: {stats.get("total_children", 0)} total children, {stats.get("total_parents", 0)} total parents, {stats.get("skipped_rows", 0)} skipped rows.', 'info')
+        # Show first few errors in flash
+        for error in file_result['errors'][:5]:
+            flash(error, 'warning')
+        
+        if len(file_result['errors']) > 5:
+            flash(f'... and {len(file_result["errors"]) - 5} more warnings. Download result file for full details.', 'warning')
+        
+        flash('Result file ready for download.', 'info')
         
         return redirect(url_for('bag_management'))
     
@@ -8099,10 +8128,13 @@ def import_batch_multi():
                     flash(f'Invalid file type: {file.filename}. Only Excel files (.xlsx, .xls, .xlsm) are allowed.', 'error')
                     return redirect(url_for('import_batch_multi'))
         
-        # Process files based on import type
+        # Process files based on import type - use streaming for large file support
+        all_row_results = []
+        
         if import_type == 'child_parent':
             dispatch_area = request.form.get('dispatch_area', '').strip() or None
-            results, has_errors = MultiFileBatchProcessor.process_child_parent_files(
+            # Use streaming method for memory efficiency with large files
+            results, all_row_results, has_errors = MultiFileBatchProcessor.process_child_parent_files_streaming(
                 files, current_user.id, dispatch_area  # type: ignore
             )
         elif import_type == 'parent_bill':

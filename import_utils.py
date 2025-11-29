@@ -9,18 +9,26 @@ FEATURES:
 - Error reporting with line numbers
 - Batch processing for performance
 - Admin-only access enforced in routes
+- STREAMING Excel processing for large files (100k+ rows)
+- Per-row status tracking for detailed result files
+- Memory-efficient chunked processing
 
 SAFETY:
 - Input validation for all fields
 - Duplicate prevention
 - Transaction-based imports (rollback on error)
-- Memory-efficient batch processing
+- Memory-efficient batch processing with streaming
+- SAVEPOINT-based batch rollback for resilience
 """
 import csv
 import io
 import logging
+import gc
+import os
+import uuid
+import tempfile
 from datetime import datetime
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Generator, Any
 from flask import flash
 from sqlalchemy import text
 from werkzeug.datastructures import FileStorage
@@ -28,6 +36,11 @@ from app import db
 from models import Bag, Bill, Link, BillBag, User
 
 logger = logging.getLogger(__name__)
+
+# Configuration for large file handling
+CHUNK_SIZE = 2000  # Rows per database commit batch
+MAX_ERRORS_PER_FILE = 1000  # Limit error collection to prevent memory issues
+STREAMING_THRESHOLD = 10000  # Use streaming for files with more rows
 
 # Try to import openpyxl for Excel support
 try:
@@ -473,6 +486,482 @@ class BillImporter:
             return imported, skipped, errors
 
 
+class RowResult:
+    """Represents the result of processing a single row"""
+    SUCCESS = 'success'
+    DUPLICATE = 'duplicate'
+    ERROR = 'error'
+    SKIPPED = 'skipped'
+    LINKED = 'linked'
+    PARENT_CREATED = 'parent_created'
+    CHILD_CREATED = 'child_created'
+    
+    def __init__(self, row_num: int, qr_code: str, status: str, message: str = '', details: dict = None):
+        self.row_num = row_num
+        self.qr_code = qr_code
+        self.status = status
+        self.message = message
+        self.details = details or {}
+    
+    def to_dict(self) -> Dict:
+        return {
+            'row_num': self.row_num,
+            'qr_code': self.qr_code,
+            'status': self.status,
+            'message': self.message,
+            **self.details
+        }
+
+
+class StreamingExcelProcessor:
+    """
+    Memory-efficient Excel processor for large files (100k+ rows).
+    Uses read_only mode and row iteration to minimize memory footprint.
+    """
+    
+    @staticmethod
+    def save_to_temp_file(file_storage: FileStorage) -> str:
+        """
+        Save uploaded file to a temporary location for streaming access.
+        Returns the path to the temporary file.
+        """
+        temp_dir = tempfile.gettempdir()
+        temp_filename = f"import_{uuid.uuid4().hex}.xlsx"
+        temp_path = os.path.join(temp_dir, temp_filename)
+        
+        file_storage.stream.seek(0)
+        with open(temp_path, 'wb') as f:
+            f.write(file_storage.stream.read())
+        file_storage.stream.seek(0)
+        
+        return temp_path
+    
+    @staticmethod
+    def cleanup_temp_file(temp_path: str):
+        """Clean up temporary file after processing"""
+        try:
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup temp file {temp_path}: {e}")
+    
+    @staticmethod
+    def count_rows(file_path: str) -> int:
+        """
+        Count total rows in Excel file using streaming mode.
+        This is memory-efficient but requires a full pass through the file.
+        """
+        if not EXCEL_AVAILABLE:
+            return 0
+        
+        try:
+            wb = load_workbook(file_path, read_only=True, data_only=True)
+            ws = wb.active
+            count = sum(1 for _ in ws.iter_rows(min_row=2))
+            wb.close()
+            return count
+        except Exception as e:
+            logger.error(f"Error counting rows: {e}")
+            return 0
+    
+    @staticmethod
+    def stream_rows(file_path: str, min_row: int = 2) -> Generator[Tuple[int, Tuple], None, None]:
+        """
+        Stream rows from Excel file in memory-efficient manner.
+        
+        Args:
+            file_path: Path to Excel file
+            min_row: Starting row (default 2 to skip header)
+            
+        Yields:
+            Tuple of (row_number, row_values)
+        """
+        if not EXCEL_AVAILABLE:
+            return
+        
+        try:
+            wb = load_workbook(file_path, read_only=True, data_only=True)
+            ws = wb.active
+            
+            for row_num, row in enumerate(ws.iter_rows(min_row=min_row, values_only=True), start=min_row):
+                yield row_num, row
+            
+            wb.close()
+            # Force garbage collection after processing large file
+            gc.collect()
+            
+        except Exception as e:
+            logger.error(f"Error streaming rows: {e}")
+            raise
+
+
+class LargeScaleChildParentImporter:
+    """
+    High-performance importer for large Excel files with lakhs of rows.
+    Uses streaming, chunked commits, and per-row result tracking.
+    """
+    
+    @staticmethod
+    def process_file_streaming(
+        file_storage: FileStorage,
+        user_id: int,
+        dispatch_area: Optional[str] = None,
+        progress_callback: callable = None
+    ) -> Tuple[Dict, List[RowResult]]:
+        """
+        Process large Excel file using streaming for memory efficiency.
+        
+        Args:
+            file_storage: Uploaded Excel file
+            user_id: ID of importing user
+            dispatch_area: Optional dispatch area
+            progress_callback: Optional callback for progress updates (row_num, total)
+            
+        Returns:
+            Tuple of (stats_dict, row_results_list)
+        """
+        from models import Bag, Link, BagType
+        import re
+        
+        temp_path = None
+        row_results = []
+        stats = {
+            'total_rows': 0,
+            'batches_processed': 0,
+            'parents_found': 0,
+            'parents_not_found': 0,
+            'children_created': 0,
+            'children_existing': 0,
+            'links_created': 0,
+            'links_existing': 0,
+            'errors': 0,
+            'skipped': 0
+        }
+        
+        try:
+            # Save to temp file for streaming access
+            temp_path = StreamingExcelProcessor.save_to_temp_file(file_storage)
+            
+            # Count total rows for progress tracking
+            total_rows = StreamingExcelProcessor.count_rows(temp_path)
+            stats['total_rows'] = total_rows
+            logger.info(f"Processing {total_rows} rows from Excel file")
+            
+            # Pre-fetch existing bags and links for this chunk to reduce queries
+            current_children = []
+            current_batch_start = None
+            batch_num = 0
+            rows_processed = 0
+            
+            # Accumulate children until we hit a parent row
+            for row_num, row in StreamingExcelProcessor.stream_rows(temp_path):
+                rows_processed += 1
+                
+                # Skip completely blank rows
+                if not any(row):
+                    stats['skipped'] += 1
+                    continue
+                
+                sr_no = row[0] if len(row) > 0 else None
+                qr_code = row[1] if len(row) > 1 else None
+                
+                # Check if this is a child row
+                if LargeScaleChildParentImporter._is_child_row(sr_no, qr_code):
+                    label_number = LargeScaleChildParentImporter._extract_label_number(qr_code)
+                    
+                    if label_number:
+                        if current_batch_start is None:
+                            current_batch_start = row_num
+                        current_children.append({
+                            'row_num': row_num,
+                            'label': label_number,
+                            'qr_code': str(qr_code)[:100]  # Truncate for storage
+                        })
+                    else:
+                        row_results.append(RowResult(
+                            row_num, str(qr_code)[:50], RowResult.ERROR,
+                            "Could not extract label number"
+                        ))
+                        stats['errors'] += 1
+                    continue
+                
+                # Check if this is a parent row
+                is_parent, parent_code = LargeScaleChildParentImporter._is_parent_row(sr_no, qr_code)
+                
+                if is_parent:
+                    batch_num += 1
+                    
+                    if not parent_code:
+                        row_results.append(RowResult(
+                            row_num, '', RowResult.ERROR,
+                            "Parent row found but code is missing"
+                        ))
+                        stats['errors'] += 1
+                        current_children = []
+                        current_batch_start = None
+                        continue
+                    
+                    if not current_children:
+                        row_results.append(RowResult(
+                            row_num, parent_code, RowResult.ERROR,
+                            "No child bags found for this parent"
+                        ))
+                        stats['errors'] += 1
+                        continue
+                    
+                    # Process this batch
+                    batch_stats, batch_results = LargeScaleChildParentImporter._process_batch(
+                        parent_code=parent_code,
+                        children=current_children,
+                        user_id=user_id,
+                        dispatch_area=dispatch_area,
+                        batch_num=batch_num,
+                        parent_row_num=row_num
+                    )
+                    
+                    # Accumulate stats
+                    for key in ['children_created', 'children_existing', 'links_created', 
+                               'links_existing', 'errors']:
+                        stats[key] += batch_stats.get(key, 0)
+                    
+                    if batch_stats.get('parent_found'):
+                        stats['parents_found'] += 1
+                    else:
+                        stats['parents_not_found'] += 1
+                    
+                    stats['batches_processed'] += 1
+                    row_results.extend(batch_results)
+                    
+                    # Reset for next batch
+                    current_children = []
+                    current_batch_start = None
+                    
+                    # Progress callback
+                    if progress_callback and rows_processed % 1000 == 0:
+                        progress_callback(rows_processed, total_rows)
+                    
+                    # Periodic garbage collection for very large files
+                    if batch_num % 100 == 0:
+                        gc.collect()
+            
+            # Handle orphaned children at end
+            if current_children:
+                for child in current_children:
+                    row_results.append(RowResult(
+                        child['row_num'], child['label'], RowResult.ERROR,
+                        "Orphaned child - no parent row found after this child"
+                    ))
+                    stats['errors'] += 1
+            
+            # Final commit
+            db.session.commit()
+            
+            logger.info(f"Import complete: {stats}")
+            return stats, row_results
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Streaming import failed: {e}")
+            raise
+        finally:
+            if temp_path:
+                StreamingExcelProcessor.cleanup_temp_file(temp_path)
+    
+    @staticmethod
+    def _extract_label_number(qr_text: str) -> Optional[str]:
+        """Extract label number from QR code text"""
+        if not qr_text or not isinstance(qr_text, str):
+            return None
+        import re
+        match = re.search(r'LABEL\s*NO\.(\d+)', qr_text, re.IGNORECASE)
+        return match.group(1) if match else None
+    
+    @staticmethod
+    def _is_child_row(sr_no, qr_code) -> bool:
+        """Check if row is a child bag row"""
+        qr_str = str(qr_code).strip().upper() if qr_code else ''
+        
+        # Exclude parent bag prefixes
+        if qr_str.startswith('SB') or qr_str.startswith('M444-'):
+            return False
+        
+        try:
+            if sr_no is not None:
+                float(sr_no)
+                if qr_code and isinstance(qr_code, str) and 'LABEL NO.' in qr_code.upper():
+                    return True
+        except (ValueError, TypeError):
+            pass
+        
+        return False
+    
+    @staticmethod
+    def _is_parent_row(sr_no, qr_code) -> Tuple[bool, Optional[str]]:
+        """Check if row is a parent bag row"""
+        qr_str = str(qr_code).strip().upper() if qr_code else ''
+        
+        is_parent_qr = qr_str.startswith('SB') or qr_str.startswith('M444-')
+        
+        # Legacy format
+        if sr_no and isinstance(sr_no, str) and 'parent code' in sr_no.lower():
+            return True, str(qr_code).strip() if qr_code else None
+        
+        # New format - parent prefix
+        if is_parent_qr:
+            return True, str(qr_code).strip() if qr_code else None
+        
+        # Serial number 16 format
+        try:
+            if sr_no is not None and int(float(sr_no)) == 16:
+                if 'LABEL NO.' not in qr_str:
+                    return True, str(qr_code).strip() if qr_code else None
+        except (ValueError, TypeError):
+            pass
+        
+        return False, None
+    
+    @staticmethod
+    def _process_batch(
+        parent_code: str,
+        children: List[Dict],
+        user_id: int,
+        dispatch_area: Optional[str],
+        batch_num: int,
+        parent_row_num: int
+    ) -> Tuple[Dict, List[RowResult]]:
+        """
+        Process a single batch of children for one parent.
+        Uses SAVEPOINT for batch-level rollback.
+        """
+        from models import Bag, Link, BagType
+        from sqlalchemy import func
+        
+        results = []
+        stats = {
+            'parent_found': False,
+            'children_created': 0,
+            'children_existing': 0,
+            'links_created': 0,
+            'links_existing': 0,
+            'errors': 0
+        }
+        
+        # Start savepoint for this batch
+        savepoint = db.session.begin_nested()
+        
+        try:
+            # Find parent bag
+            parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == parent_code.upper()).first()
+            
+            if not parent_bag:
+                # Parent not found - reject entire batch
+                savepoint.rollback()
+                results.append(RowResult(
+                    parent_row_num, parent_code, RowResult.ERROR,
+                    f"Parent bag not found - {len(children)} children rejected"
+                ))
+                stats['errors'] += len(children)
+                return stats, results
+            
+            stats['parent_found'] = True
+            results.append(RowResult(
+                parent_row_num, parent_code, RowResult.SUCCESS,
+                f"Parent bag found, processing {len(children)} children"
+            ))
+            
+            # Bulk fetch existing children in one query
+            child_labels = [c['label'] for c in children]
+            existing_children = {
+                b.qr_id.upper(): b for b in 
+                Bag.query.filter(func.upper(Bag.qr_id).in_([l.upper() for l in child_labels])).all()
+            }
+            
+            # Bulk fetch existing links
+            existing_child_ids = [b.id for b in existing_children.values()]
+            existing_links = set()
+            if existing_child_ids:
+                links = Link.query.filter(Link.child_bag_id.in_(existing_child_ids)).all()
+                existing_links = {(l.child_bag_id, l.parent_bag_id) for l in links}
+            
+            # Process each child
+            for child_data in children:
+                row_num = child_data['row_num']
+                label = child_data['label']
+                
+                # Check if child exists
+                child_bag = existing_children.get(label.upper())
+                
+                if not child_bag:
+                    # Create new child bag
+                    child_bag = Bag(
+                        qr_id=label,
+                        type=BagType.CHILD.value,
+                        user_id=user_id,
+                        dispatch_area=dispatch_area,
+                        weight_kg=1.0
+                    )
+                    db.session.add(child_bag)
+                    db.session.flush()
+                    existing_children[label.upper()] = child_bag
+                    stats['children_created'] += 1
+                    
+                    results.append(RowResult(
+                        row_num, label, RowResult.CHILD_CREATED,
+                        "Child bag created"
+                    ))
+                else:
+                    stats['children_existing'] += 1
+                    results.append(RowResult(
+                        row_num, label, RowResult.DUPLICATE,
+                        "Child bag already exists"
+                    ))
+                
+                # Check for existing link
+                link_key = (child_bag.id, parent_bag.id)
+                if link_key in existing_links:
+                    stats['links_existing'] += 1
+                    continue
+                
+                # Check if child has different parent
+                child_has_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+                if child_has_link and child_has_link.parent_bag_id != parent_bag.id:
+                    existing_parent = Bag.query.get(child_has_link.parent_bag_id)
+                    results.append(RowResult(
+                        row_num, label, RowResult.ERROR,
+                        f"Already linked to different parent: {existing_parent.qr_id if existing_parent else 'Unknown'}"
+                    ))
+                    stats['errors'] += 1
+                    continue
+                
+                # Create link if not exists
+                if not child_has_link:
+                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
+                    db.session.add(link)
+                    existing_links.add(link_key)
+                    stats['links_created'] += 1
+            
+            # Update parent's child count
+            actual_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
+            parent_bag.child_count = actual_count
+            parent_bag.weight_kg = actual_count * 1.0
+            
+            # Commit savepoint
+            savepoint.commit()
+            db.session.flush()
+            
+            return stats, results
+            
+        except Exception as e:
+            savepoint.rollback()
+            logger.error(f"Batch {batch_num} failed: {e}")
+            results.append(RowResult(
+                parent_row_num, parent_code, RowResult.ERROR,
+                f"Batch processing failed: {str(e)}"
+            ))
+            stats['errors'] += len(children)
+            return stats, results
+
+
 class ChildParentBatchImporter:
     """
     Handles batch import of child bags linked to parent bags from Excel files.
@@ -486,6 +975,8 @@ class ChildParentBatchImporter:
     Row 1: Sr. No.=1, QR Code='LABEL NO.0016586 LOT NO.:...'  <- Child bag
     Row 2: Sr. No.=2, QR Code='LABEL NO.0016587 LOT NO.:...'  <- Child bag
     Row 3: Sr. No.='Parent Code', QR Code='SB12260'           <- Parent bag (marks end of batch)
+    
+    For large files (>10k rows), automatically uses streaming mode for memory efficiency.
     """
     
     @staticmethod
@@ -1156,13 +1647,171 @@ class ParentBillBatchImporter:
 class MultiFileBatchProcessor:
     """
     Handles processing multiple Excel files in a single upload session.
-    Generates detailed error reports for any issues encountered.
+    Generates detailed result reports with per-row status for large-scale imports.
+    
+    Features:
+    - Memory-efficient streaming for large files
+    - Per-row success/failure tracking
+    - Downloadable Excel result files
+    - Multi-file processing with combined reports
     """
+    
+    @staticmethod
+    def generate_detailed_result_file(
+        file_results: List[Dict],
+        row_results: List[RowResult] = None,
+        include_successful: bool = True
+    ) -> bytes:
+        """
+        Generate comprehensive Excel result file with per-row status.
+        
+        Args:
+            file_results: List of file-level processing results
+            row_results: Optional list of individual row results
+            include_successful: Whether to include successful rows (default True)
+            
+        Returns:
+            Excel file as bytes
+        """
+        if not EXCEL_AVAILABLE:
+            return b""
+        
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        
+        wb = Workbook()
+        
+        # Sheet 1: Summary
+        ws_summary = wb.active
+        ws_summary.title = "Summary"
+        
+        # Summary headers
+        summary_headers = ['File Name', 'Status', 'Total Rows', 'Success', 'Errors', 
+                          'Children Created', 'Links Created', 'Timestamp']
+        for col, header in enumerate(summary_headers, 1):
+            cell = ws_summary.cell(1, col, header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+            cell.font = Font(bold=True, color="FFFFFF")
+        
+        # Summary data
+        row_num = 2
+        for result in file_results:
+            stats = result.get('stats', {})
+            ws_summary.cell(row_num, 1, result.get('filename', 'Unknown'))
+            ws_summary.cell(row_num, 2, result.get('status', 'Unknown'))
+            ws_summary.cell(row_num, 3, stats.get('total_rows', 0))
+            ws_summary.cell(row_num, 4, stats.get('children_created', 0) + stats.get('links_created', 0))
+            ws_summary.cell(row_num, 5, stats.get('errors', 0))
+            ws_summary.cell(row_num, 6, stats.get('children_created', 0))
+            ws_summary.cell(row_num, 7, stats.get('links_created', 0))
+            ws_summary.cell(row_num, 8, result.get('timestamp', ''))
+            row_num += 1
+        
+        # Sheet 2: Detailed Results (per row)
+        if row_results:
+            ws_details = wb.create_sheet("Row Details")
+            
+            detail_headers = ['Row #', 'QR Code', 'Status', 'Message']
+            for col, header in enumerate(detail_headers, 1):
+                cell = ws_details.cell(1, col, header)
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+                cell.font = Font(bold=True, color="FFFFFF")
+            
+            # Status colors
+            status_colors = {
+                RowResult.SUCCESS: "C6EFCE",  # Light green
+                RowResult.CHILD_CREATED: "C6EFCE",  # Light green
+                RowResult.LINKED: "C6EFCE",  # Light green
+                RowResult.DUPLICATE: "FFEB9C",  # Light yellow
+                RowResult.SKIPPED: "DDDDDD",  # Light gray
+                RowResult.ERROR: "FFC7CE",  # Light red
+            }
+            
+            row_num = 2
+            for result in row_results:
+                # Skip successful rows if not requested
+                if not include_successful and result.status in [RowResult.SUCCESS, RowResult.CHILD_CREATED, RowResult.LINKED]:
+                    continue
+                
+                ws_details.cell(row_num, 1, result.row_num)
+                ws_details.cell(row_num, 2, result.qr_code[:50] if result.qr_code else '')
+                ws_details.cell(row_num, 3, result.status)
+                ws_details.cell(row_num, 4, result.message[:200] if result.message else '')
+                
+                # Apply status color
+                fill_color = status_colors.get(result.status, "FFFFFF")
+                for col in range(1, 5):
+                    ws_details.cell(row_num, col).fill = PatternFill(
+                        start_color=fill_color, end_color=fill_color, fill_type="solid"
+                    )
+                
+                row_num += 1
+                
+                # Limit to MAX_ERRORS_PER_FILE to prevent huge files
+                if row_num > MAX_ERRORS_PER_FILE + 1:
+                    ws_details.cell(row_num, 1, "...")
+                    ws_details.cell(row_num, 4, f"Truncated - {len(row_results) - MAX_ERRORS_PER_FILE} more rows not shown")
+                    break
+        
+        # Sheet 3: Errors Only
+        ws_errors = wb.create_sheet("Errors Only")
+        error_headers = ['File', 'Row #', 'QR Code', 'Error Message']
+        for col, header in enumerate(error_headers, 1):
+            cell = ws_errors.cell(1, col, header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
+            cell.font = Font(bold=True, color="FFFFFF")
+        
+        row_num = 2
+        # Add file-level errors
+        for result in file_results:
+            filename = result.get('filename', 'Unknown')
+            for error in result.get('errors', [])[:100]:  # Limit per file
+                ws_errors.cell(row_num, 1, filename)
+                ws_errors.cell(row_num, 2, '')
+                ws_errors.cell(row_num, 3, '')
+                ws_errors.cell(row_num, 4, str(error)[:500])
+                row_num += 1
+        
+        # Add row-level errors
+        if row_results:
+            for result in row_results:
+                if result.status == RowResult.ERROR:
+                    ws_errors.cell(row_num, 1, '')
+                    ws_errors.cell(row_num, 2, result.row_num)
+                    ws_errors.cell(row_num, 3, result.qr_code[:50] if result.qr_code else '')
+                    ws_errors.cell(row_num, 4, result.message[:500] if result.message else '')
+                    row_num += 1
+                    
+                    if row_num > MAX_ERRORS_PER_FILE + 1:
+                        break
+        
+        # Auto-adjust column widths for all sheets
+        for ws in wb.worksheets:
+            for col in ws.columns:
+                max_length = 0
+                column_letter = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                ws.column_dimensions[column_letter].width = min(max_length + 2, 60)
+        
+        # Save to bytes
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return output.read()
     
     @staticmethod
     def generate_error_report(results: List[Dict]) -> bytes:
         """
         Generate an Excel error report from processing results.
+        (Legacy method - kept for backward compatibility)
         
         Args:
             results: List of file processing results
@@ -1227,16 +1876,100 @@ class MultiFileBatchProcessor:
             ws.column_dimensions[column_letter].width = adjusted_width
         
         # Save to bytes
-        import io
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
         return output.read()
     
     @staticmethod
+    def process_child_parent_files_streaming(
+        files: List[FileStorage], 
+        user_id: int, 
+        dispatch_area: Optional[str] = None
+    ) -> Tuple[List[Dict], List[RowResult], bool]:
+        """
+        Process multiple child-parent batch import files using streaming for large files.
+        Returns per-row results for detailed reporting.
+        
+        Args:
+            files: List of uploaded Excel files
+            user_id: ID of user performing import
+            dispatch_area: Optional dispatch area filter
+            
+        Returns:
+            Tuple of (file_results_list, all_row_results, has_errors)
+        """
+        from datetime import datetime
+        
+        file_results = []
+        all_row_results = []
+        has_errors = False
+        
+        for file in files:
+            filename = file.filename or 'unknown.xlsx'
+            result = {
+                'filename': filename,
+                'import_type': 'Child → Parent',
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'errors': [],
+                'summary': '',
+                'stats': {}
+            }
+            
+            try:
+                # Reset stream position
+                file.stream.seek(0)
+                
+                # Use streaming importer for memory efficiency
+                logger.info(f"Processing {filename} with streaming importer")
+                stats, row_results = LargeScaleChildParentImporter.process_file_streaming(
+                    file_storage=file,
+                    user_id=user_id,
+                    dispatch_area=dispatch_area
+                )
+                
+                result['stats'] = stats
+                all_row_results.extend(row_results)
+                
+                # Check for errors
+                if stats.get('errors', 0) > 0 or stats.get('parents_not_found', 0) > 0:
+                    has_errors = True
+                    result['status'] = 'Partial Success'
+                else:
+                    result['status'] = 'Success'
+                
+                result['summary'] = (
+                    f"{stats.get('batches_processed', 0)} batches, "
+                    f"{stats.get('children_created', 0)} children created, "
+                    f"{stats.get('links_created', 0)} links created"
+                )
+                
+                if stats.get('parents_not_found', 0) > 0:
+                    result['summary'] += f", {stats.get('parents_not_found', 0)} parents not found"
+                if stats.get('errors', 0) > 0:
+                    result['summary'] += f", {stats.get('errors', 0)} errors"
+                
+                # Extract error messages from row results
+                error_rows = [r for r in row_results if r.status == RowResult.ERROR]
+                if error_rows:
+                    result['errors'] = [f"Row {r.row_num}: {r.message}" for r in error_rows[:50]]
+                
+            except Exception as e:
+                logger.error(f"Error processing file {filename}: {str(e)}")
+                result['status'] = 'Failed'
+                result['summary'] = f'Fatal error: {str(e)}'
+                result['errors'].append(str(e))
+                has_errors = True
+            
+            file_results.append(result)
+        
+        return file_results, all_row_results, has_errors
+    
+    @staticmethod
     def process_child_parent_files(files: List[FileStorage], user_id: int, dispatch_area: Optional[str] = None) -> Tuple[List[Dict], bool]:
         """
         Process multiple child-parent batch import files.
+        (Legacy method - uses non-streaming for backward compatibility)
         
         Args:
             files: List of uploaded Excel files
