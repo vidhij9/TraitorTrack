@@ -239,16 +239,27 @@ class Link(db.Model):
         return f"<Link Parent:{self.parent_bag_id} -> Child:{self.child_bag_id}>"
 
 class Bill(db.Model):
-    """Bill model for tracking bills and associated parent bags"""
+    """Bill model for tracking bills and associated parent bags
+    
+    Capacity Tracking:
+    - parent_bag_count: The CAPACITY target (how many parent bags should be linked)
+    - linked_parent_count: Actual number of parent bags currently linked
+    - When linked_parent_count >= parent_bag_count, bill is auto-closed
+    
+    Weight Calculation:
+    - total_weight_kg: Actual weight = total_child_bags * 1kg (each child bag = 1kg)
+    - expected_weight_kg: Expected weight = parent_bag_count * 30kg
+    """
     __tablename__ = 'bill'
     id = db.Column(db.Integer, primary_key=True)
     bill_id = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
-    parent_bag_count = db.Column(db.Integer, default=1)
-    total_weight_kg = db.Column(db.Float, default=0.0)  # Actual weight based on real child count
-    expected_weight_kg = db.Column(db.Float, default=0.0)  # Expected weight (30kg per parent bag)
-    total_child_bags = db.Column(db.Integer, default=0)  # Total number of child bags
-    status = db.Column(db.String(20), default='new')  # Possible values: new, processing, completed
+    parent_bag_count = db.Column(db.Integer, default=1)  # CAPACITY TARGET: expected number of parent bags
+    linked_parent_count = db.Column(db.Integer, default=0)  # Actual linked parent bags (denormalized for speed)
+    total_weight_kg = db.Column(db.Float, default=0.0)  # Actual weight = child_count * 1kg
+    expected_weight_kg = db.Column(db.Float, default=0.0)  # Expected weight = parent_bag_count * 30kg
+    total_child_bags = db.Column(db.Integer, default=0)  # Total number of child bags linked
+    status = db.Column(db.String(20), default='new')  # new, processing, completed, at_capacity
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -259,28 +270,52 @@ class Bill(db.Model):
         db.Index('idx_bill_status', 'status'),
         db.Index('idx_bill_created', 'created_at'),
         db.Index('idx_bill_status_created', 'status', 'created_at'),
+        db.Index('idx_bill_linked_count', 'linked_parent_count'),  # Fast capacity queries
         # CHECK constraints to ensure weights are non-negative
         db.CheckConstraint('total_weight_kg >= 0', name='check_bill_total_weight_non_negative'),
         db.CheckConstraint('expected_weight_kg >= 0', name='check_bill_expected_weight_non_negative'),
+        db.CheckConstraint('linked_parent_count >= 0', name='check_bill_linked_count_non_negative'),
     )
     
     def __repr__(self):
         return f"<Bill {self.bill_id}>"
     
-    def recalculate_weights(self):
+    def is_at_capacity(self):
+        """Check if bill has reached its parent bag capacity"""
+        return self.linked_parent_count >= self.parent_bag_count
+    
+    def remaining_capacity(self):
+        """Return how many more parent bags can be linked"""
+        return max(0, self.parent_bag_count - self.linked_parent_count)
+    
+    def capacity_percentage(self):
+        """Return capacity percentage (0-100)"""
+        if self.parent_bag_count <= 0:
+            return 100 if self.linked_parent_count > 0 else 0
+        return min(100, int((self.linked_parent_count / self.parent_bag_count) * 100))
+    
+    def can_link_more_bags(self):
+        """Check if more parent bags can be linked to this bill"""
+        if self.status in ('completed', 'at_capacity'):
+            return False
+        return not self.is_at_capacity()
+    
+    def recalculate_weights(self, auto_close=True):
         """
-        Recalculate bill weights from scratch based on current linked bags.
-        Fixes edge cases like deleted parent bags or modified child weights.
+        Recalculate bill weights and linked_parent_count from scratch.
         
         Uses PostgreSQL advisory locks and row-level locks to prevent race conditions.
         Creates a critical section that blocks all concurrent bill_bag, bag, and link
         operations for this specific bill.
         
+        Args:
+            auto_close: If True, automatically set status to 'at_capacity' when capacity is reached
+        
         IMPORTANT: Must be called within an active transaction (db.session.begin()).
         Does not commit - caller must commit the transaction.
         
         Returns:
-            tuple: (actual_weight, expected_weight, parent_count, child_count)
+            tuple: (actual_weight, expected_weight, parent_count, child_count, is_at_capacity)
         """
         from sqlalchemy import select, text
         
@@ -358,13 +393,22 @@ class Bill(db.Model):
         expected_weight = self.parent_bag_count * 30.0
         
         # Update bill fields while locks are held
-        # (but NOT parent_bag_count which is the CAPACITY TARGET, not current count)
+        self.linked_parent_count = parent_count
         self.total_weight_kg = actual_weight
         self.expected_weight_kg = expected_weight
         self.total_child_bags = child_count
         
+        # Auto-close if capacity is reached
+        is_full = parent_count >= self.parent_bag_count
+        if auto_close and is_full and self.status not in ('completed', 'at_capacity'):
+            self.status = 'at_capacity'
+        
+        # If we had capacity but now don't (e.g., after editing), reopen
+        if not is_full and self.status == 'at_capacity':
+            self.status = 'processing' if parent_count > 0 else 'new'
+        
         # Advisory lock automatically released when transaction commits/rolls back
-        return (actual_weight, expected_weight, parent_count, child_count)
+        return (actual_weight, expected_weight, parent_count, child_count, is_full)
 
 class BillBag(db.Model):
     """Association model for linking bills to parent bags"""
