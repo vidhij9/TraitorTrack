@@ -131,10 +131,39 @@ from validation_utils import InputValidator
 
 # Simple sanitization helper for backward compatibility
 def sanitize_input(input_str):
-    """Simple input sanitizer - strips whitespace and limits length"""
+    """Comprehensive input sanitizer - removes invisible characters, normalizes whitespace, limits length
+    
+    Critical for barcode scanner input which may include:
+    - Carriage returns (\\r)
+    - Line feeds (\\n)
+    - Tabs (\\t)
+    - Null bytes (\\x00)
+    - Non-breaking spaces (\\xa0)
+    - Zero-width characters
+    - Control characters
+    """
     if not input_str:
         return ''
-    return str(input_str).strip()[:255]
+    
+    import re
+    
+    # Convert to string
+    s = str(input_str)
+    
+    # Remove null bytes and control characters (ASCII 0-31 except tab/newline/CR)
+    s = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', s)
+    
+    # Remove zero-width characters and other invisible Unicode characters
+    s = re.sub(r'[\u200b-\u200f\u2028-\u202f\u2060-\u206f\ufeff]', '', s)
+    
+    # Replace all whitespace variants (including non-breaking space) with regular space
+    s = re.sub(r'[\s\xa0]+', ' ', s)
+    
+    # Strip leading/trailing whitespace
+    s = s.strip()
+    
+    # Limit length
+    return s[:255]
 
 # Import all required models - FIX for 288 errors
 from models import (
@@ -4599,37 +4628,37 @@ def create_bill():
     if request.method == 'POST':
         try:
             form_bill_id = request.form.get('bill_id', '')
-            bill_id = sanitize_input(form_bill_id.strip() if form_bill_id else '')
-            parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
+            # CRITICAL: Sanitize scanner input to remove invisible characters
+            bill_id = sanitize_input(form_bill_id)
+            
+            # Additional debug logging to catch scanner issues
+            if form_bill_id != bill_id:
+                app.logger.info(f'Bill ID sanitized: "{form_bill_id}" -> "{bill_id}" (length {len(form_bill_id)} -> {len(bill_id)})')
             
             if not bill_id:
                 flash('Bill ID is required.', 'error')
                 return render_template('create_bill.html')
             
-            # Basic validation - just check if bill_id is not empty
-            if len(bill_id.strip()) == 0:
+            # Basic validation - just check if bill_id is not empty after sanitization
+            if len(bill_id) == 0:
                 flash('Bill ID cannot be empty.', 'error')
                 return render_template('create_bill.html')
             
-            # Simplified validation for optimized version
-            is_valid, error_message = True, ""
-            if not is_valid:
-                flash(error_message or 'Invalid bill ID', 'error')
-                return render_template('create_bill.html')
+            parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
             
             # FIX: Validate parent bag count with stricter limits and type checking
             if not isinstance(parent_bag_count, int) or parent_bag_count < 1 or parent_bag_count > 50:
                 flash('Number of parent bags must be between 1 and 50.', 'error')
                 return render_template('create_bill.html')
             
-            # Optimized duplicate check using direct SQL
+            # CASE-INSENSITIVE duplicate check using UPPER for consistency with scanner input
             existing = db.session.execute(
-                text("SELECT id FROM bill WHERE bill_id = :bill_id LIMIT 1"),
+                text("SELECT id, bill_id FROM bill WHERE UPPER(bill_id) = UPPER(:bill_id) LIMIT 1"),
                 {'bill_id': bill_id}
-            ).scalar()
+            ).first()
             
             if existing:
-                flash(f'Bill ID "{bill_id}" already exists. Please use a different ID.', 'error')
+                flash(f'Bill ID "{existing.bill_id}" already exists. Please use a different ID.', 'error')
                 return render_template('create_bill.html')
             
             # Create bill directly without enhancement features
@@ -5003,14 +5032,16 @@ def remove_bag_from_bill():
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').find('application/json') != -1
         
         if is_ajax:
-            # For AJAX requests, return JSON
+            # For AJAX requests, return JSON with removed child count for weight tracking
             current_bag_count = BillBag.query.filter_by(bill_id=bill_id).count()
             bill = Bill.query.get(bill_id)
+            removed_child_count = parent_bag.child_count or 0  # Get child count from removed parent bag
             return jsonify({
                 'success': True, 
                 'message': f'Parent bag {parent_qr} removed successfully.',
                 'linked_count': current_bag_count,
-                'expected_count': bill.parent_bag_count or 10 if bill else 10
+                'expected_count': bill.parent_bag_count or 10 if bill else 10,
+                'removed_child_count': removed_child_count  # Return for weight tracking
             })
         else:
             # For normal form submissions, redirect back to scan page
@@ -5070,7 +5101,11 @@ def scan_bill_parent(bill_id):
 @app.route('/complete_bill', methods=['POST'])
 @login_required
 def complete_bill():
-    """Complete a bill - must meet capacity requirements - admin and biller access"""
+    """Complete a bill - flexible completion with any number of linked bags
+    
+    Changed from strict requirement: Now allows completing with any count >= 1
+    The expected count is just a target/estimate, not a hard requirement.
+    """
     if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
         return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
@@ -5085,37 +5120,54 @@ def complete_bill():
         from models import Bill
         
         # Get the bill
-        bill = Bill.query.get_or_404(bill_id)
+        bill = Bill.query.get(bill_id)
+        if not bill:
+            return jsonify({'success': False, 'message': 'Bill not found.'})
         
         # Count current linked bags
         linked_count = bill.bag_links.count()
         
-        # Check if capacity is satisfied (like child-parent linking requirement)
-        if linked_count < bill.parent_bag_count:
+        # Require at least one linked bag to complete
+        if linked_count == 0:
             return jsonify({
                 'success': False,
-                'message': f'Cannot complete bill. Need {bill.parent_bag_count - linked_count} more bags ({linked_count}/{bill.parent_bag_count} linked).',
+                'message': 'Cannot complete bill with no parent bags linked. Please scan at least one parent bag first.',
                 'show_popup': True
             })
         
-        # Update bill status to completed
+        # Calculate actual weight from linked parent bags' child counts
+        total_weight = db.session.execute(
+            text("""
+                SELECT COALESCE(SUM(b.child_count), 0) as total_weight
+                FROM bill_bag bb
+                JOIN bag b ON bb.bag_id = b.id
+                WHERE bb.bill_id = :bill_id
+            """),
+            {'bill_id': bill_id}
+        ).scalar() or 0
+        
+        # Update bill with final counts and status
         bill.status = 'completed'
+        bill.total_weight_kg = float(total_weight)  # Actual weight from child count
+        bill.expected_weight_kg = float(linked_count * 30)  # Expected: 30kg per parent
         
         db.session.commit()
         
-        app.logger.info(f'Bill {bill.bill_id} completed with {linked_count} bags (capacity was {bill.parent_bag_count})')
+        app.logger.info(f'Bill {bill.bill_id} completed with {linked_count} parent bags, {total_weight}kg actual weight')
         
         return jsonify({
             'success': True, 
-            'message': f'Bill completed successfully with {linked_count} bags!',
+            'message': f'Bill completed successfully with {linked_count} parent bags ({total_weight}kg)!',
             'linked_count': linked_count,
-            'expected_count': bill.parent_bag_count
+            'expected_count': bill.parent_bag_count or linked_count,
+            'actual_weight': total_weight,
+            'expected_weight': linked_count * 30
         })
         
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Complete bill error: {str(e)}')
-        return jsonify({'success': False, 'message': 'Error completing bill.'})
+        return jsonify({'success': False, 'message': 'Error completing bill. Please try again.'})
 
 @app.route('/reopen_bill', methods=['POST'])
 @login_required
@@ -9184,3 +9236,209 @@ def emergency_admin_management():
         import traceback
         app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# GLOBAL ERROR HANDLERS - User-friendly error pages (no raw error codes)
+# ============================================================================
+
+@app.errorhandler(400)
+def bad_request_error(error):
+    """Handle 400 Bad Request errors - show user-friendly message"""
+    app.logger.warning(f"400 Bad Request: {request.url} - {str(error)}")
+    
+    # Check if this is an AJAX/API request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'Invalid request. Please check your input and try again.',
+            'error_code': 400
+        }), 400
+    
+    return render_template('error.html',
+        error_code=400,
+        error_title='Invalid Request',
+        error_message='The request was not formatted correctly. Please go back and try again.'
+    ), 400
+
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Handle 403 Forbidden errors - show access denied message"""
+    app.logger.warning(f"403 Forbidden: {request.url} - User: {getattr(current_user, 'username', 'anonymous')}")
+    
+    # Check if this is an AJAX/API request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'You do not have permission to access this resource.',
+            'error_code': 403
+        }), 403
+    
+    return render_template('error.html',
+        error_code=403,
+        error_title='Access Denied',
+        error_message='You do not have permission to access this page. Please contact your administrator if you believe this is an error.',
+        show_login=not hasattr(current_user, 'is_authenticated') or not current_user.is_authenticated
+    ), 403
+
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 Not Found errors - show friendly page not found message"""
+    app.logger.info(f"404 Not Found: {request.url}")
+    
+    # Check if this is an AJAX/API request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'The requested resource was not found.',
+            'error_code': 404
+        }), 404
+    
+    return render_template('error.html',
+        error_code=404,
+        error_title='Page Not Found',
+        error_message='The page you are looking for does not exist or has been moved. Please check the URL or navigate using the menu.'
+    ), 404
+
+
+@app.errorhandler(405)
+def method_not_allowed_error(error):
+    """Handle 405 Method Not Allowed errors"""
+    app.logger.warning(f"405 Method Not Allowed: {request.method} {request.url}")
+    
+    # Check if this is an AJAX/API request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'This action is not allowed. Please try a different approach.',
+            'error_code': 405
+        }), 405
+    
+    return render_template('error.html',
+        error_code=405,
+        error_title='Action Not Allowed',
+        error_message='This action is not permitted. Please use the navigation menu to access features.'
+    ), 405
+
+
+@app.errorhandler(429)
+def rate_limit_error(error):
+    """Handle 429 Too Many Requests errors - rate limiting"""
+    app.logger.warning(f"429 Rate Limited: {request.url} - IP: {request.remote_addr}")
+    
+    # Check if this is an AJAX/API request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'Too many requests. Please wait a moment and try again.',
+            'error_code': 429
+        }), 429
+    
+    return render_template('error.html',
+        error_code=429,
+        error_title='Too Many Requests',
+        error_message='You have made too many requests. Please wait a moment before trying again.'
+    ), 429
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 Internal Server errors - show generic error, log details"""
+    app.logger.error(f"500 Internal Server Error: {request.url} - {str(error)}")
+    
+    # Rollback any failed database transactions
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+    
+    # Check if this is an AJAX/API request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred. Please try again or contact support.',
+            'error_code': 500
+        }), 500
+    
+    return render_template('error.html',
+        error_code=500,
+        error_title='Something Went Wrong',
+        error_message='We encountered an unexpected issue. Please try again. If the problem continues, contact your system administrator.'
+    ), 500
+
+
+@app.errorhandler(502)
+def bad_gateway_error(error):
+    """Handle 502 Bad Gateway errors"""
+    app.logger.error(f"502 Bad Gateway: {request.url}")
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'Server temporarily unavailable. Please try again in a moment.',
+            'error_code': 502
+        }), 502
+    
+    return render_template('error.html',
+        error_code=502,
+        error_title='Service Temporarily Unavailable',
+        error_message='The service is temporarily unavailable. Please refresh the page in a moment.'
+    ), 502
+
+
+@app.errorhandler(503)
+def service_unavailable_error(error):
+    """Handle 503 Service Unavailable errors"""
+    app.logger.error(f"503 Service Unavailable: {request.url}")
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'Service temporarily unavailable. Please try again shortly.',
+            'error_code': 503
+        }), 503
+    
+    return render_template('error.html',
+        error_code=503,
+        error_title='Service Unavailable',
+        error_message='The service is temporarily unavailable for maintenance. Please try again in a few minutes.'
+    ), 503
+
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    """Catch-all handler for any unhandled exceptions"""
+    app.logger.error(f"Unhandled Exception at {request.url}: {str(error)}")
+    import traceback
+    app.logger.error(traceback.format_exc())
+    
+    # Rollback any failed database transactions
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+    
+    # Check if this is an AJAX/API request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept', '').startswith('application/json'):
+        return jsonify({
+            'success': False,
+            'error': 'An unexpected error occurred. Please try again.',
+            'error_code': 500
+        }), 500
+    
+    return render_template('error.html',
+        error_code=500,
+        error_title='Unexpected Error',
+        error_message='Something unexpected happened. Please try again or contact support if the issue persists.'
+    ), 500
