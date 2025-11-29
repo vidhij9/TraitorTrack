@@ -181,31 +181,36 @@ from models import (
 @app.route('/api/bill/<int:bill_id>/weights')
 @login_required
 def api_bill_weights(bill_id):
-    """Get real-time weight information for a bill"""
+    """Get real-time weight information for a bill with type-aware expected weights"""
+    from models import get_parent_bag_specs
     try:
         bill = Bill.query.get_or_404(bill_id)
         
-        # Get actual weight from linked parent bags
-        # Actual weight = exact number of children (1kg per child)
-        actual_weight = db.session.execute(
+        # Get parent bags with their QR IDs for type-aware weight calculation
+        parent_bags = db.session.execute(
             text("""
-                SELECT COALESCE(SUM(
-                    (SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id)
-                ), 0) as total_actual_weight
+                SELECT b.qr_id,
+                       (SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id) as child_count
                 FROM bill_bag bb
                 JOIN bag b ON bb.bag_id = b.id
                 WHERE bb.bill_id = :bill_id
             """),
             {'bill_id': bill_id}
-        ).scalar() or 0
+        ).fetchall()
         
-        # Expected weight is parent bags * 30kg
-        parent_count = db.session.execute(
-            text("SELECT COUNT(*) FROM bill_bag WHERE bill_id = :bill_id"),
-            {'bill_id': bill_id}
-        ).scalar() or 0
+        # Calculate actual weight (1kg per child) and expected weight (by bag type)
+        actual_weight = 0
+        expected_weight = 0.0
+        parent_count = len(parent_bags)
         
-        expected_weight = parent_count * 30.0
+        for row in parent_bags:
+            qr_id = row[0]
+            child_count = int(row[1]) if row[1] else 0
+            actual_weight += child_count
+            
+            # Get expected weight based on bag type (SB=30kg, Mxxx-xx=15kg)
+            bag_expected_weight, max_children = get_parent_bag_specs(qr_id)
+            expected_weight += bag_expected_weight
         
         return jsonify({
             'actual_weight': float(actual_weight),
