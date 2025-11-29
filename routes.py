@@ -7933,10 +7933,10 @@ def import_batch_child_parent():
             flash('No file selected.', 'error')
             return redirect(url_for('import_batch_child_parent'))
         
-        # Validate file extension
+        # Validate file extension (supports .xlsx, .xls, and .xlsm macro-enabled files)
         filename = (file.filename or '').lower()
-        if not filename.endswith(('.xlsx', '.xls')):
-            flash('Please upload an Excel file (.xlsx or .xls).', 'error')
+        if not filename.endswith(('.xlsx', '.xls', '.xlsm')):
+            flash('Please upload an Excel file (.xlsx, .xls, or .xlsm).', 'error')
             return redirect(url_for('import_batch_child_parent'))
         
         # Get dispatch area if provided
@@ -8012,10 +8012,10 @@ def import_batch_parent_bill():
             flash('No file selected.', 'error')
             return redirect(url_for('import_batch_parent_bill'))
         
-        # Validate file extension
+        # Validate file extension (supports .xlsx, .xls, and .xlsm macro-enabled files)
         filename = (file.filename or '').lower()
-        if not filename.endswith(('.xlsx', '.xls')):
-            flash('Please upload an Excel file (.xlsx or .xls).', 'error')
+        if not filename.endswith(('.xlsx', '.xls', '.xlsm')):
+            flash('Please upload an Excel file (.xlsx, .xls, or .xlsm).', 'error')
             return redirect(url_for('import_batch_parent_bill'))
         
         # Parse Excel file with batch pattern
@@ -8091,12 +8091,12 @@ def import_batch_multi():
             flash('No files uploaded.', 'error')
             return redirect(url_for('import_batch_multi'))
         
-        # Validate all files are Excel
+        # Validate all files are Excel (supports .xlsx, .xls, and .xlsm)
         for file in files:
             if file.filename:
                 filename = file.filename.lower()
-                if not filename.endswith(('.xlsx', '.xls')):
-                    flash(f'Invalid file type: {file.filename}. Only Excel files (.xlsx, .xls) are allowed.', 'error')
+                if not filename.endswith(('.xlsx', '.xls', '.xlsm')):
+                    flash(f'Invalid file type: {file.filename}. Only Excel files (.xlsx, .xls, .xlsm) are allowed.', 'error')
                     return redirect(url_for('import_batch_multi'))
         
         # Process files based on import type

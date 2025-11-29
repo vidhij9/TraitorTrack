@@ -519,8 +519,9 @@ class ChildParentBatchImporter:
         Determine if a row represents a child bag.
         
         Child bag criteria:
-        - Sr. No. is numeric (1, 2, 3, etc.)
-        - QR Code starts with 'LABEL NO.'
+        - Sr. No. is numeric (1-15, not 16 which is parent)
+        - QR Code contains 'LABEL NO.' (child bag format)
+        - QR Code does NOT start with parent prefixes (SB, M444-)
         
         Args:
             sr_no: Value from Sr. No. column
@@ -529,6 +530,12 @@ class ChildParentBatchImporter:
         Returns:
             True if this is a child bag row
         """
+        qr_str = str(qr_code).strip().upper() if qr_code else ''
+        
+        # Exclude parent bag prefixes
+        if qr_str.startswith('SB') or qr_str.startswith('M444-'):
+            return False
+        
         # Check if Sr. No. is numeric
         try:
             if sr_no is not None:
@@ -547,9 +554,10 @@ class ChildParentBatchImporter:
         """
         Determine if a row represents a parent bag and extract parent code.
         
-        Parent bag criteria:
-        - Sr. No. contains 'Parent Code' text
-        - QR Code contains the parent bag code (e.g., 'SB12260')
+        Parent bag criteria (any of these):
+        1. Sr. No. contains 'Parent Code' text (legacy format)
+        2. Sr. No. is exactly 16 AND QR Code starts with 'SB' or 'M444-'
+        3. QR Code starts with 'SB' or 'M444-' (regardless of serial number)
         
         Args:
             sr_no: Value from Sr. No. column
@@ -558,10 +566,30 @@ class ChildParentBatchImporter:
         Returns:
             Tuple of (is_parent_row, parent_code)
         """
+        qr_str = str(qr_code).strip().upper() if qr_code else ''
+        
+        # Check if QR code starts with parent bag prefixes (SB or M444-)
+        is_parent_qr = qr_str.startswith('SB') or qr_str.startswith('M444-')
+        
+        # Legacy format: Sr. No. contains 'Parent Code'
         if sr_no and isinstance(sr_no, str) and 'parent code' in sr_no.lower():
-            # Extract parent code from QR Code column
             parent_code = str(qr_code).strip() if qr_code else None
             return True, parent_code
+        
+        # New format: Serial number is 16 AND/OR QR code starts with parent prefix
+        if is_parent_qr:
+            parent_code = str(qr_code).strip() if qr_code else None
+            return True, parent_code
+        
+        # Check if serial number is exactly 16 (even without matching prefix)
+        try:
+            if sr_no is not None and int(float(sr_no)) == 16:
+                # Only treat as parent if QR doesn't contain 'LABEL NO.' (child indicator)
+                if 'LABEL NO.' not in qr_str:
+                    parent_code = str(qr_code).strip() if qr_code else None
+                    return True, parent_code
+        except (ValueError, TypeError):
+            pass
         
         return False, None
     
