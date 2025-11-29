@@ -90,12 +90,14 @@
                 <span>Scan Parent</span>
             </a>
         </div>
+        {% if current_user.is_admin() or current_user.can_edit_bills() %}
         <div class="col-12 col-md-4">
             <a href="{{ url_for('bill_management', s=request.args.get('s')) }}" class="btn btn-success w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 17px; font-weight: 600;">
                 <i class="fas fa-file-invoice me-2" style="font-size: 1.4rem;"></i>
                 <span>Bills</span>
             </a>
         </div>
+        {% endif %}
         <div class="col-12 col-md-4">
             <a href="{{ url_for('search_bag', s=request.args.get('s')) }}" class="btn btn-info w-100 d-flex align-items-center justify-content-center" style="min-height: 54px; font-size: 17px; font-weight: 600;">
                 <i class="fas fa-search me-2" style="font-size: 1.4rem;"></i>

@@ -16,7 +16,7 @@
                             <a href="{{ url_for('bill_management') }}" class="btn btn-outline-secondary wh-btn">
                                 <i class="fas fa-arrow-left me-2"></i>Back to Bills
                             </a>
-                            {% if current_user.is_admin() or current_user.role == 'biller' %}
+                            {% if current_user.is_admin() or current_user.can_edit_bills() %}
                                 <a href="{{ url_for('edit_bill', bill_id=bill.id) }}" class="btn btn-warning wh-btn ms-2">
                                     <i class="fas fa-edit me-2"></i>Edit Bill
                                 </a>
@@ -99,14 +99,16 @@
                     
                     <div class="d-grid gap-2 mt-4">
                         {% if bag_links_count < bill.parent_bag_count %}
+                            {% if current_user.is_admin() or current_user.can_edit_bills() %}
                             <a href="{{ url_for('scan_bill_parent', bill_id=bill.id) }}" class="btn btn-primary">
                                 <i class="fas fa-qrcode me-2"></i>Add Parent Bags ({{ bill.parent_bag_count - bag_links_count }} remaining)
                             </a>
+                            {% endif %}
                         {% elif bag_links_count == bill.parent_bag_count %}
                             <div class="alert alert-success mb-2">
                                 <i class="fas fa-check-circle me-2"></i>Bill is complete with all required parent bags!
                             </div>
-                            {% if bill.status == 'completed' and (current_user.is_admin() or current_user.role == 'biller') %}
+                            {% if bill.status == 'completed' and (current_user.is_admin() or current_user.can_edit_bills()) %}
                             <button type="button" class="btn btn-outline-warning" onclick="reopenBill({{ bill.id }})">
                                 <i class="fas fa-unlock me-2"></i>Reopen Bill
                             </button>
@@ -165,7 +167,7 @@
                                                         <i class="fas fa-eye me-1"></i>View Child Bags
                                                     </button>
                                                     
-                                                    {% if current_user.role == 'admin' %}
+                                                    {% if current_user.is_admin() %}
                                                         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#unlinkModal{{ loop.index }}">
                                                             <i class="fas fa-unlink"></i> Remove
                                                         </button>

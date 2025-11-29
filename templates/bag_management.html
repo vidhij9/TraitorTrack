@@ -65,7 +65,7 @@
             <a href="{{ url_for('scan_parent') }}" class="btn btn-primary wh-btn">
                 <i class="fas fa-plus"></i><span class="d-none d-lg-inline ms-1">New</span>
             </a>
-            {% if current_user.role == 'admin' %}
+            {% if current_user.is_admin() %}
             <a href="{{ url_for('import_batch_child_parent') }}" class="btn btn-info wh-btn" title="Batch Import Child→Parent">
                 <i class="fas fa-file-import"></i><span class="d-none d-lg-inline ms-1">Import</span>
             </a>
