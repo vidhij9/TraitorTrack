@@ -552,30 +552,42 @@ function showNotification(message, type) {
 // Handle dispatch area visibility based on role selection
 function toggleDispatchArea(selectElement, containerElementId) {
     const container = document.getElementById(containerElementId);
-    if (selectElement.value === 'dispatcher') {
+    if (!container) return; // Guard against null container
+    if (selectElement && selectElement.value === 'dispatcher') {
         container.style.display = 'block';
     } else {
         container.style.display = 'none';
     }
 }
 
-// Add event listeners for role changes
-document.getElementById('role').addEventListener('change', function() {
-    toggleDispatchArea(this, 'dispatch-area-container');
-});
-
-document.getElementById('edit_role').addEventListener('change', function() {
-    toggleDispatchArea(this, 'edit-dispatch-area-container');
-});
-
-// Initialize dispatch area visibility on page load
+// Initialize dispatch area visibility and event listeners on page load
 document.addEventListener('DOMContentLoaded', function() {
-    toggleDispatchArea(document.getElementById('role'), 'dispatch-area-container');
-    toggleDispatchArea(document.getElementById('edit_role'), 'edit-dispatch-area-container');
+    // Add event listeners for role changes in Create User Modal
+    const roleSelect = document.getElementById('role');
+    if (roleSelect) {
+        roleSelect.addEventListener('change', function() {
+            toggleDispatchArea(this, 'dispatch-area-container');
+        });
+        // Initialize visibility
+        toggleDispatchArea(roleSelect, 'dispatch-area-container');
+    }
+    
+    // Add event listeners for role changes in Edit User Modal
+    const editRoleSelect = document.getElementById('edit_role');
+    if (editRoleSelect) {
+        editRoleSelect.addEventListener('change', function() {
+            toggleDispatchArea(this, 'edit-dispatch-area-container');
+        });
+        // Initialize visibility
+        toggleDispatchArea(editRoleSelect, 'edit-dispatch-area-container');
+    }
+    
+    // Live search
+    const userSearchInput = document.getElementById('userSearch');
+    if (userSearchInput) {
+        userSearchInput.addEventListener('input', filterUsers);
+    }
 });
-
-// Live search
-document.getElementById('userSearch').addEventListener('input', filterUsers);
 
 // Role change functionality
 function openRoleChangeModal(userId, username, currentRole, currentArea) {
