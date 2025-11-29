@@ -112,3 +112,11 @@ The project utilizes a standard Flask application structure, organizing code int
    - JSON responses for AJAX requests
 
 5. **Mobile Optimization**: Enhanced mobile user management with role-based dispatch area toggles, compact headers, and improved touch targets for warehouse workers.
+
+6. **Role-Based UI Visibility**: Implemented comprehensive role-based feature visibility so users only see features they can access:
+   - **Admin**: Full access to all features (Bills, Users, Import, Delete, etc.)
+   - **Biller**: Access to Bills management (create, edit, scan) but NOT Users management
+   - **Dispatcher**: Access to Scanning and Search only - NO Bills or Users access
+   - Features are hidden at the UI level (buttons, links don't appear) rather than showing error messages
+   - Backend access controls remain in place as a safety net
+   - Uses `can_edit_bills()` helper method for consistent role checks across templates
