@@ -5316,14 +5316,14 @@ def ultra_fast_bill_parent_scan():
                 'error_type': 'already_linked_other_bill'
             })
         
-        # 6. Check current capacity
-        current_count = BillBag.query.filter_by(bill_id=bill.id).count()
-        if current_count >= bill.parent_bag_count:
-            app.logger.warning(f'Bill {bill.bill_id} at capacity: {current_count}/{bill.parent_bag_count}')
+        # 6. Check current capacity using denormalized linked_parent_count
+        if not bill.can_link_more_bags():
+            app.logger.warning(f'Bill {bill.bill_id} at capacity: {bill.linked_parent_count}/{bill.parent_bag_count}')
             return jsonify({
                 'success': False,
-                'message': f'📦 Bill capacity reached ({current_count}/{bill.parent_bag_count} parent bags). Cannot add more bags.',
-                'error_type': 'capacity_reached'
+                'message': f'📦 Bill capacity reached ({bill.linked_parent_count}/{bill.parent_bag_count} parent bags). Cannot add more bags.',
+                'error_type': 'capacity_reached',
+                'is_at_capacity': True
             })
         
         # All checks passed - link the parent bag to the bill
@@ -5354,23 +5354,30 @@ def ultra_fast_bill_parent_scan():
         
         # CRITICAL: Use recalculate_weights() to ensure accurate bill totals
         # This prevents edge cases where manual calculations might be wrong
-        actual_weight, expected_weight, parent_count, child_count_total = bill.recalculate_weights()
+        # Returns: (actual_weight, expected_weight, parent_count, child_count, is_at_capacity)
+        actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
         db.session.commit()  # Commit the recalculated values
         
-        # Get final count after commit
-        final_linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        app.logger.info(f'Successfully linked {qr_code} to bill {bill.bill_id}. Total: {bill.linked_parent_count}/{bill.parent_bag_count}')
         
-        app.logger.info(f'Successfully linked {qr_code} to bill {bill.bill_id}. Total: {final_linked_count}/{bill.parent_bag_count}')
+        # Check if bill is now at capacity (auto-closed)
+        capacity_message = ''
+        if is_full:
+            capacity_message = ' Bill is now at capacity!'
+            app.logger.info(f'Bill {bill.bill_id} auto-closed at capacity')
         
         return jsonify({
             'success': True,
-            'message': f'✅ {qr_code} linked successfully! Contains {child_count} children ({final_linked_count}/{bill.parent_bag_count} bags total)',
+            'message': f'✅ {qr_code} linked successfully! Contains {child_count} children ({bill.linked_parent_count}/{bill.parent_bag_count} bags total){capacity_message}',
             'bag_qr': qr_code,
-            'linked_count': final_linked_count,
+            'linked_count': bill.linked_parent_count,
             'expected_count': bill.parent_bag_count,
             'child_count': child_count,
             'actual_weight': bill.total_weight_kg,
-            'expected_weight': getattr(bill, 'expected_weight_kg', final_linked_count * 30.0),
+            'expected_weight': bill.expected_weight_kg,
+            'is_at_capacity': is_full,
+            'remaining_capacity': bill.remaining_capacity(),
+            'bill_status': bill.status,
             'error_type': 'success'
         })
         
@@ -5481,14 +5488,15 @@ def process_bill_parent_scan():
             other_bill_id = other_bill.bill_id if other_bill else other_link.bill_id
             return jsonify({'success': False, 'message': f'⚠️ Parent bag "{qr_id}" is already linked to bill "{other_bill_id}".'})
         
-        # Count current links for capacity check
-        bill_bag_count = BillBag.query.filter_by(bill_id=bill.id).count()
+        # Check capacity using denormalized linked_parent_count (allow linking to completed bills)
+        if not bill.can_link_more_bags() and bill.status != 'completed':
+            return jsonify({
+                'success': False, 
+                'message': f'⚠️ Bill is at capacity ({bill.linked_parent_count}/{bill.parent_bag_count} bags). Complete it first to add more.',
+                'is_at_capacity': True
+            })
         
-        # Check capacity (allow linking to completed bills)
-        if bill_bag_count >= bill.parent_bag_count and bill.status != 'completed':
-            return jsonify({'success': False, 'message': f'⚠️ Bill is at capacity ({bill.parent_bag_count} bags). Complete it first to add more.'})
-        
-        app.logger.info(f'Bill bag count: {bill_bag_count}, capacity: {bill.parent_bag_count}')
+        app.logger.info(f'Bill linked count: {bill.linked_parent_count}, capacity: {bill.parent_bag_count}')
         
         # Use transaction for atomic operations
         with db.session.begin_nested():
@@ -5516,34 +5524,35 @@ def process_bill_parent_scan():
         
         # CRITICAL: Use recalculate_weights() to ensure accurate bill totals
         # This prevents edge cases where manual calculations might be wrong
-        actual_weight, expected_weight, parent_count, child_count_total = bill.recalculate_weights()
+        # Returns: (actual_weight, expected_weight, parent_count, child_count, is_at_capacity)
+        actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
         db.session.commit()  # Commit the recalculated values
         
         # Add audit log entry
         app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
         app.logger.info(f'Bill weight recalculated: {actual_weight}kg actual, {expected_weight}kg expected, {child_count_total} total children')
         
-        # Cache clearing skipped - cache module not available
-        # cache.clear_pattern(f'bill_bags:{bill.id}')
-        # cache.clear_pattern('api_stats_*')
-        
         app.logger.info(f'Database commit successful')
-        
         app.logger.info(f'Successfully linked parent bag {qr_id} to bill {bill.bill_id}')
         
-        # Use incremented count instead of database query
-        updated_bag_count = bill_bag_count + 1
+        # Check if bill is now at capacity (auto-closed)
+        capacity_message = ''
+        if is_full:
+            capacity_message = ' Bill is now at capacity!'
+            app.logger.info(f'Bill {bill.bill_id} auto-closed at capacity')
         
         response_data = {
             'success': True, 
-            'message': f'Parent bag {qr_id} linked successfully! (Actual weight: {parent_bag.weight_kg}kg)',
-            'bag_qr': qr_id,  # Changed from parent_qr to bag_qr for consistency
-            'linked_count': updated_bag_count,
-            'expected_count': bill.parent_bag_count or 10,
-            'remaining_bags': (bill.parent_bag_count or 10) - updated_bag_count,
+            'message': f'Parent bag {qr_id} linked successfully! (Actual weight: {parent_bag.weight_kg}kg){capacity_message}',
+            'bag_qr': qr_id,
+            'linked_count': bill.linked_parent_count,
+            'expected_count': bill.parent_bag_count,
+            'remaining_bags': bill.remaining_capacity(),
             'total_weight': bill.total_weight_kg,
-            'expected_weight': getattr(bill, 'expected_weight_kg', 0),
-            'total_child_bags': getattr(bill, 'total_child_bags', 0)
+            'expected_weight': bill.expected_weight_kg,
+            'total_child_bags': bill.total_child_bags,
+            'is_at_capacity': is_full,
+            'bill_status': bill.status
         }
         
         app.logger.info(f'Sending response: {response_data}')
@@ -7079,6 +7088,15 @@ def manual_parent_entry():
                 'message': f'Parent bag {manual_qr} is already linked to bill {other_bill.bill_id if other_bill else "another bill"}.'
             }), 400
         
+        # Check capacity using denormalized linked_parent_count
+        if not bill.can_link_more_bags():
+            app.logger.warning(f'Bill {bill.bill_id} at capacity: {bill.linked_parent_count}/{bill.parent_bag_count}')
+            return jsonify({
+                'success': False,
+                'message': f'Bill is at capacity ({bill.linked_parent_count}/{bill.parent_bag_count} bags). Cannot add more bags.',
+                'is_at_capacity': True
+            }), 400
+        
         # Create the link
         app.logger.info(f'Creating link between bag {parent_bag.id} and bill {bill.id}')
         bill_bag = BillBag()
@@ -7090,26 +7108,32 @@ def manual_parent_entry():
         app.logger.info(f'Successfully linked parent bag {manual_qr} to bill {bill.bill_id}')
         
         # CRITICAL: Use recalculate_weights() to ensure accurate bill totals
-        # This prevents edge cases where manual calculations might be wrong
-        actual_weight, expected_weight, parent_count, child_count_total = bill.recalculate_weights()
+        # Returns: (actual_weight, expected_weight, parent_count, child_count, is_at_capacity)
+        actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
         db.session.commit()  # Commit the recalculated values
         app.logger.info(f'Bill weight recalculated: {actual_weight}kg actual, {expected_weight}kg expected, {child_count_total} total children')
         
-        # Get updated count
-        linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
-        app.logger.info(f'Bill now has {linked_count}/{bill.parent_bag_count} parent bags')
+        app.logger.info(f'Bill now has {bill.linked_parent_count}/{bill.parent_bag_count} parent bags')
+        
+        # Check if bill is now at capacity (auto-closed)
+        capacity_message = ''
+        if is_full:
+            capacity_message = ' Bill is now at capacity!'
+            app.logger.info(f'Bill {bill.bill_id} auto-closed at capacity')
         
         response_data = {
             'success': True,
-            'message': f'Parent bag {manual_qr} added manually! Status: {parent_bag.status}',
+            'message': f'Parent bag {manual_qr} added manually! Status: {parent_bag.status}{capacity_message}',
             'bag_qr': manual_qr,
-            'linked_count': linked_count,
+            'linked_count': bill.linked_parent_count,
             'expected_count': bill.parent_bag_count,
-            'remaining_bags': bill.parent_bag_count - linked_count,
+            'remaining_bags': bill.remaining_capacity(),
             'bag_status': parent_bag.status,
             'weight_kg': parent_bag.weight_kg,
             'total_actual_weight': bill.total_weight_kg,
-            'total_expected_weight': getattr(bill, 'expected_weight_kg', 0)
+            'total_expected_weight': bill.expected_weight_kg,
+            'is_at_capacity': is_full,
+            'bill_status': bill.status
         }
         
         app.logger.info(f'=== MANUAL PARENT ENTRY SUCCESS ===')
