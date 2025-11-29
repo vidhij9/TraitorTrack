@@ -52,9 +52,11 @@
                         <p class="text-muted mb-1">Status</p>
                         {% if bill.status == 'completed' %}
                             <span class="badge bg-success fs-6 px-3 py-2">Completed</span>
-                        {% elif bag_links_count == bill.parent_bag_count %}
+                        {% elif bill.status == 'at_capacity' %}
+                            <span class="badge bg-info fs-6 px-3 py-2">At Capacity</span>
+                        {% elif bill.linked_parent_count == bill.parent_bag_count %}
                             <span class="badge bg-info fs-6 px-3 py-2">Ready to Complete</span>
-                        {% elif bag_links_count > 0 %}
+                        {% elif bill.linked_parent_count > 0 %}
                             <span class="badge bg-warning fs-6 px-3 py-2">In Progress</span>
                         {% else %}
                             <span class="badge bg-secondary fs-6 px-3 py-2">Empty</span>
@@ -64,13 +66,19 @@
                     <div class="mb-3">
                         <p class="text-muted mb-1">Parent Bags Progress</p>
                         <div class="d-flex align-items-center mb-2">
-                            <span class="fs-4 fw-bold me-2">{{ bag_links_count }}</span>
+                            <span class="fs-4 fw-bold me-2">{{ bill.linked_parent_count }}</span>
                             <span class="text-muted">of</span>
                             <span class="fs-4 fw-bold ms-2">{{ bill.parent_bag_count }}</span>
+                            {% if bill.linked_parent_count >= bill.parent_bag_count %}
+                                <span class="badge bg-success ms-2">At Capacity</span>
+                            {% else %}
+                                <span class="text-muted ms-2">({{ bill.parent_bag_count - bill.linked_parent_count }} remaining)</span>
+                            {% endif %}
                         </div>
                         <div class="progress" style="height: 10px;">
-                            <div class="progress-bar {% if bag_links_count == bill.parent_bag_count %}bg-success{% else %}bg-warning{% endif %}" 
-                                 style="width: {{ (bag_links_count / bill.parent_bag_count * 100) if bill.parent_bag_count > 0 else 0 }}%"></div>
+                            {% set capacity_pct = ((bill.linked_parent_count / bill.parent_bag_count) * 100) if bill.parent_bag_count > 0 else 0 %}
+                            <div class="progress-bar {% if capacity_pct >= 100 %}bg-success{% else %}bg-warning{% endif %}" 
+                                 style="width: {{ capacity_pct|min(100) }}%"></div>
                         </div>
                     </div>
                     
@@ -98,30 +106,30 @@
                     </div>
                     
                     <div class="d-grid gap-2 mt-4">
-                        {% if bag_links_count < bill.parent_bag_count %}
+                        {% if bill.linked_parent_count < bill.parent_bag_count %}
                             {% if current_user.is_admin() or current_user.can_edit_bills() %}
                             <a href="{{ url_for('scan_bill_parent', bill_id=bill.id) }}" class="btn btn-primary">
-                                <i class="fas fa-qrcode me-2"></i>Add Parent Bags ({{ bill.parent_bag_count - bag_links_count }} remaining)
+                                <i class="fas fa-qrcode me-2"></i>Add Parent Bags ({{ bill.parent_bag_count - bill.linked_parent_count }} remaining)
                             </a>
                             {% endif %}
-                        {% elif bag_links_count == bill.parent_bag_count %}
+                        {% elif bill.linked_parent_count >= bill.parent_bag_count %}
                             <div class="alert alert-success mb-2">
-                                <i class="fas fa-check-circle me-2"></i>Bill is complete with all required parent bags!
+                                <i class="fas fa-check-circle me-2"></i>Bill is at capacity with {{ bill.linked_parent_count }} parent bags!
                             </div>
-                            {% if bill.status == 'completed' and (current_user.is_admin() or current_user.can_edit_bills()) %}
+                            {% if (bill.status == 'completed' or bill.status == 'at_capacity') and (current_user.is_admin() or current_user.can_edit_bills()) %}
                             <button type="button" class="btn btn-outline-warning" onclick="reopenBill({{ bill.id }})">
                                 <i class="fas fa-unlock me-2"></i>Reopen Bill
                             </button>
                             <small class="text-muted d-block mt-2">
-                                <i class="fas fa-info-circle me-1"></i>Reopening allows adding/removing parent bags. Use Edit to change bill details.
+                                <i class="fas fa-info-circle me-1"></i>Reopening allows adding/removing parent bags. Use Edit to change capacity.
                             </small>
                             {% endif %}
                         {% endif %}
                         
-                        {% if bag_links_count > bill.parent_bag_count %}
+                        {% if bill.linked_parent_count > bill.parent_bag_count %}
                             <div class="alert alert-warning mb-2">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
-                                Too many bags! This bill should have {{ bill.parent_bag_count }} bags but has {{ bag_links_count }}.
+                                Over capacity! This bill has {{ bill.linked_parent_count }} bags but capacity is {{ bill.parent_bag_count }}. Consider increasing capacity.
                             </div>
                         {% endif %}
                     </div>

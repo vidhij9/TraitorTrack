@@ -4940,29 +4940,46 @@ def edit_bill(bill_id):
             
             description = request.form.get('description', '').strip()
             parent_bag_count = request.form.get('parent_bag_count', type=int)
+            new_status = request.form.get('status', '').strip()
             
             # Store original values for comparison
             original_description = bill.description
             original_count = bill.parent_bag_count
+            original_status = bill.status
+            capacity_changed = False
             
             # Always update description (can be empty)
             bill.description = description
             
-            # FIX: Validate parent bag count against existing links
+            # Validate and update parent bag count (capacity)
             if parent_bag_count and parent_bag_count > 0:
                 # Check if new count is less than existing linked bags
-                current_linked_count = BillBag.query.filter_by(bill_id=bill.id).count()
-                if parent_bag_count < current_linked_count:
-                    flash(f'Cannot set capacity to {parent_bag_count}. Bill already has {current_linked_count} linked bags.', 'error')
+                if parent_bag_count < bill.linked_parent_count:
+                    flash(f'Cannot set capacity to {parent_bag_count}. Bill already has {bill.linked_parent_count} linked bags.', 'error')
                     return redirect(url_for('edit_bill', bill_id=bill_id))
-                if parent_bag_count > 100:
-                    flash('Maximum capacity is 100 parent bags.', 'error')
+                if parent_bag_count > 500:
+                    flash('Maximum capacity is 500 parent bags.', 'error')
                     return redirect(url_for('edit_bill', bill_id=bill_id))
-                bill.parent_bag_count = parent_bag_count
+                if parent_bag_count != original_count:
+                    bill.parent_bag_count = parent_bag_count
+                    capacity_changed = True
+            
+            # Handle manual status changes (allow reopening or completing)
+            if new_status and new_status in ['new', 'processing', 'completed', 'at_capacity']:
+                if new_status != original_status:
+                    bill.status = new_status
+                    app.logger.info(f'Bill {bill_id} status manually changed from {original_status} to {new_status}')
             
             # Check if anything actually changed
-            if bill.description != original_description or bill.parent_bag_count != original_count:
+            if bill.description != original_description or bill.parent_bag_count != original_count or bill.status != original_status:
                 db.session.commit()
+                
+                # CRITICAL: Recalculate weights after capacity change (may trigger auto-close/reopen)
+                if capacity_changed:
+                    actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
+                    db.session.commit()
+                    app.logger.info(f'Bill {bill_id} recalculated after capacity change: {bill.linked_parent_count}/{bill.parent_bag_count}, status: {bill.status}')
+                
                 app.logger.info(f'Bill {bill_id} updated successfully')
                 flash('Bill updated successfully!', 'success')
             else:
@@ -5022,10 +5039,18 @@ def remove_bag_from_bill():
         if bill_bag:
             # FIX: Add audit log for removal
             app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) removed bag {parent_bag.qr_id} from bill ID {bill_id}')
+            removed_child_count = parent_bag.child_count or 0  # Get child count before removal
             db.session.delete(bill_bag)
             db.session.commit()
+            
+            # CRITICAL: Recalculate weights after removing bag
+            actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
+            db.session.commit()
+            app.logger.info(f'Bill {bill.bill_id} recalculated after bag removal: {bill.linked_parent_count}/{bill.parent_bag_count}')
+            
             flash(f'Parent bag {parent_qr} removed from bill successfully.', 'success')
         else:
+            removed_child_count = 0
             flash('Bag link not found.', 'error')
         
         # Check if this is an AJAX request
@@ -5033,15 +5058,15 @@ def remove_bag_from_bill():
         
         if is_ajax:
             # For AJAX requests, return JSON with removed child count for weight tracking
-            current_bag_count = BillBag.query.filter_by(bill_id=bill_id).count()
-            bill = Bill.query.get(bill_id)
-            removed_child_count = parent_bag.child_count or 0  # Get child count from removed parent bag
             return jsonify({
                 'success': True, 
                 'message': f'Parent bag {parent_qr} removed successfully.',
-                'linked_count': current_bag_count,
-                'expected_count': bill.parent_bag_count or 10 if bill else 10,
-                'removed_child_count': removed_child_count  # Return for weight tracking
+                'linked_count': bill.linked_parent_count,
+                'expected_count': bill.parent_bag_count,
+                'removed_child_count': removed_child_count,
+                'remaining_capacity': bill.remaining_capacity(),
+                'total_weight': bill.total_weight_kg,
+                'bill_status': bill.status
             })
         else:
             # For normal form submissions, redirect back to scan page

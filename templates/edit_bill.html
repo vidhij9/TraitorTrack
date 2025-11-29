@@ -7,12 +7,38 @@
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header bg-warning bg-opacity-25">
                     <h3 class="mb-0">
                         <i class="fas fa-edit me-2"></i>Edit Bill: {{ bill.bill_id }}
                     </h3>
                 </div>
                 <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <div class="row">
+                            <div class="col-md-4 text-center border-end">
+                                <small class="text-muted d-block">Linked Parent Bags</small>
+                                <span class="fs-3 fw-bold">{{ bill.linked_parent_count }}/{{ bill.parent_bag_count }}</span>
+                            </div>
+                            <div class="col-md-4 text-center border-end">
+                                <small class="text-muted d-block">Total Child Bags</small>
+                                <span class="fs-3 fw-bold text-info">{{ bill.total_child_bags or 0 }}</span>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <small class="text-muted d-block">Actual Weight</small>
+                                <span class="fs-3 fw-bold text-success">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</span>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 10px;">
+                            {% set capacity_pct = ((bill.linked_parent_count / bill.parent_bag_count) * 100) if bill.parent_bag_count > 0 else 0 %}
+                            <div class="progress-bar {% if capacity_pct >= 100 %}bg-success{% elif capacity_pct >= 50 %}bg-warning{% else %}bg-info{% endif %}" 
+                                 style="width: {{ capacity_pct|min(100) }}%"></div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Weight = {{ bill.total_child_bags or 0 }} child bags × 1kg per bag
+                        </small>
+                    </div>
+
                     <form method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         
@@ -27,21 +53,59 @@
                             <textarea class="form-control wh-input" id="description" name="description" rows="3" placeholder="Enter bill description">{{ bill.description or '' }}</textarea>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="parent_bag_count" class="form-label wh-label">Expected Parent Bags</label>
-                            <input type="number" class="form-control wh-input" id="parent_bag_count" name="parent_bag_count" value="{{ bill.parent_bag_count or 1 }}" min="1">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="parent_bag_count" class="form-label wh-label">
+                                    <i class="fas fa-boxes me-1"></i>Expected Parent Bags (Capacity)
+                                </label>
+                                <input type="number" class="form-control wh-input" id="parent_bag_count" name="parent_bag_count" 
+                                       value="{{ bill.parent_bag_count or 1 }}" min="{{ bill.linked_parent_count }}" max="500">
+                                <small class="form-text text-muted">
+                                    Min: {{ bill.linked_parent_count }} (already linked), Max: 500
+                                </small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="status" class="form-label wh-label">
+                                    <i class="fas fa-flag me-1"></i>Status
+                                </label>
+                                <select class="form-select wh-input" id="status" name="status">
+                                    <option value="new" {% if bill.status == 'new' %}selected{% endif %}>New</option>
+                                    <option value="processing" {% if bill.status == 'processing' %}selected{% endif %}>Processing</option>
+                                    <option value="at_capacity" {% if bill.status == 'at_capacity' %}selected{% endif %}>At Capacity</option>
+                                    <option value="completed" {% if bill.status == 'completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    Status auto-updates when capacity is reached. Manual override available.
+                                </small>
+                            </div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label class="form-label wh-label">Current Status</label>
-                            <p class="form-control-plaintext">
-                                <span class="badge bg-{{ 'success' if bill.status == 'completed' else 'warning' }}">
-                                    {{ bill.status.title() }}
-                                </span>
-                            </p>
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-calculator me-2"></i>Weight Summary</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small class="text-muted">Actual Weight (1kg × child bags):</small>
+                                        <p class="mb-1 fw-bold text-success">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">Expected Weight (30kg × capacity):</small>
+                                        <p class="mb-1 fw-bold text-info">{{ "%.1f"|format(bill.expected_weight_kg or 0) }} kg</p>
+                                    </div>
+                                </div>
+                                {% if bill.expected_weight_kg and bill.total_weight_kg %}
+                                <small class="text-muted">
+                                    Difference: 
+                                    <span class="fw-bold {% if bill.total_weight_kg < bill.expected_weight_kg %}text-warning{% else %}text-success{% endif %}">
+                                        {{ "%.1f"|format(bill.total_weight_kg - bill.expected_weight_kg) }} kg
+                                    </span>
+                                </small>
+                                {% endif %}
+                            </div>
                         </div>
                         
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
                             <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-secondary wh-btn">
                                 <i class="fas fa-times me-1"></i>Cancel
                             </a>
