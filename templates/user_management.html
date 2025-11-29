@@ -250,7 +250,7 @@
             </div>
         </div>
         <div class="card-footer py-1 text-muted small">
-            <i class="fas fa-info-circle"></i> Auto-refreshes every 30 seconds | Last updated: <span id="lastUpdated">Just now</span>
+            <i class="fas fa-info-circle"></i> Last updated: <span id="lastUpdated">Just now</span>
         </div>
     </div>
 </div>
@@ -749,8 +749,8 @@ window.addEventListener('load', function() {
     // Update last updated time every second
     setInterval(updateLastUpdatedTime, 1000);
     
-    // Auto-refresh data every 30 seconds
-    updateInterval = setInterval(refreshUserData, 30000);
+    // Manual refresh only - removed auto-refresh to prevent disruptive page reloads
+    // Use the refresh button to update data when needed
 });
 
 // Add pulse animation style
@@ -805,9 +805,21 @@ document.head.appendChild(style);
                         </select>
                         <small class="form-text text-muted">User's access level</small>
                     </div>
-                    <div class="mb-3" id="dispatchAreaField">
+                    <div class="mb-3" id="dispatch-area-container">
                         <label for="dispatch_area" class="form-label">Dispatch Area <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="dispatch_area" name="dispatch_area" placeholder="e.g., North, South, East, West">
+                        <select class="form-select" id="dispatch_area" name="dispatch_area">
+                            <option value="">Select Area</option>
+                            <option value="lucknow">Lucknow</option>
+                            <option value="indore">Indore</option>
+                            <option value="jaipur">Jaipur</option>
+                            <option value="hisar">Hisar</option>
+                            <option value="sri_ganganagar">Sri Ganganagar</option>
+                            <option value="sangaria">Sangaria</option>
+                            <option value="bathinda">Bathinda</option>
+                            <option value="raipur">Raipur</option>
+                            <option value="ranchi">Ranchi</option>
+                            <option value="akola">Akola</option>
+                        </select>
                         <small class="form-text text-muted">Required for dispatchers</small>
                     </div>
                 </div>
@@ -822,25 +834,4 @@ document.head.appendChild(style);
     </div>
 </div>
 
-<script>
-function toggleDispatchArea() {
-    const role = document.getElementById('role').value;
-    const dispatchAreaField = document.getElementById('dispatchAreaField');
-    const dispatchAreaInput = document.getElementById('dispatch_area');
-    
-    if (role === 'dispatcher') {
-        dispatchAreaField.style.display = 'block';
-        dispatchAreaInput.required = true;
-    } else {
-        dispatchAreaField.style.display = 'none';
-        dispatchAreaInput.required = false;
-        dispatchAreaInput.value = '';
-    }
-}
-
-// Initialize on load
-document.addEventListener('DOMContentLoaded', function() {
-    toggleDispatchArea();
-});
-</script>
 {% endblock %}
