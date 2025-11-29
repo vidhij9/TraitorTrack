@@ -124,10 +124,15 @@ The project utilizes a standard Flask application structure, organizing code int
 7. **Parent Bag Capacity Tracking System**: Added comprehensive capacity tracking for bills with progressive linking:
    - **Capacity Fields**: Bill model includes `linked_parent_count` (current), `parent_bag_count` (capacity), `total_weight_kg`, `expected_weight_kg`, `total_child_bags`
    - **Progressive Linking**: Each parent bag scan immediately commits to the database; if 10/500 scanned, those 10 are saved
-   - **Auto-Close**: Bills automatically set status to `at_capacity` when `linked_parent_count` reaches `parent_bag_count`
-   - **Weight Calculation**: Actual weight = total child bags × 1kg; Expected weight = capacity × 30kg per parent bag
+   - **Auto-Complete**: Bills automatically set status to `completed` when `linked_parent_count` reaches `parent_bag_count`
+   - **Simplified Status Lifecycle**: Three states only: `new` → `processing` → `completed` (removed confusing "at_capacity" state)
+   - **Type-Specific Weight Calculation**: Expected weight calculated per parent bag type:
+     - **SB prefix bags**: 30kg expected weight, max 30 child bags
+     - **Mxxx-xx pattern bags**: 15kg expected weight, max 15 child bags
+     - Mixed bag types in same bill are calculated individually and summed
    - **Edit Bill**: Full edit capability for capacity, status, and description with server-side validation
-   - **Status Management**: Manual status override available (new, processing, at_capacity, completed)
+   - **Status Management**: Manual status override available (new, processing, completed)
    - **Capacity Validation**: Cannot reduce capacity below already linked count; maximum 500 parent bags
    - **Recalculation**: Weights and linked counts recalculate after any capacity or status change
    - **Database Migration**: Migration `f2g3h4i5j6k7` adds `linked_parent_count` column with default 0
+   - **Mobile-First UI**: View and edit bill pages use single-column stacking on mobile, larger touch targets, separate mobile card layout vs desktop tables
