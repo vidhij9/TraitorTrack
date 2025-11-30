@@ -84,25 +84,14 @@
                             {% endif %}
                         </div>
                         
-                        <!-- Weight Tracking Section -->
-                        <div class="weight-tracking mt-3 p-3 rounded" style="background: #fff3cd; border: 1px solid #ffc107;">
-                            <div class="row text-center">
-                                <div class="col-6">
-                                    <h6 class="mb-1"><i class="fas fa-balance-scale me-1"></i>Current Weight</h6>
-                                    <p class="mb-0 fw-bold fs-5 text-success" id="current-weight">
-                                        {% set total_children = linked_bags|sum(attribute='child_count') if linked_bags else 0 %}
-                                        {{ total_children }} kg
-                                    </p>
-                                    <small class="text-muted">(1 kg per child bag)</small>
-                                </div>
-                                <div class="col-6">
-                                    <h6 class="mb-1"><i class="fas fa-bullseye me-1"></i>Expected Weight</h6>
-                                    <p class="mb-0 fw-bold fs-5 text-primary" id="expected-weight">
-                                        {{ (linked_bags|length * 30) }} kg
-                                    </p>
-                                    <small class="text-muted">(30 kg per parent bag)</small>
-                                </div>
-                            </div>
+                        <!-- Weight Tracking Section - Only Current Weight -->
+                        <div class="weight-tracking mt-3 p-3 rounded text-center" style="background: #d4edda; border: 1px solid #28a745;">
+                            <h6 class="mb-1"><i class="fas fa-balance-scale me-1"></i>Current Weight</h6>
+                            <p class="mb-0 fw-bold fs-3 text-success" id="current-weight">
+                                {% set total_children = linked_bags|sum(attribute='child_count') if linked_bags else 0 %}
+                                {{ total_children }} kg
+                            </p>
+                            <small class="text-muted">(1 kg per child bag)</small>
                         </div>
                     </div>
 
@@ -253,19 +242,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Weight tracking variables
     let currentWeight = {{ linked_bags|sum(attribute='child_count') if linked_bags else 0 }};
     const currentWeightEl = document.getElementById('current-weight');
-    const expectedWeightEl = document.getElementById('expected-weight');
     
     // Update weight display
-    function updateWeightDisplay(bagCount, addedChildCount = 0) {
+    function updateWeightDisplay(addedChildCount = 0) {
         // Update current weight (add child count if provided)
         currentWeight += addedChildCount;
         if (currentWeightEl) {
             currentWeightEl.textContent = `${currentWeight} kg`;
-        }
-        
-        // Update expected weight (30kg per parent bag)
-        if (expectedWeightEl) {
-            expectedWeightEl.textContent = `${bagCount * 30} kg`;
         }
     }
     
@@ -379,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateProgress(currentCount);
                 
                 // Update weight tracking
-                updateWeightDisplay(currentCount, childCount);
+                updateWeightDisplay(childCount);
                 
                 // Show success message and auto-focus for next scan
                 const successMsg = document.getElementById('success-message');
@@ -390,10 +373,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                 }
                 
-                // Check if bill is complete
+                // Check if bill is at capacity
                 if (targetCount > 0 && currentCount >= targetCount) {
-                    showToast('✅ Bill complete! All parent bags linked.', 'success');
-                    updateStatus('Bill complete!', 'check-circle', '#28a745');
+                    showToast('✅ All parent bags linked! You can complete the bill now.', 'success');
+                    updateStatus('At capacity! Ready to complete', 'check-circle', '#28a745');
                     scannerInput.focus();
                 } else {
                     // Auto-continue: clear input and ready for next scan
@@ -482,7 +465,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update weight tracking using server-returned child count
                 const removedChildCount = data.removed_child_count || 0;
                 currentWeight -= removedChildCount;
-                updateWeightDisplay(currentCount, 0);
+                updateWeightDisplay(0);
             } else {
                 showToast(data.message || 'Error removing bag', 'error');
             }

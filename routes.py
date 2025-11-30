@@ -181,41 +181,30 @@ from models import (
 @app.route('/api/bill/<int:bill_id>/weights')
 @login_required
 def api_bill_weights(bill_id):
-    """Get real-time weight information for a bill with type-aware expected weights"""
-    from models import get_parent_bag_specs
+    """Get real-time weight information for a bill - returns current total weight only"""
     try:
         bill = Bill.query.get_or_404(bill_id)
         
-        # Get parent bags with their QR IDs for type-aware weight calculation
-        parent_bags = db.session.execute(
+        # Get total child count (1kg per child = total weight)
+        result = db.session.execute(
             text("""
-                SELECT b.qr_id,
-                       (SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id) as child_count
+                SELECT 
+                    COUNT(DISTINCT bb.bag_id) as parent_count,
+                    COALESCE(SUM((SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id)), 0) as total_children
                 FROM bill_bag bb
                 JOIN bag b ON bb.bag_id = b.id
                 WHERE bb.bill_id = :bill_id
             """),
             {'bill_id': bill_id}
-        ).fetchall()
+        ).fetchone()
         
-        # Calculate actual weight (1kg per child) and expected weight (by bag type)
-        actual_weight = 0
-        expected_weight = 0.0
-        parent_count = len(parent_bags)
-        
-        for row in parent_bags:
-            qr_id = row[0]
-            child_count = int(row[1]) if row[1] else 0
-            actual_weight += child_count
-            
-            # Get expected weight based on bag type (SB=30kg, Mxxx-xx=15kg)
-            bag_expected_weight, max_children = get_parent_bag_specs(qr_id)
-            expected_weight += bag_expected_weight
+        parent_count = int(result[0]) if result else 0
+        total_children = int(result[1]) if result else 0
         
         return jsonify({
-            'actual_weight': float(actual_weight),
-            'expected_weight': float(expected_weight),
-            'parent_bags': parent_count
+            'total_weight': float(total_children),
+            'parent_bags': parent_count,
+            'child_bags': total_children
         })
     except Exception as e:
         app.logger.error(f'Error fetching bill weights: {str(e)}')

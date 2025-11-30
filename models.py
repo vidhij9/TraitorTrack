@@ -443,14 +443,15 @@ class Bill(db.Model):
         self.expected_weight_kg = expected_weight
         self.total_child_bags = child_count
         
-        # Auto-complete if capacity is reached (use 'completed', not 'at_capacity')
+        # Check if at capacity (for informational purposes only)
         is_full = parent_count >= self.parent_bag_count
-        if auto_close and is_full and self.status != 'completed':
-            self.status = 'completed'
         
-        # If we had capacity but now don't (e.g., after removing bags), reopen
-        if not is_full and self.status == 'completed':
-            self.status = 'processing' if parent_count > 0 else 'new'
+        # DO NOT auto-complete bills - status is only changed manually by user
+        # Update status to 'processing' only if bags are linked and status is still 'new'
+        if parent_count > 0 and self.status == 'new':
+            self.status = 'processing'
+        elif parent_count == 0 and self.status == 'processing':
+            self.status = 'new'
         
         # Advisory lock automatically released when transaction commits/rolls back
         return (actual_weight, expected_weight, parent_count, child_count, is_full)

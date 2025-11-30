@@ -24,7 +24,7 @@
                                 <span class="fs-5 fs-md-3 fw-bold text-info">{{ bill.total_child_bags or 0 }}</span>
                             </div>
                             <div class="col-4 text-center">
-                                <small class="text-muted d-block" style="font-size: 0.7rem;">Actual Weight</small>
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">Total Weight</small>
                                 <span class="fs-5 fs-md-3 fw-bold text-success">{{ "%.1f"|format(bill.total_weight_kg or 0) }}kg</span>
                             </div>
                         </div>
@@ -67,11 +67,11 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="status" name="status">
                                     <option value="new" {% if bill.status == 'new' %}selected{% endif %}>New</option>
-                                    <option value="processing" {% if bill.status == 'processing' or bill.status == 'at_capacity' %}selected{% endif %}>Processing</option>
+                                    <option value="processing" {% if bill.status == 'processing' %}selected{% endif %}>Processing</option>
                                     <option value="completed" {% if bill.status == 'completed' %}selected{% endif %}>Completed</option>
                                 </select>
                                 <small class="form-text text-muted" style="font-size: 0.7rem;">
-                                    Auto-completes at capacity
+                                    Set manually when ready
                                 </small>
                             </div>
                         </div>
@@ -79,25 +79,11 @@
                         <div class="card bg-light mt-3 mb-3">
                             <div class="card-body p-2 p-md-3">
                                 <h6 class="card-title mb-2" style="font-size: 0.9rem;"><i class="fas fa-calculator me-2"></i>Weight Summary</h6>
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Actual (1kg × child bags):</small>
-                                        <p class="mb-0 fw-bold text-success">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</p>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Expected (by bag type):</small>
-                                        <p class="mb-0 fw-bold text-info">{{ "%.1f"|format(bill.expected_weight_kg or 0) }} kg</p>
-                                    </div>
+                                <div class="text-center">
+                                    <small class="text-muted d-block">Total Weight (1kg × child bags):</small>
+                                    <p class="mb-0 fw-bold text-success fs-4">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</p>
+                                    <small class="text-muted">{{ bill.total_child_bags or 0 }} child bags linked</small>
                                 </div>
-                                {% if bill.expected_weight_kg and bill.total_weight_kg %}
-                                <div class="mt-2 pt-2 border-top">
-                                    <small class="text-muted">Difference: 
-                                        <span class="fw-bold {% if bill.total_weight_kg < bill.expected_weight_kg %}text-warning{% else %}text-success{% endif %}">
-                                            {{ "%.1f"|format(bill.total_weight_kg - bill.expected_weight_kg) }} kg
-                                        </span>
-                                    </small>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
                         

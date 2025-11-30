@@ -65,7 +65,7 @@
                         <div class="d-flex align-items-center gap-2">
                             <span class="fs-5 fw-bold">{{ bill.linked_parent_count }}/{{ bill.parent_bag_count }}</span>
                             {% if bill.linked_parent_count >= bill.parent_bag_count %}
-                                <span class="badge bg-success">Complete</span>
+                                <span class="badge bg-success">At Capacity</span>
                             {% else %}
                                 <span class="text-muted">({{ bill.parent_bag_count - bill.linked_parent_count }} left)</span>
                             {% endif %}
@@ -78,36 +78,22 @@
                         </div>
                     </div>
                     
-                    <div class="row g-2 mt-2 pt-2 border-top">
-                        <div class="col-6">
-                            <small class="text-muted d-block">Actual Weight</small>
-                            <span class="fw-bold text-primary">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</span>
-                        </div>
-                        <div class="col-6">
-                            <small class="text-muted d-block">Expected Weight</small>
-                            <span class="fw-bold text-info">{{ "%.1f"|format(bill.expected_weight_kg or 0) }} kg</span>
-                        </div>
+                    <div class="mt-2 pt-2 border-top">
+                        <small class="text-muted d-block">Total Weight</small>
+                        <span class="fs-4 fw-bold text-primary">{{ "%.1f"|format(bill.total_weight_kg or 0) }} kg</span>
+                        <small class="text-muted d-block">({{ bill.total_child_bags or 0 }} child bags × 1kg)</small>
                     </div>
-                    {% if bill.expected_weight_kg and bill.total_weight_kg %}
-                    <div class="mt-1">
-                        <small class="text-muted">Diff: 
-                            <span class="fw-bold {% if bill.total_weight_kg < bill.expected_weight_kg %}text-warning{% else %}text-success{% endif %}">
-                                {{ "%.1f"|format(bill.total_weight_kg - bill.expected_weight_kg) }} kg
-                            </span>
-                        </small>
-                    </div>
-                    {% endif %}
                     
                     <div class="d-grid gap-2 mt-3">
-                        {% if bill.linked_parent_count < bill.parent_bag_count and bill.status != 'completed' %}
+                        {% if bill.status != 'completed' %}
                             {% if current_user.is_admin() or current_user.can_edit_bills() %}
                             <a href="{{ url_for('scan_bill_parent', bill_id=bill.id) }}" class="btn btn-success btn-lg">
                                 <i class="fas fa-qrcode me-2"></i>Add Parent Bags
                             </a>
                             {% endif %}
-                        {% elif bill.linked_parent_count >= bill.parent_bag_count %}
+                        {% else %}
                             <div class="alert alert-success mb-0 py-2 text-center">
-                                <i class="fas fa-check-circle me-2"></i>At capacity!
+                                <i class="fas fa-check-circle me-2"></i>Bill Completed
                             </div>
                         {% endif %}
                     </div>
@@ -129,12 +115,6 @@
                                     <div>
                                         <span class="badge bg-primary me-1">Parent</span>
                                         <span class="fw-bold">{{ parent_bag_data.parent_bag.qr_id }}</span>
-                                        {% set bag_specs = get_parent_bag_specs(parent_bag_data.parent_bag.qr_id) if get_parent_bag_specs else (30, 30) %}
-                                        {% if parent_bag_data.parent_bag.qr_id and parent_bag_data.parent_bag.qr_id.upper().startswith('M') %}
-                                        <span class="badge bg-secondary ms-1">15kg</span>
-                                        {% else %}
-                                        <span class="badge bg-info ms-1">30kg</span>
-                                        {% endif %}
                                     </div>
                                     <span class="badge {% if parent_bag_data.child_count > 0 %}bg-info{% else %}bg-warning{% endif %} fs-6">
                                         {{ parent_bag_data.child_count }} children
@@ -172,7 +152,6 @@
                                 <thead>
                                     <tr>
                                         <th>QR Code</th>
-                                        <th>Type</th>
                                         <th>Child Bags</th>
                                         <th>Created</th>
                                         <th>Actions</th>
@@ -184,13 +163,6 @@
                                             <td>
                                                 <span class="badge bg-primary me-1">Parent</span>
                                                 <span class="fw-bold">{{ parent_bag_data.parent_bag.qr_id }}</span>
-                                            </td>
-                                            <td>
-                                                {% if parent_bag_data.parent_bag.qr_id and parent_bag_data.parent_bag.qr_id.upper().startswith('M') %}
-                                                <span class="badge bg-secondary">15kg/15max</span>
-                                                {% else %}
-                                                <span class="badge bg-info">30kg/30max</span>
-                                                {% endif %}
                                             </td>
                                             <td>
                                                 <span class="badge {% if parent_bag_data.child_count > 0 %}bg-info{% else %}bg-warning{% endif %}">
@@ -212,7 +184,7 @@
                                             </td>
                                         </tr>
                                         <tr class="collapse" id="children-{{ loop.index }}">
-                                            <td colspan="5" class="bg-light p-2">
+                                            <td colspan="4" class="bg-light p-2">
                                                 {% if parent_bag_data.child_bags %}
                                                     <div class="d-flex flex-wrap gap-1">
                                                         {% for child_bag in parent_bag_data.child_bags %}
@@ -272,12 +244,4 @@
     </div>
 </div>
 {% endfor %}
-
-<script>
-function reopenBill(billId) {
-    if (confirm('Are you sure you want to reopen this bill?')) {
-        window.location.href = '{{ url_for("edit_bill", bill_id=0) }}'.replace('0', billId);
-    }
-}
-</script>
 {% endblock %}
