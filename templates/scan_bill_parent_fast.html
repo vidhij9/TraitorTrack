@@ -175,9 +175,27 @@
                             <button id="scan-next-btn" class="wh-btn wh-btn-primary wh-btn-lg wh-btn-block" onclick="focusScanner()">
                                 <i class="fas fa-qrcode wh-icon"></i>Scan Next Parent Bag
                             </button>
-                            <button id="complete-bill-btn" class="wh-btn wh-btn-success wh-btn-lg wh-btn-block" onclick="completeBill()">
+                            
+                            <!-- Complete Bill button - only shown when capacity is reached -->
+                            <button id="complete-bill-btn" class="wh-btn wh-btn-success wh-btn-lg wh-btn-block" onclick="completeBill()" 
+                                    style="display: {% if linked_bags|length >= bill.parent_bag_count %}block{% else %}none{% endif %};">
                                 <i class="fas fa-check-circle wh-icon"></i>Complete Bill
                             </button>
+                            
+                            <!-- Keep in Progress button - shown when capacity is NOT reached -->
+                            <button id="keep-progress-btn" class="wh-btn wh-btn-warning wh-btn-lg wh-btn-block" onclick="keepInProgress()"
+                                    style="display: {% if linked_bags|length < bill.parent_bag_count %}block{% else %}none{% endif %};">
+                                <i class="fas fa-clock wh-icon"></i>Save & Continue Later
+                            </button>
+                            
+                            <!-- Capacity remaining indicator -->
+                            <div id="capacity-info" class="text-center py-2" style="display: {% if linked_bags|length < bill.parent_bag_count %}block{% else %}none{% endif %};">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span id="remaining-count">{{ bill.parent_bag_count - linked_bags|length }}</span> more bags needed to complete
+                                </small>
+                            </div>
+                            
                             <a href="{{ url_for('bill_management') }}" class="wh-btn wh-btn-outline wh-btn-block">
                                 <i class="fas fa-arrow-left wh-icon"></i>Back to Bills
                             </a>
@@ -301,6 +319,32 @@ document.addEventListener('DOMContentLoaded', function() {
         const scanChildrenBtn = document.getElementById('scan-children-btn');
         if (scanChildrenBtn) {
             scanChildrenBtn.disabled = currentCount === 0;
+        }
+        
+        // Update button visibility based on capacity
+        updateButtonVisibility(currentCount);
+    }
+    
+    // Update buttons based on whether capacity is reached
+    function updateButtonVisibility(currentCount) {
+        const completeBtn = document.getElementById('complete-bill-btn');
+        const keepProgressBtn = document.getElementById('keep-progress-btn');
+        const capacityInfo = document.getElementById('capacity-info');
+        const remainingCount = document.getElementById('remaining-count');
+        
+        const isAtCapacity = targetCount > 0 && currentCount >= targetCount;
+        
+        if (completeBtn) {
+            completeBtn.style.display = isAtCapacity ? 'block' : 'none';
+        }
+        if (keepProgressBtn) {
+            keepProgressBtn.style.display = isAtCapacity ? 'none' : 'block';
+        }
+        if (capacityInfo) {
+            capacityInfo.style.display = isAtCapacity ? 'none' : 'block';
+        }
+        if (remainingCount) {
+            remainingCount.textContent = Math.max(0, targetCount - currentCount);
         }
     }
     
@@ -484,12 +528,18 @@ document.addEventListener('DOMContentLoaded', function() {
         showToast('Scanner ready for next parent bag', 'info');
     };
     
-    // Complete bill function
+    // Complete bill function - only allowed when capacity is reached
     window.completeBill = function() {
         const currentCount = parseInt(bagCount.textContent);
         
         if (currentCount === 0) {
             showToast('Please link at least one parent bag before completing the bill.', 'warning');
+            return;
+        }
+        
+        // Double-check capacity is met
+        if (targetCount > 0 && currentCount < targetCount) {
+            showToast(`Cannot complete: ${targetCount - currentCount} more bags needed to reach capacity.`, 'warning');
             return;
         }
         
@@ -518,6 +568,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 showToast('Network error while completing bill', 'error');
             });
         }
+    };
+    
+    // Save & Continue Later - keeps bill in progress
+    window.keepInProgress = function() {
+        const currentCount = parseInt(bagCount.textContent);
+        const remaining = targetCount - currentCount;
+        
+        showToast(`Progress saved! ${currentCount} bags linked, ${remaining} more needed.`, 'info');
+        
+        // Navigate back to bills after a short delay
+        setTimeout(() => {
+            window.location.href = '/bills';
+        }, 1500);
     };
     
     // Ensure input is focused on page load

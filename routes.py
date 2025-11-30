@@ -5122,10 +5122,10 @@ def scan_bill_parent(bill_id):
 @app.route('/complete_bill', methods=['POST'])
 @login_required
 def complete_bill():
-    """Complete a bill - flexible completion with any number of linked bags
+    """Complete a bill - ONLY allowed when capacity is reached
     
-    Changed from strict requirement: Now allows completing with any count >= 1
-    The expected count is just a target/estimate, not a hard requirement.
+    Bills can only be completed when linked_parent_count >= parent_bag_count.
+    Use 'Save & Continue Later' to keep bill in progress if capacity not met.
     """
     if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
@@ -5154,6 +5154,18 @@ def complete_bill():
                 'success': False,
                 'message': 'Cannot complete bill with no parent bags linked. Please scan at least one parent bag first.',
                 'show_popup': True
+            })
+        
+        # ENFORCE CAPACITY: Cannot complete unless capacity is reached
+        target_count = bill.parent_bag_count or 0
+        if target_count > 0 and linked_count < target_count:
+            remaining = target_count - linked_count
+            return jsonify({
+                'success': False,
+                'message': f'Cannot complete: {remaining} more parent bags needed to reach capacity ({linked_count}/{target_count}).',
+                'show_popup': True,
+                'linked_count': linked_count,
+                'target_count': target_count
             })
         
         # Calculate actual weight from linked parent bags' child counts
