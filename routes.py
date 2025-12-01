@@ -4397,20 +4397,29 @@ def bill_management():
                 
                 # Single query for ALL bill-bag counts using ORM
                 from sqlalchemy import func
-                bill_bag_counts = db.session.query(
-                    BillBag.bill_id,
-                    func.count(BillBag.bag_id).label('parent_count')
-                ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
-                parent_count_dict = {bc.bill_id: bc.parent_count for bc in bill_bag_counts}
+                parent_count_dict = {}
+                child_count_dict = {}
                 
-                # Single query for ALL child bag counts - using ORM (avoids raw SQL ANY syntax issues)
-                child_bag_counts = db.session.query(
-                    BillBag.bill_id,
-                    func.count(func.distinct(Link.child_bag_id)).label('child_count')
-                ).outerjoin(Link, Link.parent_bag_id == BillBag.bag_id
-                ).filter(BillBag.bill_id.in_(bill_ids)
-                ).group_by(BillBag.bill_id).all()
-                child_count_dict = {cc.bill_id: cc.child_count for cc in child_bag_counts}
+                try:
+                    bill_bag_counts = db.session.query(
+                        BillBag.bill_id,
+                        func.count(BillBag.bag_id).label('parent_count')
+                    ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
+                    parent_count_dict = {bc.bill_id: bc.parent_count for bc in bill_bag_counts}
+                except Exception as summary_parent_err:
+                    app.logger.error(f"Summary parent counts query failed: {str(summary_parent_err)}")
+                
+                try:
+                    # Single query for ALL child bag counts - using ORM
+                    child_bag_counts = db.session.query(
+                        BillBag.bill_id,
+                        func.count(func.distinct(Link.child_bag_id)).label('child_count')
+                    ).outerjoin(Link, Link.parent_bag_id == BillBag.bag_id
+                    ).filter(BillBag.bill_id.in_(bill_ids)
+                    ).group_by(BillBag.bill_id).all()
+                    child_count_dict = {cc.bill_id: cc.child_count for cc in child_bag_counts}
+                except Exception as summary_child_err:
+                    app.logger.error(f"Summary child counts query failed: {str(summary_child_err)}")
                 
                 # Single query for ALL users
                 user_ids = [bill.created_by_id for bill in summary_bills if bill.created_by_id]
@@ -4483,20 +4492,28 @@ def bill_management():
             from sqlalchemy import func
             
             # Use ORM query for parent counts (SQLAlchemy handles the IN properly)
-            parent_counts_result = db.session.query(
-                BillBag.bill_id,
-                func.count(BillBag.bag_id).label('count')
-            ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
-            parent_counts = {row.bill_id: row.count for row in parent_counts_result}
+            try:
+                parent_counts_result = db.session.query(
+                    BillBag.bill_id,
+                    func.count(BillBag.bag_id).label('count')
+                ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
+                parent_counts = {row.bill_id: row.count for row in parent_counts_result}
+            except Exception as parent_err:
+                app.logger.error(f"Parent counts query failed: {str(parent_err)}")
+                parent_counts = {}
             
-            # Use ORM query for child counts (avoids raw SQL ANY syntax issues)
-            child_counts_result = db.session.query(
-                BillBag.bill_id,
-                func.count(func.distinct(Link.child_bag_id)).label('count')
-            ).outerjoin(Link, Link.parent_bag_id == BillBag.bag_id
-            ).filter(BillBag.bill_id.in_(bill_ids)
-            ).group_by(BillBag.bill_id).all()
-            child_counts = {row.bill_id: row.count for row in child_counts_result}
+            # Use ORM query for child counts - simplified to avoid join issues
+            try:
+                child_counts_result = db.session.query(
+                    BillBag.bill_id,
+                    func.count(func.distinct(Link.child_bag_id)).label('count')
+                ).outerjoin(Link, Link.parent_bag_id == BillBag.bag_id
+                ).filter(BillBag.bill_id.in_(bill_ids)
+                ).group_by(BillBag.bill_id).all()
+                child_counts = {row.bill_id: row.count for row in child_counts_result}
+            except Exception as child_err:
+                app.logger.error(f"Child counts query failed: {str(child_err)}")
+                child_counts = {}
         
         # Batch load all creators
         creator_ids = [bill.created_by_id for bill in bills_data if bill.created_by_id]
@@ -4539,7 +4556,9 @@ def bill_management():
                              all_users=all_users)
                              
     except Exception as e:
+        import traceback
         app.logger.error(f"Bill management error: {str(e)}")
+        app.logger.error(f"Bill management traceback: {traceback.format_exc()}")
         db.session.rollback()  # Rollback any failed transaction
         
         # Try a simplified version without expected_weight_kg column
@@ -4593,7 +4612,9 @@ def bill_management():
                                  summary_stats=None,
                                  all_users=None)
         except Exception as fallback_error:
+            import traceback
             app.logger.error(f"Bill management fallback error: {str(fallback_error)}")
+            app.logger.error(f"Bill management fallback traceback: {traceback.format_exc()}")
             flash('Error loading bill management. Please contact support.', 'error')
             return redirect(url_for('dashboard'))
 
