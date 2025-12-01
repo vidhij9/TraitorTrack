@@ -4395,7 +4395,7 @@ def bill_management():
                 # ⚡ OPTIMIZED BULK QUERIES - 100x faster than N+1 queries
                 bill_ids = [bill.id for bill in summary_bills]
                 
-                # Single query for ALL bill-bag counts
+                # Single query for ALL bill-bag counts using ORM
                 from sqlalchemy import func
                 bill_bag_counts = db.session.query(
                     BillBag.bill_id,
@@ -4403,7 +4403,7 @@ def bill_management():
                 ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
                 parent_count_dict = {bc.bill_id: bc.parent_count for bc in bill_bag_counts}
                 
-                # Single query for ALL child bag counts - using Link table correctly
+                # Single query for ALL child bag counts - using ANY for PostgreSQL
                 from sqlalchemy import text
                 child_bag_counts = db.session.execute(text("""
                     SELECT bb.bill_id, COUNT(DISTINCT l.child_bag_id) as child_count
@@ -4477,31 +4477,34 @@ def bill_management():
         # Batch load all data to avoid N+1 queries
         bill_ids = [bill.id for bill in bills_data]
         
-        # Single query for all parent counts
-        from sqlalchemy import text
-        parent_counts_result = db.session.execute(
-            text("""
-                SELECT bill_id, COUNT(*) as count 
-                FROM bill_bag 
-                WHERE bill_id = ANY(:bill_ids)
-                GROUP BY bill_id
-            """),
-            {"bill_ids": bill_ids}
-        ).fetchall()
-        parent_counts = {row[0]: row[1] for row in parent_counts_result}
+        # Initialize counts dictionaries
+        parent_counts = {}
+        child_counts = {}
         
-        # Single query for all child counts
-        child_counts_result = db.session.execute(
-            text("""
-                SELECT bb.bill_id, COUNT(DISTINCT l.child_bag_id) as count
-                FROM bill_bag bb
-                LEFT JOIN link l ON l.parent_bag_id = bb.bag_id
-                WHERE bb.bill_id = ANY(:bill_ids)
-                GROUP BY bb.bill_id
-            """),
-            {"bill_ids": bill_ids}
-        ).fetchall()
-        child_counts = {row[0]: row[1] for row in child_counts_result}
+        # Only run batch queries if there are bills
+        if bill_ids:
+            from sqlalchemy import text
+            
+            # Use ORM query for parent counts (SQLAlchemy handles the IN properly)
+            from sqlalchemy import func
+            parent_counts_result = db.session.query(
+                BillBag.bill_id,
+                func.count(BillBag.bag_id).label('count')
+            ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
+            parent_counts = {row.bill_id: row.count for row in parent_counts_result}
+            
+            # For child counts, use raw SQL with proper array casting for PostgreSQL
+            child_counts_result = db.session.execute(
+                text("""
+                    SELECT bb.bill_id, COUNT(DISTINCT l.child_bag_id) as count
+                    FROM bill_bag bb
+                    LEFT JOIN link l ON l.parent_bag_id = bb.bag_id
+                    WHERE bb.bill_id = ANY(:bill_ids)
+                    GROUP BY bb.bill_id
+                """),
+                {"bill_ids": bill_ids}
+            ).fetchall()
+            child_counts = {row[0]: row[1] for row in child_counts_result}
         
         # Batch load all creators
         creator_ids = [bill.created_by_id for bill in bills_data if bill.created_by_id]
