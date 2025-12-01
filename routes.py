@@ -4403,16 +4403,13 @@ def bill_management():
                 ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
                 parent_count_dict = {bc.bill_id: bc.parent_count for bc in bill_bag_counts}
                 
-                # Single query for ALL child bag counts - using ANY for PostgreSQL
-                from sqlalchemy import text
-                child_bag_counts = db.session.execute(text("""
-                    SELECT bb.bill_id, COUNT(DISTINCT l.child_bag_id) as child_count
-                    FROM bill_bag bb 
-                    JOIN bag pb ON bb.bag_id = pb.id 
-                    LEFT JOIN link l ON l.parent_bag_id = pb.id 
-                    WHERE bb.bill_id = ANY(:bill_ids)
-                    GROUP BY bb.bill_id
-                """), {'bill_ids': bill_ids}).fetchall()
+                # Single query for ALL child bag counts - using ORM (avoids raw SQL ANY syntax issues)
+                child_bag_counts = db.session.query(
+                    BillBag.bill_id,
+                    func.count(func.distinct(Link.child_bag_id)).label('child_count')
+                ).outerjoin(Link, Link.parent_bag_id == BillBag.bag_id
+                ).filter(BillBag.bill_id.in_(bill_ids)
+                ).group_by(BillBag.bill_id).all()
                 child_count_dict = {cc.bill_id: cc.child_count for cc in child_bag_counts}
                 
                 # Single query for ALL users
@@ -4483,28 +4480,23 @@ def bill_management():
         
         # Only run batch queries if there are bills
         if bill_ids:
-            from sqlalchemy import text
+            from sqlalchemy import func
             
             # Use ORM query for parent counts (SQLAlchemy handles the IN properly)
-            from sqlalchemy import func
             parent_counts_result = db.session.query(
                 BillBag.bill_id,
                 func.count(BillBag.bag_id).label('count')
             ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
             parent_counts = {row.bill_id: row.count for row in parent_counts_result}
             
-            # For child counts, use raw SQL with proper array casting for PostgreSQL
-            child_counts_result = db.session.execute(
-                text("""
-                    SELECT bb.bill_id, COUNT(DISTINCT l.child_bag_id) as count
-                    FROM bill_bag bb
-                    LEFT JOIN link l ON l.parent_bag_id = bb.bag_id
-                    WHERE bb.bill_id = ANY(:bill_ids)
-                    GROUP BY bb.bill_id
-                """),
-                {"bill_ids": bill_ids}
-            ).fetchall()
-            child_counts = {row[0]: row[1] for row in child_counts_result}
+            # Use ORM query for child counts (avoids raw SQL ANY syntax issues)
+            child_counts_result = db.session.query(
+                BillBag.bill_id,
+                func.count(func.distinct(Link.child_bag_id)).label('count')
+            ).outerjoin(Link, Link.parent_bag_id == BillBag.bag_id
+            ).filter(BillBag.bill_id.in_(bill_ids)
+            ).group_by(BillBag.bill_id).all()
+            child_counts = {row.bill_id: row.count for row in child_counts_result}
         
         # Batch load all creators
         creator_ids = [bill.created_by_id for bill in bills_data if bill.created_by_id]
