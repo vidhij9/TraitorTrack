@@ -4392,44 +4392,19 @@ def bill_management():
             
             summary_data = []
             if summary_bills:
-                # ⚡ OPTIMIZED BULK QUERIES - 100x faster than N+1 queries
-                bill_ids = [bill.id for bill in summary_bills]
-                
-                # Single query for ALL bill-bag counts using ORM
-                from sqlalchemy import func
-                parent_count_dict = {}
-                child_count_dict = {}
-                
-                try:
-                    bill_bag_counts = db.session.query(
-                        BillBag.bill_id,
-                        func.count(BillBag.bag_id).label('parent_count')
-                    ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
-                    parent_count_dict = {bc.bill_id: bc.parent_count for bc in bill_bag_counts}
-                except Exception as summary_parent_err:
-                    app.logger.error(f"Summary parent counts query failed: {str(summary_parent_err)}")
-                
-                try:
-                    # Single query for ALL child bag counts - using ORM
-                    child_bag_counts = db.session.query(
-                        BillBag.bill_id,
-                        func.count(func.distinct(Link.child_bag_id)).label('child_count')
-                    ).outerjoin(Link, Link.parent_bag_id == BillBag.bag_id
-                    ).filter(BillBag.bill_id.in_(bill_ids)
-                    ).group_by(BillBag.bill_id).all()
-                    child_count_dict = {cc.bill_id: cc.child_count for cc in child_bag_counts}
-                except Exception as summary_child_err:
-                    app.logger.error(f"Summary child counts query failed: {str(summary_child_err)}")
+                # ⚡ PRODUCTION FIX: Use precomputed values from Bill model
+                # This avoids expensive COUNT(DISTINCT) queries that timeout with 334k+ bags
                 
                 # Single query for ALL users
                 user_ids = [bill.created_by_id for bill in summary_bills if bill.created_by_id]
                 users = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
                 user_dict = {user.id: user.username for user in users}
                 
-                # Process bills with O(1) lookups
+                # Process bills using precomputed values
                 for bill in summary_bills:
-                    parent_count = parent_count_dict.get(bill.id, 0)
-                    child_count = child_count_dict.get(bill.id, 0)
+                    # Use precomputed values from Bill model
+                    parent_count = getattr(bill, 'linked_parent_count', 0) or 0
+                    child_count = getattr(bill, 'total_child_bags', 0) or 0
                     
                     # Determine status
                     if bill.parent_bag_count and parent_count >= bill.parent_bag_count:
@@ -4480,40 +4455,8 @@ def bill_management():
         
         bills_data = bills_query.limit(50).all()
         
-        # Batch load all data to avoid N+1 queries
-        bill_ids = [bill.id for bill in bills_data]
-        
-        # Initialize counts dictionaries
-        parent_counts = {}
-        child_counts = {}
-        
-        # Only run batch queries if there are bills
-        if bill_ids:
-            from sqlalchemy import func
-            
-            # Use ORM query for parent counts (SQLAlchemy handles the IN properly)
-            try:
-                parent_counts_result = db.session.query(
-                    BillBag.bill_id,
-                    func.count(BillBag.bag_id).label('count')
-                ).filter(BillBag.bill_id.in_(bill_ids)).group_by(BillBag.bill_id).all()
-                parent_counts = {row.bill_id: row.count for row in parent_counts_result}
-            except Exception as parent_err:
-                app.logger.error(f"Parent counts query failed: {str(parent_err)}")
-                parent_counts = {}
-            
-            # Use ORM query for child counts - simplified to avoid join issues
-            try:
-                child_counts_result = db.session.query(
-                    BillBag.bill_id,
-                    func.count(func.distinct(Link.child_bag_id)).label('count')
-                ).outerjoin(Link, Link.parent_bag_id == BillBag.bag_id
-                ).filter(BillBag.bill_id.in_(bill_ids)
-                ).group_by(BillBag.bill_id).all()
-                child_counts = {row.bill_id: row.count for row in child_counts_result}
-            except Exception as child_err:
-                app.logger.error(f"Child counts query failed: {str(child_err)}")
-                child_counts = {}
+        # ⚡ PRODUCTION FIX: Use precomputed values from Bill model instead of expensive queries
+        # This avoids COUNT(DISTINCT) queries that timeout with 334k+ bags
         
         # Batch load all creators
         creator_ids = [bill.created_by_id for bill in bills_data if bill.created_by_id]
@@ -4522,11 +4465,12 @@ def bill_management():
             users = User.query.filter(User.id.in_(creator_ids)).all()
             creators = {user.id: {'username': user.username, 'role': user.role} for user in users}
         
-        # Convert to the expected format for the template
+        # Convert to the expected format for the template using precomputed Bill fields
         bill_data = []
         for bill in bills_data:
-            parent_count = parent_counts.get(bill.id, 0)
-            actual_child_count = child_counts.get(bill.id, 0)
+            # Use precomputed values from Bill model (updated on scan operations)
+            parent_count = getattr(bill, 'linked_parent_count', 0) or 0
+            actual_child_count = getattr(bill, 'total_child_bags', 0) or 0
             creator_info = creators.get(bill.created_by_id) if bill.created_by_id else None
             
             bill_data.append({
@@ -4537,7 +4481,7 @@ def bill_management():
                 'creator_info': creator_info,
                 'statistics': {
                     'parent_bags_linked': parent_count,
-                    'total_child_bags': actual_child_count,  # Use actual count from Link table
+                    'total_child_bags': actual_child_count,
                     'total_weight_kg': getattr(bill, 'total_weight_kg', 0) or 0
                 }
             })
