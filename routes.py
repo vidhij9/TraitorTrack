@@ -1277,6 +1277,91 @@ def execute_comprehensive_deletion():
         
         return jsonify({'success': False, 'message': f'Error during deletion: {str(e)}'})
 
+@app.route('/admin/backfill-bill-counters', methods=['POST'])
+@login_required
+def admin_backfill_bill_counters():
+    """
+    PRODUCTION FIX: Efficient batch backfill of bill counters for large databases.
+    Uses a single efficient SQL query to update all bills at once.
+    Designed to handle 10+ lakh bags without timeout.
+    """
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
+    
+    try:
+        from sqlalchemy import text
+        
+        # Step 1: Calculate all parent counts and child counts in ONE efficient query
+        # This avoids the N+1 problem that caused timeouts
+        app.logger.info("Starting batch backfill of bill counters...")
+        
+        # Efficient query to get parent counts per bill
+        parent_counts = db.session.execute(text("""
+            UPDATE bill 
+            SET linked_parent_count = COALESCE(sub.parent_count, 0)
+            FROM (
+                SELECT bb.bill_id, COUNT(bb.bag_id) as parent_count
+                FROM bill_bag bb
+                GROUP BY bb.bill_id
+            ) sub
+            WHERE bill.id = sub.bill_id
+            RETURNING bill.id
+        """)).fetchall()
+        
+        app.logger.info(f"Updated parent counts for {len(parent_counts)} bills")
+        
+        # Efficient query to get child counts per bill
+        child_counts = db.session.execute(text("""
+            UPDATE bill 
+            SET total_child_bags = COALESCE(sub.child_count, 0),
+                total_weight_kg = COALESCE(sub.child_count, 0)
+            FROM (
+                SELECT bb.bill_id, COUNT(DISTINCT l.child_bag_id) as child_count
+                FROM bill_bag bb
+                LEFT JOIN link l ON l.parent_bag_id = bb.bag_id
+                GROUP BY bb.bill_id
+            ) sub
+            WHERE bill.id = sub.bill_id
+            RETURNING bill.id
+        """)).fetchall()
+        
+        app.logger.info(f"Updated child counts for {len(child_counts)} bills")
+        
+        # Set bills with linked bags to 'processing' if still 'new'
+        status_updates = db.session.execute(text("""
+            UPDATE bill 
+            SET status = 'processing'
+            WHERE linked_parent_count > 0 AND status = 'new'
+            RETURNING bill.id
+        """)).fetchall()
+        
+        db.session.commit()
+        
+        log_audit('batch_bill_counters_backfill', 'system', None, {
+            'parent_counts_updated': len(parent_counts),
+            'child_counts_updated': len(child_counts),
+            'status_updated': len(status_updates),
+            'triggered_by': current_user.username
+        })
+        
+        return jsonify({
+            'success': True,
+            'message': f'Backfill complete. Updated {len(parent_counts)} bills with parent counts, {len(child_counts)} with child counts.',
+            'stats': {
+                'parent_counts_updated': len(parent_counts),
+                'child_counts_updated': len(child_counts),
+                'status_updated': len(status_updates)
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error in batch backfill: {str(e)}')
+        import traceback
+        app.logger.error(f'Backfill traceback: {traceback.format_exc()}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+
 @app.route('/admin/recalculate-bill-weights', methods=['POST'])
 @login_required
 def admin_recalculate_bill_weights():
