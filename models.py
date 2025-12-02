@@ -313,25 +313,78 @@ class Bill(db.Model):
     def __repr__(self):
         return f"<Bill {self.bill_id}>"
     
+    @property
+    def safe_parent_bag_count(self):
+        """Return parent_bag_count with sensible default if NULL or 0"""
+        count = self.parent_bag_count
+        if count is None or count <= 0:
+            return 1  # Default to 1 to prevent division by zero
+        return count
+    
+    @property
+    def safe_linked_parent_count(self):
+        """Return linked_parent_count with sensible default if NULL"""
+        count = self.linked_parent_count
+        if count is None or count < 0:
+            return 0
+        return count
+    
     def is_at_capacity(self):
         """Check if bill has reached its parent bag capacity"""
-        return self.linked_parent_count >= self.parent_bag_count
+        return self.safe_linked_parent_count >= self.safe_parent_bag_count
     
     def remaining_capacity(self):
         """Return how many more parent bags can be linked"""
-        return max(0, self.parent_bag_count - self.linked_parent_count)
+        return max(0, self.safe_parent_bag_count - self.safe_linked_parent_count)
     
     def capacity_percentage(self):
         """Return capacity percentage (0-100)"""
-        if self.parent_bag_count <= 0:
-            return 100 if self.linked_parent_count > 0 else 0
-        return min(100, int((self.linked_parent_count / self.parent_bag_count) * 100))
+        if self.safe_parent_bag_count <= 0:
+            return 100 if self.safe_linked_parent_count > 0 else 0
+        return min(100, int((self.safe_linked_parent_count / self.safe_parent_bag_count) * 100))
     
     def can_link_more_bags(self):
         """Check if more parent bags can be linked to this bill"""
         if self.status == 'completed':
             return False
         return not self.is_at_capacity()
+    
+    def validate_and_fix_capacity(self):
+        """Detect and fix capacity data integrity issues.
+        
+        Fixes:
+        - parent_bag_count NULL or <= 0: Set to max(1, linked_parent_count)
+        - linked_parent_count NULL or < 0: Set to 0
+        - linked_parent_count > parent_bag_count: Increase parent_bag_count
+        
+        Returns:
+            tuple: (was_fixed, issues_found) where issues_found is a list of strings
+        """
+        issues = []
+        was_fixed = False
+        
+        # Fix NULL or invalid parent_bag_count
+        if self.parent_bag_count is None or self.parent_bag_count <= 0:
+            old_value = self.parent_bag_count
+            self.parent_bag_count = max(1, self.linked_parent_count or 0)
+            issues.append(f"parent_bag_count was {old_value}, set to {self.parent_bag_count}")
+            was_fixed = True
+        
+        # Fix NULL or negative linked_parent_count
+        if self.linked_parent_count is None or self.linked_parent_count < 0:
+            old_value = self.linked_parent_count
+            self.linked_parent_count = 0
+            issues.append(f"linked_parent_count was {old_value}, set to 0")
+            was_fixed = True
+        
+        # Fix linked_parent_count > parent_bag_count (data drift)
+        if self.linked_parent_count > self.parent_bag_count:
+            old_capacity = self.parent_bag_count
+            self.parent_bag_count = self.linked_parent_count
+            issues.append(f"linked_parent_count ({self.linked_parent_count}) exceeded parent_bag_count ({old_capacity}), capacity increased")
+            was_fixed = True
+        
+        return (was_fixed, issues)
     
     def recalculate_weights(self, auto_close=True):
         """
@@ -443,8 +496,14 @@ class Bill(db.Model):
         self.expected_weight_kg = expected_weight
         self.total_child_bags = child_count
         
-        # Check if at capacity (for informational purposes only)
-        is_full = parent_count >= self.parent_bag_count
+        # Validate and fix any capacity data integrity issues
+        was_fixed, issues = self.validate_and_fix_capacity()
+        if was_fixed:
+            import logging
+            logging.warning(f"Bill {self.bill_id} capacity issues fixed: {issues}")
+        
+        # Check if at capacity (use safe_parent_bag_count to handle NULL/0)
+        is_full = parent_count >= self.safe_parent_bag_count
         
         # DO NOT auto-complete bills - status is only changed manually by user
         # Update status to 'processing' only if bags are linked and status is still 'new'

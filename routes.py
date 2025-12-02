@@ -5361,16 +5361,18 @@ def reopen_bill():
         # Get the bill
         bill = Bill.query.get_or_404(bill_id)
         
-        # Update bill status to active/in progress
-        bill.status = 'active'
+        # Update bill status to 'processing' (valid status: 'new', 'processing', 'completed')
+        # 'active' is NOT a valid status - use 'processing' for reopened bills
+        bill.status = 'processing'
         
         db.session.commit()
         
-        app.logger.info(f'Bill {bill.bill_id} reopened for editing')
+        app.logger.info(f'Bill {bill.bill_id} reopened for editing - status set to processing')
         
         return jsonify({
             'success': True, 
-            'message': 'Bill reopened for editing!'
+            'message': 'Bill reopened for editing!',
+            'new_status': 'processing'
         })
         
     except Exception as e:
@@ -5660,12 +5662,22 @@ def process_bill_parent_scan():
             other_bill_id = other_bill.bill_id if other_bill else other_link.bill_id
             return jsonify({'success': False, 'message': f'⚠️ Parent bag "{qr_id}" is already linked to bill "{other_bill_id}".'})
         
-        # Check capacity using denormalized linked_parent_count (allow linking to completed bills)
-        if not bill.can_link_more_bags() and bill.status != 'completed':
+        # STRICT CAPACITY ENFORCEMENT: Block scanning when at capacity or completed
+        # This is consistent with ultra_fast_bill_parent_scan behavior
+        if bill.status == 'completed':
             return jsonify({
                 'success': False, 
-                'message': f'⚠️ Bill is at capacity ({bill.linked_parent_count}/{bill.parent_bag_count} bags). Complete it first to add more.',
-                'is_at_capacity': True
+                'message': f'⛔ Bill is completed ({bill.linked_parent_count}/{bill.parent_bag_count} bags). Reopen it first to add more bags.',
+                'is_at_capacity': True,
+                'error_type': 'bill_completed'
+            })
+        
+        if not bill.can_link_more_bags():
+            return jsonify({
+                'success': False, 
+                'message': f'📦 Bill capacity reached ({bill.linked_parent_count}/{bill.parent_bag_count} parent bags). Cannot add more bags.',
+                'is_at_capacity': True,
+                'error_type': 'capacity_reached'
             })
         
         app.logger.info(f'Bill linked count: {bill.linked_parent_count}, capacity: {bill.parent_bag_count}')
