@@ -327,6 +327,7 @@ function getCSRFToken() {
 // ===== NETWORK RESILIENCE: Fetch with retry, session timeout detection =====
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 1000; // 1 second base
+let sessionExpired = false; // Track if session expired to prevent multiple modals
 
 async function fetchWithCSRF(url, options = {}, retryCount = 0) {
     const token = getCSRFToken();
@@ -339,14 +340,23 @@ async function fetchWithCSRF(url, options = {}, retryCount = 0) {
         
         // SESSION TIMEOUT DETECTION: Check for 401 Unauthorized
         if (response.status === 401) {
-            handleSessionTimeout();
-            throw new Error('Session expired. Please log in again.');
+            if (!sessionExpired) {
+                sessionExpired = true;
+                handleSessionTimeout();
+            }
+            // Create a mock response object to avoid breaking the chain
+            return new Response(JSON.stringify({
+                success: false, 
+                message: 'Session expired. Please log in again.',
+                error_type: 'session_expired'
+            }), { status: 401, headers: {'Content-Type': 'application/json'} });
         }
         
         // Server error - retry with exponential backoff
         if (response.status >= 500 && retryCount < MAX_RETRIES) {
             const delay = BASE_RETRY_DELAY * Math.pow(2, retryCount);
             console.log(`Server error ${response.status}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+            showRetryToast(retryCount + 1, MAX_RETRIES);
             await sleep(delay);
             return fetchWithCSRF(url, options, retryCount + 1);
         }
@@ -417,12 +427,12 @@ function handleSessionTimeout() {
 }
 
 // ===== RAPID SCAN PROTECTION: Prevent duplicate scans =====
-const recentScans = new Map(); // Track recently scanned barcodes
-const SCAN_COOLDOWN_MS = 2000; // 2 second cooldown per barcode
+const recentSuccessfulScans = new Map(); // Track recently SUCCESSFUL scans only
+const SCAN_COOLDOWN_MS = 3000; // 3 second cooldown per barcode
 
-function isDuplicateScan(barcode) {
+function isPendingScan(barcode) {
     const normalizedCode = barcode.trim().toUpperCase();
-    const lastScanTime = recentScans.get(normalizedCode);
+    const lastScanTime = recentSuccessfulScans.get(normalizedCode);
     const now = Date.now();
     
     if (lastScanTime && (now - lastScanTime) < SCAN_COOLDOWN_MS) {
@@ -430,17 +440,19 @@ function isDuplicateScan(barcode) {
         return true;
     }
     
-    // Record this scan
-    recentScans.set(normalizedCode, now);
-    
     // Cleanup old entries (older than 10 seconds)
-    for (const [code, time] of recentScans.entries()) {
+    for (const [code, time] of recentSuccessfulScans.entries()) {
         if (now - time > 10000) {
-            recentScans.delete(code);
+            recentSuccessfulScans.delete(code);
         }
     }
     
     return false;
+}
+
+function recordSuccessfulScan(barcode) {
+    const normalizedCode = barcode.trim().toUpperCase();
+    recentSuccessfulScans.set(normalizedCode, Date.now());
 }
 
 // GLOBAL VARIABLES - accessible from onclick handlers
@@ -583,9 +595,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         barcode = barcode.trim().toUpperCase();
         
-        // RAPID SCAN PROTECTION: Block duplicate scans within cooldown period
-        if (isDuplicateScan(barcode)) {
-            showToast(`⏳ ${barcode} was just scanned. Wait 2 seconds before re-scanning.`, 'warning');
+        // RAPID SCAN PROTECTION: Block duplicate scans within cooldown period (only for successful scans)
+        if (isPendingScan(barcode)) {
+            showToast(`⏳ ${barcode} was just scanned successfully. Wait 3 seconds before re-scanning.`, 'warning');
             scannerInput.value = '';
             scannerInput.focus();
             return;
@@ -611,6 +623,9 @@ document.addEventListener('DOMContentLoaded', function() {
             isProcessing = false;
             
             if (data.success) {
+                // RECORD SUCCESSFUL SCAN to prevent rapid re-scanning
+                recordSuccessfulScan(barcode);
+                
                 showToast(data.message, 'success');
                 
                 // Add to list
