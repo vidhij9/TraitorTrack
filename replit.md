@@ -135,3 +135,11 @@ This migration safely drops unused columns (preserves all row data):
 ### Recent Changes (December 2025)
 - **Fixed bill scanning workflow**: Improved barcode scanner auto-submission, fixed "Save & Continue Later" to actually persist status to database
 - **Schema alignment**: Dropped 12 unused legacy columns to sync development and production databases
+- **Bill scanning stability improvements (Dec 2)**:
+  - Fixed reopen_bill to use valid 'processing' status instead of invalid 'active'
+  - Unified capacity enforcement across all scan routes
+  - Added Bill.validate_and_fix_capacity() for data integrity auto-correction
+  - Front-end network resilience: fetchWithCSRF with exponential backoff retry (3 attempts)
+  - Session timeout detection: 401 responses trigger login modal
+  - Client-side scan deduplication: 3-second cooldown after successful scans
+  - Server-side scan deduplication: Thread-safe, bill+bag keyed, 3-second cooldown (prevents race conditions across devices)
