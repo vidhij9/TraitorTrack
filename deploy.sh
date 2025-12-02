@@ -43,6 +43,24 @@ fi
 
 echo ""
 echo "✅ Environment configuration verified"
+echo ""
+
+# ==================================================================================
+# PRE-DEPLOYMENT: Run database migrations BEFORE starting server
+# ==================================================================================
+# This ensures schema is up-to-date without blocking HTTP server startup.
+# Migrations run once here, not on every worker startup.
+# ==================================================================================
+echo "🔄 Running database migrations..."
+python run_migrations.py
+MIGRATION_EXIT_CODE=$?
+
+if [ $MIGRATION_EXIT_CODE -ne 0 ]; then
+    echo "❌ Migration failed with exit code $MIGRATION_EXIT_CODE"
+    echo "   Attempting to start server anyway (schema may already be up-to-date)"
+fi
+
+echo ""
 echo "✅ Starting Gunicorn with gevent workers for production"
 echo ""
 

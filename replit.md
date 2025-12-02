@@ -97,15 +97,26 @@ The project uses a standard Flask application structure with modules for models,
 
 ## Production Deployment
 
-### Database Migration for Production
+### Autoscale-Ready Architecture
 
-**IMPORTANT**: Before the application works correctly in production, run the database migration to sync the schema.
+The application is optimized for Replit Autoscale deployments:
+- **Fast startup**: Server opens port 5000 within seconds (no blocking migrations)
+- **Pre-deployment migrations**: `run_migrations.py` runs BEFORE server starts via `deploy.sh`
+- **Stateless sessions**: Signed cookie sessions work across any number of workers
+
+### Database Migration for Production
 
 **Latest Migration**: `h4i5j6k7l8m9` - Drops unused legacy columns from `scan` and `bag` tables.
 
-**To apply migrations on production:**
+**How migrations work:**
+1. `deploy.sh` runs `python run_migrations.py` BEFORE starting Gunicorn
+2. Migrations complete, then HTTP server starts immediately
+3. No blocking during server startup = fast port 5000 availability
+
+**To run migrations manually:**
 ```bash
-# The app auto-runs migrations on startup, but you can also run manually:
+python run_migrations.py
+# Or the traditional Flask way:
 flask db upgrade
 ```
 

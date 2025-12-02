@@ -333,120 +333,16 @@ def load_user(user_id):
     
     return user
 
-# Run database migrations automatically on startup
+# ==================================================================================
+# LIGHTWEIGHT DATABASE INITIALIZATION (Autoscale-ready - no blocking migrations)
+# ==================================================================================
+# IMPORTANT: Migrations are now run BEFORE server starts via run_migrations.py
+# This ensures the HTTP server opens port 5000 within the 2-minute Autoscale timeout.
+# To apply migrations, run: python run_migrations.py (done automatically in build phase)
+# ==================================================================================
 with app.app_context():
     try:
-        # Import models to ensure they're registered
         import models
-        
-        # AUTOMATIC MIGRATIONS: Run pending migrations on application startup
-        # This ensures database schema is always up-to-date without manual intervention
-        try:
-            from flask_migrate import upgrade as flask_migrate_upgrade
-            from alembic.script import ScriptDirectory
-            from alembic.config import Config as AlembicConfig
-            import alembic.command
-            
-            logger.info("🔄 Checking for pending database migrations...")
-            
-            # Get Alembic config
-            migrations_path = os.path.join(os.path.dirname(__file__), 'migrations')
-            alembic_cfg = AlembicConfig(os.path.join(migrations_path, 'alembic.ini'))
-            alembic_cfg.set_main_option('script_location', migrations_path)
-            
-            # Check current migration version
-            from alembic.migration import MigrationContext
-            from sqlalchemy import create_engine
-            
-            engine = db.engine
-            conn = engine.connect()
-            context = MigrationContext.configure(conn)
-            current_rev = context.get_current_revision()
-            conn.close()
-            
-            # Get latest migration version
-            script = ScriptDirectory.from_config(alembic_cfg)
-            head_rev = script.get_current_head()
-            
-            if current_rev == head_rev:
-                logger.info(f"✅ Database schema is up-to-date (revision: {current_rev or 'base'})")
-            else:
-                logger.info(f"📝 Applying pending migrations: {current_rev or 'base'} → {head_rev}")
-                
-                # Run migrations with explicit error handling
-                try:
-                    flask_migrate_upgrade()
-                    logger.info(f"✅ Database migrations applied successfully! Current revision: {head_rev}")
-                except Exception as upgrade_error:
-                    # Log the specific migration error
-                    logger.error(f"❌ Migration upgrade failed: {str(upgrade_error)}")
-                    logger.error(f"   Current revision: {current_rev or 'base'}")
-                    logger.error(f"   Target revision: {head_rev}")
-                    raise  # Re-raise to be caught by outer handler
-        
-        except Exception as migration_error:
-            # Log migration errors with full context but don't crash the app
-            # This allows the app to start even if migrations fail (e.g., schema already up-to-date manually)
-            import traceback
-            logger.error(f"⚠️  Migration check failed: {str(migration_error)}")
-            logger.error(f"   Traceback: {traceback.format_exc()}")
-            logger.info("📌 App will continue startup - database may already be up-to-date")
-        
-        # CRITICAL: Verify Bill table has all required columns (fixes production schema mismatch)
-        # This runs AFTER migrations to catch any columns that migrations missed
-        try:
-            from sqlalchemy import inspect, text
-            inspector = inspect(db.engine)
-            bill_columns = [col['name'] for col in inspector.get_columns('bill')]
-            
-            required_columns = {
-                'linked_parent_count': 'INTEGER DEFAULT 0',
-                'total_child_bags': 'INTEGER DEFAULT 0',
-                'total_weight_kg': 'DOUBLE PRECISION DEFAULT 0.0',
-                'expected_weight_kg': 'DOUBLE PRECISION DEFAULT 0.0'
-            }
-            
-            missing_columns = [col for col in required_columns if col not in bill_columns]
-            
-            if missing_columns:
-                logger.warning(f"⚠️  Bill table missing columns: {missing_columns}")
-                logger.info("🔧 Adding missing Bill columns...")
-                
-                with db.engine.connect() as conn:
-                    for col_name in missing_columns:
-                        col_type = required_columns[col_name]
-                        try:
-                            conn.execute(text(f'ALTER TABLE bill ADD COLUMN {col_name} {col_type}'))
-                            conn.commit()
-                            logger.info(f"✅ Added missing column: bill.{col_name}")
-                        except Exception as col_error:
-                            if 'already exists' in str(col_error).lower():
-                                logger.info(f"✓ Column bill.{col_name} already exists")
-                            else:
-                                logger.error(f"❌ Failed to add bill.{col_name}: {col_error}")
-                    
-                    # Backfill linked_parent_count if it was added
-                    if 'linked_parent_count' in missing_columns:
-                        logger.info("🔄 Backfilling linked_parent_count...")
-                        conn.execute(text("""
-                            UPDATE bill b SET linked_parent_count = COALESCE((
-                                SELECT COUNT(*) FROM bill_bag bb WHERE bb.bill_id = b.id
-                            ), 0) WHERE linked_parent_count IS NULL OR linked_parent_count = 0
-                        """))
-                        conn.commit()
-                        logger.info("✅ Backfilled linked_parent_count")
-                
-                logger.info("✅ Bill table schema fix completed")
-            else:
-                logger.info("✅ Bill table has all required columns")
-                
-        except Exception as schema_check_error:
-            logger.error(f"⚠️  Bill schema verification failed: {schema_check_error}")
-            # Don't crash - the app may still work if columns exist
-        
-        # NOTE: Schema management is now handled by Alembic migrations above
-        # db.create_all() is disabled to avoid conflicts with migration system
-        # db.create_all()  # DISABLED: Use Flask-Migrate for automatic migrations
         
         # Create or update admin user (only if tables exist)
         try:
