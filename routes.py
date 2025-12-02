@@ -5277,6 +5277,59 @@ def complete_bill():
         app.logger.error(f'Complete bill error: {str(e)}')
         return jsonify({'success': False, 'message': 'Error completing bill. Please try again.'})
 
+@app.route('/save_bill_progress', methods=['POST'])
+@login_required
+def save_bill_progress():
+    """Save bill progress - updates status to 'processing' and recalculates weights
+    
+    Called when user clicks 'Save & Continue Later' to ensure bill is properly tracked.
+    Individual bag scans are already saved immediately, this just updates the bill status.
+    """
+    if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
+            hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
+        return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
+    
+    bill_id = request.form.get('bill_id', type=int)
+    
+    if not bill_id:
+        return jsonify({'success': False, 'message': 'Bill ID is required.'})
+    
+    try:
+        from models import Bill
+        
+        bill = Bill.query.get(bill_id)
+        if not bill:
+            return jsonify({'success': False, 'message': 'Bill not found.'})
+        
+        # Get current linked count
+        linked_count = bill.bag_links.count()
+        
+        # Update status based on progress
+        if linked_count > 0:
+            bill.status = 'processing'
+        else:
+            bill.status = 'new'
+        
+        # Recalculate weights to ensure accuracy
+        bill.recalculate_weights()
+        
+        db.session.commit()
+        
+        app.logger.info(f'Bill {bill.bill_id} progress saved: {linked_count} bags linked, status={bill.status}')
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Progress saved! {linked_count} bags linked.',
+            'linked_count': linked_count,
+            'status': bill.status,
+            'total_weight': bill.total_weight_kg
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Save bill progress error: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error saving progress. Please try again.'})
+
 @app.route('/reopen_bill', methods=['POST'])
 @login_required
 def reopen_bill():

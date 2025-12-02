@@ -333,21 +333,28 @@ function fetchWithCSRF(url, options = {}) {
     return fetch(url, options);
 }
 
+// GLOBAL VARIABLES - accessible from onclick handlers
+let scannerInput, statusText, bagsList, bagCount, progressBar, progressText;
+let isProcessing = false;
+let billId, targetCount, currentWeight, currentWeightEl;
+let scannerTimeout = null;
+let lastInputTime = 0;
+const SCANNER_TIMEOUT_MS = 100; // Scanners type very fast, submit if no input for 100ms
+
 document.addEventListener('DOMContentLoaded', function() {
-    const scannerInput = document.getElementById('scanner-input');
-    const statusText = document.getElementById('status-text');
-    const bagsList = document.getElementById('bags-list');
-    const bagCount = document.getElementById('bag-count');
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
+    scannerInput = document.getElementById('scanner-input');
+    statusText = document.getElementById('status-text');
+    bagsList = document.getElementById('bags-list');
+    bagCount = document.getElementById('bag-count');
+    progressBar = document.getElementById('progress-bar');
+    progressText = document.getElementById('progress-text');
     
-    let isProcessing = false;
-    const billId = {{ bill.id }};
-    const targetCount = {{ bill.parent_bag_count or 0 }};
+    billId = {{ bill.id }};
+    targetCount = {{ bill.parent_bag_count or 0 }};
     
     // Weight tracking variables
-    let currentWeight = {{ linked_bags|sum(attribute='child_count') if linked_bags else 0 }};
-    const currentWeightEl = document.getElementById('current-weight');
+    currentWeight = {{ linked_bags|sum(attribute='child_count') if linked_bags else 0 }};
+    currentWeightEl = document.getElementById('current-weight');
     
     // Update weight display
     function updateWeightDisplay(addedChildCount = 0) {
@@ -544,25 +551,72 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Listen for Enter key (scanner sends Enter after data)
+    // IMPROVED SCANNER DETECTION: Handle Enter, Tab, and timeout-based auto-submit
+    // Barcode scanners typically send data very fast followed by Enter or Tab
     scannerInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
+        // Handle Enter, Tab, or carriage return as submit triggers
+        if (e.key === 'Enter' || e.key === 'Tab' || e.keyCode === 13 || e.keyCode === 9) {
             e.preventDefault();
+            e.stopPropagation();
+            
+            // Clear any pending timeout
+            if (scannerTimeout) {
+                clearTimeout(scannerTimeout);
+                scannerTimeout = null;
+            }
+            
             const barcode = scannerInput.value.trim();
-            if (barcode) {
+            if (barcode && barcode.length >= 2) {
+                console.log('Scanner submit via key:', e.key, 'barcode:', barcode);
                 processBarcode(barcode);
                 scannerInput.value = '';
             }
+            return false;
         }
     });
     
-    // Auto-refocus input if it loses focus
+    // TIMEOUT-BASED AUTO-SUBMIT: For scanners that don't send Enter/Tab
+    // If input stops for 100ms after rapid typing, auto-submit
+    scannerInput.addEventListener('input', function(e) {
+        const now = Date.now();
+        const timeSinceLastInput = now - lastInputTime;
+        lastInputTime = now;
+        
+        // Clear any existing timeout
+        if (scannerTimeout) {
+            clearTimeout(scannerTimeout);
+        }
+        
+        const currentValue = scannerInput.value.trim();
+        
+        // Only set auto-submit timeout if we have a valid-looking barcode
+        if (currentValue.length >= 4) {
+            scannerTimeout = setTimeout(function() {
+                const barcode = scannerInput.value.trim();
+                if (barcode && barcode.length >= 4 && !isProcessing) {
+                    console.log('Scanner auto-submit via timeout, barcode:', barcode);
+                    processBarcode(barcode);
+                    scannerInput.value = '';
+                }
+            }, SCANNER_TIMEOUT_MS);
+        }
+    });
+    
+    // Auto-refocus input if it loses focus (critical for scanners)
     scannerInput.addEventListener('blur', function() {
         setTimeout(() => {
-            if (!isProcessing) {
+            if (!isProcessing && document.activeElement !== scannerInput) {
                 scannerInput.focus();
             }
         }, 100);
+    });
+    
+    // Prevent form submission on the scanner input
+    scannerInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
     });
     
     // Remove bag function
@@ -660,17 +714,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // Save & Continue Later - keeps bill in progress
+    // Save & Continue Later - ACTUALLY saves bill status to server as 'processing'
     window.keepInProgress = function() {
         const currentCount = parseInt(bagCount.textContent);
-        const remaining = targetCount - currentCount;
+        const remaining = Math.max(0, targetCount - currentCount);
         
-        showToast(`Progress saved! ${currentCount} bags linked, ${remaining} more needed.`, 'info');
+        // Show saving indicator
+        showToast('Saving progress...', 'info');
+        updateStatus('Saving...', 'spinner fa-spin', '#ffc107');
         
-        // Navigate back to bills after a short delay
-        setTimeout(() => {
-            window.location.href = '/bills';
-        }, 1500);
+        // Call server to update bill status to 'processing'
+        fetchWithCSRF('/save_bill_progress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: `bill_id=${billId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`Progress saved! ${currentCount} bags linked, ${remaining} more needed.`, 'success');
+                // Navigate back to bills after showing success
+                setTimeout(() => {
+                    window.location.href = '/bills';
+                }, 1000);
+            } else {
+                showToast(data.message || 'Error saving progress', 'error');
+                updateStatus('Save failed - try again', 'exclamation-circle', '#dc3545');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving progress:', error);
+            // Even on error, bags are already saved via individual scans
+            showToast(`Progress saved locally. ${currentCount} bags linked.`, 'warning');
+            setTimeout(() => {
+                window.location.href = '/bills';
+            }, 1500);
+        });
     };
     
     // Ensure input is focused on page load
