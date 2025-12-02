@@ -5380,6 +5380,32 @@ def reopen_bill():
         app.logger.error(f'Reopen bill error: {str(e)}')
         return jsonify({'success': False, 'message': 'Error reopening bill.'})
 
+# ===== SCAN DEDUPLICATION: Prevent rapid double-submits from same user =====
+# In-memory cache for recent scans (cleared on worker restart, which is fine)
+import time as _time
+_recent_scans = {}  # Key: (user_id, bill_id, qr_code) -> timestamp
+SCAN_COOLDOWN_SECONDS = 2  # Block duplicate scans within 2 seconds
+
+def _is_duplicate_scan(user_id, bill_id, qr_code):
+    """Check if this is a duplicate scan within the cooldown period"""
+    key = (user_id, int(bill_id), qr_code.upper().strip())
+    now = _time.time()
+    last_scan = _recent_scans.get(key)
+    
+    if last_scan and (now - last_scan) < SCAN_COOLDOWN_SECONDS:
+        return True
+    
+    # Record this scan
+    _recent_scans[key] = now
+    
+    # Cleanup old entries (older than 30 seconds)
+    cutoff = now - 30
+    for k in list(_recent_scans.keys()):
+        if _recent_scans[k] < cutoff:
+            del _recent_scans[k]
+    
+    return False
+
 @app.route('/fast/bill_parent_scan', methods=['POST'])
 def ultra_fast_bill_parent_scan():
     """Ultra-fast bill parent bag scanning with optimized performance"""
@@ -5403,6 +5429,15 @@ def ultra_fast_bill_parent_scan():
     
     bill_id = request.form.get('bill_id')
     qr_code = request.form.get('qr_code', '').strip().upper()
+    
+    # SCAN DEDUPLICATION: Block rapid double-submits
+    if bill_id and qr_code and _is_duplicate_scan(user_id, bill_id, qr_code):
+        app.logger.info(f'Duplicate scan blocked: bill={bill_id}, qr={qr_code}, user={user.username}')
+        return jsonify({
+            'success': False,
+            'message': f'⏳ {qr_code} was just scanned. Please wait before re-scanning.',
+            'error_type': 'duplicate_scan'
+        })
     
     app.logger.info(f'Fast bill scan - bill_id: {bill_id}, qr_code: {qr_code}, user: {user.username}')
     
