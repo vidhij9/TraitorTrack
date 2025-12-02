@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 @app.route('/api/v2/bags', methods=['GET'])
 @require_auth
 @limiter.limit("10000 per minute")
-# NOTE: All caching disabled - using live data from database for real-time accuracy
 def api_bags_optimized():
     """
     Ultra-optimized bags endpoint with field filtering and mobile optimization
@@ -30,28 +29,27 @@ def api_bags_optimized():
     
     Query params:
         - limit: Page size (default: 50, max: 100)
-        - offset: Pagination offset
+        - offset: Pagination offset (legacy, capped at 10000)
+        - cursor: Keyset pagination cursor (preferred for large datasets)
         - type: Filter by 'parent' or 'child'
         - search: Search by QR ID
         - fields: Comma-separated field names (e.g., 'id,qr_id,type')
     
-    Performance improvements vs original:
-        - Raw SQL instead of ORM (3x faster)
-        - Field filtering (60% smaller payloads)
-        - Smart pagination (no COUNT on large datasets)
-        - ETag caching (304 responses for unchanged data)
+    Pagination modes:
+        1. Keyset (cursor): Most efficient for 1M+ records, uses (created_at, id) composite
+        2. Offset: Legacy support, capped at 10000 for performance
+    
+    Cursor format: "created_at_iso|id" (e.g., "2025-12-02T10:30:00|123456")
     """
     try:
-        # Get pagination with mobile-aware defaults
         limit = get_optimal_page_size()
-        offset = min(request.args.get('offset', 0, type=int), 10000)  # Cap for performance
+        cursor = request.args.get('cursor', '').strip()
+        offset = min(request.args.get('offset', 0, type=int), 10000)
         
-        # Get filters
         bag_type = request.args.get('type', '').strip()
         search = request.args.get('search', '').strip()
         fields = request.args.get('fields', '').strip()
         
-        # Validate and sanitize
         if bag_type and bag_type not in ['parent', 'child']:
             return jsonify({'success': False, 'error': 'Invalid type parameter'}), 400
         
@@ -60,11 +58,8 @@ def api_bags_optimized():
             if len(search) > 50:
                 return jsonify({'success': False, 'error': 'Search query too long'}), 400
         
-        # Build optimized query
         where_clauses = []
-        params = {}
-        params['limit'] = limit
-        params['offset'] = offset
+        params = {'limit': limit}
         
         if bag_type:
             where_clauses.append("type = :bag_type")
@@ -74,24 +69,53 @@ def api_bags_optimized():
             where_clauses.append("qr_id ILIKE :search")
             params['search'] = f'%{search}%'
         
+        # KEYSET PAGINATION: Efficient for 1M+ records
+        if cursor:
+            try:
+                parts = cursor.split('|')
+                if len(parts) != 2:
+                    return jsonify({'success': False, 'error': 'Invalid cursor format. Expected: created_at_iso|id'}), 400
+                cursor_time = datetime.fromisoformat(parts[0])
+                cursor_id = int(parts[1])
+                where_clauses.append("(created_at, id) < (:cursor_time, :cursor_id)")
+                params['cursor_time'] = cursor_time
+                params['cursor_id'] = cursor_id
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Invalid cursor format: {cursor}, error: {e}")
+                return jsonify({'success': False, 'error': f'Invalid cursor format: {str(e)}'}), 400
+        
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         
-        # Execute single query (no separate COUNT for performance)
-        query = text(f"""
-            SELECT 
-                id, qr_id, type, status, child_count, weight_kg,
-                dispatch_area, created_at, updated_at
-            FROM bag
-            {where_sql}
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit OFFSET :offset
-        """)
+        # Use OFFSET only when cursor not provided
+        if cursor:
+            query = text(f"""
+                SELECT 
+                    id, qr_id, type, status, child_count, weight_kg,
+                    dispatch_area, created_at, updated_at
+                FROM bag
+                {where_sql}
+                ORDER BY created_at DESC, id DESC
+                LIMIT :limit
+            """)
+        else:
+            params['offset'] = offset
+            query = text(f"""
+                SELECT 
+                    id, qr_id, type, status, child_count, weight_kg,
+                    dispatch_area, created_at, updated_at
+                FROM bag
+                {where_sql}
+                ORDER BY created_at DESC, id DESC
+                LIMIT :limit OFFSET :offset
+            """)
         
         result = db.session.execute(query, params).fetchall()
         
-        # Build response
-        bags_data = [
-            {
+        bags_data = []
+        next_cursor = None
+        
+        for row in result:
+            bags_data.append({
                 'id': row.id,
                 'qr_id': row.qr_id,
                 'type': row.type,
@@ -101,20 +125,23 @@ def api_bags_optimized():
                 'dispatch_area': row.dispatch_area,
                 'created_at': row.created_at.isoformat() if row.created_at else None,
                 'updated_at': row.updated_at.isoformat() if row.updated_at else None
-            }
-            for row in result
-        ]
+            })
+            # Last row becomes next cursor
+            if row.created_at:
+                next_cursor = f"{row.created_at.isoformat()}|{row.id}"
         
         response_data = {
             'success': True,
             'count': len(bags_data),
             'limit': limit,
-            'offset': offset,
-            'has_more': len(bags_data) == limit,  # Smart pagination hint
+            'has_more': len(bags_data) == limit,
+            'next_cursor': next_cursor if len(bags_data) == limit else None,
             'bags': bags_data
         }
         
-        # Apply field filtering if requested
+        if not cursor:
+            response_data['offset'] = offset
+        
         if fields:
             response_data = filter_fields(response_data, fields)
         
@@ -131,61 +158,94 @@ def api_bags_optimized():
 @app.route('/api/v2/bills', methods=['GET'])
 @require_auth
 @limiter.limit("10000 per minute")
-# NOTE: Client-side caching disabled for authenticated endpoints (security)
 def api_bills_optimized():
     """
     Ultra-optimized bills endpoint with aggregated data
     Target: <30ms response, <5KB payload
     
     Query params:
-        - limit, offset: Pagination
+        - limit: Page size (default: 50, max: 100)
+        - offset: Pagination offset (legacy, capped at 10000)
+        - cursor: Keyset pagination cursor (preferred for large datasets)
         - status: Filter by status
         - fields: Field filtering
     
-    Performance: Single CTE query fetches all related data
+    Cursor format: "created_at_iso|id" (e.g., "2025-12-02T10:30:00|123456")
     """
     try:
         limit = get_optimal_page_size()
+        cursor = request.args.get('cursor', '').strip()
         offset = min(request.args.get('offset', 0, type=int), 10000)
         status = request.args.get('status', '').strip()
         fields = request.args.get('fields', '').strip()
         
-        # Build query with optional status filter
-        where_sql = "WHERE b.status = :status" if status in ['new', 'processing', 'completed'] else ""
-        params = {}
-        params['limit'] = limit
-        params['offset'] = offset
-        if status:
+        where_clauses = []
+        params = {'limit': limit}
+        
+        if status in ['new', 'processing', 'completed']:
+            where_clauses.append("b.status = :status")
             params['status'] = status
         
-        # Single optimized query with parent bag counts
-        query = text(f"""
-            WITH bill_stats AS (
-                SELECT 
-                    b.id,
-                    b.bill_id,
-                    b.status,
-                    b.parent_bag_count,
-                    b.total_weight_kg,
-                    b.expected_weight_kg,
-                    b.total_child_bags,
-                    b.created_at,
-                    b.updated_at,
-                    COUNT(DISTINCT bb.bag_id) as actual_parent_count
-                FROM bill b
-                LEFT JOIN bill_bag bb ON b.id = bb.bill_id
-                {where_sql}
-                GROUP BY b.id
-                ORDER BY b.created_at DESC, b.id DESC
-                LIMIT :limit OFFSET :offset
-            )
-            SELECT * FROM bill_stats
-        """)
+        # KEYSET PAGINATION: Efficient for 100K+ bills
+        if cursor:
+            try:
+                parts = cursor.split('|')
+                if len(parts) != 2:
+                    return jsonify({'success': False, 'error': 'Invalid cursor format. Expected: created_at_iso|id'}), 400
+                cursor_time = datetime.fromisoformat(parts[0])
+                cursor_id = int(parts[1])
+                where_clauses.append("(b.created_at, b.id) < (:cursor_time, :cursor_id)")
+                params['cursor_time'] = cursor_time
+                params['cursor_id'] = cursor_id
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Invalid bill cursor format: {cursor}, error: {e}")
+                return jsonify({'success': False, 'error': f'Invalid cursor format: {str(e)}'}), 400
+        
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        
+        if cursor:
+            query = text(f"""
+                WITH bill_stats AS (
+                    SELECT 
+                        b.id, b.bill_id, b.status, b.parent_bag_count,
+                        b.total_weight_kg, b.expected_weight_kg, b.total_child_bags,
+                        b.created_at, b.updated_at,
+                        COUNT(DISTINCT bb.bag_id) as actual_parent_count
+                    FROM bill b
+                    LEFT JOIN bill_bag bb ON b.id = bb.bill_id
+                    {where_sql}
+                    GROUP BY b.id
+                    ORDER BY b.created_at DESC, b.id DESC
+                    LIMIT :limit
+                )
+                SELECT * FROM bill_stats
+            """)
+        else:
+            params['offset'] = offset
+            query = text(f"""
+                WITH bill_stats AS (
+                    SELECT 
+                        b.id, b.bill_id, b.status, b.parent_bag_count,
+                        b.total_weight_kg, b.expected_weight_kg, b.total_child_bags,
+                        b.created_at, b.updated_at,
+                        COUNT(DISTINCT bb.bag_id) as actual_parent_count
+                    FROM bill b
+                    LEFT JOIN bill_bag bb ON b.id = bb.bill_id
+                    {where_sql}
+                    GROUP BY b.id
+                    ORDER BY b.created_at DESC, b.id DESC
+                    LIMIT :limit OFFSET :offset
+                )
+                SELECT * FROM bill_stats
+            """)
         
         result = db.session.execute(query, params).fetchall()
         
-        bills_data = [
-            {
+        bills_data = []
+        next_cursor = None
+        
+        for row in result:
+            bills_data.append({
                 'id': row.id,
                 'bill_id': row.bill_id,
                 'status': row.status,
@@ -195,18 +255,21 @@ def api_bills_optimized():
                 'total_child_bags': row.total_child_bags or 0,
                 'created_at': row.created_at.isoformat() if row.created_at else None,
                 'updated_at': row.updated_at.isoformat() if row.updated_at else None
-            }
-            for row in result
-        ]
+            })
+            if row.created_at:
+                next_cursor = f"{row.created_at.isoformat()}|{row.id}"
         
         response_data = {
             'success': True,
             'count': len(bills_data),
             'limit': limit,
-            'offset': offset,
             'has_more': len(bills_data) == limit,
+            'next_cursor': next_cursor if len(bills_data) == limit else None,
             'bills': bills_data
         }
+        
+        if not cursor:
+            response_data['offset'] = offset
         
         if fields:
             response_data = filter_fields(response_data, fields)
