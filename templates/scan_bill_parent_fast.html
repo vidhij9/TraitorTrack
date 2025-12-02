@@ -324,13 +324,123 @@ function getCSRFToken() {
     return '';
 }
 
-// Helper function for fetch with CSRF
-function fetchWithCSRF(url, options = {}) {
+// ===== NETWORK RESILIENCE: Fetch with retry, session timeout detection =====
+const MAX_RETRIES = 3;
+const BASE_RETRY_DELAY = 1000; // 1 second base
+
+async function fetchWithCSRF(url, options = {}, retryCount = 0) {
     const token = getCSRFToken();
     options.headers = options.headers || {};
     options.headers['X-CSRFToken'] = token;
     options.credentials = 'same-origin';
-    return fetch(url, options);
+    
+    try {
+        const response = await fetch(url, options);
+        
+        // SESSION TIMEOUT DETECTION: Check for 401 Unauthorized
+        if (response.status === 401) {
+            handleSessionTimeout();
+            throw new Error('Session expired. Please log in again.');
+        }
+        
+        // Server error - retry with exponential backoff
+        if (response.status >= 500 && retryCount < MAX_RETRIES) {
+            const delay = BASE_RETRY_DELAY * Math.pow(2, retryCount);
+            console.log(`Server error ${response.status}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+            await sleep(delay);
+            return fetchWithCSRF(url, options, retryCount + 1);
+        }
+        
+        return response;
+    } catch (error) {
+        // Network error - retry with exponential backoff
+        if (retryCount < MAX_RETRIES && isNetworkError(error)) {
+            const delay = BASE_RETRY_DELAY * Math.pow(2, retryCount);
+            console.log(`Network error, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES}):`, error.message);
+            showRetryToast(retryCount + 1, MAX_RETRIES);
+            await sleep(delay);
+            return fetchWithCSRF(url, options, retryCount + 1);
+        }
+        throw error;
+    }
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isNetworkError(error) {
+    return error.name === 'TypeError' || error.message.includes('network') || error.message.includes('fetch');
+}
+
+function showRetryToast(attempt, maxAttempts) {
+    const toast = document.getElementById('scan-toast');
+    const toastMessage = document.getElementById('toast-message');
+    if (toast && toastMessage) {
+        toast.className = 'toast align-items-center text-white border-0 bg-warning';
+        toastMessage.innerHTML = `<i class="fas fa-sync fa-spin me-2"></i>Connection issue - retrying (${attempt}/${maxAttempts})...`;
+        const bsToast = new bootstrap.Toast(toast, { delay: 2000 });
+        bsToast.show();
+    }
+}
+
+function handleSessionTimeout() {
+    // Show modal or alert for session timeout
+    const alertHtml = `
+        <div id="session-timeout-modal" class="modal fade" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title"><i class="fas fa-clock me-2"></i>Session Expired</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p>Your session has expired. Please log in again to continue scanning.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <a href="/login?next=${encodeURIComponent(window.location.pathname)}" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt me-2"></i>Log In
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('session-timeout-modal');
+    if (existingModal) existingModal.remove();
+    
+    // Add and show modal
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    const modal = new bootstrap.Modal(document.getElementById('session-timeout-modal'));
+    modal.show();
+}
+
+// ===== RAPID SCAN PROTECTION: Prevent duplicate scans =====
+const recentScans = new Map(); // Track recently scanned barcodes
+const SCAN_COOLDOWN_MS = 2000; // 2 second cooldown per barcode
+
+function isDuplicateScan(barcode) {
+    const normalizedCode = barcode.trim().toUpperCase();
+    const lastScanTime = recentScans.get(normalizedCode);
+    const now = Date.now();
+    
+    if (lastScanTime && (now - lastScanTime) < SCAN_COOLDOWN_MS) {
+        console.log(`Duplicate scan blocked: ${normalizedCode} was scanned ${now - lastScanTime}ms ago`);
+        return true;
+    }
+    
+    // Record this scan
+    recentScans.set(normalizedCode, now);
+    
+    // Cleanup old entries (older than 10 seconds)
+    for (const [code, time] of recentScans.entries()) {
+        if (now - time > 10000) {
+            recentScans.delete(code);
+        }
+    }
+    
+    return false;
 }
 
 // GLOBAL VARIABLES - accessible from onclick handlers
@@ -472,6 +582,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         barcode = barcode.trim().toUpperCase();
+        
+        // RAPID SCAN PROTECTION: Block duplicate scans within cooldown period
+        if (isDuplicateScan(barcode)) {
+            showToast(`⏳ ${barcode} was just scanned. Wait 2 seconds before re-scanning.`, 'warning');
+            scannerInput.value = '';
+            scannerInput.focus();
+            return;
+        }
+        
         console.log('Processing barcode:', barcode);
         
         isProcessing = true;
