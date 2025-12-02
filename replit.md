@@ -94,3 +94,33 @@ The project uses a standard Flask application structure with modules for models,
 -   **pyotp**: TOTP generation and verification.
 -   **qrcode**: QR code generation for 2FA setup.
 -   **SendGrid**: Email service for password reset and notifications.
+
+## Production Deployment
+
+### Database Migration for Production
+
+**IMPORTANT**: Before the application works correctly in production, run the database migration to sync the schema.
+
+**Latest Migration**: `h4i5j6k7l8m9` - Drops unused legacy columns from `scan` and `bag` tables.
+
+**To apply migrations on production:**
+```bash
+# The app auto-runs migrations on startup, but you can also run manually:
+flask db upgrade
+```
+
+**Migration Details (h4i5j6k7l8m9)**:
+This migration safely drops unused columns (preserves all row data):
+
+| Table | Dropped Columns | Reason |
+|-------|-----------------|--------|
+| `scan` | bag_id, scan_type, scan_location, device_info, scan_duration_ms, dispatch_area, location, duration_seconds | Redundant/unused - system uses parent_bag_id/child_bag_id instead |
+| `bag` | created_by, current_location, qr_code, bag_type | Duplicates of existing columns (user_id, qr_id, type) |
+
+**Schema After Migration**:
+- `scan`: 5 columns (id, timestamp, parent_bag_id, child_bag_id, user_id)
+- `bag`: 12 columns (id, qr_id, type, name, child_count, parent_id, user_id, dispatch_area, status, weight_kg, created_at, updated_at)
+
+### Recent Changes (December 2025)
+- **Fixed bill scanning workflow**: Improved barcode scanner auto-submission, fixed "Save & Continue Later" to actually persist status to database
+- **Schema alignment**: Dropped 12 unused legacy columns to sync development and production databases
