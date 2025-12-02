@@ -134,5 +134,16 @@ The project utilizes a standard Flask application structure, organizing code int
    - **Status Management**: Manual status override available (new, processing, completed)
    - **Capacity Validation**: Cannot reduce capacity below already linked count; maximum 500 parent bags
    - **Recalculation**: Weights and linked counts recalculate after any capacity or status change
-   - **Database Migration**: Migration `f2g3h4i5j6k7` adds `linked_parent_count` column with default 0
+   - **Database Migration**: Migration `f2g3h4i5j6k7` adds all precomputed Bill columns with default values
    - **Mobile-First UI**: View and edit bill pages use single-column stacking on mobile, larger touch targets, separate mobile card layout vs desktop tables
+
+## Recent Changes (December 2025)
+
+### Bug Fixes & Optimizations
+
+1. **Production Database Schema Fix**: Fixed critical mismatch between development and production database schemas causing "Error loading bill management" on production.
+   - **Root Cause**: Bill model had 4 precomputed columns (`linked_parent_count`, `total_child_bags`, `total_weight_kg`, `expected_weight_kg`) that were missing from production database
+   - **Solution**: Updated migration `f2g3h4i5j6k7` to add all 4 columns with safe existence checks
+   - **Backfill Logic**: Migration includes SQL to backfill precomputed values for existing bills
+   - **Production Fix Script**: `fix_production_database.py` updated to add missing Bill columns and backfill values
+   - **Auto-Migration**: App automatically runs migrations on startup, fixing schema on next deployment
