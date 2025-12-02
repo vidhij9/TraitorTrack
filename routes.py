@@ -4590,10 +4590,10 @@ def bill_management():
         app.logger.error(f"Bill management traceback: {traceback.format_exc()}")
         db.session.rollback()  # Rollback any failed transaction
         
-        # Try a simplified version without expected_weight_kg column
+        # ROBUST FALLBACK: Use raw SQL that only selects columns guaranteed to exist
+        # This bypasses ORM column expectations and works even if schema is out of sync
         try:
-            # Import models for fallback (in case import failed in main try block)
-            from models import Bill, User
+            from sqlalchemy import text
             
             # Get search parameters from request
             search_bill_id = request.args.get('search_bill_id', '').strip()
@@ -4605,34 +4605,77 @@ def bill_management():
             if status_filter and status_filter != 'all':
                 status_filter = InputValidator.sanitize_html(status_filter, max_length=20)
             
-            # Get basic bill list without problematic columns
-            bills_query = Bill.query.order_by(Bill.created_at.desc())
+            # Raw SQL query using ONLY columns that definitely exist in all environments
+            base_sql = """
+                SELECT 
+                    b.id, b.bill_id, b.description, b.parent_bag_count, 
+                    b.status, b.created_at, b.created_by_id,
+                    u.username as creator_name,
+                    COUNT(bb.id) as linked_count
+                FROM bill b
+                LEFT JOIN "user" u ON b.created_by_id = u.id
+                LEFT JOIN bill_bag bb ON b.id = bb.bill_id
+            """
+            
+            where_clauses = []
+            params = {}
             
             if search_bill_id:
-                bills_query = bills_query.filter(Bill.bill_id.ilike(f'%{search_bill_id}%'))
+                where_clauses.append("b.bill_id ILIKE :search")
+                params['search'] = f'%{search_bill_id}%'
             
-            if status_filter != 'all':
-                bills_query = bills_query.filter(Bill.status == status_filter)
+            if status_filter and status_filter != 'all':
+                where_clauses.append("b.status = :status")
+                params['status'] = status_filter
             
-            bills_data = bills_query.limit(50).all()
+            where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
             
-            # Simple bill data without complex queries
+            full_sql = f"""
+                {base_sql}
+                {where_sql}
+                GROUP BY b.id, b.bill_id, b.description, b.parent_bag_count, 
+                         b.status, b.created_at, b.created_by_id, u.username
+                ORDER BY b.created_at DESC
+                LIMIT 50
+            """
+            
+            result = db.session.execute(text(full_sql), params).fetchall()
+            
+            # Build bill data from raw SQL results
             bill_data = []
-            for bill in bills_data:
+            for row in result:
+                # Create a simple dict-like object to hold bill data
+                bill_obj = type('SimpleBill', (), {
+                    'id': row[0],
+                    'bill_id': row[1],
+                    'description': row[2],
+                    'parent_bag_count': row[3] or 0,
+                    'status': row[4] or 'new',
+                    'created_at': row[5],
+                    'created_by_id': row[6],
+                    'linked_parent_count': row[8] or 0,
+                    'total_child_bags': 0,
+                    'total_weight_kg': 0,
+                    'expected_weight_kg': 0
+                })()
+                
+                creator_name = row[7]
+                linked_count = row[8] or 0
+                
                 bill_data.append({
-                    'bill': bill,
+                    'bill': bill_obj,
                     'parent_bags': [],
-                    'parent_count': bill.parent_bag_count or 0,
-                    'status': bill.status or 'pending',
-                    'creator_info': None,
+                    'parent_count': linked_count,
+                    'status': bill_obj.status,
+                    'creator_info': {'username': creator_name} if creator_name else None,
                     'statistics': {
-                        'parent_bags_linked': bill.parent_bag_count or 0,
+                        'parent_bags_linked': linked_count,
                         'total_child_bags': 0,
-                        'total_weight_kg': getattr(bill, 'total_weight_kg', 0) or 0
+                        'total_weight_kg': 0
                     }
                 })
             
-            flash('Loading simplified view due to database issue.', 'warning')
+            flash('Loading simplified view - some features may be limited.', 'warning')
             return render_template('bill_management.html',
                                  bill_data=bill_data,
                                  search_bill_id=search_bill_id,

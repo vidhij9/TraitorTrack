@@ -381,6 +381,58 @@ with app.app_context():
             logger.error(f"   Traceback: {traceback.format_exc()}")
             logger.info("📌 App will continue startup - database may already be up-to-date")
         
+        # CRITICAL: Verify Bill table has all required columns (fixes production schema mismatch)
+        # This runs AFTER migrations to catch any columns that migrations missed
+        try:
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+            bill_columns = [col['name'] for col in inspector.get_columns('bill')]
+            
+            required_columns = {
+                'linked_parent_count': 'INTEGER DEFAULT 0',
+                'total_child_bags': 'INTEGER DEFAULT 0',
+                'total_weight_kg': 'DOUBLE PRECISION DEFAULT 0.0',
+                'expected_weight_kg': 'DOUBLE PRECISION DEFAULT 0.0'
+            }
+            
+            missing_columns = [col for col in required_columns if col not in bill_columns]
+            
+            if missing_columns:
+                logger.warning(f"⚠️  Bill table missing columns: {missing_columns}")
+                logger.info("🔧 Adding missing Bill columns...")
+                
+                with db.engine.connect() as conn:
+                    for col_name in missing_columns:
+                        col_type = required_columns[col_name]
+                        try:
+                            conn.execute(text(f'ALTER TABLE bill ADD COLUMN {col_name} {col_type}'))
+                            conn.commit()
+                            logger.info(f"✅ Added missing column: bill.{col_name}")
+                        except Exception as col_error:
+                            if 'already exists' in str(col_error).lower():
+                                logger.info(f"✓ Column bill.{col_name} already exists")
+                            else:
+                                logger.error(f"❌ Failed to add bill.{col_name}: {col_error}")
+                    
+                    # Backfill linked_parent_count if it was added
+                    if 'linked_parent_count' in missing_columns:
+                        logger.info("🔄 Backfilling linked_parent_count...")
+                        conn.execute(text("""
+                            UPDATE bill b SET linked_parent_count = COALESCE((
+                                SELECT COUNT(*) FROM bill_bag bb WHERE bb.bill_id = b.id
+                            ), 0) WHERE linked_parent_count IS NULL OR linked_parent_count = 0
+                        """))
+                        conn.commit()
+                        logger.info("✅ Backfilled linked_parent_count")
+                
+                logger.info("✅ Bill table schema fix completed")
+            else:
+                logger.info("✅ Bill table has all required columns")
+                
+        except Exception as schema_check_error:
+            logger.error(f"⚠️  Bill schema verification failed: {schema_check_error}")
+            # Don't crash - the app may still work if columns exist
+        
         # NOTE: Schema management is now handled by Alembic migrations above
         # db.create_all() is disabled to avoid conflicts with migration system
         # db.create_all()  # DISABLED: Use Flask-Migrate for automatic migrations
