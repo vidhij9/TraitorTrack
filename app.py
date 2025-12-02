@@ -156,6 +156,17 @@ limiter = Limiter(
     swallow_errors=True
 )
 
+def get_admin_rate_limit_key():
+    """Get rate limit key for admin operations - uses user_id for authenticated users.
+    This ensures rate limits apply per-admin, not per-IP, preventing shared-proxy bypass.
+    """
+    from flask import session
+    user_id = session.get('user_id')
+    if user_id:
+        return f"admin_user:{user_id}"
+    # Fallback to IP for unauthenticated requests (shouldn't happen for admin endpoints)
+    return get_remote_address()
+
 # Custom rate limit error handler
 @app.errorhandler(429)
 def ratelimit_handler(e):

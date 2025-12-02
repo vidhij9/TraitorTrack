@@ -59,7 +59,7 @@ def api_bags_optimized():
                 return jsonify({'success': False, 'error': 'Search query too long'}), 400
         
         where_clauses = []
-        params = {'limit': limit}
+        params: dict = {'limit': limit}
         
         if bag_type:
             where_clauses.append("type = :bag_type")
@@ -180,11 +180,11 @@ def api_bills_optimized():
         fields = request.args.get('fields', '').strip()
         
         where_clauses = []
-        params = {'limit': limit}
+        params: dict = {'limit': limit}
         
         if status in ['new', 'processing', 'completed']:
             where_clauses.append("b.status = :status")
-            params['status'] = status
+            params['status'] = status  # type: ignore
         
         # KEYSET PAGINATION: Efficient for 100K+ bills
         if cursor:

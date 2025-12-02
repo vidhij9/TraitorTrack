@@ -125,7 +125,7 @@ except ImportError:
 from sqlalchemy import desc, func, and_, or_, text
 from datetime import datetime, timedelta
 
-from app import app, db, limiter, csrf, csrf_compat
+from app import app, db, limiter, csrf, csrf_compat, get_admin_rate_limit_key
 from forms import LoginForm, RegistrationForm, ChildLookupForm, ManualScanForm, PromotionRequestForm, AdminPromotionForm, PromotionRequestActionForm, BillCreationForm
 from validation_utils import InputValidator
 
@@ -365,9 +365,9 @@ def get_user_details(user_id):
 
 @app.route('/admin/users/<int:user_id>/profile')
 @login_required
-@limiter.exempt  # Exempt admin functionality from rate limiting
+@limiter.limit("60 per minute")  # Rate limit admin profile views
 def admin_user_profile(user_id):
-    """Comprehensive user profile page for admins with caching and IST timezone"""
+    """Comprehensive user profile page for admins - OPTIMIZED with single CTE query"""
     if not current_user.is_admin():
         flash('Admin access required.', 'error')
         return redirect(url_for('user_management'))
@@ -376,93 +376,113 @@ def admin_user_profile(user_id):
     
     try:
         from datetime import datetime, timedelta
-        from sqlalchemy import func, distinct, and_, or_
         
-        # Calculate comprehensive metrics
         now = datetime.utcnow()
         thirty_days_ago = now - timedelta(days=30)
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        week_start = now - timedelta(days=now.weekday())  # Monday of current week
-        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
         quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
         year_start = datetime(now.year, 1, 1)
         
-        # Basic scan metrics
-        total_scans = Scan.query.filter_by(user_id=user_id).count()
-        scans_today = Scan.query.filter(
-            Scan.user_id == user_id,
-            Scan.timestamp >= today_start
-        ).count()
+        # SINGLE OPTIMIZED CTE QUERY - replaces 15+ separate queries
+        metrics_query = text("""
+            WITH scan_metrics AS (
+                SELECT 
+                    COUNT(*) as total_scans,
+                    COUNT(*) FILTER (WHERE timestamp >= :today_start) as scans_today,
+                    COUNT(*) FILTER (WHERE timestamp >= :week_start) as scans_week,
+                    COUNT(*) FILTER (WHERE timestamp >= :quarter_start) as scans_quarter,
+                    COUNT(*) FILTER (WHERE timestamp >= :year_start) as scans_year,
+                    COUNT(DISTINCT parent_bag_id) FILTER (WHERE parent_bag_id IS NOT NULL) as unique_parent_bags,
+                    COUNT(DISTINCT child_bag_id) FILTER (WHERE child_bag_id IS NOT NULL) as unique_child_bags,
+                    COUNT(*) FILTER (WHERE parent_bag_id IS NOT NULL) as parent_scans,
+                    COUNT(*) FILTER (WHERE child_bag_id IS NOT NULL) as child_scans,
+                    MIN(timestamp) as first_scan,
+                    MAX(timestamp) as last_scan
+                FROM scan WHERE user_id = :user_id
+            ),
+            peak_day AS (
+                SELECT DATE(timestamp) as scan_date, COUNT(*) as scan_count
+                FROM scan WHERE user_id = :user_id
+                GROUP BY DATE(timestamp)
+                ORDER BY COUNT(*) DESC LIMIT 1
+            ),
+            active_hour AS (
+                SELECT EXTRACT(HOUR FROM timestamp)::int as hour
+                FROM scan WHERE user_id = :user_id
+                GROUP BY EXTRACT(HOUR FROM timestamp)
+                ORDER BY COUNT(*) DESC LIMIT 1
+            ),
+            error_count AS (
+                SELECT COUNT(*) as error_logs
+                FROM audit_log 
+                WHERE user_id = :user_id AND action ILIKE '%error%'
+            ),
+            last_login AS (
+                SELECT timestamp FROM audit_log
+                WHERE user_id = :user_id AND action ILIKE '%login%'
+                ORDER BY timestamp DESC LIMIT 1
+            )
+            SELECT 
+                sm.total_scans, sm.scans_today, sm.scans_week, sm.scans_quarter, sm.scans_year,
+                sm.unique_parent_bags, sm.unique_child_bags, sm.parent_scans, sm.child_scans,
+                sm.first_scan, sm.last_scan,
+                pd.scan_date as peak_day_date, pd.scan_count as peak_day_scans,
+                COALESCE(ah.hour, 12) as most_active_hour,
+                ec.error_logs,
+                ll.timestamp as last_login
+            FROM scan_metrics sm
+            LEFT JOIN peak_day pd ON true
+            LEFT JOIN active_hour ah ON true
+            LEFT JOIN error_count ec ON true
+            LEFT JOIN last_login ll ON true
+        """)
         
-        # Period-based scan counts
-        scans_week = Scan.query.filter(
-            Scan.user_id == user_id,
-            Scan.timestamp >= week_start
-        ).count()
+        result = db.session.execute(metrics_query, {
+            'user_id': user_id,
+            'today_start': today_start,
+            'week_start': week_start,
+            'quarter_start': quarter_start,
+            'year_start': year_start
+        }).fetchone()
         
-        scans_quarter = Scan.query.filter(
-            Scan.user_id == user_id,
-            Scan.timestamp >= quarter_start
-        ).count()
+        # Extract values with defaults
+        total_scans = result.total_scans or 0 if result else 0
+        scans_today = result.scans_today or 0 if result else 0
+        scans_week = result.scans_week or 0 if result else 0
+        scans_quarter = result.scans_quarter or 0 if result else 0
+        scans_year = result.scans_year or 0 if result else 0
+        unique_bags_scanned = ((result.unique_parent_bags or 0) + (result.unique_child_bags or 0)) if result else 0
+        parent_scans = result.parent_scans or 0 if result else 0
+        child_scans = result.child_scans or 0 if result else 0
+        first_scan = result.first_scan if result else None
+        last_scan = result.last_scan if result else None
+        peak_day_date = result.peak_day_date if result else None
+        peak_day_scans = result.peak_day_scans or 0 if result else 0
+        most_active_hour = result.most_active_hour if result else 12
+        error_logs = result.error_logs or 0 if result else 0
+        last_login = result.last_login if result else None
         
-        scans_year = Scan.query.filter(
-            Scan.user_id == user_id,
-            Scan.timestamp >= year_start
-        ).count()
-        
-        # Unique bags scanned
-        unique_parent_bags = db.session.query(distinct(Scan.parent_bag_id)).filter(
-            Scan.user_id == user_id,
-            Scan.parent_bag_id.isnot(None)
-        ).count()
-        unique_child_bags = db.session.query(distinct(Scan.child_bag_id)).filter(
-            Scan.user_id == user_id,
-            Scan.child_bag_id.isnot(None)
-        ).count()
-        unique_bags_scanned = unique_parent_bags + unique_child_bags
-        
-        # Activity days calculation
-        first_scan = Scan.query.filter_by(user_id=user_id).order_by(Scan.timestamp.asc()).first()
+        # Calculated values
         if first_scan:
-            days_active = (now - first_scan.timestamp).days + 1
+            days_active = (now - first_scan).days + 1
             avg_scans_per_day = total_scans / days_active if days_active > 0 else 0
         else:
             days_active = 0
             avg_scans_per_day = 0
         
-        # Peak day analysis
-        peak_day_query = db.session.query(
-            func.date(Scan.timestamp).label('scan_date'),
-            func.count(Scan.id).label('scan_count')
-        ).filter_by(user_id=user_id).group_by(
-            func.date(Scan.timestamp)
-        ).order_by(func.count(Scan.id).desc()).first()
-        
-        peak_day_scans = peak_day_query.scan_count if peak_day_query else 0
-        peak_day_date = peak_day_query.scan_date if peak_day_query else None
-        
-        # Most active hour
-        most_active_hour_query = db.session.query(
-            func.extract('hour', Scan.timestamp).label('hour'),
-            func.count(Scan.id).label('scan_count')
-        ).filter_by(user_id=user_id).group_by(
-            func.extract('hour', Scan.timestamp)
-        ).order_by(func.count(Scan.id).desc()).first()
-        
-        most_active_hour = int(most_active_hour_query.hour) if most_active_hour_query else 12
-        
-        # Error rate calculation (estimate based on audit logs)
-        error_logs = AuditLog.query.filter(
-            AuditLog.user_id == user_id,
-            AuditLog.action.ilike('%error%')
-        ).count()
         scan_accuracy = max(0, min(100, ((total_scans - error_logs) / total_scans * 100) if total_scans > 0 else 100))
         error_rate = min(100, (error_logs / total_scans * 100) if total_scans > 0 else 0)
+        estimated_hours = round(total_scans * 0.5 / 60, 1)
+        total_requests = total_scans * 2
+        failed_requests = error_logs
+        avg_response_time = 1.5 + (error_rate / 100)
+        uptime_percentage = max(90, 100 - error_rate)
         
-        # Recent activity and errors
+        # Batch fetch recent activity (2 queries instead of separate fetches)
         recent_errors = AuditLog.query.filter(
             AuditLog.user_id == user_id,
-            or_(
+            db.or_(
                 AuditLog.action.ilike('%error%'),
                 AuditLog.action.ilike('%fail%'),
                 AuditLog.action.ilike('%exception%')
@@ -473,77 +493,41 @@ def admin_user_profile(user_id):
             AuditLog.timestamp.desc()
         ).limit(15).all()
         
-        # Recent scans with bag information - Fixed subquery syntax
-        recent_scans = db.session.query(
-            Scan.timestamp,
-            Scan.parent_bag_id,
-            Scan.child_bag_id,
-            func.coalesce(
-                db.session.query(Bag.qr_id).filter(Bag.id == Scan.parent_bag_id).scalar_subquery(),
-                db.session.query(Bag.qr_id).filter(Bag.id == Scan.child_bag_id).scalar_subquery(),
-                'Unknown'
-            ).label('qr_code')
-        ).filter_by(user_id=user_id).order_by(Scan.timestamp.desc()).limit(20).all()
+        # Recent scans with bag QR codes (single query with JOIN)
+        recent_scans_query = text("""
+            SELECT s.timestamp, s.parent_bag_id, s.child_bag_id,
+                   COALESCE(pb.qr_id, cb.qr_id, 'Unknown') as qr_code
+            FROM scan s
+            LEFT JOIN bag pb ON s.parent_bag_id = pb.id
+            LEFT JOIN bag cb ON s.child_bag_id = cb.id
+            WHERE s.user_id = :user_id
+            ORDER BY s.timestamp DESC
+            LIMIT 20
+        """)
+        recent_scans = db.session.execute(recent_scans_query, {'user_id': user_id}).fetchall()
         
-        # Parent vs Child scan counts
-        parent_scans = Scan.query.filter(
-            Scan.user_id == user_id,
-            Scan.parent_bag_id.isnot(None)
-        ).count()
-        child_scans = Scan.query.filter(
-            Scan.user_id == user_id,
-            Scan.child_bag_id.isnot(None)
-        ).count()
+        # Daily scan data for chart (single query)
+        daily_scans_query = text("""
+            SELECT DATE(timestamp) as scan_date, COUNT(*) as scan_count
+            FROM scan
+            WHERE user_id = :user_id AND timestamp >= :thirty_days_ago
+            GROUP BY DATE(timestamp)
+        """)
+        daily_scans_result = db.session.execute(daily_scans_query, {
+            'user_id': user_id,
+            'thirty_days_ago': thirty_days_ago
+        }).fetchall()
         
-        # Daily scan data for chart (last 30 days)
-        daily_scans = db.session.query(
-            func.date(Scan.timestamp).label('scan_date'),
-            func.count(Scan.id).label('scan_count')
-        ).filter(
-            Scan.user_id == user_id,
-            Scan.timestamp >= thirty_days_ago
-        ).group_by(func.date(Scan.timestamp)).all()
-        
-        # Create daily data for chart with improved formatting
-        daily_scan_data = {
-            'labels': [],
-            'values': []
-        }
-        
+        # Build chart data
+        daily_scan_data = {'labels': [], 'values': []}
         current_date = thirty_days_ago.date()
-        scan_dict = {scan.scan_date: scan.scan_count for scan in daily_scans if scan.scan_date}
+        scan_dict = {row.scan_date: row.scan_count for row in daily_scans_result if row.scan_date}
         
-        # Generate labels and values for all 30 days
         for i in range(30):
             date_key = current_date + timedelta(days=i)
-            # Use more readable date format
             daily_scan_data['labels'].append(date_key.strftime('%b %d'))
             daily_scan_data['values'].append(scan_dict.get(date_key, 0))
         
-        # Log user metrics for monitoring
-        app.logger.info(f"User metrics generated - User ID: {user_id}, Days: {len(daily_scan_data['labels'])}, Total scans: {sum(daily_scan_data['values'])}")
-        
-        # Time estimation (rough calculation based on scans)
-        estimated_hours = round(total_scans * 0.5 / 60, 1)  # Assuming 30 seconds per scan
-        
-        # Performance metrics (estimates)
-        total_requests = total_scans * 2  # Estimate requests per scan
-        failed_requests = error_logs
-        avg_response_time = 1.5 + (error_rate / 100)  # Estimate based on error rate
-        uptime_percentage = max(90, 100 - error_rate)
-        
-        # Last login and scan
-        last_scan_record = Scan.query.filter_by(user_id=user_id).order_by(Scan.timestamp.desc()).first()
-        last_scan = last_scan_record.timestamp if last_scan_record else None
-        
-        # For last login, we'll use the most recent audit log as proxy
-        last_login_record = AuditLog.query.filter(
-            AuditLog.user_id == user_id,
-            AuditLog.action.ilike('%login%')
-        ).order_by(AuditLog.timestamp.desc()).first()
-        last_login = last_login_record.timestamp if last_login_record else None
-        
-        # Compile all metrics
         metrics = {
             'total_scans': total_scans,
             'scans_today': scans_today,
@@ -713,6 +697,7 @@ def change_user_role(user_id):
 
 @app.route('/admin/users/<int:user_id>/edit', methods=['POST'])
 @login_required
+@limiter.limit("30 per minute", key_func=get_admin_rate_limit_key)  # Per-admin rate limit
 def edit_user(user_id):
     """Edit user details"""
     try:
@@ -817,6 +802,7 @@ def edit_user(user_id):
 
 @app.route('/admin/users/<int:user_id>/promote', methods=['POST'])
 @login_required
+@limiter.limit("20 per minute", key_func=get_admin_rate_limit_key)  # Per-admin rate limit
 def promote_user(user_id):
     """Promote user to admin with validation - only admins can do this"""
     if not current_user.is_admin():
@@ -856,6 +842,7 @@ def promote_user(user_id):
 
 @app.route('/admin/users/<int:user_id>/demote', methods=['POST'])
 @login_required
+@limiter.limit("20 per minute", key_func=get_admin_rate_limit_key)  # Per-admin rate limit
 def demote_user(user_id):
     """Demote user with validation - only admins can do this"""
     if not current_user.is_admin():
@@ -919,7 +906,7 @@ def demote_user(user_id):
 
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
-@limiter.exempt  # Exempt admin functionality from rate limiting
+@limiter.limit("10 per minute", key_func=get_admin_rate_limit_key)  # Per-admin rate limit
 def delete_user(user_id):
     """Delete user with proper handling of related records"""
     if not current_user.is_admin():
