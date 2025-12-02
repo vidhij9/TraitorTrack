@@ -6410,13 +6410,37 @@ def api_system_health():
         except:
             pass
         
+        # Schema verification - check Bill table has all required columns
+        schema_status = {'healthy': True, 'missing_columns': [], 'message': 'All columns present'}
+        try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            bill_columns = [col['name'] for col in inspector.get_columns('bill')]
+            
+            required_bill_columns = ['linked_parent_count', 'total_child_bags', 'total_weight_kg', 'expected_weight_kg']
+            missing = [col for col in required_bill_columns if col not in bill_columns]
+            
+            if missing:
+                schema_status = {
+                    'healthy': False,
+                    'missing_columns': missing,
+                    'message': f'Missing Bill columns: {", ".join(missing)}. Restart app to auto-fix.'
+                }
+        except Exception as schema_error:
+            schema_status = {
+                'healthy': False,
+                'missing_columns': [],
+                'message': f'Schema check failed: {str(schema_error)}'
+            }
+        
         return jsonify({
             'success': True,
             'timestamp': datetime.now().isoformat(),
             'uptime_hours': round(uptime_hours, 2),
             'database': {
                 'connection_pool': pool_stats,
-                'size': db_stats
+                'size': db_stats,
+                'schema': schema_status
             },
             'cache': cache_stats,
             'memory': memory_stats,
