@@ -526,15 +526,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateStatus('✓ Linked! Scan next parent bag', 'check-circle', '');
                 }
             } else {
-                showToast(data.message || 'Scan failed', 'error');
-                updateStatus('Scan failed - try again', 'exclamation-circle', '#dc3545');
+                // Show the ACTUAL error message from server, not generic "Scan failed"
+                const errorMessage = data.message || 'Unknown error occurred';
+                showToast(errorMessage, 'error');
                 
-                // Re-enable after 1 second
-                setTimeout(() => {
-                    updateStatus('Ready for next scan', 'check-circle', '');
+                // Check if capacity is reached - disable scanner input
+                if (data.is_at_capacity || data.error_type === 'capacity_reached') {
+                    updateStatus('Capacity reached! Cannot add more bags.', 'ban', '#dc3545');
+                    scannerInput.disabled = true;
+                    scannerInput.placeholder = 'CAPACITY REACHED';
                     scannerInput.value = '';
-                    scannerInput.focus();
-                }, 1500);
+                    
+                    // Update button visibility
+                    const currentCount = parseInt(bagCount.textContent);
+                    updateButtonVisibility(currentCount);
+                } else {
+                    // Show specific error in status
+                    updateStatus(errorMessage, 'exclamation-circle', '#dc3545');
+                    
+                    // Re-enable after 2 seconds for user to read
+                    setTimeout(() => {
+                        updateStatus('Ready - Scan next parent bag', 'check-circle', '');
+                        scannerInput.value = '';
+                        scannerInput.focus();
+                    }, 2000);
+                }
             }
         })
         .catch(error => {
@@ -654,6 +670,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const removedChildCount = data.removed_child_count || 0;
                 currentWeight -= removedChildCount;
                 updateWeightDisplay(0);
+                
+                // RE-ENABLE SCANNER if now under capacity
+                // Server returns remaining_capacity which tells us if we can scan more
+                if (data.remaining_capacity > 0) {
+                    scannerInput.disabled = false;
+                    scannerInput.placeholder = 'READY TO SCAN';
+                    scannerInput.value = '';
+                    scannerInput.focus();
+                    updateStatus(`Bag removed! ${data.remaining_capacity} more slots available. Scan next parent bag.`, 'check-circle', '#28a745');
+                }
             } else {
                 showToast(data.message || 'Error removing bag', 'error');
             }
@@ -755,11 +781,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
     
-    // Ensure input is focused on page load
-    scannerInput.focus();
+    // Check initial capacity on page load
+    const initialCount = parseInt(bagCount.textContent);
+    const isAtCapacity = targetCount > 0 && initialCount >= targetCount;
     
-    // Show ready message
-    showToast('Scanner ready! Point and scan parent bags.', 'success');
+    if (isAtCapacity) {
+        // Bill is at capacity - disable scanner
+        scannerInput.disabled = true;
+        scannerInput.placeholder = 'CAPACITY REACHED';
+        updateStatus('Capacity reached! Complete the bill or remove bags to scan more.', 'ban', '#dc3545');
+        showToast('Bill is at capacity. Complete it or remove bags to add more.', 'warning');
+    } else {
+        // Ensure input is focused on page load
+        scannerInput.focus();
+        
+        // Show ready message
+        const remaining = targetCount - initialCount;
+        if (remaining > 0) {
+            showToast(`Scanner ready! ${remaining} more bags needed.`, 'success');
+        } else {
+            showToast('Scanner ready! Point and scan parent bags.', 'success');
+        }
+    }
 });
 </script>
 {% endblock %}

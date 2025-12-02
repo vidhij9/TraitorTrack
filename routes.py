@@ -5032,6 +5032,11 @@ def edit_bill(bill_id):
                 if parent_bag_count != original_count:
                     bill.parent_bag_count = parent_bag_count
                     capacity_changed = True
+                    
+                    # IMPORTANT: If capacity increased and bill was completed, reopen for more scanning
+                    if parent_bag_count > bill.linked_parent_count and bill.status == 'completed':
+                        bill.status = 'processing'
+                        app.logger.info(f'Bill {bill_id} reopened: capacity increased from {original_count} to {parent_bag_count}, linked: {bill.linked_parent_count}')
             
             # Handle manual status changes (allow reopening or completing)
             status_changed = False
@@ -5116,6 +5121,12 @@ def remove_bag_from_bill():
             
             # CRITICAL: Recalculate weights after removing bag
             actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
+            
+            # IMPORTANT: If bill was completed and now under capacity, reopen for more scanning
+            if bill.status == 'completed' and bill.linked_parent_count < bill.parent_bag_count:
+                bill.status = 'processing'
+                app.logger.info(f'Bill {bill.bill_id} reopened after bag removal: {bill.linked_parent_count}/{bill.parent_bag_count}')
+            
             db.session.commit()
             app.logger.info(f'Bill {bill.bill_id} recalculated after bag removal: {bill.linked_parent_count}/{bill.parent_bag_count}')
             
