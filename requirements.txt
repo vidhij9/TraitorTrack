@@ -38,3 +38,4 @@ playwright
 beautifulsoup4
 nanoid
 requests
+locust
