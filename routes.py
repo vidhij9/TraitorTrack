@@ -1498,8 +1498,71 @@ def admin_system_integrity():
         return redirect(url_for('dashboard'))
     
     try:
-        # Get comprehensive system integrity report
-        report = {"status": "optimized", "duplicate_issues": 0}
+        # Get counts from database
+        from sqlalchemy import func, text
+        
+        total_bags = db.session.execute(text("SELECT COUNT(*) FROM bag")).scalar() or 0
+        total_bills = db.session.execute(text("SELECT COUNT(*) FROM bill")).scalar() or 0
+        unique_bag_qr_codes = db.session.execute(text("SELECT COUNT(DISTINCT qr_id) FROM bag")).scalar() or 0
+        unique_bill_ids = db.session.execute(text("SELECT COUNT(DISTINCT bill_id) FROM bill")).scalar() or 0
+        
+        # Check for duplicates
+        bag_duplicates = []
+        bill_duplicates = []
+        cross_duplicates = []
+        
+        # Find duplicate bag QR codes
+        dup_bags = db.session.execute(text("""
+            SELECT qr_id, COUNT(*) as cnt FROM bag 
+            GROUP BY qr_id HAVING COUNT(*) > 1
+        """)).fetchall()
+        
+        for row in dup_bags:
+            bag_duplicates.append({
+                'qr_id': row[0],
+                'count': row[1],
+                'bags': []  # Simplified - not fetching full details
+            })
+        
+        # Find duplicate bill IDs
+        dup_bills = db.session.execute(text("""
+            SELECT bill_id, COUNT(*) as cnt FROM bill 
+            GROUP BY bill_id HAVING COUNT(*) > 1
+        """)).fetchall()
+        
+        for row in dup_bills:
+            bill_duplicates.append({
+                'bill_id': row[0],
+                'count': row[1],
+                'bills': []  # Simplified
+            })
+        
+        has_duplicates = len(bag_duplicates) > 0 or len(bill_duplicates) > 0 or len(cross_duplicates) > 0
+        
+        # Calculate integrity score
+        if total_bags == 0 and total_bills == 0:
+            integrity_score = 100
+        else:
+            issues = len(bag_duplicates) + len(bill_duplicates) + len(cross_duplicates)
+            total_records = total_bags + total_bills
+            integrity_score = max(0, min(100, int(100 - (issues / max(1, total_records)) * 100)))
+        
+        # Build comprehensive report
+        report = {
+            'integrity_score': integrity_score,
+            'summary': {
+                'total_bags': total_bags,
+                'total_bills': total_bills,
+                'unique_bag_qr_codes': unique_bag_qr_codes,
+                'unique_bill_ids': unique_bill_ids,
+                'has_duplicates': has_duplicates
+            },
+            'duplicates': {
+                'bag_duplicates': bag_duplicates,
+                'bill_duplicates': bill_duplicates,
+                'cross_duplicates': cross_duplicates
+            }
+        }
         
         return render_template('admin_system_integrity.html', report=report)
         
