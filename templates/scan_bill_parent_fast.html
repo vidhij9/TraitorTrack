@@ -521,8 +521,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function updateProgress(currentCount) {
+    function updateProgress(currentCount, newTargetCount = null) {
         bagCount.textContent = currentCount;
+        
+        // CRITICAL FIX: Sync targetCount from server if provided (handles capacity edits)
+        if (newTargetCount !== null && newTargetCount > 0 && newTargetCount !== targetCount) {
+            console.log(`Capacity updated from server: ${targetCount} -> ${newTargetCount}`);
+            targetCount = newTargetCount;
+            
+            // Update ALL UI elements that show the target capacity
+            const targetCountEl = document.getElementById('target-count');
+            if (targetCountEl) {
+                targetCountEl.textContent = targetCount;
+            }
+        }
         
         if (targetCount > 0 && progressBar) {
             const percentage = Math.min((currentCount / targetCount) * 100, 100);
@@ -632,9 +644,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const childCount = data.child_count || 0;
                 addBagToList(barcode, childCount, data.bag_id || 0);
                 
-                // Update progress
+                // Update progress - CRITICAL: pass server's expected_count to sync capacity
                 const currentCount = parseInt(bagCount.textContent) + 1;
-                updateProgress(currentCount);
+                const serverExpectedCount = data.expected_count || null;
+                updateProgress(currentCount, serverExpectedCount);
                 
                 // Update weight tracking
                 updateWeightDisplay(childCount);
@@ -796,9 +809,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 
-                // Update count
+                // Update count - CRITICAL: pass server's expected_count to sync capacity
                 const currentCount = parseInt(bagCount.textContent) - 1;
-                updateProgress(currentCount);
+                const serverExpectedCount = data.expected_count || null;
+                updateProgress(currentCount, serverExpectedCount);
                 
                 // Update weight tracking using server-returned child count
                 const removedChildCount = data.removed_child_count || 0;
