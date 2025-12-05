@@ -143,6 +143,11 @@ class Bag(db.Model):
     weight_kg = db.Column(db.Float, default=0.0)  # Weight in kg (1kg per child, 30kg for full parent)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    # Legacy columns (still exist in production) - kept for schema compatibility
+    created_by = db.Column(db.Integer, nullable=True)  # Legacy: redundant with user_id
+    current_location = db.Column(db.String(100), nullable=True)  # Legacy: not used
+    qr_code = db.Column(db.String(255), nullable=True)  # Legacy: redundant with qr_id
+    bag_type = db.Column(db.String(20), nullable=True)  # Legacy: redundant with type
     # Ultra-optimized indexes for lightning-fast filtering
     __table_args__ = (
         db.Index('idx_bag_qr_id', 'qr_id'),
@@ -541,8 +546,16 @@ class Scan(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     parent_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
     child_bag_id = db.Column(db.Integer, db.ForeignKey('bag.id'), nullable=True)
-    # location_id removed - no longer tracking locations
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    # Legacy columns (still exist in production) - kept for schema compatibility
+    bag_id = db.Column(db.Integer, nullable=True)  # Legacy: not used, parent_bag_id/child_bag_id preferred
+    scan_type = db.Column(db.String(50), nullable=True)  # Legacy: not used
+    scan_location = db.Column(db.String(100), nullable=True)  # Legacy: not used
+    device_info = db.Column(db.String(255), nullable=True)  # Legacy: not used
+    scan_duration_ms = db.Column(db.Integer, nullable=True)  # Legacy: not used
+    dispatch_area = db.Column(db.String(30), nullable=True)  # Legacy: not used
+    location = db.Column(db.String(100), nullable=True)  # Legacy: not used
+    duration_seconds = db.Column(db.Float, nullable=True)  # Legacy: not used
     
     # Relationships with eager loading for performance
     parent_bag = db.relationship('Bag', foreign_keys=[parent_bag_id], backref=db.backref('parent_scans', lazy='dynamic'))
