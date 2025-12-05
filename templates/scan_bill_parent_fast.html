@@ -525,14 +525,24 @@ document.addEventListener('DOMContentLoaded', function() {
         bagCount.textContent = currentCount;
         
         // CRITICAL FIX: Sync targetCount from server if provided (handles capacity edits)
-        if (newTargetCount !== null && newTargetCount > 0 && newTargetCount !== targetCount) {
-            console.log(`Capacity updated from server: ${targetCount} -> ${newTargetCount}`);
-            targetCount = newTargetCount;
+        // Server now returns safe_parent_bag_count which is always >= 1
+        // Accept any positive number that differs from current value
+        const serverTarget = parseInt(newTargetCount, 10);
+        if (!isNaN(serverTarget) && serverTarget > 0 && serverTarget !== targetCount) {
+            console.log(`Capacity synced from server: ${targetCount} -> ${serverTarget}`);
+            targetCount = serverTarget;
             
             // Update ALL UI elements that show the target capacity
             const targetCountEl = document.getElementById('target-count');
             if (targetCountEl) {
                 targetCountEl.textContent = targetCount;
+            }
+            
+            // Also update remaining count display
+            const remainingEl = document.getElementById('remaining-count');
+            if (remainingEl) {
+                const remaining = Math.max(0, targetCount - currentCount);
+                remainingEl.textContent = remaining;
             }
         }
         
