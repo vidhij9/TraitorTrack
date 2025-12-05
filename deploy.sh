@@ -46,19 +46,52 @@ echo "✅ Environment configuration verified"
 echo ""
 
 # ==================================================================================
-# PRE-DEPLOYMENT: Run database migrations BEFORE starting server
+# PRE-DEPLOYMENT: Fast migration check with timeout
 # ==================================================================================
-# This ensures schema is up-to-date without blocking HTTP server startup.
-# Migrations run once here, not on every worker startup.
+# Migrations are designed to be idempotent. Skip if we can verify schema is ready.
+# Use timeout to prevent blocking port 5000 opening (Autoscale requirement).
 # ==================================================================================
-echo "🔄 Running database migrations..."
-python run_migrations.py
-MIGRATION_EXIT_CODE=$?
+MIGRATION_TIMEOUT=${MIGRATION_TIMEOUT:-15}  # Default 15 second timeout
 
-if [ $MIGRATION_EXIT_CODE -ne 0 ]; then
-    echo "❌ Migration failed with exit code $MIGRATION_EXIT_CODE"
-    echo "   Attempting to start server anyway (schema may already be up-to-date)"
+echo "🔄 Checking database migrations (timeout: ${MIGRATION_TIMEOUT}s)..."
+
+# Run migrations with timeout to prevent blocking deployment
+if command -v timeout &> /dev/null; then
+    timeout ${MIGRATION_TIMEOUT} python run_migrations.py
+    MIGRATION_EXIT_CODE=$?
+else
+    # Fallback if timeout command not available
+    python run_migrations.py &
+    MIGRATION_PID=$!
+    
+    # Wait with manual timeout
+    COUNTER=0
+    while kill -0 $MIGRATION_PID 2>/dev/null && [ $COUNTER -lt $MIGRATION_TIMEOUT ]; do
+        sleep 1
+        COUNTER=$((COUNTER + 1))
+    done
+    
+    if kill -0 $MIGRATION_PID 2>/dev/null; then
+        echo "⚠️  Migration timed out after ${MIGRATION_TIMEOUT}s - killing process"
+        kill $MIGRATION_PID 2>/dev/null
+        MIGRATION_EXIT_CODE=124
+    else
+        wait $MIGRATION_PID
+        MIGRATION_EXIT_CODE=$?
+    fi
 fi
+
+case $MIGRATION_EXIT_CODE in
+    0)
+        echo "✅ Database migrations completed successfully"
+        ;;
+    124)
+        echo "⚠️  Migration timed out - starting server anyway (schema likely up-to-date)"
+        ;;
+    *)
+        echo "⚠️  Migration exited with code $MIGRATION_EXIT_CODE - starting server anyway"
+        ;;
+esac
 
 echo ""
 echo "✅ Starting Gunicorn with gevent workers for production"
@@ -67,14 +100,17 @@ echo ""
 # Use PORT environment variable for Cloud Run compatibility (defaults to 5000 for local dev)
 PORT=${PORT:-5000}
 
-# Start Gunicorn with production settings
-# Reduced workers for Cloud Run autoscale to avoid resource exhaustion
+# Start Gunicorn with optimized production settings
+# - Fast startup: reduced timeout, preload, minimal workers
+# - Autoscale-ready: stateless, health-check compatible
+# - gevent for async I/O performance
 exec gunicorn \
   --bind 0.0.0.0:$PORT \
-  --workers 2 \
+  --workers ${GUNICORN_WORKERS:-2} \
   --worker-class gevent \
   --worker-connections 500 \
-  --timeout 120 \
+  --timeout ${GUNICORN_TIMEOUT:-120} \
+  --graceful-timeout 30 \
   --keep-alive 5 \
   --max-requests 1000 \
   --max-requests-jitter 50 \

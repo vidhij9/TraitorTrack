@@ -301,6 +301,30 @@ login_manager.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
+# ==================================================================================
+# EARLY HEALTH ENDPOINT - Opens port 5000 immediately for Autoscale health checks
+# ==================================================================================
+# This endpoint responds BEFORE heavy initialization completes, ensuring the app
+# passes Autoscale's port-open check within the 2-minute timeout.
+# ==================================================================================
+@app.route('/health')
+@app.route('/status')
+def early_health_check():
+    """Lightweight health check - responds immediately, no DB required"""
+    return {'status': 'ok', 'service': 'traitortrack'}, 200
+
+@app.route('/ready')
+def readiness_check():
+    """Readiness check - verifies DB connection is available"""
+    try:
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
+        return {'status': 'ready', 'database': 'connected'}, 200
+    except Exception as e:
+        return {'status': 'not_ready', 'database': str(e)}, 503
+
+logger.info("Early health endpoints registered: /health, /status, /ready")
+
 # Configure login manager
 login_manager.login_view = 'login'  # type: ignore
 login_manager.login_message = 'Please log in to access this page.'
@@ -334,94 +358,79 @@ def load_user(user_id):
     return user
 
 # ==================================================================================
-# LIGHTWEIGHT DATABASE INITIALIZATION (Autoscale-ready - no blocking migrations)
+# LAZY INITIALIZATION (Autoscale-ready - no blocking on startup)
 # ==================================================================================
-# IMPORTANT: Migrations are now run BEFORE server starts via run_migrations.py
-# This ensures the HTTP server opens port 5000 within the 2-minute Autoscale timeout.
-# To apply migrations, run: python run_migrations.py (done automatically in build phase)
+# Heavy initialization is deferred to after first request to ensure port 5000
+# opens immediately. This prevents Autoscale timeout failures.
 # ==================================================================================
+_lazy_init_done = False
+
+def _run_lazy_initialization():
+    """Run deferred initialization tasks after first request"""
+    global _lazy_init_done
+    if _lazy_init_done:
+        return
+    _lazy_init_done = True
+    
+    try:
+        # Admin user check/creation (deferred)
+        from models import User
+        admin_password = os.environ.get('ADMIN_PASSWORD')
+        
+        admin = User.query.filter_by(username='admin').first()
+        if not admin and admin_password:
+            admin = User()
+            admin.username = 'admin'
+            admin.email = 'admin@traitortrack.com'
+            admin.set_password(admin_password)
+            admin.role = 'admin'
+            admin.verified = True
+            db.session.add(admin)
+            db.session.commit()
+            logger.info("Admin user created (lazy init)")
+        elif admin and admin_password and os.environ.get('FORCE_ADMIN_PASSWORD_RESET') == '1':
+            admin.set_password(admin_password)
+            admin.role = 'admin'
+            admin.verified = True
+            db.session.commit()
+            logger.info("Admin password reset (lazy init)")
+        
+        # Pool monitoring (deferred)
+        try:
+            from pool_monitor import init_pool_monitor
+            pool_enabled = os.environ.get('POOL_MONITORING_ENABLED', 'true').lower() == 'true'
+            init_pool_monitor(db.engine, enabled=pool_enabled)
+            if pool_enabled:
+                logger.info("Pool monitoring initialized (lazy)")
+        except Exception as e:
+            logger.debug(f"Pool monitoring skipped: {e}")
+        
+        # Slow query logging (deferred)
+        try:
+            from slow_query_logger import init_slow_query_logger
+            threshold = int(os.environ.get('SLOW_QUERY_THRESHOLD_MS', '100'))
+            enabled = os.environ.get('SLOW_QUERY_LOGGING_ENABLED', 'true').lower() == 'true'
+            init_slow_query_logger(db.engine, threshold_ms=threshold, enabled=enabled)
+            if enabled:
+                logger.info(f"Slow query logging initialized (lazy) - {threshold}ms")
+        except Exception as e:
+            logger.debug(f"Slow query logging skipped: {e}")
+            
+        logger.info("Lazy initialization completed")
+        
+    except Exception as e:
+        if 'does not exist' in str(e) or 'relation' in str(e).lower():
+            logger.warning("Database tables not found - run migrations first")
+        else:
+            logger.error(f"Lazy initialization error: {e}")
+
+# Minimal startup - just import models to register them
 with app.app_context():
     try:
         import models
-        
-        # Create or update admin user (only if tables exist)
-        try:
-            from models import User
-            
-            admin = User.query.filter_by(username='admin').first()
-            
-            # SECURITY: Admin password must be provided via environment variable
-            admin_password = os.environ.get('ADMIN_PASSWORD')
-            
-            if not admin:
-                # Create new admin user
-                if not admin_password:
-                    # SECURITY CRITICAL: Admin password MUST be set via ADMIN_PASSWORD env var
-                    # Refuse to create admin with random password to prevent security issues
-                    logger.error('=' * 80)
-                    logger.error('❌ CRITICAL: ADMIN_PASSWORD environment variable is required!')
-                    logger.error('❌ Admin user cannot be created without explicit password.')
-                    logger.error('📝 Set ADMIN_PASSWORD in deployment settings before starting the app.')
-                    logger.error('💡 Example: ADMIN_PASSWORD=YourSecurePassword123')
-                    logger.error('=' * 80)
-                    raise ValueError("ADMIN_PASSWORD environment variable is required for admin user creation")
-                
-                admin = User()
-                admin.username = 'admin'
-                admin.email = 'admin@traitortrack.com'
-                admin.set_password(admin_password)
-                admin.role = 'admin'
-                admin.verified = True
-                db.session.add(admin)
-                db.session.commit()
-                logger.info("Admin user created successfully")
-            elif admin_password and os.environ.get('FORCE_ADMIN_PASSWORD_RESET') == '1':
-                # Only update existing admin password if explicitly requested via FORCE_ADMIN_PASSWORD_RESET
-                # This prevents accidental password resets on every deployment
-                admin.set_password(admin_password)
-                admin.role = 'admin'
-                admin.verified = True
-                db.session.commit()
-                logger.info("Admin password force reset via FORCE_ADMIN_PASSWORD_RESET flag")
-            
-            logger.info("Database initialized successfully")
-            
-            # Initialize pool monitoring with alerts (inside app context)
-            try:
-                from pool_monitor import init_pool_monitor
-                pool_monitoring_enabled = os.environ.get('POOL_MONITORING_ENABLED', 'true').lower() == 'true'
-                init_pool_monitor(db.engine, enabled=pool_monitoring_enabled)
-                if pool_monitoring_enabled:
-                    logger.info("Database connection pool monitoring started with alert thresholds: 70%/85%/95%")
-                else:
-                    logger.info("Database connection pool monitoring disabled")
-            except Exception as e:
-                logger.error(f"Failed to initialize pool monitoring: {e}")
-            
-            # Initialize slow query logging (inside app context)
-            try:
-                from slow_query_logger import init_slow_query_logger
-                slow_query_threshold = int(os.environ.get('SLOW_QUERY_THRESHOLD_MS', '100'))
-                slow_query_enabled = os.environ.get('SLOW_QUERY_LOGGING_ENABLED', 'true').lower() == 'true'
-                init_slow_query_logger(db.engine, threshold_ms=slow_query_threshold, enabled=slow_query_enabled)
-                if slow_query_enabled:
-                    logger.info(f"Slow query logging initialized - threshold: {slow_query_threshold}ms")
-                else:
-                    logger.info("Slow query logging disabled")
-            except Exception as e:
-                logger.error(f"Failed to initialize slow query logging: {e}")
-            
-        except Exception as e:
-            # Tables might not exist yet if this is a fresh deployment
-            # In that case, run: flask db upgrade
-            if 'does not exist' in str(e) or 'relation' in str(e).lower():
-                logger.warning("Database tables not found. Run 'flask db upgrade' to initialize schema.")
-            else:
-                logger.error(f"Database initialization error: {e}")
-                raise
+        logger.info("Models imported - database ready for connections")
     except Exception as e:
-        logger.error(f"Database initialization error: {e}")
-        raise
+        logger.warning(f"Model import warning: {e}")
 
 # Setup error handlers
 from error_handlers import setup_error_handlers, setup_request_logging, setup_health_monitoring
@@ -439,6 +448,16 @@ from shutdown_handler import init_graceful_shutdown
 shutdown_timeout = int(os.environ.get('GRACEFUL_SHUTDOWN_TIMEOUT', '30'))
 shutdown_handler = init_graceful_shutdown(app, db, timeout=shutdown_timeout)
 logger.info(f"Graceful shutdown handler initialized - timeout: {shutdown_timeout}s")
+
+# Trigger lazy initialization on first real request (not health checks)
+@app.before_request
+def trigger_lazy_init():
+    """Trigger lazy initialization on first non-health-check request"""
+    if request.path in ['/health', '/status', '/ready']:
+        return None
+    if request.path.startswith('/static/'):
+        return None
+    _run_lazy_initialization()
 
 # Setup session timeout middleware
 @app.before_request
@@ -488,7 +507,7 @@ def before_request():
     from auth_utils import is_authenticated
     
     # Skip validation for public paths (including health check endpoints)
-    excluded_paths = ['/login', '/register', '/static', '/logout', '/health', '/status', '/api/health', '/forgot_password', '/reset_password']
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/health', '/status', '/ready', '/api/health', '/forgot_password', '/reset_password']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     

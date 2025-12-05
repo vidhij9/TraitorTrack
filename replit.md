@@ -143,3 +143,9 @@ This migration safely drops unused columns (preserves all row data):
   - Session timeout detection: 401 responses trigger login modal
   - Client-side scan deduplication: 3-second cooldown after successful scans
   - Server-side scan deduplication: Thread-safe, bill+bag keyed, 3-second cooldown (prevents race conditions across devices)
+- **Capacity sync fix (Dec 5)**: Server now returns `safe_parent_bag_count` in all API responses to ensure consistent capacity synchronization when bill capacity is edited
+- **Deployment optimization (Dec 5)**:
+  - Added early health endpoints (/health, /status, /ready) that respond before heavy initialization
+  - Lazy loading for pool monitoring, slow query logging, and admin user check
+  - Migration timeout (15s default) to prevent blocking port 5000 opening
+  - Graceful timeout added to Gunicorn configuration
