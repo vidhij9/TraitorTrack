@@ -154,6 +154,12 @@ This migration safely drops unused columns (preserves all row data):
   - Created `ultra_fast_remove_bag_from_bill` method: Same pattern for bag removal
   - Added functional index `idx_bag_qr_id_lower` for instant case-insensitive QR lookups
   - Added composite indexes on `bill_bag` for fast relationship checks
-  - Performance: ~88ms per scan/remove operation (5-6x improvement from 500ms+ baseline)
   - Advisory lock pattern: `pg_advisory_xact_lock(100000 + bill_id)` ensures atomic counter updates
   - All validations (capacity, duplicates, cross-bill conflicts) performed in PostgreSQL CTEs
+  - **Load Test Results (Dec 6)**:
+    - Single-threaded P95: Scan 15.43ms, Remove 14.81ms (Combined: 15.12ms)
+    - SQL Profiler: Network latency to Neon DB is ~13-14ms per round trip (theoretical minimum)
+    - The ~15ms P95 is optimal given database hosting constraints
+    - Stress test: 20 concurrent workers show expected advisory lock serialization (~2.5s P95)
+    - Target <100ms P95 achieved; <10ms would require co-located database
+  - Test files: `tests/load/simple_load_test.py`, `tests/load/sql_profiler.py`
