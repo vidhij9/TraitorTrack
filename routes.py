@@ -5137,105 +5137,57 @@ def edit_bill(bill_id):
 @app.route('/remove_bag_from_bill', methods=['POST'])
 @login_required
 def remove_bag_from_bill():
-    """Remove a parent bag from a bill - admin and employee access"""
-    app.logger.info(f'Remove bag from bill - CSRF token present: {request.form.get("csrf_token") is not None}')
-    app.logger.info(f'Form data: {dict(request.form)}')
+    """Remove a parent bag from a bill - OPTIMIZED SINGLE TRANSACTION VERSION
+    
+    Consolidates multiple ORM queries into ONE atomic database transaction:
+    - Single advisory lock acquisition
+    - Indexed case-insensitive QR lookup using lower(qr_id)
+    - Atomic deletion and counter updates
+    
+    Target: <50ms P95 response time
+    """
+    import time
+    start_time = time.time()
     
     if not (current_user.is_admin() or current_user.role == 'biller'):
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Access restricted to admin and biller users.'})
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('bill_management'))
     
-    try:
-        from models import acquire_bill_lock
-        
-        parent_qr = request.form.get('parent_qr')
-        bill_id = request.form.get('bill_id', type=int)
-        
-        if not parent_qr or not bill_id:
-            flash('Missing required information.', 'error')
-            return redirect(url_for('bill_management'))
-        
-        # Get Bill object and acquire lock before bill_bag operations
-        bill = Bill.query.get(bill_id)
-        if not bill:
-            flash('Bill not found.', 'error')
-            return redirect(url_for('bill_management'))
-        
-        acquire_bill_lock(bill.id)
-        
-        # Find the parent bag
-        parent_bag = Bag.query.filter(
-            func.upper(Bag.qr_id) == func.upper(parent_qr),
-            Bag.type == 'parent'
-        ).first()
-        if not parent_bag:
-            flash('Parent bag not found.', 'error')
-            return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-        
-        # FIX: Use transaction for removing bag from bill
-        # Find and remove the bill-bag link with proper locking
-        bill_bag = BillBag.query.with_for_update().filter_by(bill_id=bill_id, bag_id=parent_bag.id).first()
-        if bill_bag:
-            # FIX: Add audit log for removal
-            app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) removed bag {parent_bag.qr_id} from bill ID {bill_id}')
-            removed_child_count = parent_bag.child_count or 0  # Get child count before removal
-            db.session.delete(bill_bag)
-            db.session.commit()
-            
-            # CRITICAL: Recalculate weights after removing bag
-            actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
-            
-            # IMPORTANT: If bill was completed and now under capacity, reopen for more scanning
-            if bill.status == 'completed' and bill.linked_parent_count < bill.parent_bag_count:
-                bill.status = 'processing'
-                app.logger.info(f'Bill {bill.bill_id} reopened after bag removal: {bill.linked_parent_count}/{bill.parent_bag_count}')
-            
-            db.session.commit()
-            app.logger.info(f'Bill {bill.bill_id} recalculated after bag removal: {bill.linked_parent_count}/{bill.parent_bag_count}')
-            
-            flash(f'Parent bag {parent_qr} removed from bill successfully.', 'success')
-        else:
-            removed_child_count = 0
-            flash('Bag link not found.', 'error')
-        
-        # Check if this is an AJAX request
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').find('application/json') != -1
-        
+    parent_qr = request.form.get('parent_qr', '').strip().upper()
+    bill_id = request.form.get('bill_id', type=int)
+    
+    if not parent_qr or not bill_id:
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         if is_ajax:
-            # For AJAX requests, return JSON with removed child count for weight tracking
-            return jsonify({
-                'success': True, 
-                'message': f'Parent bag {parent_qr} removed successfully.',
-                'linked_count': bill.linked_parent_count,
-                'expected_count': bill.safe_parent_bag_count,
-                'removed_child_count': removed_child_count,
-                'remaining_capacity': bill.remaining_capacity(),
-                'total_weight': bill.total_weight_kg,
-                'bill_status': bill.status
-            })
+            return jsonify({'success': False, 'message': 'Missing required information.'})
+        flash('Missing required information.', 'error')
+        return redirect(url_for('bill_management'))
+    
+    # Use ultra-fast optimized removal from query_optimizer
+    from query_optimizer import query_optimizer
+    result = query_optimizer.ultra_fast_remove_bag_from_bill(bill_id, parent_qr, current_user.id)
+    
+    # Log audit and performance
+    elapsed_ms = (time.time() - start_time) * 1000
+    if result.get('success'):
+        app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) removed bag {parent_qr} from bill ID {bill_id} - {elapsed_ms:.1f}ms')
+    else:
+        app.logger.warning(f'Remove bag failed: bill={bill_id}, qr={parent_qr}, error={result.get("error_type")} - {elapsed_ms:.1f}ms')
+    
+    # Check if this is an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').find('application/json') != -1
+    
+    if is_ajax:
+        return jsonify(result)
+    else:
+        if result.get('success'):
+            flash(result.get('message', 'Bag removed successfully.'), 'success')
         else:
-            # For normal form submissions, redirect back to scan page
-            return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f'Remove bag from bill error: {str(e)}')
-        
-        # Check if this is an AJAX request
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').find('application/json') != -1
-        
-        if is_ajax:
-            return jsonify({
-                'success': False, 
-                'message': 'Error removing bag from bill.'
-            })
-        else:
-            flash('Error removing bag from bill.', 'error')
-            bill_id = request.form.get('bill_id', type=int)
-            if bill_id:
-                return redirect(url_for('scan_bill_parent', bill_id=bill_id))
-            else:
-                return redirect(url_for('bills'))
+            flash(result.get('message', 'Error removing bag.'), 'error')
+        return redirect(url_for('scan_bill_parent', bill_id=bill_id))
 
 @app.route('/bill/<int:bill_id>/scan_parent')
 @login_required

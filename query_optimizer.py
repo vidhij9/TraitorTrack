@@ -679,6 +679,152 @@ class QueryOptimizer:
                 "error_type": "server_error",
                 "message": f"Error processing scan: {str(e)}"
             }
+    
+    def ultra_fast_remove_bag_from_bill(self, bill_id, qr_code, user_id):
+        """
+        Ultra-optimized bag removal from bill in a SINGLE database transaction.
+        
+        Consolidates multiple ORM queries into ONE atomic transaction:
+        1. Acquires advisory lock for bill
+        2. Validates bill and bag exist
+        3. Checks for existing link
+        4. Removes BillBag link
+        5. Updates bill counters atomically
+        
+        Target: <50ms P95 response time
+        
+        Args:
+            bill_id: Integer bill ID
+            qr_code: Parent bag QR code
+            user_id: ID of user performing the removal
+            
+        Returns:
+            dict with success, message, and updated counters
+        """
+        qr_code = qr_code.strip().upper()
+        
+        try:
+            # Single query to get all info needed with advisory lock
+            result = self.db.session.execute(
+                text("""
+                    WITH
+                    lock_acquired AS (
+                        SELECT pg_advisory_xact_lock(100000 + :bill_id) AS locked
+                    ),
+                    bill_info AS (
+                        SELECT 
+                            id, bill_id, status,
+                            COALESCE(parent_bag_count, 1) AS parent_bag_count,
+                            COALESCE(linked_parent_count, 0) AS linked_parent_count,
+                            COALESCE(total_weight_kg, 0) AS total_weight_kg,
+                            COALESCE(expected_weight_kg, 0) AS expected_weight_kg,
+                            COALESCE(total_child_bags, 0) AS total_child_bags
+                        FROM bill
+                        WHERE id = :bill_id
+                        FOR UPDATE
+                    ),
+                    parent_bag_info AS (
+                        SELECT 
+                            b.id, b.qr_id, b.type,
+                            COALESCE(b.child_count, 0) AS child_count
+                        FROM bag b
+                        WHERE lower(b.qr_id) = lower(:qr_code) AND b.type = 'parent'
+                        FOR UPDATE
+                    ),
+                    existing_link AS (
+                        SELECT bb.id
+                        FROM bill_bag bb
+                        JOIN parent_bag_info p ON bb.bag_id = p.id
+                        WHERE bb.bill_id = :bill_id
+                    )
+                    SELECT 
+                        (SELECT id FROM bill_info) AS bill_pk,
+                        (SELECT bill_id FROM bill_info) AS bill_code,
+                        (SELECT status FROM bill_info) AS bill_status,
+                        (SELECT parent_bag_count FROM bill_info) AS capacity,
+                        (SELECT linked_parent_count FROM bill_info) AS linked_count,
+                        (SELECT total_weight_kg FROM bill_info) AS current_weight,
+                        (SELECT expected_weight_kg FROM bill_info) AS expected_weight,
+                        (SELECT id FROM parent_bag_info) AS bag_id,
+                        (SELECT qr_id FROM parent_bag_info) AS bag_qr,
+                        (SELECT child_count FROM parent_bag_info) AS child_count,
+                        (SELECT id FROM existing_link) AS link_id
+                """),
+                {"bill_id": int(bill_id), "qr_code": qr_code}
+            ).fetchone()
+            
+            if not result:
+                return {"success": False, "error_type": "query_failed", "message": "Database query failed."}
+            
+            (bill_pk, bill_code, bill_status, capacity, linked_count,
+             current_weight, expected_weight, bag_id, bag_qr, child_count, link_id) = result
+            
+            if not bill_pk:
+                return {"success": False, "error_type": "bill_not_found", "message": f"Bill not found."}
+            
+            if not bag_id:
+                return {"success": False, "error_type": "bag_not_found", "message": f"Parent bag {qr_code} not found."}
+            
+            if not link_id:
+                return {"success": False, "error_type": "link_not_found", "message": f"Bag {qr_code} is not linked to this bill."}
+            
+            # Calculate weight delta based on bag type
+            if qr_code.startswith('SB'):
+                expected_weight_delta = 30.0
+            elif qr_code.startswith('M') and '-' in qr_code:
+                expected_weight_delta = 15.0
+            else:
+                expected_weight_delta = 30.0
+            
+            # Delete link and update counters atomically
+            self.db.session.execute(
+                text("""
+                    DELETE FROM bill_bag WHERE id = :link_id;
+                    
+                    UPDATE bill 
+                    SET linked_parent_count = GREATEST(0, COALESCE(linked_parent_count, 0) - 1),
+                        total_weight_kg = GREATEST(0, COALESCE(total_weight_kg, 0) - :child_count),
+                        expected_weight_kg = GREATEST(0, COALESCE(expected_weight_kg, 0) - :expected_delta),
+                        total_child_bags = GREATEST(0, COALESCE(total_child_bags, 0) - :child_count),
+                        status = CASE 
+                            WHEN status = 'completed' AND COALESCE(linked_parent_count, 0) - 1 < COALESCE(parent_bag_count, 1)
+                            THEN 'processing'
+                            ELSE status 
+                        END
+                    WHERE id = :bill_id;
+                """),
+                {
+                    "link_id": int(link_id),
+                    "bill_id": int(bill_pk),
+                    "child_count": int(child_count or 0),
+                    "expected_delta": expected_weight_delta
+                }
+            )
+            
+            self.db.session.commit()
+            
+            new_linked_count = max(0, linked_count - 1)
+            new_total_weight = max(0, current_weight - (child_count or 0))
+            new_status = "processing" if bill_status == "completed" and new_linked_count < capacity else bill_status
+            
+            return {
+                "success": True,
+                "error_type": "success",
+                "message": f"Parent bag {bag_qr} removed successfully.",
+                "bag_qr": bag_qr,
+                "bag_id": bag_id,
+                "removed_child_count": child_count or 0,
+                "linked_count": new_linked_count,
+                "expected_count": capacity,
+                "total_weight": new_total_weight,
+                "remaining_capacity": max(0, capacity - new_linked_count),
+                "bill_status": new_status
+            }
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Ultra fast remove bag failed: bill_id={bill_id}, qr={qr_code}, error={str(e)}", exc_info=True)
+            return {"success": False, "error_type": "server_error", "message": f"Error removing bag: {str(e)}"}
 
 # Create singleton instance
 query_optimizer = None
