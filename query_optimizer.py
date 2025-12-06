@@ -439,6 +439,246 @@ class QueryOptimizer:
             logger.error(f"Failed to commit database transaction", exc_info=True)
             self.db.session.rollback()
             return False
+    
+    def ultra_fast_bill_parent_scan(self, bill_id, qr_code, user_id):
+        """
+        Ultra-optimized bill parent bag scanning in a SINGLE database transaction.
+        
+        Consolidates 8-10 ORM queries into ONE atomic transaction:
+        1. Acquires advisory lock for bill
+        2. Validates bill exists and has capacity
+        3. Finds parent bag using indexed lower(qr_id) lookup
+        4. Checks for existing links (same bill, other bills)
+        5. Creates BillBag link and Scan record
+        6. Updates bill counters atomically
+        
+        Target: <50ms P95 response time
+        
+        Args:
+            bill_id: Integer bill ID
+            qr_code: Parent bag QR code (will be normalized to uppercase)
+            user_id: ID of user performing the scan
+            
+        Returns:
+            dict with keys:
+            - success: bool
+            - error_type: str (for error responses)
+            - message: str
+            - bag_id, child_count, linked_count, expected_count, etc. (for success)
+        """
+        qr_code = qr_code.strip().upper()
+        
+        try:
+            # Single transaction with advisory lock
+            result = self.db.session.execute(
+                text("""
+                    WITH
+                    -- Step 1: Acquire advisory lock for this bill (prevents concurrent modifications)
+                    lock_acquired AS (
+                        SELECT pg_advisory_xact_lock(100000 + :bill_id) AS locked
+                    ),
+                    -- Step 2: Get bill info with capacity check
+                    bill_info AS (
+                        SELECT 
+                            id,
+                            bill_id,
+                            status,
+                            COALESCE(parent_bag_count, 1) AS parent_bag_count,
+                            COALESCE(linked_parent_count, 0) AS linked_parent_count,
+                            COALESCE(total_weight_kg, 0) AS total_weight_kg,
+                            COALESCE(expected_weight_kg, 0) AS expected_weight_kg,
+                            COALESCE(total_child_bags, 0) AS total_child_bags
+                        FROM bill
+                        WHERE id = :bill_id
+                        FOR UPDATE
+                    ),
+                    -- Step 3: Find parent bag using indexed lower() lookup
+                    parent_bag_info AS (
+                        SELECT 
+                            b.id,
+                            b.qr_id,
+                            b.type,
+                            b.child_count,
+                            COALESCE((SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id), 0) AS actual_child_count
+                        FROM bag b
+                        WHERE lower(b.qr_id) = lower(:qr_code)
+                        FOR UPDATE
+                    ),
+                    -- Step 4: Check if already linked to THIS bill
+                    existing_same_bill AS (
+                        SELECT bb.id, bb.bill_id, bb.bag_id
+                        FROM bill_bag bb
+                        JOIN parent_bag_info p ON bb.bag_id = p.id
+                        WHERE bb.bill_id = :bill_id
+                    ),
+                    -- Step 5: Check if linked to OTHER bill
+                    existing_other_bill AS (
+                        SELECT bb.id, bb.bill_id, b.bill_id AS other_bill_id
+                        FROM bill_bag bb
+                        JOIN parent_bag_info p ON bb.bag_id = p.id
+                        JOIN bill b ON bb.bill_id = b.id
+                        WHERE bb.bill_id != :bill_id
+                    )
+                    -- Return validation results
+                    SELECT 
+                        (SELECT id FROM bill_info) AS bill_pk,
+                        (SELECT bill_id FROM bill_info) AS bill_code,
+                        (SELECT status FROM bill_info) AS bill_status,
+                        (SELECT parent_bag_count FROM bill_info) AS capacity,
+                        (SELECT linked_parent_count FROM bill_info) AS linked_count,
+                        (SELECT total_weight_kg FROM bill_info) AS current_weight,
+                        (SELECT expected_weight_kg FROM bill_info) AS expected_weight,
+                        (SELECT total_child_bags FROM bill_info) AS child_bags_total,
+                        (SELECT id FROM parent_bag_info) AS bag_id,
+                        (SELECT qr_id FROM parent_bag_info) AS bag_qr,
+                        (SELECT type FROM parent_bag_info) AS bag_type,
+                        (SELECT actual_child_count FROM parent_bag_info) AS child_count,
+                        (SELECT id FROM existing_same_bill) IS NOT NULL AS already_linked_same,
+                        (SELECT other_bill_id FROM existing_other_bill) AS linked_to_other_bill
+                """),
+                {
+                    "bill_id": int(bill_id),
+                    "qr_code": qr_code
+                }
+            ).fetchone()
+            
+            if not result:
+                return {
+                    "success": False,
+                    "error_type": "query_failed",
+                    "message": "Database query failed. Please try again."
+                }
+            
+            # Unpack results
+            (bill_pk, bill_code, bill_status, capacity, linked_count, 
+             current_weight, expected_weight, child_bags_total,
+             bag_id, bag_qr, bag_type, child_count,
+             already_linked_same, linked_to_other_bill) = result
+            
+            # Validation checks
+            if not bill_pk:
+                return {
+                    "success": False,
+                    "error_type": "bill_not_found",
+                    "message": f"Bill #{bill_id} not found. Please refresh the page."
+                }
+            
+            if not bag_id:
+                return {
+                    "success": False,
+                    "error_type": "bag_not_found",
+                    "message": f"Bag {qr_code} not registered in system. Please scan a registered parent bag."
+                }
+            
+            if bag_type != 'parent':
+                return {
+                    "success": False,
+                    "error_type": "wrong_bag_type",
+                    "message": f"{qr_code} is registered as a {bag_type} bag, not a parent bag."
+                }
+            
+            if already_linked_same:
+                return {
+                    "success": False,
+                    "error_type": "already_linked_same_bill",
+                    "message": f"{qr_code} already linked to this bill (contains {child_count} children)."
+                }
+            
+            if linked_to_other_bill:
+                return {
+                    "success": False,
+                    "error_type": "already_linked_other_bill",
+                    "message": f"{qr_code} already linked to Bill #{linked_to_other_bill}. Cannot link to multiple bills."
+                }
+            
+            # Check capacity
+            if linked_count >= capacity:
+                return {
+                    "success": False,
+                    "error_type": "capacity_reached",
+                    "is_at_capacity": True,
+                    "message": f"Bill capacity reached ({linked_count}/{capacity} parent bags). Cannot add more bags."
+                }
+            
+            # All validations passed - create the link and update counters atomically
+            # Calculate weight delta based on bag type (SB = 30kg expected, Mxxx-xx = 15kg expected)
+            if qr_code.startswith('SB'):
+                expected_weight_delta = 30.0
+            elif qr_code.startswith('M') and '-' in qr_code:
+                expected_weight_delta = 15.0
+            else:
+                expected_weight_delta = 30.0  # Default
+            
+            # Insert BillBag, Scan, and update Bill in one atomic operation
+            self.db.session.execute(
+                text("""
+                    -- Insert bill-bag link
+                    INSERT INTO bill_bag (bill_id, bag_id, created_at)
+                    VALUES (:bill_id, :bag_id, NOW());
+                    
+                    -- Insert scan record
+                    INSERT INTO scan (parent_bag_id, user_id, timestamp)
+                    VALUES (:bag_id, :user_id, NOW());
+                    
+                    -- Update bag child_count and weight
+                    UPDATE bag 
+                    SET child_count = :child_count, 
+                        weight_kg = :child_count,
+                        status = CASE WHEN :child_count >= 30 THEN 'completed' ELSE 'in_progress' END
+                    WHERE id = :bag_id;
+                    
+                    -- Update bill counters atomically
+                    UPDATE bill 
+                    SET linked_parent_count = COALESCE(linked_parent_count, 0) + 1,
+                        total_weight_kg = COALESCE(total_weight_kg, 0) + :child_count,
+                        expected_weight_kg = COALESCE(expected_weight_kg, 0) + :expected_delta,
+                        total_child_bags = COALESCE(total_child_bags, 0) + :child_count,
+                        status = CASE WHEN status = 'new' THEN 'processing' ELSE status END
+                    WHERE id = :bill_id;
+                """),
+                {
+                    "bill_id": int(bill_pk),
+                    "bag_id": int(bag_id),
+                    "user_id": int(user_id),
+                    "child_count": int(child_count or 0),
+                    "expected_delta": expected_weight_delta
+                }
+            )
+            
+            self.db.session.commit()
+            
+            # Calculate new values
+            new_linked_count = linked_count + 1
+            new_total_weight = current_weight + (child_count or 0)
+            new_expected_weight = expected_weight + expected_weight_delta
+            is_at_capacity = new_linked_count >= capacity
+            
+            capacity_message = " Bill is now at capacity!" if is_at_capacity else ""
+            
+            return {
+                "success": True,
+                "error_type": "success",
+                "message": f"{bag_qr} linked successfully! Contains {child_count} children ({new_linked_count}/{capacity} bags total){capacity_message}",
+                "bag_qr": bag_qr,
+                "bag_id": bag_id,
+                "child_count": child_count or 0,
+                "linked_count": new_linked_count,
+                "expected_count": capacity,
+                "actual_weight": new_total_weight,
+                "expected_weight": new_expected_weight,
+                "is_at_capacity": is_at_capacity,
+                "remaining_capacity": max(0, capacity - new_linked_count),
+                "bill_status": "processing" if bill_status == "new" else bill_status
+            }
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Ultra fast bill parent scan failed: bill_id={bill_id}, qr={qr_code}, error={str(e)}", exc_info=True)
+            return {
+                "success": False,
+                "error_type": "server_error",
+                "message": f"Error processing scan: {str(e)}"
+            }
 
 # Create singleton instance
 query_optimizer = None

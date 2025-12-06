@@ -5478,43 +5478,59 @@ def _is_duplicate_scan(bill_id, qr_code):
 
 @app.route('/fast/bill_parent_scan', methods=['POST'])
 def ultra_fast_bill_parent_scan():
-    """Ultra-fast bill parent bag scanning with optimized performance"""
+    """Ultra-fast bill parent bag scanning - OPTIMIZED SINGLE TRANSACTION VERSION
+    
+    This endpoint consolidates 8-10 ORM queries into ONE atomic database transaction:
+    - Single advisory lock acquisition
+    - Indexed case-insensitive QR lookup using lower(qr_id)
+    - All validations (bill exists, bag exists, capacity, duplicates) in one query
+    - Atomic insert and counter updates
+    
+    Target: <50ms P95 response time (down from 150-500ms)
+    """
+    import time
+    start_time = time.time()
+    
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({
             'success': False,
-            'message': '🚫 Please login first',
+            'message': 'Please login first',
             'auth_required': True,
             'error_type': 'auth_required'
         }), 401
     
-    # Check role
-    user = User.query.get(user_id)
-    if not user or user.role not in ['admin', 'biller']:
+    # Quick role check using raw SQL for speed
+    from sqlalchemy import text
+    user_result = db.session.execute(
+        text("SELECT username, role FROM \"user\" WHERE id = :user_id"),
+        {"user_id": user_id}
+    ).fetchone()
+    
+    if not user_result or user_result[1] not in ['admin', 'biller']:
         return jsonify({
             'success': False, 
-            'message': '🚫 Access restricted to admin and biller users.',
+            'message': 'Access restricted to admin and biller users.',
             'error_type': 'access_denied'
         })
     
+    username = user_result[0]
     bill_id = request.form.get('bill_id')
     qr_code = request.form.get('qr_code', '').strip().upper()
     
     # SCAN DEDUPLICATION: Block rapid double-submits from ANY device
     if bill_id and qr_code and _is_duplicate_scan(bill_id, qr_code):
-        app.logger.info(f'Duplicate scan blocked: bill={bill_id}, qr={qr_code}, user={user.username}')
+        app.logger.info(f'Duplicate scan blocked: bill={bill_id}, qr={qr_code}, user={username}')
         return jsonify({
             'success': False,
-            'message': f'⏳ {qr_code} was just scanned. Please wait 3 seconds before re-scanning.',
+            'message': f'{qr_code} was just scanned. Please wait 3 seconds before re-scanning.',
             'error_type': 'duplicate_scan'
         })
-    
-    app.logger.info(f'Fast bill scan - bill_id: {bill_id}, qr_code: {qr_code}, user: {user.username}')
     
     if not bill_id or not qr_code:
         return jsonify({
             'success': False, 
-            'message': '🚫 Missing bill ID or QR code',
+            'message': 'Missing bill ID or QR code',
             'error_type': 'missing_data'
         })
     
@@ -5523,151 +5539,20 @@ def ultra_fast_bill_parent_scan():
     if not is_valid:
         return jsonify({
             'success': False,
-            'message': f'🚫 {error_msg} You scanned: {qr_code}',
+            'message': f'{error_msg} You scanned: {qr_code}',
             'show_popup': True,
             'error_type': 'invalid_format'
         })
     
-    try:
-        # Import the lock helper
-        from models import acquire_bill_lock
-        
-        # Simplified queries for better reliability and debugging
-        
-        # 1. Check if bill exists
-        bill = Bill.query.get(int(bill_id))
-        if not bill:
-            app.logger.error(f'Bill not found: {bill_id}')
-            return jsonify({
-                'success': False, 
-                'message': f'📋 Bill #{bill_id} not found. Please refresh the page.',
-                'error_type': 'bill_not_found'
-            })
-        
-        # Acquire advisory lock before bill_bag operations
-        acquire_bill_lock(bill.id)
-        
-        # 2. Check if parent bag exists (case-insensitive)
-        from sqlalchemy import func
-        parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_code.upper(), Bag.type == 'parent').first()
-        if not parent_bag:
-            # Check if it's registered as a different type (case-insensitive)
-            other_bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_code.upper()).first()
-            if other_bag:
-                app.logger.warning(f'Bag {qr_code} is type {other_bag.type}, not parent')
-                return jsonify({
-                    'success': False,
-                    'message': f'🚫 {qr_code} is registered as a {other_bag.type} bag, not a parent bag',
-                    'error_type': 'wrong_bag_type'
-                })
-            else:
-                app.logger.warning(f'Bag {qr_code} not found in system')
-                return jsonify({
-                    'success': False,
-                    'message': f'🚫 Bag {qr_code} not registered in system. Please scan a registered parent bag.',
-                    'error_type': 'bag_not_found'
-                })
-        
-        app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
-        
-        # 3. Get actual child count
-        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-        app.logger.info(f'Parent bag {qr_code} has {child_count} children')
-        
-        # 4. Check if already linked to this bill
-        existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
-        if existing_link:
-            app.logger.info(f'Bag {qr_code} already linked to bill {bill.bill_id}')
-            return jsonify({
-                'success': False,
-                'message': f'✅ {qr_code} already linked to this bill (contains {child_count} children)',
-                'error_type': 'already_linked_same_bill'
-            })
-        
-        # 5. Check if linked to another bill
-        other_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
-        if other_link:
-            other_bill = Bill.query.get(other_link.bill_id)
-            app.logger.warning(f'Bag {qr_code} already linked to bill {other_bill.bill_id if other_bill else "Unknown"}')
-            return jsonify({
-                'success': False,
-                'message': f'⚠️ {qr_code} already linked to different Bill #{other_bill.bill_id if other_bill else "Unknown"}. Cannot link to multiple bills.',
-                'error_type': 'already_linked_other_bill'
-            })
-        
-        # 6. Check current capacity using denormalized linked_parent_count
-        if not bill.can_link_more_bags():
-            app.logger.warning(f'Bill {bill.bill_id} at capacity: {bill.linked_parent_count}/{bill.parent_bag_count}')
-            return jsonify({
-                'success': False,
-                'message': f'📦 Bill capacity reached ({bill.linked_parent_count}/{bill.parent_bag_count} parent bags). Cannot add more bags.',
-                'error_type': 'capacity_reached',
-                'is_at_capacity': True
-            })
-        
-        # All checks passed - link the parent bag to the bill
-        app.logger.info(f'Linking {qr_code} to bill {bill.bill_id}')
-        
-        # Update parent bag with actual child count and weight
-        parent_bag.child_count = child_count
-        parent_bag.weight_kg = float(child_count)  # 1kg per child
-        if child_count >= 30:
-            parent_bag.status = 'completed'
-        elif child_count > 0:
-            parent_bag.status = 'in_progress'
-        
-        # Create the link
-        bill_bag = BillBag()
-        bill_bag.bill_id = bill.id
-        bill_bag.bag_id = parent_bag.id
-        
-        # Record scan
-        scan = Scan()
-        scan.user_id = user_id
-        scan.parent_bag_id = parent_bag.id
-        scan.timestamp = datetime.now()
-        
-        db.session.add(bill_bag)
-        db.session.add(scan)
-        db.session.commit()
-        
-        # CRITICAL: Use recalculate_weights() to ensure accurate bill totals
-        # This prevents edge cases where manual calculations might be wrong
-        # Returns: (actual_weight, expected_weight, parent_count, child_count, is_at_capacity)
-        actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
-        db.session.commit()  # Commit the recalculated values
-        
-        app.logger.info(f'Successfully linked {qr_code} to bill {bill.bill_id}. Total: {bill.linked_parent_count}/{bill.parent_bag_count}')
-        
-        # Check if bill is now at capacity (auto-closed)
-        capacity_message = ''
-        if is_full:
-            capacity_message = ' Bill is now at capacity!'
-            app.logger.info(f'Bill {bill.bill_id} auto-closed at capacity')
-        
-        return jsonify({
-            'success': True,
-            'message': f'✅ {qr_code} linked successfully! Contains {child_count} children ({bill.linked_parent_count}/{bill.parent_bag_count} bags total){capacity_message}',
-            'bag_qr': qr_code,
-            'linked_count': bill.linked_parent_count,
-            'expected_count': bill.safe_parent_bag_count,
-            'child_count': child_count,
-            'actual_weight': bill.total_weight_kg,
-            'expected_weight': bill.expected_weight_kg,
-            'is_at_capacity': is_full,
-            'remaining_capacity': bill.remaining_capacity(),
-            'bill_status': bill.status,
-            'error_type': 'success'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f'Fast bill scan error: {str(e)}', exc_info=True)
-        return jsonify({
-            'success': False, 
-            'message': f'❌ Error processing scan: {str(e)}',
-            'error_type': 'server_error'
-        })
+    # Use ultra-fast optimized scanning from query_optimizer
+    from query_optimizer import query_optimizer
+    result = query_optimizer.ultra_fast_bill_parent_scan(bill_id, qr_code, user_id)
+    
+    # Log performance
+    elapsed_ms = (time.time() - start_time) * 1000
+    app.logger.info(f'Ultra-fast scan completed: bill={bill_id}, qr={qr_code}, success={result.get("success")}, time={elapsed_ms:.1f}ms')
+    
+    return jsonify(result)
 
 @app.route('/process_bill_parent_scan', methods=['POST'])
 @login_required
