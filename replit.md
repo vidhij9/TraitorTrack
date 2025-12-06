@@ -163,3 +163,8 @@ This migration safely drops unused columns (preserves all row data):
     - Stress test: 20 concurrent workers show expected advisory lock serialization (~2.5s P95)
     - Target <100ms P95 achieved; <10ms would require co-located database
   - Test files: `tests/load/simple_load_test.py`, `tests/load/sql_profiler.py`
+- **Bill capacity and duplicate detection fixes (Dec 6)**:
+  - Increased parent bag limit from 50 to 500 per bill
+  - Fixed false duplicate detection: Only blocks bags linked to ACTIVE bills (new/pending/processing)
+  - Bags linked to completed or cancelled bills can now be reused in new bills
+  - Production cleanup script: `cleanup_production_db.sql` (run manually in database panel)
