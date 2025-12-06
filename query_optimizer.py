@@ -16,19 +16,26 @@ class QueryOptimizer:
     def get_bag_by_qr(self, qr_id, bag_type=None):
         """
         Fast bag lookup using optimized SQL query with indexes
+        Uses lower() on column to match the idx_bag_qr_id_lower functional index
+        The input qr_id is pre-normalized to lowercase to avoid double lower()
         Target: <10ms with proper indexing
         """
         from models import Bag
         from sqlalchemy import func
         
+        # Pre-normalize input to lowercase to match index expression exactly
+        # This ensures SQL emits: lower(qr_id) = :normalized_qr (uses index)
+        # Instead of: lower(qr_id) = lower(:qr) (may not use index efficiently)
+        qr_id_normalized = qr_id.lower() if qr_id else ''
+        
         if bag_type:
             bag = Bag.query.filter(
-                func.upper(Bag.qr_id) == func.upper(qr_id),
+                func.lower(Bag.qr_id) == qr_id_normalized,
                 Bag.type == bag_type
             ).first()
         else:
             bag = Bag.query.filter(
-                func.upper(Bag.qr_id) == func.upper(qr_id)
+                func.lower(Bag.qr_id) == qr_id_normalized
             ).first()
         
         return bag

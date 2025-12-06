@@ -106,7 +106,7 @@ The application is optimized for Replit Autoscale deployments:
 
 ### Database Migration for Production
 
-**Latest Migration**: `h4i5j6k7l8m9` - Drops unused legacy columns from `scan` and `bag` tables.
+**Latest Migration**: `i5j6k7l8m9n0` - Adds functional indexes for ultra-fast bill scanning.
 
 **How migrations work:**
 1. `deploy.sh` runs `python run_migrations.py` BEFORE starting Gunicorn
