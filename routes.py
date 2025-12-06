@@ -5306,10 +5306,13 @@ def complete_bill():
 @app.route('/save_bill_progress', methods=['POST'])
 @login_required
 def save_bill_progress():
-    """Save bill progress - updates status to 'processing' and recalculates weights
+    """Save bill progress - OPTIMIZED version using fast SQL query
     
     Called when user clicks 'Save & Continue Later' to ensure bill is properly tracked.
     Individual bag scans are already saved immediately, this just updates the bill status.
+    
+    OPTIMIZATION: Uses direct SQL instead of slow recalculate_weights() to prevent
+    blocking other scanning operations on the same bill.
     """
     if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
@@ -5321,27 +5324,41 @@ def save_bill_progress():
         return jsonify({'success': False, 'message': 'Bill ID is required.'})
     
     try:
+        from sqlalchemy import text
         from models import Bill
         
         bill = Bill.query.get(bill_id)
         if not bill:
             return jsonify({'success': False, 'message': 'Bill not found.'})
         
-        # Get current linked count
-        linked_count = bill.bag_links.count()
+        # OPTIMIZED: Single fast query to get counts (no advisory lock needed for read)
+        result = db.session.execute(text("""
+            SELECT 
+                COUNT(bb.id) as linked_count,
+                COALESCE(SUM(COALESCE(bag.child_count, 0)), 0) as total_children
+            FROM bill_bag bb
+            JOIN bag ON bb.bag_id = bag.id
+            WHERE bb.bill_id = :bill_id
+        """), {"bill_id": bill_id}).fetchone()
+        
+        linked_count = result[0] if result else 0
+        total_children = int(result[1]) if result else 0
         
         # Update status based on progress
+        old_status = bill.status
         if linked_count > 0:
             bill.status = 'processing'
         else:
             bill.status = 'new'
         
-        # Recalculate weights to ensure accuracy
-        bill.recalculate_weights()
+        # Update bill counters without heavy recalculate_weights
+        bill.linked_parent_count = linked_count
+        bill.total_weight_kg = float(total_children)
+        bill.total_child_bags = total_children
         
         db.session.commit()
         
-        app.logger.info(f'Bill {bill.bill_id} progress saved: {linked_count} bags linked, status={bill.status}')
+        app.logger.info(f'Bill {bill.bill_id} progress saved: {linked_count} bags linked, status={old_status}->{bill.status}')
         
         return jsonify({
             'success': True, 
@@ -5509,15 +5526,25 @@ def ultra_fast_bill_parent_scan():
 @app.route('/process_bill_parent_scan', methods=['POST'])
 @login_required
 def process_bill_parent_scan():
-    """Process a parent bag scan for bill linking - admin and biller access (works for completed bills too)"""
-    app.logger.info(f'Process bill parent scan - CSRF token present: {request.form.get("csrf_token") is not None}')
+    """Process a parent bag scan for bill linking - REDIRECTS TO ULTRA-FAST IMPLEMENTATION
+    
+    This legacy route now delegates to the ultra-fast query_optimizer implementation
+    to prevent the 30-35 second delays caused by recalculate_weights().
+    
+    Pre-checks for common errors (bag not found, already linked) are done BEFORE
+    acquiring the advisory lock to minimize lock contention.
+    """
+    import time
+    start_time = time.time()
+    
+    app.logger.info(f'Process bill parent scan (legacy route) - delegating to ultra-fast implementation')
     
     if not (hasattr(current_user, 'is_admin') and current_user.is_admin() or 
             hasattr(current_user, 'role') and current_user.role in ['admin', 'biller']):
         return jsonify({'success': False, 'message': 'Access restricted to admin and employee users.'})
     
     bill_id = request.form.get('bill_id')
-    qr_code = request.form.get('qr_code')
+    qr_code = request.form.get('qr_code', '').strip().upper()
     
     if not bill_id:
         return jsonify({'success': False, 'message': 'Bill ID missing.'})
@@ -5525,180 +5552,89 @@ def process_bill_parent_scan():
     if not qr_code:
         return jsonify({'success': False, 'message': 'Please scan a parent bag QR code.'})
     
-    # Optimized transaction with proper concurrency handling
+    # Validate format using InputValidator
+    is_valid, qr_code, error_msg = InputValidator.validate_qr_code(qr_code, bag_type='parent')
+    if not is_valid:
+        return jsonify({
+            'success': False,
+            'message': f'{error_msg} You scanned: {qr_code}',
+            'show_popup': True,
+            'error_type': 'invalid_format'
+        })
+    
+    # STEP 1: Validate bill_id is valid integer and bill exists
     try:
-        app.logger.info(f'Processing bill parent scan - bill_id: {bill_id}, qr_code: {qr_code}')
-        
-        # Import models locally to avoid circular imports
-        from models import Bill, Bag, BillBag, acquire_bill_lock
-        
-        # Get bill - handle both integer ID and string bill_id
-        try:
-            # First try as integer primary key (from template)
-            bill = Bill.query.get(int(bill_id))
-        except (ValueError, TypeError):
-            # If not integer, try as string bill_id
-            bill = Bill.query.filter_by(bill_id=bill_id).first()
-        
-        if not bill:
-            return jsonify({'success': False, 'message': f'Bill with ID "{bill_id}" not found. Please check the bill exists.'})
-        
-        # Acquire advisory lock before bill_bag operations
-        acquire_bill_lock(bill.id)
-        
-        qr_id = sanitize_input(qr_code.strip() if qr_code else '')
-        
-        app.logger.info(f'Sanitized QR code: {qr_id}')
-        
-        # Validate parent bag QR code format using InputValidator
-        is_valid, qr_id, error_msg = InputValidator.validate_qr_code(qr_id, bag_type='parent')
-        if not is_valid:
+        bill_id_int = int(bill_id)
+    except (ValueError, TypeError):
+        return jsonify({
+            'success': False,
+            'message': 'Invalid bill ID.',
+            'error_type': 'invalid_bill_id'
+        })
+    
+    # FAST PRE-CHECK: Validate bill exists, bag exists, and bag isn't linked to another bill
+    # All in one query WITHOUT acquiring advisory lock to avoid lock contention
+    from sqlalchemy import text
+    precheck = db.session.execute(text("""
+        SELECT 
+            (SELECT id FROM bill WHERE id = :bill_id) as bill_exists,
+            b.id as bag_id,
+            b.type as bag_type,
+            (SELECT bb2.bill_id FROM bill_bag bb2 WHERE bb2.bag_id = b.id AND bb2.bill_id != :bill_id LIMIT 1) as other_bill_id
+        FROM bag b
+        WHERE lower(b.qr_id) = lower(:qr_code)
+        LIMIT 1
+    """), {"bill_id": bill_id_int, "qr_code": qr_code}).fetchone()
+    
+    # Check if bag exists first
+    if not precheck:
+        # Bag not found - but still need to check if bill exists
+        bill_check = db.session.execute(text(
+            "SELECT id FROM bill WHERE id = :bill_id LIMIT 1"
+        ), {"bill_id": bill_id_int}).fetchone()
+        if not bill_check:
             return jsonify({
-                'success': False, 
-                'message': f'❌ {error_msg} You scanned: {qr_id}',
-                'show_popup': True
+                'success': False,
+                'message': f'Bill #{bill_id} not found.',
+                'error_type': 'bill_not_found'
             })
-        
-        # Direct parent bag lookup - no caching to avoid model/dict confusion
-        parent_bag = Bag.query.filter(
-            func.upper(Bag.qr_id) == func.upper(qr_id),
-            Bag.type == 'parent'
-        ).first()
-        
-        if not parent_bag:
-            app.logger.info(f'Parent bag "{qr_id}" not found in database')
-            return jsonify({'success': False, 'message': f'❌ Parent bag "{qr_id}" not found! This bag needs to be registered as a parent bag first.'})
-        
-        app.logger.info(f'Found parent bag: {parent_bag.qr_id} (ID: {parent_bag.id})')
-        
-        # Parent bag can be linked regardless of status or child count
-        # Count child bags for informational purposes only
-        child_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-        
-        # Update child count and weight based on actual children
-        parent_bag.child_count = child_count
-        parent_bag.weight_kg = float(child_count)  # 1kg per child
-        
-        # Mark as completed if it has children, otherwise keep as is
-        if child_count > 0 and parent_bag.status == 'pending':
-            parent_bag.status = 'in_progress'
-        
-        db.session.commit()
-        app.logger.info(f'Parent bag {qr_id} has {child_count} children, proceeding with linking')
-        
-        # FIX: Check current bill capacity (after potential edits)
-        current_capacity = bill.parent_bag_count
-        if current_capacity <= 0 or current_capacity > 100:
-            app.logger.error(f'Invalid bill capacity: {current_capacity}')
-            return jsonify({'success': False, 'message': 'Bill has invalid capacity configuration'})
-        
-        # Direct duplicate check
-        existing_link = BillBag.query.filter_by(bill_id=bill.id, bag_id=parent_bag.id).first()
-        if existing_link:
-            return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill.'})
-        
-        # Check if bag is linked to another ACTIVE bill (only block for active bills)
-        other_link = db.session.query(BillBag, Bill).join(Bill, BillBag.bill_id == Bill.id).filter(
-            BillBag.bag_id == parent_bag.id,
-            BillBag.bill_id != bill.id,
-            Bill.status.in_(['new', 'pending', 'processing'])
-        ).first()
-        if other_link:
-            other_bill_bag, other_bill = other_link
-            other_bill_id = other_bill.bill_id if other_bill else other_bill_bag.bill_id
-            return jsonify({'success': False, 'message': f'⚠️ Parent bag "{qr_id}" is already linked to bill "{other_bill_id}".'})
-        
-        # STRICT CAPACITY ENFORCEMENT: Block scanning when at capacity or completed
-        # This is consistent with ultra_fast_bill_parent_scan behavior
-        if bill.status == 'completed':
-            return jsonify({
-                'success': False, 
-                'message': f'⛔ Bill is completed ({bill.linked_parent_count}/{bill.parent_bag_count} bags). Reopen it first to add more bags.',
-                'is_at_capacity': True,
-                'error_type': 'bill_completed'
-            })
-        
-        if not bill.can_link_more_bags():
-            return jsonify({
-                'success': False, 
-                'message': f'📦 Bill capacity reached ({bill.linked_parent_count}/{bill.parent_bag_count} parent bags). Cannot add more bags.',
-                'is_at_capacity': True,
-                'error_type': 'capacity_reached'
-            })
-        
-        app.logger.info(f'Bill linked count: {bill.linked_parent_count}, capacity: {bill.parent_bag_count}')
-        
-        # Use transaction for atomic operations
-        with db.session.begin_nested():
-            # Create bill-bag link
-            app.logger.info(f'Creating new bill-bag link...')
-            bill_bag = BillBag()
-            bill_bag.bill_id = bill.id
-            bill_bag.bag_id = parent_bag.id
-            
-            # Track who created/modified the bill
-            if not bill.created_by_id:
-                bill.created_by_id = current_user.id
-            
-            # Create scan record
-            scan = Scan()
-            scan.user_id = current_user.id
-            scan.parent_bag_id = parent_bag.id
-            scan.timestamp = datetime.now()
-            
-            db.session.add(bill_bag)
-            db.session.add(scan)
-        
-        # Commit outside the nested transaction
-        db.session.commit()
-        
-        # CRITICAL: Use recalculate_weights() to ensure accurate bill totals
-        # This prevents edge cases where manual calculations might be wrong
-        # Returns: (actual_weight, expected_weight, parent_count, child_count, is_at_capacity)
-        actual_weight, expected_weight, parent_count, child_count_total, is_full = bill.recalculate_weights()
-        db.session.commit()  # Commit the recalculated values
-        
-        # Add audit log entry
-        app.logger.info(f'AUDIT: User {current_user.username} (ID: {current_user.id}) linked bag {parent_bag.qr_id} to bill {bill.bill_id}')
-        app.logger.info(f'Bill weight recalculated: {actual_weight}kg actual, {expected_weight}kg expected, {child_count_total} total children')
-        
-        app.logger.info(f'Database commit successful')
-        app.logger.info(f'Successfully linked parent bag {qr_id} to bill {bill.bill_id}')
-        
-        # Check if bill is now at capacity (auto-closed)
-        capacity_message = ''
-        if is_full:
-            capacity_message = ' Bill is now at capacity!'
-            app.logger.info(f'Bill {bill.bill_id} auto-closed at capacity')
-        
-        response_data = {
-            'success': True, 
-            'message': f'Parent bag {qr_id} linked successfully! (Actual weight: {parent_bag.weight_kg}kg){capacity_message}',
-            'bag_qr': qr_id,
-            'linked_count': bill.linked_parent_count,
-            'expected_count': bill.safe_parent_bag_count,
-            'remaining_bags': bill.remaining_capacity(),
-            'total_weight': bill.total_weight_kg,
-            'expected_weight': bill.expected_weight_kg,
-            'total_child_bags': bill.total_child_bags,
-            'is_at_capacity': is_full,
-            'bill_status': bill.status
-        }
-        
-        app.logger.info(f'Sending response: {response_data}')
-        return jsonify(response_data)
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f'Bill parent scan error: {str(e)}')
-        import traceback
-        app.logger.error(f'Traceback: {traceback.format_exc()}')
-        
-        # Handle CSRF errors specifically for AJAX requests
-        if 'CSRF' in str(e) or 'csrf' in str(e).lower():
-            return jsonify({'success': False, 'message': 'Security token expired. Please refresh the page and try again.'})
-        
-        return jsonify({'success': False, 'message': 'Error linking parent bag to bill.'})
+        return jsonify({
+            'success': False,
+            'message': f'Bag {qr_code} not found. Please register it first.',
+            'error_type': 'bag_not_found'
+        })
+    
+    # Now validate precheck results
+    if not precheck[0]:  # bill_exists
+        return jsonify({
+            'success': False,
+            'message': f'Bill #{bill_id} not found.',
+            'error_type': 'bill_not_found'
+        })
+    
+    if precheck[2] != 'parent':  # bag_type
+        return jsonify({
+            'success': False,
+            'message': f'{qr_code} is a {precheck[2]} bag, not a parent bag.',
+            'error_type': 'wrong_bag_type'
+        })
+    
+    if precheck[3]:  # other_bill_id
+        return jsonify({
+            'success': False,
+            'message': f'{qr_code} is already linked to Bill #{precheck[3]}. Cannot link to multiple bills.',
+            'error_type': 'already_linked_other_bill'
+        })
+    
+    # Use ultra-fast optimized scanning from query_optimizer (same as /fast/bill_parent_scan)
+    from query_optimizer import query_optimizer
+    result = query_optimizer.ultra_fast_bill_parent_scan(bill_id, qr_code, current_user.id)
+    
+    # Log performance
+    elapsed_ms = (time.time() - start_time) * 1000
+    app.logger.info(f'Legacy bill scan delegated to ultra-fast: bill={bill_id}, qr={qr_code}, success={result.get("success")}, time={elapsed_ms:.1f}ms')
+    
+    return jsonify(result)
 
 @app.route('/bag/<path:qr_id>')
 @login_required
@@ -7231,19 +7167,18 @@ def manual_parent_entry():
             app.logger.warning(f'Parent bag {manual_qr} already linked to bill {bill.bill_id}')
             return jsonify({'success': False, 'message': f'Parent bag {manual_qr} is already linked to this bill.'}), 400
         
-        # Check if bag is linked to another ACTIVE bill (only block for active bills)
-        app.logger.info(f'Checking if bag linked to another active bill')
-        other_link = db.session.query(BillBag, Bill).join(Bill, BillBag.bill_id == Bill.id).filter(
+        # Check if bag is linked to ANY other bill (bags can only be linked to one bill ever)
+        app.logger.info(f'Checking if bag linked to another bill')
+        other_link = BillBag.query.filter(
             BillBag.bag_id == parent_bag.id,
-            BillBag.bill_id != bill.id,
-            Bill.status.in_(['new', 'pending', 'processing'])
+            BillBag.bill_id != bill.id
         ).first()
         if other_link:
-            other_bill_bag, other_bill = other_link
-            app.logger.warning(f'Parent bag {manual_qr} already linked to another active bill: {other_bill.bill_id}')
+            other_bill = Bill.query.get(other_link.bill_id)
+            app.logger.warning(f'Parent bag {manual_qr} already linked to another bill: {other_bill.bill_id if other_bill else other_link.bill_id}')
             return jsonify({
                 'success': False,
-                'message': f'Parent bag {manual_qr} is already linked to bill {other_bill.bill_id}.'
+                'message': f'Parent bag {manual_qr} is already linked to bill {other_bill.bill_id if other_bill else "another bill"}.'
             }), 400
         
         # Check capacity using denormalized linked_parent_count

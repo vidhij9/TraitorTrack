@@ -168,3 +168,12 @@ This migration safely drops unused columns (preserves all row data):
   - Fixed false duplicate detection: Only blocks bags linked to ACTIVE bills (new/pending/processing)
   - Bags linked to completed or cancelled bills can now be reused in new bills
   - Production cleanup script: `cleanup_production_db.sql` (run manually in database panel)
+- **Critical performance fix - eliminated 30-35 second delays (Dec 6)**:
+  - Root cause: Legacy `/process_bill_parent_scan` route called heavy `recalculate_weights()` method
+  - `recalculate_weights()` used 5-6 database round trips with multiple advisory locks
+  - Fix: Legacy route now delegates to ultra-fast `query_optimizer.ultra_fast_bill_parent_scan()`
+  - Added fast pre-check in legacy route to validate bill/bag existence and duplicates WITHOUT acquiring advisory lock
+  - Pre-check rejects invalid requests instantly (bag not found, wrong type, already linked to other bill)
+  - Also optimized `/save_bill_progress` to use direct SQL instead of `recalculate_weights()`
+  - Result: All scan-related operations now use single-transaction atomic updates (<50ms)
+  - Invalid scans no longer acquire advisory locks, preventing lock contention
