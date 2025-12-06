@@ -39,3 +39,6 @@ beautifulsoup4
 nanoid
 requests
 locust
+locust
+pytest
+pytest-asyncio
