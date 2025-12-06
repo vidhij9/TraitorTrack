@@ -38,7 +38,7 @@ def upgrade():
     """Add functional indexes for ultra-fast scanning.
     
     These indexes enable sub-50ms response times for parent bag scanning.
-    Uses CONCURRENTLY to avoid locking the table during creation.
+    Note: Cannot use CONCURRENTLY inside a migration transaction.
     """
     
     # Functional index for case-insensitive QR code lookup
@@ -46,7 +46,7 @@ def upgrade():
     if not index_exists('idx_bag_qr_id_lower'):
         op.execute(sa.text(
             """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bag_qr_id_lower 
+            CREATE INDEX IF NOT EXISTS idx_bag_qr_id_lower 
             ON bag (lower(qr_id))
             """
         ))
@@ -55,7 +55,7 @@ def upgrade():
     if not index_exists('idx_billbag_bill_bag'):
         op.execute(sa.text(
             """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_billbag_bill_bag 
+            CREATE INDEX IF NOT EXISTS idx_billbag_bill_bag 
             ON bill_bag (bill_id, bag_id)
             """
         ))
@@ -64,7 +64,7 @@ def upgrade():
     if not index_exists('idx_billbag_bag_id'):
         op.execute(sa.text(
             """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_billbag_bag_id 
+            CREATE INDEX IF NOT EXISTS idx_billbag_bag_id 
             ON bill_bag (bag_id)
             """
         ))
@@ -73,7 +73,7 @@ def upgrade():
     if not index_exists('idx_link_parent_child'):
         op.execute(sa.text(
             """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_link_parent_child 
+            CREATE INDEX IF NOT EXISTS idx_link_parent_child 
             ON link (parent_bag_id, child_bag_id)
             """
         ))
