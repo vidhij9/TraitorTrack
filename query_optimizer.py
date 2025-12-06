@@ -511,13 +511,14 @@ class QueryOptimizer:
                         JOIN parent_bag_info p ON bb.bag_id = p.id
                         WHERE bb.bill_id = :bill_id
                     ),
-                    -- Step 5: Check if linked to OTHER bill
+                    -- Step 5: Check if linked to OTHER ACTIVE bill (only block for active bills)
                     existing_other_bill AS (
                         SELECT bb.id, bb.bill_id, b.bill_id AS other_bill_id
                         FROM bill_bag bb
                         JOIN parent_bag_info p ON bb.bag_id = p.id
                         JOIN bill b ON bb.bill_id = b.id
                         WHERE bb.bill_id != :bill_id
+                        AND b.status IN ('new', 'pending', 'processing')
                     )
                     -- Return validation results
                     SELECT 

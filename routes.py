@@ -4779,8 +4779,8 @@ def create_bill():
             parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
             
             # FIX: Validate parent bag count with stricter limits and type checking
-            if not isinstance(parent_bag_count, int) or parent_bag_count < 1 or parent_bag_count > 50:
-                flash('Number of parent bags must be between 1 and 50.', 'error')
+            if not isinstance(parent_bag_count, int) or parent_bag_count < 1 or parent_bag_count > 500:
+                flash('Number of parent bags must be between 1 and 500.', 'error')
                 return render_template('create_bill.html')
             
             # CASE-INSENSITIVE duplicate check using UPPER for consistency with scanner input
@@ -5597,11 +5597,15 @@ def process_bill_parent_scan():
         if existing_link:
             return jsonify({'success': False, 'message': f'✓ Parent bag "{qr_id}" is already linked to this bill.'})
         
-        # Check if bag is linked to another bill
-        other_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
-        if other_link and other_link.bill_id != bill.id:
-            other_bill = Bill.query.get(other_link.bill_id)
-            other_bill_id = other_bill.bill_id if other_bill else other_link.bill_id
+        # Check if bag is linked to another ACTIVE bill (only block for active bills)
+        other_link = db.session.query(BillBag, Bill).join(Bill, BillBag.bill_id == Bill.id).filter(
+            BillBag.bag_id == parent_bag.id,
+            BillBag.bill_id != bill.id,
+            Bill.status.in_(['new', 'pending', 'processing'])
+        ).first()
+        if other_link:
+            other_bill_bag, other_bill = other_link
+            other_bill_id = other_bill.bill_id if other_bill else other_bill_bag.bill_id
             return jsonify({'success': False, 'message': f'⚠️ Parent bag "{qr_id}" is already linked to bill "{other_bill_id}".'})
         
         # STRICT CAPACITY ENFORCEMENT: Block scanning when at capacity or completed
@@ -7227,15 +7231,19 @@ def manual_parent_entry():
             app.logger.warning(f'Parent bag {manual_qr} already linked to bill {bill.bill_id}')
             return jsonify({'success': False, 'message': f'Parent bag {manual_qr} is already linked to this bill.'}), 400
         
-        # Check if bag is linked to another bill
-        app.logger.info(f'Checking if bag linked to another bill')
-        other_link = BillBag.query.filter_by(bag_id=parent_bag.id).first()
-        if other_link and other_link.bill_id != bill.id:
-            other_bill = Bill.query.get(other_link.bill_id)
-            app.logger.warning(f'Parent bag {manual_qr} already linked to another bill: {other_bill.bill_id if other_bill else other_link.bill_id}')
+        # Check if bag is linked to another ACTIVE bill (only block for active bills)
+        app.logger.info(f'Checking if bag linked to another active bill')
+        other_link = db.session.query(BillBag, Bill).join(Bill, BillBag.bill_id == Bill.id).filter(
+            BillBag.bag_id == parent_bag.id,
+            BillBag.bill_id != bill.id,
+            Bill.status.in_(['new', 'pending', 'processing'])
+        ).first()
+        if other_link:
+            other_bill_bag, other_bill = other_link
+            app.logger.warning(f'Parent bag {manual_qr} already linked to another active bill: {other_bill.bill_id}')
             return jsonify({
                 'success': False,
-                'message': f'Parent bag {manual_qr} is already linked to bill {other_bill.bill_id if other_bill else "another bill"}.'
+                'message': f'Parent bag {manual_qr} is already linked to bill {other_bill.bill_id}.'
             }), 400
         
         # Check capacity using denormalized linked_parent_count
