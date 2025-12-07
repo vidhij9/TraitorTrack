@@ -13,6 +13,10 @@ import routes
 import api  # Import consolidated API endpoints
 import api_optimized  # Import optimized v2 API endpoints
 
+# Import and register IPT blueprint for Inter Party Transfer
+from ipt_routes import ipt_bp
+app.register_blueprint(ipt_bp)
+
 # Setup monitoring for all routes
 @app.before_request
 def before_request():

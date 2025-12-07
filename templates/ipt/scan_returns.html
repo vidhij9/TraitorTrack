@@ -1,0 +1,284 @@
+{% extends "layout.html" %}
+{% block title %}Scan Returns - {{ ticket.ticket_code }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scan-input-container {
+        background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%);
+        padding: 2rem;
+        border-radius: 1rem;
+        color: white;
+    }
+    
+    .scan-input {
+        font-size: 1.5rem;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+    
+    .scan-result {
+        min-height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .scan-success {
+        background-color: #d4edda;
+        border-color: #28a745;
+        color: #155724;
+    }
+    
+    .scan-error {
+        background-color: #f8d7da;
+        border-color: #dc3545;
+        color: #721c24;
+    }
+    
+    .stats-card {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    
+    .returned-bag-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .returned-bag-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('ipt.ipt_dashboard') }}">IPT</a></li>
+                    <li class="breadcrumb-item active">{{ ticket.ticket_code }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="col-auto">
+            <span class="badge bg-primary fs-6">{{ ticket.cf_location | replace('_', ' ') | title }}</span>
+        </div>
+    </div>
+    
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="stats-card text-success" id="bags-count">{{ ticket.bags_scanned_count or 0 }}</div>
+                    <div class="text-muted">Bags Returned</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="stats-card text-primary" id="weight-total">{{ '%.1f' | format(ticket.total_weight_returned_kg or 0) }}</div>
+                    <div class="text-muted">Total Weight (kg)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="stats-card text-info">{{ ticket.ticket_code }}</div>
+                    <div class="text-muted">Ticket Code</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <form method="POST" action="{{ url_for('ipt.finalize_ticket', ticket_id=ticket.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success btn-lg w-100 mb-2" onclick="return confirm('Finalize this return ticket?')">
+                            <i class="fas fa-check-circle me-1"></i> Finalize
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('ipt.cancel_ticket', ticket_id=ticket.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('Cancel this return ticket? Bags already scanned will remain unlinked.')">
+                            Cancel Ticket
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body scan-input-container">
+                    <h5 class="mb-3"><i class="fas fa-barcode me-2"></i>Scan Parent Bag QR Code</h5>
+                    <form id="scan-form" onsubmit="return processScan(event)">
+                        <input type="text" 
+                               id="qr-input" 
+                               class="form-control form-control-lg scan-input mb-3" 
+                               placeholder="Scan or enter QR code..."
+                               autocomplete="off"
+                               autofocus>
+                        <button type="submit" class="btn btn-light btn-lg w-100">
+                            <i class="fas fa-arrow-right me-2"></i>Process Return
+                        </button>
+                    </form>
+                </div>
+                
+                <div id="scan-result" class="card-footer scan-result d-none">
+                    <div id="result-content"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>Recently Returned Bags</h6>
+                </div>
+                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                    <div id="returned-bags-list">
+                        {% for rtb in returned_bags %}
+                        <div class="returned-bag-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ rtb.bag.qr_id if rtb.bag else 'Unknown' }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    From Bill: {{ rtb.original_bill.bill_id if rtb.original_bill else 'None' }} |
+                                    {{ rtb.child_count_at_return }} children
+                                </small>
+                            </div>
+                            <small class="text-muted">{{ rtb.scanned_at.strftime('%H:%M:%S') if rtb.scanned_at else '' }}</small>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted" id="empty-message">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p class="mb-0">No bags scanned yet</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const ticketId = {{ ticket.id }};
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+let lastScanTime = 0;
+
+function processScan(event) {
+    event.preventDefault();
+    
+    const now = Date.now();
+    if (now - lastScanTime < 1500) {
+        return false;
+    }
+    lastScanTime = now;
+    
+    const input = document.getElementById('qr-input');
+    const qrCode = input.value.trim();
+    
+    if (!qrCode) {
+        showResult('error', 'Please scan or enter a QR code');
+        return false;
+    }
+    
+    input.disabled = true;
+    
+    fetch(`/ipt/scan/${ticketId}/process`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken
+        },
+        body: `qr_code=${encodeURIComponent(qrCode)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showResult('success', data.message);
+            updateStats(data);
+            addBagToList(data);
+            playSuccessSound();
+        } else {
+            showResult('error', data.message);
+            playErrorSound();
+        }
+    })
+    .catch(error => {
+        showResult('error', 'Network error. Please try again.');
+        console.error('Scan error:', error);
+    })
+    .finally(() => {
+        input.value = '';
+        input.disabled = false;
+        input.focus();
+    });
+    
+    return false;
+}
+
+function showResult(type, message) {
+    const resultDiv = document.getElementById('scan-result');
+    const contentDiv = document.getElementById('result-content');
+    
+    resultDiv.classList.remove('d-none', 'scan-success', 'scan-error');
+    resultDiv.classList.add(type === 'success' ? 'scan-success' : 'scan-error');
+    
+    const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+    contentDiv.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+    
+    setTimeout(() => {
+        resultDiv.classList.add('d-none');
+    }, 4000);
+}
+
+function updateStats(data) {
+    document.getElementById('bags-count').textContent = data.ticket_scanned_count || 0;
+}
+
+function addBagToList(data) {
+    const list = document.getElementById('returned-bags-list');
+    const emptyMsg = document.getElementById('empty-message');
+    if (emptyMsg) emptyMsg.remove();
+    
+    const now = new Date().toTimeString().split(' ')[0];
+    const item = document.createElement('div');
+    item.className = 'returned-bag-item d-flex justify-content-between align-items-center';
+    item.innerHTML = `
+        <div>
+            <strong>${data.bag_qr}</strong>
+            <br>
+            <small class="text-muted">
+                From Bill: #${data.original_bill_id} |
+                ${data.child_count_removed} children
+            </small>
+        </div>
+        <small class="text-muted">${now}</small>
+    `;
+    list.insertBefore(item, list.firstChild);
+}
+
+function playSuccessSound() {
+    try {
+        const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
+    } catch(e) {}
+}
+
+function playErrorSound() {
+    try {
+        const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
+    } catch(e) {}
+}
+
+document.getElementById('qr-input').focus();
+</script>
+{% endblock %}

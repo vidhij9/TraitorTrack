@@ -833,6 +833,216 @@ class QueryOptimizer:
             logger.error(f"Ultra fast remove bag failed: bill_id={bill_id}, qr={qr_code}, error={str(e)}", exc_info=True)
             return {"success": False, "error_type": "server_error", "message": f"Error removing bag: {str(e)}"}
 
+    def ultra_fast_ipt_return_scan(self, ticket_id, qr_code, user_id):
+        """
+        Ultra-fast IPT (Inter Party Transfer) return bag scanning.
+        
+        Atomically:
+        1. Validates bag exists and is a parent bag
+        2. Checks if bag is linked to a bill
+        3. Removes bag from bill and updates bill counters
+        4. Records return in ticket with original bill info
+        5. Creates audit trail (BillReturnEvent)
+        
+        Uses PostgreSQL advisory locks for concurrency safety.
+        Target: <100ms P95
+        
+        Returns:
+            dict with success, error_type, message, and operation details
+        """
+        try:
+            qr_code_normalized = qr_code.strip().upper() if qr_code else ''
+            
+            if not qr_code_normalized:
+                return {"success": False, "error_type": "invalid_input", "message": "QR code cannot be empty."}
+            
+            result = self.db.session.execute(
+                text("""
+                    WITH 
+                    -- First acquire advisory locks for ticket and bag atomically
+                    locks AS (
+                        SELECT 
+                            pg_advisory_xact_lock(400000 + :ticket_id),
+                            pg_advisory_xact_lock(200000 + COALESCE(
+                                (SELECT id FROM bag WHERE lower(qr_id) = lower(:qr_code) LIMIT 1), 0
+                            ))
+                    ),
+                    -- Get ticket info
+                    ticket_info AS (
+                        SELECT id, ticket_code, status, bags_scanned_count
+                        FROM return_ticket
+                        WHERE id = :ticket_id
+                    ),
+                    -- Get bag info
+                    bag_info AS (
+                        SELECT b.id, b.qr_id, b.type, b.weight_kg,
+                               (SELECT COUNT(*) FROM link WHERE parent_bag_id = b.id) as child_count
+                        FROM bag b
+                        WHERE lower(b.qr_id) = lower(:qr_code)
+                    ),
+                    -- Get current bill link
+                    bill_link AS (
+                        SELECT bb.id as link_id, bb.bill_id, bb.bag_id,
+                               bl.bill_id as bill_pk, bl.linked_parent_count, bl.total_weight_kg,
+                               bl.total_child_bags, bl.status as bill_status, bl.parent_bag_count,
+                               bl.expected_weight_kg
+                        FROM bag_info bi
+                        JOIN bill_bag bb ON bb.bag_id = bi.id
+                        JOIN bill bl ON bl.id = bb.bill_id
+                    ),
+                    -- Check if already in return ticket
+                    already_returned AS (
+                        SELECT 1 FROM return_ticket_bag rtb
+                        JOIN bag_info bi ON bi.id = rtb.bag_id
+                        WHERE rtb.return_ticket_id = :ticket_id
+                    )
+                    SELECT 
+                        ti.id as ticket_id,
+                        ti.status as ticket_status,
+                        ti.bags_scanned_count,
+                        bi.id as bag_id,
+                        bi.qr_id as bag_qr,
+                        bi.type as bag_type,
+                        bi.child_count,
+                        bi.weight_kg as bag_weight,
+                        bl.link_id,
+                        bl.bill_id,
+                        bl.bill_pk,
+                        bl.linked_parent_count,
+                        bl.total_weight_kg as bill_weight,
+                        bl.total_child_bags,
+                        bl.bill_status,
+                        bl.parent_bag_count,
+                        bl.expected_weight_kg,
+                        (SELECT 1 FROM already_returned LIMIT 1) as already_scanned
+                    FROM locks, ticket_info ti
+                    LEFT JOIN bag_info bi ON true
+                    LEFT JOIN bill_link bl ON true
+                """),
+                {"ticket_id": int(ticket_id), "qr_code": qr_code_normalized}
+            ).mappings().first()
+            
+            if not result:
+                return {"success": False, "error_type": "ticket_not_found", "message": "Return ticket not found."}
+            
+            if result['ticket_status'] != 'open':
+                return {"success": False, "error_type": "ticket_closed", "message": f"Ticket is {result['ticket_status']}. Cannot scan bags."}
+            
+            if not result['bag_id']:
+                return {"success": False, "error_type": "bag_not_found", "message": f"Bag {qr_code_normalized} not found."}
+            
+            if result['bag_type'] != 'parent':
+                return {"success": False, "error_type": "wrong_type", "message": f"Bag {qr_code_normalized} is a child bag. Only parent bags can be returned."}
+            
+            if result['already_scanned']:
+                return {"success": False, "error_type": "duplicate", "message": f"Bag {result['bag_qr']} already scanned in this ticket."}
+            
+            if not result['link_id']:
+                return {"success": False, "error_type": "not_linked", "message": f"Bag {result['bag_qr']} is not linked to any bill."}
+            
+            bag_id = result['bag_id']
+            bag_qr = result['bag_qr']
+            bill_id = result['bill_id']
+            link_id = result['link_id']
+            child_count = result['child_count'] or 0
+            old_linked_count = result['linked_parent_count'] or 0
+            old_weight = result['bill_weight'] or 0
+            old_child_bags = result['total_child_bags'] or 0
+            old_expected_weight = result['expected_weight_kg'] or 0
+            bill_status = result['bill_status']
+            capacity = result['parent_bag_count'] or 1
+            
+            if bag_qr.upper().startswith('SB'):
+                expected_weight_delta = 30.0
+            elif bag_qr.upper().startswith('M') and '-' in bag_qr:
+                expected_weight_delta = 15.0
+            else:
+                expected_weight_delta = 30.0
+            
+            new_linked_count = max(0, old_linked_count - 1)
+            new_weight = max(0, old_weight - child_count)
+            new_child_bags = max(0, old_child_bags - child_count)
+            new_expected_weight = max(0, old_expected_weight - expected_weight_delta)
+            
+            self.db.session.execute(
+                text("""
+                    DELETE FROM bill_bag WHERE id = :link_id;
+                    
+                    UPDATE bill 
+                    SET linked_parent_count = :new_linked_count,
+                        total_weight_kg = :new_weight,
+                        expected_weight_kg = :new_expected_weight,
+                        total_child_bags = :new_child_bags,
+                        updated_at = NOW()
+                    WHERE id = :bill_id;
+                    
+                    INSERT INTO return_ticket_bag 
+                        (return_ticket_id, bag_id, original_bill_id, weight_at_return_kg, 
+                         child_count_at_return, scanned_by_id, scanned_at)
+                    VALUES 
+                        (:ticket_id, :bag_id, :bill_id, :child_count, :child_count, :user_id, NOW());
+                    
+                    INSERT INTO bill_return_event
+                        (bill_id, return_ticket_id, bag_id, bag_qr_id,
+                         previous_linked_count, new_linked_count,
+                         previous_weight_kg, new_weight_kg,
+                         previous_child_count, new_child_count,
+                         removed_by_id, removed_at, reason)
+                    VALUES
+                        (:bill_id, :ticket_id, :bag_id, :bag_qr,
+                         :old_linked_count, :new_linked_count,
+                         :old_weight, :new_weight,
+                         :old_child_bags, :new_child_bags,
+                         :user_id, NOW(), 'IPT Return');
+                    
+                    UPDATE return_ticket
+                    SET bags_scanned_count = bags_scanned_count + 1,
+                        total_weight_returned_kg = total_weight_returned_kg + :child_count,
+                        updated_at = NOW()
+                    WHERE id = :ticket_id;
+                """),
+                {
+                    "link_id": int(link_id),
+                    "bill_id": int(bill_id),
+                    "ticket_id": int(ticket_id),
+                    "bag_id": int(bag_id),
+                    "bag_qr": bag_qr,
+                    "user_id": int(user_id) if user_id else None,
+                    "child_count": int(child_count),
+                    "old_linked_count": int(old_linked_count),
+                    "new_linked_count": int(new_linked_count),
+                    "old_weight": float(old_weight),
+                    "new_weight": float(new_weight),
+                    "new_expected_weight": float(new_expected_weight),
+                    "old_child_bags": int(old_child_bags),
+                    "new_child_bags": int(new_child_bags)
+                }
+            )
+            
+            self.db.session.commit()
+            
+            new_scanned_count = (result['bags_scanned_count'] or 0) + 1
+            
+            return {
+                "success": True,
+                "error_type": "success",
+                "message": f"Bag {bag_qr} returned successfully from bill.",
+                "bag_qr": bag_qr,
+                "bag_id": bag_id,
+                "original_bill_id": bill_id,
+                "child_count_removed": child_count,
+                "bill_old_count": old_linked_count,
+                "bill_new_count": new_linked_count,
+                "bill_status": bill_status,
+                "ticket_scanned_count": new_scanned_count
+            }
+            
+        except Exception as e:
+            self.db.session.rollback()
+            logger.error(f"Ultra fast IPT return scan failed: ticket={ticket_id}, qr={qr_code}, error={str(e)}", exc_info=True)
+            return {"success": False, "error_type": "server_error", "message": f"Error processing return: {str(e)}"}
+
+
 # Create singleton instance
 query_optimizer = None
 
