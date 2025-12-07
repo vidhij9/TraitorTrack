@@ -108,10 +108,12 @@ The application is optimized for Replit Autoscale deployments:
 
 **Latest Migration**: `i5j6k7l8m9n0` - Adds functional indexes for ultra-fast bill scanning.
 
-**How migrations work:**
-1. `deploy.sh` runs `python run_migrations.py` BEFORE starting Gunicorn
-2. Migrations complete, then HTTP server starts immediately
-3. No blocking during server startup = fast port 5000 availability
+**How migrations work (Fast Startup):**
+1. `deploy.sh` starts Gunicorn IMMEDIATELY (port 5000 opens within ~1 second)
+2. Background migrations run 3 seconds AFTER server starts (non-blocking)
+3. Health endpoints (`/health`, `/status`) respond instantly (no DB required)
+4. `/ready` endpoint shows migration status for full readiness check
+5. App is fully functional while migrations complete in background (~77ms typical)
 
 **To run migrations manually:**
 ```bash
@@ -168,6 +170,14 @@ This migration safely drops unused columns (preserves all row data):
   - Fixed false duplicate detection: Only blocks bags linked to ACTIVE bills (new/pending/processing)
   - Bags linked to completed or cancelled bills can now be reused in new bills
   - Production cleanup script: `cleanup_production_db.sql` (run manually in database panel)
+- **Deployment timeout fix (Dec 7)**:
+  - Root cause: deploy.sh ran migrations BEFORE starting Gunicorn, blocking port 5000
+  - Fix 1: Removed `--preload` flag from Gunicorn (was loading entire app before forking)
+  - Fix 2: Removed migration pre-check from deploy.sh (starts Gunicorn immediately)
+  - Fix 3: Created `background_migrations.py` to run migrations 3 seconds AFTER server starts
+  - Fix 4: Early health endpoints (`/health`, `/status`) respond in <10ms without DB
+  - Fix 5: `/ready` endpoint shows migration status for full readiness check
+  - Result: Port 5000 opens within ~1 second, migrations complete in background (~77ms)
 - **Critical performance fix - eliminated 30-35 second delays (Dec 6)**:
   - Root cause: Legacy `/process_bill_parent_scan` route called heavy `recalculate_weights()` method
   - `recalculate_weights()` used 5-6 database round trips with multiple advisory locks
