@@ -890,11 +890,20 @@ class QueryOptimizer:
                         JOIN bill_bag bb ON bb.bag_id = bi.id
                         JOIN bill bl ON bl.id = bb.bill_id
                     ),
-                    -- Check if already in return ticket
-                    already_returned AS (
+                    -- Check if already in THIS return ticket
+                    already_in_this_ticket AS (
                         SELECT 1 FROM return_ticket_bag rtb
                         JOIN bag_info bi ON bi.id = rtb.bag_id
                         WHERE rtb.return_ticket_id = :ticket_id
+                    ),
+                    -- Check if in ANY open return ticket (cross-ticket duplicate detection)
+                    in_other_open_ticket AS (
+                        SELECT rt.ticket_code 
+                        FROM return_ticket_bag rtb
+                        JOIN bag_info bi ON bi.id = rtb.bag_id
+                        JOIN return_ticket rt ON rt.id = rtb.return_ticket_id
+                        WHERE rt.status = 'open' AND rt.id != :ticket_id
+                        LIMIT 1
                     )
                     SELECT 
                         ti.id as ticket_id,
@@ -914,7 +923,8 @@ class QueryOptimizer:
                         bl.bill_status,
                         bl.parent_bag_count,
                         bl.expected_weight_kg,
-                        (SELECT 1 FROM already_returned LIMIT 1) as already_scanned
+                        (SELECT 1 FROM already_in_this_ticket LIMIT 1) as already_scanned,
+                        (SELECT ticket_code FROM in_other_open_ticket LIMIT 1) as in_other_ticket
                     FROM locks, ticket_info ti
                     LEFT JOIN bag_info bi ON true
                     LEFT JOIN bill_link bl ON true
@@ -936,6 +946,9 @@ class QueryOptimizer:
             
             if result['already_scanned']:
                 return {"success": False, "error_type": "duplicate", "message": f"Bag {result['bag_qr']} already scanned in this ticket."}
+            
+            if result['in_other_ticket']:
+                return {"success": False, "error_type": "cross_ticket_duplicate", "message": f"Bag {result['bag_qr']} is already in another open ticket: {result['in_other_ticket']}."}
             
             if not result['link_id']:
                 return {"success": False, "error_type": "not_linked", "message": f"Bag {result['bag_qr']} is not linked to any bill."}
