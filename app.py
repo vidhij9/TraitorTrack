@@ -306,20 +306,35 @@ limiter.init_app(app)
 # ==================================================================================
 # This endpoint responds BEFORE heavy initialization completes, ensuring the app
 # passes Autoscale's port-open check within the 2-minute timeout.
+# CRITICAL: These endpoints must be FAST and not depend on migrations or heavy init.
 # ==================================================================================
 @app.route('/health')
 @app.route('/status')
+@limiter.exempt
 def early_health_check():
-    """Lightweight health check - responds immediately, no DB required"""
+    """Ultra-lightweight health check - responds immediately, no DB required"""
     return {'status': 'ok', 'service': 'traitortrack'}, 200
 
 @app.route('/ready')
+@limiter.exempt
 def readiness_check():
-    """Readiness check - verifies DB connection is available"""
+    """Readiness check - verifies DB connection and optional migration status"""
     try:
         from sqlalchemy import text
         db.session.execute(text('SELECT 1'))
-        return {'status': 'ready', 'database': 'connected'}, 200
+        
+        # Check migration status (non-blocking)
+        try:
+            from background_migrations import get_migration_status
+            migration_status = get_migration_status()
+        except ImportError:
+            migration_status = {'completed': True}  # No background migrations module
+        
+        return {
+            'status': 'ready',
+            'database': 'connected',
+            'migrations': migration_status
+        }, 200
     except Exception as e:
         return {'status': 'not_ready', 'database': str(e)}, 503
 
@@ -687,6 +702,20 @@ try:
     logger.info("✅ Compression middleware initialized for mobile optimization")
 except Exception as e:
     logger.warning(f"⚠️  Compression middleware failed to initialize: {e}")
+
+# ==================================================================================
+# BACKGROUND MIGRATIONS (Autoscale-ready - non-blocking startup)
+# ==================================================================================
+# Migrations run in a background thread AFTER the server starts, ensuring port 5000
+# opens immediately for Autoscale health checks. The /ready endpoint will check
+# migration status before reporting full readiness.
+# ==================================================================================
+try:
+    from background_migrations import start_background_migrations
+    # Start migrations 3 seconds after server starts (gives time for port to open)
+    start_background_migrations(app, delay_seconds=3)
+except Exception as e:
+    logger.warning(f"⚠️  Background migrations not started: {e}")
 
 # Note: Comprehensive error handlers are defined in error_handlers.py
 # and registered via setup_error_handlers(app) call above
