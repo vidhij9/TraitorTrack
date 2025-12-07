@@ -958,6 +958,7 @@ class QueryOptimizer:
             bill_id = result['bill_id']
             link_id = result['link_id']
             child_count = result['child_count'] or 0
+            bag_weight = result['bag_weight'] or 0.0
             old_linked_count = result['linked_parent_count'] or 0
             old_weight = result['bill_weight'] or 0
             old_child_bags = result['total_child_bags'] or 0
@@ -993,7 +994,7 @@ class QueryOptimizer:
                         (return_ticket_id, bag_id, original_bill_id, weight_at_return_kg, 
                          child_count_at_return, scanned_by_id, scanned_at)
                     VALUES 
-                        (:ticket_id, :bag_id, :bill_id, :child_count, :child_count, :user_id, NOW());
+                        (:ticket_id, :bag_id, :bill_id, :bag_weight, :child_count, :user_id, NOW());
                     
                     INSERT INTO bill_return_event
                         (bill_id, return_ticket_id, bag_id, bag_qr_id,
@@ -1010,7 +1011,7 @@ class QueryOptimizer:
                     
                     UPDATE return_ticket
                     SET bags_scanned_count = bags_scanned_count + 1,
-                        total_weight_returned_kg = total_weight_returned_kg + :child_count,
+                        total_weight_returned_kg = total_weight_returned_kg + :bag_weight,
                         updated_at = NOW()
                     WHERE id = :ticket_id;
                 """),
@@ -1022,6 +1023,7 @@ class QueryOptimizer:
                     "bag_qr": bag_qr,
                     "user_id": int(user_id) if user_id else None,
                     "child_count": int(child_count),
+                    "bag_weight": float(bag_weight),
                     "old_linked_count": int(old_linked_count),
                     "new_linked_count": int(new_linked_count),
                     "old_weight": float(old_weight),
