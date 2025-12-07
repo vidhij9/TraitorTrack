@@ -769,3 +769,137 @@ class StatisticsCache(db.Model):
             if commit:
                 db.session.rollback()
             raise
+
+
+class ReturnTicketStatus(enum.Enum):
+    OPEN = "open"
+    COMMITTED = "committed"
+    CANCELLED = "cancelled"
+
+
+class ReturnTicket(db.Model):
+    """
+    Inter Party Transfer (IPT) Return Ticket model.
+    
+    Tracks return sessions where dealers/distributors return unsold parent bags
+    to C&F (Carry & Forward) points. Each ticket represents a single return session.
+    
+    Workflow:
+    1. User creates return ticket at a C&F location
+    2. User scans parent bags being returned
+    3. Each scan removes the bag from its current bill and records it in the ticket
+    4. User finalizes (commits) or cancels the ticket
+    """
+    __tablename__ = 'return_ticket'
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_code = db.Column(db.String(50), unique=True, nullable=False)
+    cf_location = db.Column(db.String(100), nullable=False)
+    status = db.Column(db.String(20), default=ReturnTicketStatus.OPEN.value)
+    bags_scanned_count = db.Column(db.Integer, default=0)
+    total_weight_returned_kg = db.Column(db.Float, default=0.0)
+    notes = db.Column(db.Text, nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    finalized_at = db.Column(db.DateTime, nullable=True)
+    
+    created_by = db.relationship('User', backref=db.backref('return_tickets', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('idx_return_ticket_code', 'ticket_code'),
+        db.Index('idx_return_ticket_status', 'status'),
+        db.Index('idx_return_ticket_cf_location', 'cf_location'),
+        db.Index('idx_return_ticket_created', 'created_at'),
+        db.Index('idx_return_ticket_status_created', 'status', 'created_at'),
+    )
+    
+    def __repr__(self):
+        return f"<ReturnTicket {self.ticket_code} ({self.status})>"
+    
+    def is_open(self):
+        return self.status == ReturnTicketStatus.OPEN.value
+    
+    def can_scan(self):
+        return self.is_open()
+
+
+class ReturnTicketBag(db.Model):
+    """
+    Association between return tickets and returned parent bags.
+    
+    Records each parent bag scanned as part of a return ticket, including
+    the original bill it was removed from and the weights at time of return.
+    """
+    __tablename__ = 'return_ticket_bag'
+    id = db.Column(db.Integer, primary_key=True)
+    return_ticket_id = db.Column(db.Integer, db.ForeignKey('return_ticket.id', ondelete='CASCADE'), nullable=False)
+    bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='CASCADE'), nullable=False)
+    original_bill_id = db.Column(db.Integer, db.ForeignKey('bill.id', ondelete='SET NULL'), nullable=True)
+    weight_at_return_kg = db.Column(db.Float, default=0.0)
+    child_count_at_return = db.Column(db.Integer, default=0)
+    scanned_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    scanned_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    return_ticket = db.relationship('ReturnTicket', backref=db.backref('returned_bags', lazy='dynamic', cascade='all, delete-orphan'))
+    bag = db.relationship('Bag', backref=db.backref('return_records', lazy='dynamic'))
+    original_bill = db.relationship('Bill', backref=db.backref('returned_bag_records', lazy='dynamic'))
+    scanned_by = db.relationship('User', backref=db.backref('scanned_returns', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('idx_rtb_ticket_id', 'return_ticket_id'),
+        db.Index('idx_rtb_bag_id', 'bag_id'),
+        db.Index('idx_rtb_bill_id', 'original_bill_id'),
+        db.Index('idx_rtb_scanned_at', 'scanned_at'),
+        db.UniqueConstraint('return_ticket_id', 'bag_id', name='uq_return_ticket_bag'),
+    )
+    
+    def __repr__(self):
+        return f"<ReturnTicketBag Ticket:{self.return_ticket_id} Bag:{self.bag_id}>"
+
+
+class BillReturnEvent(db.Model):
+    """
+    Tracks return events that affected a bill.
+    
+    When parent bags are returned and removed from a bill, this creates
+    a historical record showing what was removed, the counts before/after,
+    and links to the return ticket.
+    """
+    __tablename__ = 'bill_return_event'
+    id = db.Column(db.Integer, primary_key=True)
+    bill_id = db.Column(db.Integer, db.ForeignKey('bill.id', ondelete='CASCADE'), nullable=False)
+    return_ticket_id = db.Column(db.Integer, db.ForeignKey('return_ticket.id', ondelete='SET NULL'), nullable=True)
+    bag_id = db.Column(db.Integer, db.ForeignKey('bag.id', ondelete='SET NULL'), nullable=True)
+    bag_qr_id = db.Column(db.String(255), nullable=True)
+    previous_linked_count = db.Column(db.Integer, nullable=False)
+    new_linked_count = db.Column(db.Integer, nullable=False)
+    previous_weight_kg = db.Column(db.Float, nullable=False)
+    new_weight_kg = db.Column(db.Float, nullable=False)
+    previous_child_count = db.Column(db.Integer, default=0)
+    new_child_count = db.Column(db.Integer, default=0)
+    removed_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    removed_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    reason = db.Column(db.String(200), default='IPT Return')
+    
+    bill = db.relationship('Bill', backref=db.backref('return_events', lazy='dynamic', order_by='BillReturnEvent.removed_at.desc()'))
+    return_ticket = db.relationship('ReturnTicket', backref=db.backref('bill_events', lazy='dynamic'))
+    bag = db.relationship('Bag', backref=db.backref('removal_events', lazy='dynamic'))
+    removed_by = db.relationship('User', backref=db.backref('bag_removals', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('idx_bre_bill_id', 'bill_id'),
+        db.Index('idx_bre_ticket_id', 'return_ticket_id'),
+        db.Index('idx_bre_bag_id', 'bag_id'),
+        db.Index('idx_bre_removed_at', 'removed_at'),
+        db.Index('idx_bre_bill_removed', 'bill_id', 'removed_at'),
+    )
+    
+    def __repr__(self):
+        return f"<BillReturnEvent Bill:{self.bill_id} Bag:{self.bag_qr_id}>"
+
+
+def acquire_return_ticket_lock(ticket_id):
+    """Acquire PostgreSQL advisory lock for return ticket operations."""
+    from sqlalchemy import text
+    advisory_lock_id = 400000 + ticket_id
+    db.session.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {'lock_id': advisory_lock_id})
