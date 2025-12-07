@@ -13,7 +13,7 @@ from flask import (
     Blueprint, render_template, redirect, url_for, flash, 
     request, jsonify
 )
-from auth_utils import require_auth, is_authenticated, get_user_id, get_user_role, get_username
+from auth_utils import require_auth, is_authenticated, get_user_id, get_user_role
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Length
@@ -40,13 +40,27 @@ def role_required(roles):
     
     Must be used AFTER @require_auth decorator since it assumes
     the user is already authenticated.
+    
+    For AJAX/API endpoints (detected via Accept header or X-Requested-With),
+    returns JSON 403 instead of HTML redirect.
     """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            # @require_auth handles authentication, we just check role
             user_role = get_user_role()
             if user_role not in roles:
+                is_ajax = (
+                    request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                    'application/json' in request.headers.get('Accept', '') or
+                    request.content_type == 'application/json' or
+                    request.is_json
+                )
+                if is_ajax:
+                    return jsonify({
+                        "success": False,
+                        "error_type": "forbidden",
+                        "message": "You do not have permission to access this resource."
+                    }), 403
                 flash('You do not have permission to access this page.', 'error')
                 return redirect(url_for('index'))
             return f(*args, **kwargs)
