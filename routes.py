@@ -71,10 +71,6 @@ class CurrentUserProxy:
         
 current_user = CurrentUserProxy()
 
-# Commented out missing modules with fallbacks
-# from query_optimizer import query_optimizer
-# from optimized_cache import cached, cache, invalidate_cache
-
 # Define fallback functions for missing imports
 def query_optimizer_fallback():
     """Fallback class for query optimizer when not available - fully functional implementation"""
