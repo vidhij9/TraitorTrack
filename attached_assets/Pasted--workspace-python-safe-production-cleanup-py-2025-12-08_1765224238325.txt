@@ -1,0 +1,133 @@
+~/workspace$ python safe_production_cleanup.py
+2025-12-08 19:28:14 - INFO - ======================================================================
+2025-12-08 19:28:14 - INFO - PRODUCTION DATABASE CLEANUP
+2025-12-08 19:28:14 - INFO - ======================================================================
+2025-12-08 19:28:14 - INFO - Mode: DRY-RUN (preview only)
+2025-12-08 19:28:14 - INFO - 
+2025-12-08 19:28:18 - INFO - Database connection successful
+2025-12-08 19:28:18 - INFO - Preserving parent bags: M444-00001 to M444-00600 (600 bags)
+2025-12-08 19:28:18 - INFO - Found 600 preserved parent bags in database
+2025-12-08 19:28:18 - INFO - Found 0 child bags linked to preserved parents
+2025-12-08 19:28:18 - INFO - Found 8 bills linked to preserved parent bags
+2025-12-08 19:28:19 - INFO - Found 2 admin users to preserve: ['superadmin', 'admin']
+2025-12-08 19:28:19 - INFO - 
+2025-12-08 19:28:19 - INFO - ----------------------------------------------------------------------
+2025-12-08 19:28:19 - INFO - PRE-CLEANUP COUNTS
+2025-12-08 19:28:19 - INFO - ----------------------------------------------------------------------
+2025-12-08 19:28:19 - INFO -   user: 32
+2025-12-08 19:28:20 - INFO -   bag: 345281
+2025-12-08 19:28:20 - INFO -   link: 343819
+2025-12-08 19:28:21 - INFO -   bill: 22
+2025-12-08 19:28:21 - INFO -   bill_bag: 316
+2025-12-08 19:28:21 - INFO -   scan: 660331
+2025-12-08 19:28:21 - INFO -   audit_log: 40
+2025-12-08 19:28:21 - INFO -   notification: 0
+2025-12-08 19:28:22 - INFO -   promotionrequest: 0
+2025-12-08 19:28:22 - INFO -   return_ticket: 0
+2025-12-08 19:28:22 - INFO -   return_ticket_bag: 0
+2025-12-08 19:28:22 - INFO -   bill_return_event: 0
+2025-12-08 19:28:22 - INFO -   statistics_cache: (table does not exist)
+2025-12-08 19:28:22 - INFO - 
+2025-12-08 19:28:22 - INFO - ----------------------------------------------------------------------
+2025-12-08 19:28:22 - INFO - DELETION PLAN
+2025-12-08 19:28:22 - INFO - ----------------------------------------------------------------------
+2025-12-08 19:28:27 - INFO -   bill_return_event: 0 rows to delete
+2025-12-08 19:28:27 - INFO -   return_ticket_bag: 0 rows to delete
+2025-12-08 19:28:27 - INFO -   return_ticket: 0 rows to delete
+2025-12-08 19:28:27 - INFO -   scan: 659562 rows to delete
+2025-12-08 19:28:27 - INFO -   audit_log: 40 rows to delete
+2025-12-08 19:28:27 - INFO -   notification: 0 rows to delete
+2025-12-08 19:28:27 - INFO -   promotionrequest: 0 rows to delete
+2025-12-08 19:28:27 - INFO -   statistics_cache: 0 rows to delete
+2025-12-08 19:28:27 - INFO -   bill_bag: 0 rows to delete
+2025-12-08 19:28:27 - INFO -   link: 343819 rows to delete
+2025-12-08 19:28:27 - INFO -   bill: 14 rows to delete
+2025-12-08 19:28:27 - INFO -   bag: 344681 rows to delete
+2025-12-08 19:28:27 - INFO -   user: 30 rows to delete
+2025-12-08 19:28:27 - INFO - 
+  TOTAL: 1348146 rows to delete
+2025-12-08 19:28:27 - INFO - 
+2025-12-08 19:28:27 - INFO - ======================================================================
+2025-12-08 19:28:27 - INFO - DRY-RUN COMPLETE - No data was deleted
+2025-12-08 19:28:27 - INFO - To execute the cleanup, run: python safe_production_cleanup.py --execute
+2025-12-08 19:28:27 - INFO - ======================================================================
+~/workspace$ python safe_production_cleanup.py --execute
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+WARNING: This will DELETE production data!
+Preserved data: superadmin user, M444-00001 to M444-00600 parent bags
+and their related child bags, bills, links, bill_bags, and scans
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Type 'DELETE PRODUCTION DATA' to confirm: DELETE PRODUCTION DATA
+2025-12-08 19:29:01 - INFO - ======================================================================
+2025-12-08 19:29:01 - INFO - PRODUCTION DATABASE CLEANUP
+2025-12-08 19:29:01 - INFO - ======================================================================
+2025-12-08 19:29:01 - INFO - Mode: EXECUTE (will delete data)
+2025-12-08 19:29:01 - INFO - 
+2025-12-08 19:29:05 - INFO - Database connection successful
+2025-12-08 19:29:05 - INFO - Preserving parent bags: M444-00001 to M444-00600 (600 bags)
+2025-12-08 19:29:05 - INFO - Found 600 preserved parent bags in database
+2025-12-08 19:29:06 - INFO - Found 0 child bags linked to preserved parents
+2025-12-08 19:29:06 - INFO - Found 8 bills linked to preserved parent bags
+2025-12-08 19:29:06 - INFO - Found 2 admin users to preserve: ['superadmin', 'admin']
+2025-12-08 19:29:06 - INFO - 
+2025-12-08 19:29:06 - INFO - ----------------------------------------------------------------------
+2025-12-08 19:29:06 - INFO - PRE-CLEANUP COUNTS
+2025-12-08 19:29:06 - INFO - ----------------------------------------------------------------------
+2025-12-08 19:29:06 - INFO -   user: 32
+2025-12-08 19:29:07 - INFO -   bag: 345281
+2025-12-08 19:29:07 - INFO -   link: 343819
+2025-12-08 19:29:07 - INFO -   bill: 22
+2025-12-08 19:29:07 - INFO -   bill_bag: 316
+2025-12-08 19:29:08 - INFO -   scan: 660331
+2025-12-08 19:29:08 - INFO -   audit_log: 40
+2025-12-08 19:29:08 - INFO -   notification: 0
+2025-12-08 19:29:08 - INFO -   promotionrequest: 0
+2025-12-08 19:29:09 - INFO -   return_ticket: 0
+2025-12-08 19:29:09 - INFO -   return_ticket_bag: 0
+2025-12-08 19:29:09 - INFO -   bill_return_event: 0
+2025-12-08 19:29:09 - INFO -   statistics_cache: (table does not exist)
+2025-12-08 19:29:09 - INFO - 
+2025-12-08 19:29:09 - INFO - ----------------------------------------------------------------------
+2025-12-08 19:29:09 - INFO - DELETION PLAN
+2025-12-08 19:29:09 - INFO - ----------------------------------------------------------------------
+2025-12-08 19:29:13 - INFO -   bill_return_event: 0 rows to delete
+2025-12-08 19:29:13 - INFO -   return_ticket_bag: 0 rows to delete
+2025-12-08 19:29:13 - INFO -   return_ticket: 0 rows to delete
+2025-12-08 19:29:13 - INFO -   scan: 659562 rows to delete
+2025-12-08 19:29:13 - INFO -   audit_log: 40 rows to delete
+2025-12-08 19:29:13 - INFO -   notification: 0 rows to delete
+2025-12-08 19:29:13 - INFO -   promotionrequest: 0 rows to delete
+2025-12-08 19:29:13 - INFO -   statistics_cache: 0 rows to delete
+2025-12-08 19:29:13 - INFO -   bill_bag: 0 rows to delete
+2025-12-08 19:29:13 - INFO -   link: 343819 rows to delete
+2025-12-08 19:29:13 - INFO -   bill: 14 rows to delete
+2025-12-08 19:29:13 - INFO -   bag: 344681 rows to delete
+2025-12-08 19:29:13 - INFO -   user: 30 rows to delete
+2025-12-08 19:29:13 - INFO - 
+  TOTAL: 1348146 rows to delete
+2025-12-08 19:29:13 - INFO - 
+2025-12-08 19:29:13 - INFO - ======================================================================
+2025-12-08 19:29:13 - INFO - EXECUTING CLEANUP...
+2025-12-08 19:29:13 - INFO - ======================================================================
+2025-12-08 19:29:14 - INFO -   Deleted bill_return_event records
+2025-12-08 19:29:14 - INFO -   Deleted return_ticket_bag records
+2025-12-08 19:29:14 - INFO -   Deleted return_ticket records
+2025-12-08 19:29:23 - INFO -   Deleted scan records
+2025-12-08 19:29:24 - INFO -   Deleted audit_log records
+2025-12-08 19:29:24 - INFO -   Deleted notification records
+2025-12-08 19:29:24 - INFO -   Deleted promotionrequest records
+2025-12-08 19:29:24 - INFO -   Deleted bill_bag records
+2025-12-08 19:29:25 - INFO -   Deleted link records
+2025-12-08 19:29:25 - INFO -   Deleted bill records
+
+^C
+
+
+
+
+
+
+
+
