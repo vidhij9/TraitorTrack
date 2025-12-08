@@ -338,7 +338,81 @@ def readiness_check():
     except Exception as e:
         return {'status': 'not_ready', 'database': str(e)}, 503
 
-logger.info("Early health endpoints registered: /health, /status, /ready")
+@app.route('/migration-status')
+@limiter.exempt
+def migration_status_endpoint():
+    """Detailed migration status - shows current revision and pending migrations"""
+    import os
+    
+    result = {
+        'status': 'unknown',
+        'database_connected': False,
+        'current_revision': None,
+        'head_revision': None,
+        'up_to_date': False,
+        'pending_migrations': [],
+        'background_migration_status': None,
+        'tables_exist': {}
+    }
+    
+    try:
+        from sqlalchemy import text, inspect
+        
+        db.session.execute(text('SELECT 1'))
+        result['database_connected'] = True
+        
+        inspector = inspect(db.engine)
+        critical_tables = ['return_ticket', 'return_ticket_bag', 'bill_return_event', 'user', 'bag', 'bill']
+        for table in critical_tables:
+            result['tables_exist'][table] = table in inspector.get_table_names()
+        
+        try:
+            from alembic.script import ScriptDirectory
+            from alembic.config import Config as AlembicConfig
+            from alembic.migration import MigrationContext
+            
+            migrations_path = os.path.join(os.path.dirname(__file__), 'migrations')
+            alembic_ini = os.path.join(migrations_path, 'alembic.ini')
+            
+            if os.path.exists(alembic_ini):
+                alembic_cfg = AlembicConfig(alembic_ini)
+                alembic_cfg.set_main_option('script_location', migrations_path)
+                
+                with db.engine.connect() as conn:
+                    context = MigrationContext.configure(conn)
+                    result['current_revision'] = context.get_current_revision()
+                
+                script = ScriptDirectory.from_config(alembic_cfg)
+                result['head_revision'] = script.get_current_head()
+                result['up_to_date'] = result['current_revision'] == result['head_revision']
+                
+                if not result['up_to_date'] and result['current_revision']:
+                    try:
+                        pending = []
+                        for rev in script.walk_revisions(result['head_revision'], result['current_revision']):
+                            if rev.revision != result['current_revision']:
+                                pending.append(rev.revision)
+                        result['pending_migrations'] = pending
+                    except Exception:
+                        result['pending_migrations'] = ['unable to determine']
+        except Exception as e:
+            result['alembic_error'] = str(e)
+        
+        try:
+            from background_migrations import get_migration_status
+            result['background_migration_status'] = get_migration_status()
+        except ImportError:
+            result['background_migration_status'] = {'module': 'not_available'}
+        
+        result['status'] = 'ok' if result['up_to_date'] else 'pending_migrations'
+        return result, 200
+        
+    except Exception as e:
+        result['status'] = 'error'
+        result['error'] = str(e)
+        return result, 500
+
+logger.info("Early health endpoints registered: /health, /status, /ready, /migration-status")
 
 # Configure login manager
 login_manager.login_view = 'login'  # type: ignore
@@ -522,7 +596,7 @@ def before_request():
     from auth_utils import is_authenticated
     
     # Skip validation for public paths (including health check endpoints)
-    excluded_paths = ['/login', '/register', '/static', '/logout', '/health', '/status', '/ready', '/api/health', '/forgot_password', '/reset_password']
+    excluded_paths = ['/login', '/register', '/static', '/logout', '/health', '/status', '/ready', '/migration-status', '/api/health', '/forgot_password', '/reset_password']
     if any(request.path.startswith(path) for path in excluded_paths):
         return
     

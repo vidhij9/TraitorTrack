@@ -1,11 +1,10 @@
 #!/bin/bash
 # Production deployment for Replit Autoscale
-# CRITICAL: Opens port 5000 IMMEDIATELY, runs migrations in background
-# Designed for 100+ concurrent users with zero-downtime startup
+# Runs migrations FIRST, then starts server on port 5000
+# Designed for 100+ concurrent users with reliable database schema
 
 echo "==================================================="
-echo "TraitorTrack - Fast Production Deployment"
-echo "Port 5000 opens IMMEDIATELY - migrations run in background"
+echo "TraitorTrack - Production Deployment"
 echo "==================================================="
 
 # Verify CRITICAL environment variables (required for security)
@@ -44,24 +43,44 @@ echo ""
 echo "✅ Environment configuration verified"
 echo ""
 
+# ==================================================================================
+# STEP 1: RUN MIGRATIONS (with timeout to prevent hanging)
+# This ensures database schema is up-to-date before accepting traffic
+# ==================================================================================
+
+echo "📦 Running database migrations..."
+echo ""
+
+# Run migrations with 60 second timeout
+timeout 60 python run_production_migrations.py
+MIGRATION_EXIT_CODE=$?
+
+if [ $MIGRATION_EXIT_CODE -eq 0 ]; then
+    echo ""
+    echo "✅ Database migrations completed successfully"
+    echo ""
+elif [ $MIGRATION_EXIT_CODE -eq 124 ]; then
+    echo ""
+    echo "⚠️  WARNING: Migration timed out after 60 seconds"
+    echo "⚠️  Continuing with server startup - migrations may still be running"
+    echo ""
+else
+    echo ""
+    echo "⚠️  WARNING: Migration script exited with code $MIGRATION_EXIT_CODE"
+    echo "⚠️  Continuing with server startup - check logs for details"
+    echo ""
+fi
+
+# ==================================================================================
+# STEP 2: START GUNICORN SERVER
+# ==================================================================================
+
 # Always use port 5000 for Replit Autoscale deployment
 PORT=5000
 
-# ==================================================================================
-# FAST STARTUP STRATEGY:
-# 1. Start Gunicorn IMMEDIATELY (no --preload to avoid blocking)
-# 2. The app has early health endpoints that respond before heavy init
-# 3. Migrations run in background via the app's lazy initialization
-# ==================================================================================
-
-echo "🚀 Starting Gunicorn NOW (port $PORT) - migrations handled by app"
+echo "🚀 Starting Gunicorn on port $PORT"
 echo ""
 
-# Start Gunicorn with fast-startup settings
-# Key changes for fast port binding:
-# - REMOVED --preload (was loading app before forking, blocking port)
-# - Workers will lazy-load app on first request
-# - Early health endpoints (/health, /ready) respond immediately
 exec gunicorn \
   --bind 0.0.0.0:$PORT \
   --workers ${GUNICORN_WORKERS:-2} \
