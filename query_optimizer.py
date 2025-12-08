@@ -869,7 +869,7 @@ class QueryOptimizer:
                     ),
                     -- Get ticket info
                     ticket_info AS (
-                        SELECT id, ticket_code, status, bags_scanned_count
+                        SELECT id, ticket_code, status, bags_scanned_count, total_weight_returned_kg
                         FROM return_ticket
                         WHERE id = :ticket_id
                     ),
@@ -909,6 +909,7 @@ class QueryOptimizer:
                         ti.id as ticket_id,
                         ti.status as ticket_status,
                         ti.bags_scanned_count,
+                        ti.total_weight_returned_kg,
                         bi.id as bag_id,
                         bi.qr_id as bag_qr,
                         bi.type as bag_type,
