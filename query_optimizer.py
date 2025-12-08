@@ -1037,6 +1037,7 @@ class QueryOptimizer:
             self.db.session.commit()
             
             new_scanned_count = (result['bags_scanned_count'] or 0) + 1
+            new_total_weight = (result['total_weight_returned_kg'] or 0) + float(bag_weight)
             
             return {
                 "success": True,
@@ -1049,7 +1050,8 @@ class QueryOptimizer:
                 "bill_old_count": old_linked_count,
                 "bill_new_count": new_linked_count,
                 "bill_status": bill_status,
-                "ticket_scanned_count": new_scanned_count
+                "ticket_scanned_count": new_scanned_count,
+                "ticket_total_weight": new_total_weight
             }
             
         except Exception as e:
