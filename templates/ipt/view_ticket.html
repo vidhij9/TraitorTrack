@@ -63,6 +63,9 @@
                     <a href="{{ url_for('ipt.scan_returns', ticket_id=ticket.id) }}" class="btn btn-primary w-100 mb-2">
                         <i class="fas fa-barcode me-2"></i>Continue Scanning
                     </a>
+                    <a href="{{ url_for('ipt.edit_ticket', ticket_id=ticket.id) }}" class="btn btn-warning w-100 mb-2">
+                        <i class="fas fa-edit me-2"></i>Edit Ticket
+                    </a>
                     <div class="d-flex gap-2">
                         <form method="POST" action="{{ url_for('ipt.finalize_ticket', ticket_id=ticket.id) }}" class="flex-fill">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

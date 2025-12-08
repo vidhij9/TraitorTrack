@@ -97,6 +97,20 @@ class CreateReturnTicketForm(FlaskForm):
     submit = SubmitField('Create Return Ticket')
 
 
+class EditReturnTicketForm(FlaskForm):
+    """Form for editing an existing return ticket"""
+    cf_location = SelectField(
+        'C&F Location',
+        choices=CF_LOCATION_CHOICES,
+        validators=[DataRequired(message="Please select a C&F location")]
+    )
+    notes = TextAreaField(
+        'Notes (Optional)',
+        validators=[Length(max=500)]
+    )
+    submit = SubmitField('Save Changes')
+
+
 def generate_ticket_code():
     """Generate unique ticket code like RTN-20251207-XXXX"""
     date_part = datetime.datetime.utcnow().strftime('%Y%m%d')
@@ -224,6 +238,31 @@ def view_ticket(ticket_id):
         ticket=ticket,
         returned_bags=returned_bags
     )
+
+
+@ipt_bp.route('/ticket/<int:ticket_id>/edit', methods=['GET', 'POST'])
+@require_auth
+@role_required(['admin', 'biller'])
+def edit_ticket(ticket_id):
+    """Edit an existing return ticket (only open tickets can be edited)"""
+    ticket = ReturnTicket.query.get_or_404(ticket_id)
+    
+    if ticket.status != ReturnTicketStatus.OPEN.value:
+        flash(f'Cannot edit a {ticket.status} ticket. Only open tickets can be edited.', 'warning')
+        return redirect(url_for('ipt.view_ticket', ticket_id=ticket_id))
+    
+    form = EditReturnTicketForm(obj=ticket)
+    
+    if form.validate_on_submit():
+        ticket.cf_location = form.cf_location.data
+        ticket.notes = form.notes.data
+        ticket.updated_at = datetime.datetime.utcnow()
+        db.session.commit()
+        
+        flash(f'Ticket {ticket.ticket_code} updated successfully!', 'success')
+        return redirect(url_for('ipt.view_ticket', ticket_id=ticket_id))
+    
+    return render_template('ipt/edit_ticket.html', form=form, ticket=ticket)
 
 
 @ipt_bp.route('/ticket/<int:ticket_id>/finalize', methods=['POST'])

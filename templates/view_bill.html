@@ -214,6 +214,86 @@
             </div>
         </div>
     </div>
+    
+    {% if ipt_return_events and ipt_return_events|length > 0 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <h5 class="mb-0 fs-6">
+                        <i class="fas fa-exchange-alt me-2"></i>IPT Return History
+                        <span class="badge bg-warning text-dark ms-2">{{ ipt_return_events|length }} bag(s) returned</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Bag QR</th>
+                                    <th>Return Ticket</th>
+                                    <th>Children</th>
+                                    <th>Weight Impact</th>
+                                    <th>Returned At</th>
+                                    <th>By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in ipt_return_events %}
+                                <tr>
+                                    <td>
+                                        {% if event.bag %}
+                                        <a href="{{ url_for('bag_details', qr_id=event.bag.qr_id|urlencode) }}" class="fw-bold text-decoration-none">
+                                            {{ event.bag.qr_id }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">{{ event.bag_qr_id or 'Unknown' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if event.return_ticket %}
+                                        <a href="{{ url_for('ipt.view_ticket', ticket_id=event.return_ticket.id) }}" class="text-decoration-none">
+                                            <span class="badge bg-info">{{ event.return_ticket.ticket_code }}</span>
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-danger">
+                                            -{{ event.previous_child_count - event.new_child_count }}
+                                        </span>
+                                        <small class="text-muted">({{ event.previous_child_count }} → {{ event.new_child_count }})</small>
+                                    </td>
+                                    <td>
+                                        <span class="text-danger">
+                                            -{{ '%.1f'|format(event.previous_weight_kg - event.new_weight_kg) }} kg
+                                        </span>
+                                    </td>
+                                    <td>{{ event.removed_at.strftime('%m/%d %H:%M') if event.removed_at else '-' }}</td>
+                                    <td>{{ event.removed_by.username if event.removed_by else '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr class="fw-bold">
+                                    <td colspan="2">Total Impact</td>
+                                    <td class="text-danger">
+                                        -{{ ipt_return_events|sum(attribute='previous_child_count') - ipt_return_events|sum(attribute='new_child_count') }} children
+                                    </td>
+                                    <td class="text-danger">
+                                        -{{ '%.1f'|format(ipt_return_events|sum(attribute='previous_weight_kg') - ipt_return_events|sum(attribute='new_weight_kg')) }} kg
+                                    </td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 {% for parent_bag_data in parent_bags %}

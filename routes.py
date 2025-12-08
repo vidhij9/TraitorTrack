@@ -5042,19 +5042,30 @@ def view_bill(bill_id):
         })
     
     # Get limited scan history with eager loading in single query
+    from sqlalchemy.orm import joinedload
     scans = []
     if parent_bag_ids:
-        from sqlalchemy.orm import joinedload
         scans = Scan.query.options(joinedload(Scan.user)).filter(  # type: ignore[arg-type]
             Scan.parent_bag_id.in_(parent_bag_ids)
         ).order_by(desc(Scan.timestamp)).limit(100).all()
+    
+    # Get IPT return events for this bill (bags removed via IPT)
+    from models import BillReturnEvent, ReturnTicket
+    ipt_return_events = BillReturnEvent.query.options(
+        joinedload(BillReturnEvent.return_ticket),
+        joinedload(BillReturnEvent.bag),
+        joinedload(BillReturnEvent.removed_by)
+    ).filter(
+        BillReturnEvent.bill_id == bill_id
+    ).order_by(desc(BillReturnEvent.removed_at)).limit(50).all()
     
     return render_template('view_bill.html', 
                          bill=bill, 
                          parent_bags=parent_bags, 
                          child_bags=[],
                          scans=scans or [],
-                         bag_links_count=len(parent_bags))
+                         bag_links_count=len(parent_bags),
+                         ipt_return_events=ipt_return_events)
 
 @app.route('/bill/<int:bill_id>/edit', methods=['GET', 'POST'])
 @login_required
