@@ -152,14 +152,15 @@ fi
 # Ensure DATABASE_URL points to production for the running application
 export DATABASE_URL="$PRODUCTION_DATABASE_URL"
 
-# Always use port 5000 for Replit Autoscale deployment
-PORT=5000
+# Use PORT environment variable from Replit Autoscale, fallback to 5000 for local dev
+# Autoscale provides a dynamic PORT that MUST be used for the health check to pass
+APP_PORT="${PORT:-5000}"
 
-echo "🚀 Starting Gunicorn on port $PORT"
+echo "🚀 Starting Gunicorn on port $APP_PORT"
 echo ""
 
 exec gunicorn \
-  --bind 0.0.0.0:$PORT \
+  --bind 0.0.0.0:$APP_PORT \
   --workers ${GUNICORN_WORKERS:-2} \
   --worker-class gevent \
   --worker-connections 500 \
