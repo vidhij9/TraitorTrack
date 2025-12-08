@@ -51,8 +51,8 @@ echo ""
 echo "📦 Running database migrations..."
 echo ""
 
-# Run migrations with 60 second timeout
-timeout 60 python run_production_migrations.py
+# Run migrations with 300 second timeout (5 minutes for large tables)
+timeout 300 python run_production_migrations.py
 MIGRATION_EXIT_CODE=$?
 
 if [ $MIGRATION_EXIT_CODE -eq 0 ]; then
@@ -61,7 +61,7 @@ if [ $MIGRATION_EXIT_CODE -eq 0 ]; then
     echo ""
 elif [ $MIGRATION_EXIT_CODE -eq 124 ]; then
     echo ""
-    echo "⚠️  WARNING: Migration timed out after 60 seconds"
+    echo "⚠️  WARNING: Migration timed out after 300 seconds"
     echo "⚠️  Continuing with server startup - migrations may still be running"
     echo ""
 else
