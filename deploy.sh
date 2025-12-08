@@ -44,8 +44,8 @@ echo ""
 echo "✅ Environment configuration verified"
 echo ""
 
-# Use PORT environment variable for Cloud Run compatibility (defaults to 5000 for local dev)
-PORT=${PORT:-5000}
+# Always use port 5000 for Replit Autoscale deployment
+PORT=5000
 
 # ==================================================================================
 # FAST STARTUP STRATEGY:
