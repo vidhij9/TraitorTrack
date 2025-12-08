@@ -104,7 +104,7 @@
                                 {% for rtb in returned_bags %}
                                 <tr>
                                     <td>
-                                        <a href="{{ url_for('bag_detail', bag_id=rtb.bag.id) if rtb.bag else '#' }}" class="fw-bold text-decoration-none">
+                                        <a href="{{ url_for('bag_details', qr_id=rtb.bag.qr_id|urlencode) if rtb.bag else '#' }}" class="fw-bold text-decoration-none">
                                             {{ rtb.bag.qr_id if rtb.bag else 'Unknown' }}
                                         </a>
                                     </td>
