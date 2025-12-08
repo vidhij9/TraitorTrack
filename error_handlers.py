@@ -270,7 +270,8 @@ def setup_health_monitoring(app):
         
         is_production = os.environ.get('REPLIT_DEPLOYMENT') == '1' or os.environ.get('REPLIT_ENVIRONMENT') == 'production'
         
-        response_data = {
+        from typing import Any, Dict
+        response_data: Dict[str, Any] = {
             'status': 'healthy',
             'message': 'Application is running normally',
             'timestamp': datetime.now().isoformat(),
@@ -298,10 +299,10 @@ def setup_health_monitoring(app):
                     if detailed:
                         pool = db.engine.pool
                         response_data['database']['pool'] = {
-                            'size': pool.size(),
-                            'checked_in': pool.checkedin(),
-                            'overflow': pool.overflow(),
-                            'checked_out': pool.checkedout()
+                            'size': getattr(pool, 'size', lambda: 0)(),
+                            'checked_in': getattr(pool, 'checkedin', lambda: 0)(),
+                            'overflow': getattr(pool, 'overflow', lambda: 0)(),
+                            'checked_out': getattr(pool, 'checkedout', lambda: 0)()
                         }
                 else:
                     response_data['status'] = 'unhealthy'
