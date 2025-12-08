@@ -77,40 +77,95 @@ current_user = CurrentUserProxy()
 
 # Define fallback functions for missing imports
 def query_optimizer_fallback():
-    """Fallback class for query optimizer when not available"""
+    """Fallback class for query optimizer when not available - fully functional implementation"""
     class FallbackOptimizer:
         @staticmethod
         def get_bag_by_qr(qr_id, bag_type=None):
             from models import Bag
-            return Bag.query.filter_by(qr_id=qr_id).first()
+            from sqlalchemy import func
+            query = Bag.query.filter(func.upper(Bag.qr_id) == func.upper(qr_id))
+            if bag_type:
+                query = query.filter(Bag.type == bag_type)
+            return query.first()
         
         @staticmethod
-        def create_bag_optimized(*args, **kwargs):
-            return None
+        def create_bag_optimized(qr_id, bag_type, user_id=None, dispatch_area=None, name=None):
+            from models import Bag
+            from app import db
+            bag = Bag()
+            bag.qr_id = qr_id.upper().strip()
+            bag.type = bag_type
+            bag.user_id = user_id
+            bag.dispatch_area = dispatch_area
+            bag.name = name
+            bag.status = 'pending'
+            db.session.add(bag)
+            db.session.flush()
+            return bag
             
         @staticmethod  
-        def create_scan_optimized(*args, **kwargs):
-            return None
+        def create_scan_optimized(user_id, parent_bag_id=None, child_bag_id=None):
+            from models import Scan
+            from app import db
+            scan = Scan()
+            scan.user_id = user_id
+            scan.parent_bag_id = parent_bag_id
+            scan.child_bag_id = child_bag_id
+            db.session.add(scan)
+            db.session.flush()
+            return scan
             
         @staticmethod
-        def create_link_optimized(*args, **kwargs):
-            return None, False
+        def create_link_optimized(parent_bag_id, child_bag_id):
+            from models import Link
+            from app import db
+            existing = Link.query.filter_by(
+                parent_bag_id=parent_bag_id,
+                child_bag_id=child_bag_id
+            ).first()
+            if existing:
+                return existing, False
+            link = Link()
+            link.parent_bag_id = parent_bag_id
+            link.child_bag_id = child_bag_id
+            db.session.add(link)
+            db.session.flush()
+            return link, True
         
         @staticmethod
-        def create_link_fast(*args, **kwargs):
-            return False, "Optimizer not available"
+        def create_link_fast(parent_bag_id, child_bag_id, user_id=None):
+            from models import Link
+            from app import db
+            try:
+                existing = Link.query.filter_by(child_bag_id=child_bag_id).first()
+                if existing:
+                    return False, "Child already linked to another parent"
+                link = Link()
+                link.parent_bag_id = parent_bag_id
+                link.child_bag_id = child_bag_id
+                db.session.add(link)
+                db.session.flush()
+                return True, "Link created successfully"
+            except Exception as e:
+                return False, str(e)
             
         @staticmethod
         def invalidate_bag_cache(qr_id=None, bag_id=None):
-            pass  # No-op in fallback
+            pass  # No caching in fallback mode
         
         @staticmethod
         def invalidate_all_cache():
-            pass  # No-op in fallback
+            pass  # No caching in fallback mode
             
         @staticmethod
         def bulk_commit():
-            return True
+            from app import db
+            try:
+                db.session.commit()
+                return True
+            except Exception:
+                db.session.rollback()
+                return False
     return FallbackOptimizer()
 
 # Import the real query optimizer
@@ -5052,9 +5107,9 @@ def view_bill(bill_id):
     # Get IPT return events for this bill (bags removed via IPT)
     from models import BillReturnEvent, ReturnTicket
     ipt_return_events = BillReturnEvent.query.options(
-        joinedload(BillReturnEvent.return_ticket),
-        joinedload(BillReturnEvent.bag),
-        joinedload(BillReturnEvent.removed_by)
+        joinedload('return_ticket'),
+        joinedload('bag'),
+        joinedload('removed_by')
     ).filter(
         BillReturnEvent.bill_id == bill_id
     ).order_by(desc(BillReturnEvent.removed_at)).limit(50).all()

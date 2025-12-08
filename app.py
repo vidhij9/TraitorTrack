@@ -386,11 +386,13 @@ def migration_status_endpoint():
                 result['head_revision'] = script.get_current_head()
                 result['up_to_date'] = result['current_revision'] == result['head_revision']
                 
-                if not result['up_to_date'] and result['current_revision']:
+                if not result['up_to_date'] and result['current_revision'] and result['head_revision']:
                     try:
                         pending = []
-                        for rev in script.walk_revisions(result['head_revision'], result['current_revision']):
-                            if rev.revision != result['current_revision']:
+                        head_rev = str(result['head_revision'])
+                        current_rev = str(result['current_revision'])
+                        for rev in script.walk_revisions(head_rev, current_rev):
+                            if rev.revision != current_rev:
                                 pending.append(rev.revision)
                         result['pending_migrations'] = pending
                     except Exception:
