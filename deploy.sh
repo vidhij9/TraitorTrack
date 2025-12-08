@@ -1,6 +1,6 @@
 #!/bin/bash
 # Production deployment for Replit Autoscale
-# Runs migrations FIRST, then starts server on port 5000
+# Runs schema sync check and migrations FIRST, then starts server on port 5000
 # Designed for 100+ concurrent users with reliable database schema
 
 echo "==================================================="
@@ -21,15 +21,21 @@ if [ -z "$ADMIN_PASSWORD" ]; then
 fi
 
 # Database Configuration (flexible for Replit built-in PostgreSQL or external)
+# Keep both DATABASE_URL and PRODUCTION_DATABASE_URL for sync checking
 if [ -n "$PRODUCTION_DATABASE_URL" ]; then
-    echo "✅ Using PRODUCTION_DATABASE_URL for database connection"
-    export DATABASE_URL="$PRODUCTION_DATABASE_URL"
-elif [ -n "$DATABASE_URL" ]; then
-    echo "✅ Using Replit built-in PostgreSQL (DATABASE_URL)"
+    echo "✅ Using PRODUCTION_DATABASE_URL for production database connection"
 else
-    echo "❌ ERROR: No database configured"
-    echo "   Set DATABASE_URL (for Replit PostgreSQL) or PRODUCTION_DATABASE_URL (for external DB)"
+    echo "❌ ERROR: PRODUCTION_DATABASE_URL not configured"
+    echo "   Set PRODUCTION_DATABASE_URL for production database connection"
     exit 1
+fi
+
+# Save original DATABASE_URL for sync comparison (if different from production)
+ORIGINAL_DATABASE_URL="$DATABASE_URL"
+if [ -n "$DATABASE_URL" ] && [ "$DATABASE_URL" != "$PRODUCTION_DATABASE_URL" ]; then
+    echo "✅ Development DATABASE_URL available for sync verification"
+else
+    echo "⚠️  No separate development DATABASE_URL for sync verification"
 fi
 
 # Redis Configuration (optional - app works without it using signed cookie sessions)
@@ -44,12 +50,54 @@ echo "✅ Environment configuration verified"
 echo ""
 
 # ==================================================================================
-# STEP 1: RUN MIGRATIONS (with timeout to prevent hanging)
+# STEP 1: SCHEMA SYNC CHECK (verify database alignment)
+# This ensures dev and production schemas are in sync before deployment
+# ==================================================================================
+
+echo "🔍 Checking database schema sync status..."
+echo ""
+
+# Run sync check if both DATABASE_URL and PRODUCTION_DATABASE_URL are set
+if [ -n "$DATABASE_URL" ] && [ -n "$PRODUCTION_DATABASE_URL" ]; then
+    timeout 60 python check_db_sync.py --json > /tmp/sync_check_result.json 2>&1
+    SYNC_EXIT_CODE=$?
+    
+    if [ $SYNC_EXIT_CODE -eq 0 ]; then
+        echo "✅ Database schemas are IN SYNC"
+        echo ""
+    elif [ $SYNC_EXIT_CODE -eq 1 ]; then
+        echo "⚠️  Database schemas are OUT OF SYNC"
+        echo "   Migrations will be applied to bring production up to date"
+        echo ""
+        
+        # Parse and display sync details
+        if [ -f /tmp/sync_check_result.json ]; then
+            DEV_REV=$(python3 -c "import json; d=json.load(open('/tmp/sync_check_result.json')); print(d.get('alembic',{}).get('dev_revision','unknown'))" 2>/dev/null || echo "unknown")
+            PROD_REV=$(python3 -c "import json; d=json.load(open('/tmp/sync_check_result.json')); print(d.get('alembic',{}).get('prod_revision','unknown'))" 2>/dev/null || echo "unknown")
+            echo "   Development revision: $DEV_REV"
+            echo "   Production revision:  $PROD_REV"
+            echo ""
+        fi
+    else
+        echo "⚠️  WARNING: Sync check failed (exit code $SYNC_EXIT_CODE)"
+        echo "   Continuing with migrations..."
+        echo ""
+    fi
+else
+    echo "⚠️  Skipping sync check (need both DATABASE_URL and PRODUCTION_DATABASE_URL)"
+    echo ""
+fi
+
+# ==================================================================================
+# STEP 2: RUN MIGRATIONS (with timeout to prevent hanging)
 # This ensures database schema is up-to-date before accepting traffic
 # ==================================================================================
 
 echo "📦 Running database migrations..."
 echo ""
+
+# Set DATABASE_URL to production for migrations
+export DATABASE_URL="$PRODUCTION_DATABASE_URL"
 
 # Run migrations with 300 second timeout (5 minutes for large tables)
 timeout 300 python run_production_migrations.py
@@ -72,8 +120,37 @@ else
 fi
 
 # ==================================================================================
-# STEP 2: START GUNICORN SERVER
+# STEP 3: POST-MIGRATION SYNC VERIFICATION
+# Verify schemas are now in sync after migrations
 # ==================================================================================
+
+# Restore DATABASE_URL for sync verification if we have a separate dev database
+if [ -n "$ORIGINAL_DATABASE_URL" ] && [ "$ORIGINAL_DATABASE_URL" != "$PRODUCTION_DATABASE_URL" ]; then
+    export DATABASE_URL="$ORIGINAL_DATABASE_URL"
+    
+    echo "🔍 Verifying post-migration sync status..."
+    timeout 30 python check_db_sync.py 2>&1 | head -20
+    POST_SYNC_CODE=$?
+    
+    if [ $POST_SYNC_CODE -eq 0 ]; then
+        echo ""
+        echo "✅ Post-migration: Databases are IN SYNC"
+    else
+        echo ""
+        echo "⚠️  Post-migration: Databases may still differ (non-critical)"
+    fi
+    echo ""
+else
+    echo "⚠️  Skipping post-migration sync verification (no separate dev database)"
+    echo ""
+fi
+
+# ==================================================================================
+# STEP 4: START GUNICORN SERVER
+# ==================================================================================
+
+# Ensure DATABASE_URL points to production for the running application
+export DATABASE_URL="$PRODUCTION_DATABASE_URL"
 
 # Always use port 5000 for Replit Autoscale deployment
 PORT=5000

@@ -79,6 +79,13 @@ The project utilizes a standard Flask application architecture, organizing code 
 -   **ReturnTicketBag**: Association between return tickets and returned parent bags with snapshot data.
 -   **BillReturnEvent**: History of bill modifications during IPT return operations.
 
+## Database Management Scripts
+
+-   **run_production_migrations.py**: Runs Alembic migrations against production database (uses PRODUCTION_DATABASE_URL).
+-   **check_db_sync.py**: Compares development and production database schemas (Alembic revisions, table structures). Usage: `python check_db_sync.py --verbose`
+-   **safe_production_cleanup.py**: Safely deletes production data while preserving specific records (superadmin users, M444-00001 to M444-00600 parent bags, and related data). Runs in dry-run mode by default; use `--execute` to actually delete.
+-   **deploy.sh**: Production deployment script that runs schema sync check, applies migrations, then starts Gunicorn.
+
 ## External Dependencies
 -   **PostgreSQL**: Primary relational database.
 -   **Gunicorn**: WSGI HTTP Server.
