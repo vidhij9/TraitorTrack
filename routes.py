@@ -162,6 +162,128 @@ def query_optimizer_fallback():
             except Exception:
                 db.session.rollback()
                 return False
+        
+        @staticmethod
+        def ultra_fast_bill_parent_scan(bill_id, qr_code, user_id):
+            """Fallback implementation of ultra-fast bill parent scanning"""
+            from models import Bill, Bag, BillBag, Scan
+            from app import db
+            from sqlalchemy import func
+            
+            try:
+                qr_code = qr_code.strip().upper()
+                
+                bill = Bill.query.get(int(bill_id))
+                if not bill:
+                    return {
+                        "success": False,
+                        "error_type": "bill_not_found",
+                        "message": f"Bill #{bill_id} not found."
+                    }
+                
+                bag = Bag.query.filter(func.upper(Bag.qr_id) == qr_code).first()
+                if not bag:
+                    return {
+                        "success": False,
+                        "error_type": "bag_not_found",
+                        "message": f"Bag {qr_code} not registered in system."
+                    }
+                
+                if bag.type != 'parent':
+                    return {
+                        "success": False,
+                        "error_type": "wrong_bag_type",
+                        "message": f"{qr_code} is a {bag.type} bag, not a parent bag."
+                    }
+                
+                existing = BillBag.query.filter_by(bill_id=bill.id, bag_id=bag.id).first()
+                if existing:
+                    return {
+                        "success": False,
+                        "error_type": "already_linked",
+                        "message": f"{qr_code} is already linked to this bill."
+                    }
+                
+                other_link = BillBag.query.filter_by(bag_id=bag.id).first()
+                if other_link:
+                    other_bill = Bill.query.get(other_link.bill_id)
+                    return {
+                        "success": False,
+                        "error_type": "linked_to_other",
+                        "message": f"{qr_code} is already linked to {other_bill.bill_id if other_bill else 'another bill'}."
+                    }
+                
+                capacity = bill.parent_bag_count or 999999
+                linked_count = bill.linked_parent_count or 0
+                if linked_count >= capacity:
+                    return {
+                        "success": False,
+                        "error_type": "capacity_reached",
+                        "is_at_capacity": True,
+                        "message": f"Bill capacity reached ({linked_count}/{capacity})."
+                    }
+                
+                bill_bag = BillBag()
+                bill_bag.bill_id = bill.id
+                bill_bag.bag_id = bag.id
+                db.session.add(bill_bag)
+                
+                scan = Scan()
+                scan.user_id = user_id
+                scan.parent_bag_id = bag.id
+                db.session.add(scan)
+                
+                child_count = bag.child_count or 0
+                
+                if qr_code.startswith('SB'):
+                    expected_weight_delta = 30.0
+                elif qr_code.startswith('M') and '-' in qr_code:
+                    expected_weight_delta = 15.0
+                else:
+                    expected_weight_delta = 30.0
+                
+                previous_linked = bill.linked_parent_count or 0
+                previous_weight = bill.total_weight_kg or 0
+                previous_expected = bill.expected_weight_kg or 0
+                
+                bill.linked_parent_count = previous_linked + 1
+                bill.total_child_bags = (bill.total_child_bags or 0) + child_count
+                bill.total_weight_kg = previous_weight + child_count
+                bill.expected_weight_kg = previous_expected + expected_weight_delta
+                if bill.status == 'new':
+                    bill.status = 'processing'
+                
+                db.session.commit()
+                
+                new_linked_count = bill.linked_parent_count
+                new_total_weight = bill.total_weight_kg
+                new_expected_weight = bill.expected_weight_kg
+                is_at_capacity = new_linked_count >= capacity
+                capacity_message = " Bill is now at capacity!" if is_at_capacity else ""
+                
+                return {
+                    "success": True,
+                    "error_type": "success",
+                    "message": f"{bag.qr_id} linked successfully! Contains {child_count} children ({new_linked_count}/{capacity} bags total){capacity_message}",
+                    "bag_id": bag.id,
+                    "bag_qr": bag.qr_id,
+                    "child_count": child_count,
+                    "linked_count": new_linked_count,
+                    "expected_count": capacity,
+                    "actual_weight": new_total_weight,
+                    "expected_weight": new_expected_weight,
+                    "is_at_capacity": is_at_capacity,
+                    "remaining_capacity": max(0, capacity - new_linked_count),
+                    "bill_status": bill.status
+                }
+                
+            except Exception as e:
+                db.session.rollback()
+                return {
+                    "success": False,
+                    "error_type": "error",
+                    "message": f"Error: {str(e)}"
+                }
     return FallbackOptimizer()
 
 # Import the real query optimizer
