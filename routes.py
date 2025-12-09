@@ -5225,9 +5225,9 @@ def view_bill(bill_id):
     # Get IPT return events for this bill (bags removed via IPT)
     from models import BillReturnEvent, ReturnTicket
     ipt_return_events = BillReturnEvent.query.options(
-        joinedload('return_ticket'),
-        joinedload('bag'),
-        joinedload('removed_by')
+        joinedload(BillReturnEvent.return_ticket),  # type: ignore[arg-type]
+        joinedload(BillReturnEvent.bag),  # type: ignore[arg-type]
+        joinedload(BillReturnEvent.removed_by)  # type: ignore[arg-type]
     ).filter(
         BillReturnEvent.bill_id == bill_id
     ).order_by(desc(BillReturnEvent.removed_at)).limit(50).all()
