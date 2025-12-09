@@ -220,9 +220,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
         
-        if (parentCount < 1 || parentCount > 50) {
+        if (parentCount < 1 || parentCount > 500) {
             e.preventDefault();
-            showToast('Parent bag count must be between 1 and 50', 'error');
+            showToast('Parent bag count must be between 1 and 500', 'error');
             document.getElementById('parent_bag_count').focus();
             return false;
         }
