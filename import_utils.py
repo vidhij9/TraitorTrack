@@ -114,8 +114,8 @@ class ImportValidator:
         if 'parent_bag_count' in row and str(row['parent_bag_count']).strip():
             try:
                 count = int(row['parent_bag_count'])
-                if count < 1 or count > 50:
-                    return False, f"Row {row_num}: Parent bag count must be between 1 and 50"
+                if count < 1 or count > 500:
+                    return False, f"Row {row_num}: Parent bag count must be between 1 and 500"
             except (ValueError, TypeError):
                 return False, f"Row {row_num}: Parent bag count must be a valid number"
         
