@@ -109,14 +109,16 @@ if [ $MIGRATION_EXIT_CODE -eq 0 ]; then
     echo ""
 elif [ $MIGRATION_EXIT_CODE -eq 124 ]; then
     echo ""
-    echo "⚠️  WARNING: Migration timed out after 300 seconds"
-    echo "⚠️  Continuing with server startup - migrations may still be running"
-    echo ""
+    echo "❌ FATAL: Migration timed out after 300 seconds"
+    echo "   Cannot start server with potentially stale schema"
+    echo "   Please check database connectivity and migration logs"
+    exit 1
 else
     echo ""
-    echo "⚠️  WARNING: Migration script exited with code $MIGRATION_EXIT_CODE"
-    echo "⚠️  Continuing with server startup - check logs for details"
-    echo ""
+    echo "❌ FATAL: Migration failed with exit code $MIGRATION_EXIT_CODE"
+    echo "   Cannot start server with potentially stale schema"
+    echo "   Please fix migration issues before deployment"
+    exit 1
 fi
 
 # ==================================================================================

@@ -86,6 +86,40 @@ The project utilizes a standard Flask application architecture, organizing code 
 -   **safe_production_cleanup.py**: Safely deletes production data while preserving specific records (superadmin users, M444-00001 to M444-00600 parent bags, and related data). Runs in dry-run mode by default; use `--execute` to actually delete.
 -   **deploy.sh**: Production deployment script that runs schema sync check, applies migrations, then starts Gunicorn.
 
+## Production Deployment
+
+### Deployment Configuration
+The application is configured for Replit Autoscale deployment:
+-   **Deployment Target**: Autoscale (configured in `.replit`)
+-   **Run Command**: `./deploy.sh` (handles migrations and server startup)
+-   **Port**: Uses `$PORT` environment variable (provided by Autoscale) or defaults to 5000
+
+### Required Secrets (Production)
+The following secrets must be configured in Replit Secrets for production deployment:
+-   **SESSION_SECRET**: Cryptographic key for session signing (generate with `python3 -c 'import secrets; print(secrets.token_hex(32))'`)
+-   **ADMIN_PASSWORD**: Secure password for the admin account (min 12 chars, mixed case, numbers, symbols)
+-   **PRODUCTION_DATABASE_URL**: PostgreSQL connection string for production database (e.g., AWS RDS)
+-   **DATABASE_URL**: Development database connection (auto-provided by Replit PostgreSQL)
+-   **SENDGRID_API_KEY**: (Optional) For email notifications and password reset
+
+### Deployment Process
+1. **Schema Sync Check**: Compares development and production database schemas
+2. **Run Migrations**: Applies any pending Alembic migrations to production database
+3. **Post-Migration Verification**: Confirms schemas are in sync after migrations
+4. **Start Gunicorn**: Launches gevent-based async server with optimized worker settings
+
+### Migration Chain
+Current migration head: `j6k7l8m9n0o1` (13 migrations total)
+-   Migrations are managed by Flask-Migrate/Alembic
+-   Production migrations run automatically during deployment via `deploy.sh`
+-   Schema verification ensures development and production stay in sync
+
+### How to Publish
+1. Ensure all required secrets are configured in Replit Secrets
+2. Click the "Publish" button in Replit
+3. Select "Autoscale" deployment target
+4. The `deploy.sh` script will automatically handle migrations and server startup
+
 ## External Dependencies
 -   **PostgreSQL**: Primary relational database.
 -   **Gunicorn**: WSGI HTTP Server.
