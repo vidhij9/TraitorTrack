@@ -598,14 +598,47 @@ class QueryOptimizer:
                     "message": f"{qr_code} already linked to Bill #{linked_to_other_bill}. Cannot link to multiple bills."
                 }
             
-            # Check capacity
+            # Check capacity - with DRIFT DETECTION AND AUTO-CORRECTION
             if linked_count >= capacity:
-                return {
-                    "success": False,
-                    "error_type": "capacity_reached",
-                    "is_at_capacity": True,
-                    "message": f"Bill capacity reached ({linked_count}/{capacity} parent bags). Cannot add more bags."
-                }
+                # CRITICAL FIX: Verify actual BillBag count before rejecting
+                # The denormalized linked_parent_count can drift out of sync under concurrent usage
+                actual_count_result = self.db.session.execute(
+                    text("SELECT COUNT(*) FROM bill_bag WHERE bill_id = :bill_id"),
+                    {"bill_id": int(bill_pk)}
+                ).scalar()
+                actual_linked_count = actual_count_result or 0
+                
+                # Check if there's drift between denormalized counter and actual count
+                if actual_linked_count < linked_count:
+                    # DRIFT DETECTED: Auto-correct the counter
+                    logger.warning(f"Bill {bill_id} counter drift detected: linked_parent_count={linked_count}, actual={actual_linked_count}. Auto-correcting.")
+                    
+                    # Update the denormalized counter to match reality
+                    self.db.session.execute(
+                        text("UPDATE bill SET linked_parent_count = :actual WHERE id = :bill_id"),
+                        {"actual": actual_linked_count, "bill_id": int(bill_pk)}
+                    )
+                    self.db.session.commit()
+                    
+                    # Recheck capacity with corrected count
+                    linked_count = actual_linked_count
+                    if linked_count >= capacity:
+                        return {
+                            "success": False,
+                            "error_type": "capacity_reached",
+                            "is_at_capacity": True,
+                            "message": f"Bill capacity reached ({linked_count}/{capacity} parent bags). Cannot add more bags."
+                        }
+                    # Counter was corrected and we're now under capacity - proceed with scan
+                    logger.info(f"Bill {bill_id} counter corrected. Now at {linked_count}/{capacity}. Proceeding with scan.")
+                else:
+                    # No drift - capacity truly reached
+                    return {
+                        "success": False,
+                        "error_type": "capacity_reached",
+                        "is_at_capacity": True,
+                        "message": f"Bill capacity reached ({linked_count}/{capacity} parent bags). Cannot add more bags."
+                    }
             
             # All validations passed - create the link and update counters atomically
             # Calculate weight delta based on bag type (SB = 30kg expected, Mxxx-xx = 15kg expected)

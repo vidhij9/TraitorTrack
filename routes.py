@@ -216,22 +216,33 @@ def query_optimizer_fallback():
                 capacity = bill.parent_bag_count or 999999
                 linked_count = bill.linked_parent_count or 0
                 if linked_count >= capacity:
-                    return {
-                        "success": False,
-                        "error_type": "capacity_reached",
-                        "is_at_capacity": True,
-                        "message": f"Bill capacity reached ({linked_count}/{capacity})."
-                    }
-                
-                bill_bag = BillBag()
-                bill_bag.bill_id = bill.id
-                bill_bag.bag_id = bag.id
-                db.session.add(bill_bag)
-                
-                scan = Scan()
-                scan.user_id = user_id
-                scan.parent_bag_id = bag.id
-                db.session.add(scan)
+                    # CRITICAL FIX: Verify actual BillBag count before rejecting
+                    # The denormalized linked_parent_count can drift out of sync under concurrent usage
+                    actual_count = BillBag.query.filter_by(bill_id=bill.id).count()
+                    
+                    if actual_count < linked_count:
+                        # DRIFT DETECTED: Auto-correct the counter
+                        app.logger.warning(f"Bill {bill.id} counter drift detected: linked_parent_count={linked_count}, actual={actual_count}. Auto-correcting.")
+                        bill.linked_parent_count = actual_count
+                        db.session.commit()
+                        linked_count = actual_count
+                        
+                        # Recheck capacity with corrected count
+                        if linked_count >= capacity:
+                            return {
+                                "success": False,
+                                "error_type": "capacity_reached",
+                                "is_at_capacity": True,
+                                "message": f"Bill capacity reached ({linked_count}/{capacity})."
+                            }
+                        # Corrected - proceed with scan
+                    else:
+                        return {
+                            "success": False,
+                            "error_type": "capacity_reached",
+                            "is_at_capacity": True,
+                            "message": f"Bill capacity reached ({linked_count}/{capacity})."
+                        }
                 
                 child_count = bag.child_count or 0
                 
@@ -242,22 +253,43 @@ def query_optimizer_fallback():
                 else:
                     expected_weight_delta = 30.0
                 
-                previous_linked = bill.linked_parent_count or 0
-                previous_weight = bill.total_weight_kg or 0
-                previous_expected = bill.expected_weight_kg or 0
+                # ATOMIC OPERATION: Insert BillBag, Scan, and update counters in single transaction
+                # Uses separate execute() calls but within same transaction (no commit between)
+                # This prevents race conditions that cause counter drift
+                from sqlalchemy import text as sql_text
                 
-                bill.linked_parent_count = previous_linked + 1
-                bill.total_child_bags = (bill.total_child_bags or 0) + child_count
-                bill.total_weight_kg = previous_weight + child_count
-                bill.expected_weight_kg = previous_expected + expected_weight_delta
-                if bill.status == 'new':
-                    bill.status = 'processing'
+                # Insert bill-bag link
+                db.session.execute(sql_text(
+                    "INSERT INTO bill_bag (bill_id, bag_id, created_at) VALUES (:bill_id, :bag_id, NOW())"
+                ), {"bill_id": bill.id, "bag_id": bag.id})
+                
+                # Insert scan record
+                db.session.execute(sql_text(
+                    "INSERT INTO scan (parent_bag_id, user_id, timestamp) VALUES (:bag_id, :user_id, NOW())"
+                ), {"bag_id": bag.id, "user_id": user_id})
+                
+                # Atomic counter update - single UPDATE with all increments
+                db.session.execute(sql_text("""
+                    UPDATE bill 
+                    SET linked_parent_count = COALESCE(linked_parent_count, 0) + 1,
+                        total_child_bags = COALESCE(total_child_bags, 0) + :child_count,
+                        total_weight_kg = COALESCE(total_weight_kg, 0) + :child_count,
+                        expected_weight_kg = COALESCE(expected_weight_kg, 0) + :expected_delta,
+                        status = CASE WHEN status = 'new' THEN 'processing' ELSE status END
+                    WHERE id = :bill_db_id
+                """), {
+                    "child_count": child_count,
+                    "expected_delta": expected_weight_delta,
+                    "bill_db_id": bill.id
+                })
                 
                 db.session.commit()
                 
-                new_linked_count = bill.linked_parent_count
-                new_total_weight = bill.total_weight_kg
-                new_expected_weight = bill.expected_weight_kg
+                # Re-fetch updated values from the bill
+                db.session.refresh(bill)
+                new_linked_count = bill.linked_parent_count or linked_count + 1
+                new_total_weight = bill.total_weight_kg or 0
+                new_expected_weight = bill.expected_weight_kg or 0
                 is_at_capacity = new_linked_count >= capacity
                 capacity_message = " Bill is now at capacity!" if is_at_capacity else ""
                 
@@ -1455,7 +1487,28 @@ def admin_backfill_bill_counters():
         # This avoids the N+1 problem that caused timeouts
         app.logger.info("Starting batch backfill of bill counters...")
         
-        # Efficient query to get parent counts per bill
+        # STEP 1: Fix counter DRIFT - reset linked_parent_count to actual count
+        # This catches cases where the denormalized counter is HIGHER than actual (causes premature capacity errors)
+        drift_fixes = db.session.execute(text("""
+            UPDATE bill 
+            SET linked_parent_count = COALESCE(sub.actual_count, 0)
+            FROM (
+                SELECT b.id as bill_id, COUNT(bb.bag_id) as actual_count
+                FROM bill b
+                LEFT JOIN bill_bag bb ON bb.bill_id = b.id
+                GROUP BY b.id
+            ) sub
+            WHERE bill.id = sub.bill_id
+            AND COALESCE(bill.linked_parent_count, 0) != sub.actual_count
+            RETURNING bill.id, bill.linked_parent_count as old_count, sub.actual_count as new_count
+        """)).fetchall()
+        
+        if drift_fixes:
+            app.logger.warning(f"DRIFT DETECTED AND FIXED: {len(drift_fixes)} bills had incorrect linked_parent_count values")
+            for row in drift_fixes[:10]:  # Log first 10
+                app.logger.warning(f"  Bill {row.id}: {row.old_count} -> {row.new_count}")
+        
+        # STEP 2: Efficient query to get parent counts per bill (for bills with links)
         parent_counts = db.session.execute(text("""
             UPDATE bill 
             SET linked_parent_count = COALESCE(sub.parent_count, 0)
@@ -1498,16 +1551,19 @@ def admin_backfill_bill_counters():
         db.session.commit()
         
         log_audit('batch_bill_counters_backfill', 'system', None, {
+            'drift_fixes': len(drift_fixes),
             'parent_counts_updated': len(parent_counts),
             'child_counts_updated': len(child_counts),
             'status_updated': len(status_updates),
             'triggered_by': current_user.username
         })
         
+        drift_msg = f" Fixed {len(drift_fixes)} bills with counter drift." if drift_fixes else ""
         return jsonify({
             'success': True,
-            'message': f'Backfill complete. Updated {len(parent_counts)} bills with parent counts, {len(child_counts)} with child counts.',
+            'message': f'Backfill complete.{drift_msg} Updated {len(parent_counts)} bills with parent counts, {len(child_counts)} with child counts.',
             'stats': {
+                'drift_fixes': len(drift_fixes),
                 'parent_counts_updated': len(parent_counts),
                 'child_counts_updated': len(child_counts),
                 'status_updated': len(status_updates)
