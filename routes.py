@@ -213,38 +213,10 @@ def query_optimizer_fallback():
                         "message": f"{qr_code} is already linked to {other_bill.bill_id if other_bill else 'another bill'}."
                     }
                 
-                capacity = bill.parent_bag_count or 999999
-                linked_count = bill.linked_parent_count or 0
-                if linked_count >= capacity:
-                    # CRITICAL FIX: Verify actual BillBag count before rejecting
-                    # The denormalized linked_parent_count can drift out of sync under concurrent usage
-                    actual_count = BillBag.query.filter_by(bill_id=bill.id).count()
-                    
-                    if actual_count < linked_count:
-                        # DRIFT DETECTED: Auto-correct the counter
-                        app.logger.warning(f"Bill {bill.id} counter drift detected: linked_parent_count={linked_count}, actual={actual_count}. Auto-correcting.")
-                        bill.linked_parent_count = actual_count
-                        db.session.commit()
-                        linked_count = actual_count
-                        
-                        # Recheck capacity with corrected count
-                        if linked_count >= capacity:
-                            return {
-                                "success": False,
-                                "error_type": "capacity_reached",
-                                "is_at_capacity": True,
-                                "message": f"Bill capacity reached ({linked_count}/{capacity})."
-                            }
-                        # Corrected - proceed with scan
-                    else:
-                        return {
-                            "success": False,
-                            "error_type": "capacity_reached",
-                            "is_at_capacity": True,
-                            "message": f"Bill capacity reached ({linked_count}/{capacity})."
-                        }
+                from sqlalchemy import text as sql_text
                 
                 child_count = bag.child_count or 0
+                capacity = bill.parent_bag_count or 999999
                 
                 if qr_code.startswith('SB'):
                     expected_weight_delta = 30.0
@@ -253,15 +225,37 @@ def query_optimizer_fallback():
                 else:
                     expected_weight_delta = 30.0
                 
-                # ATOMIC OPERATION: Insert BillBag, Scan, and update counters in single transaction
-                # Uses separate execute() calls but within same transaction (no commit between)
-                # This prevents race conditions that cause counter drift
-                from sqlalchemy import text as sql_text
+                # ATOMIC OPERATION: Conditional INSERT only if capacity not reached
+                # This prevents race conditions by using a single atomic statement
+                result = db.session.execute(sql_text("""
+                    WITH capacity_check AS (
+                        SELECT id, parent_bag_count, 
+                               (SELECT COUNT(*) FROM bill_bag WHERE bill_id = :bill_id) as current_count
+                        FROM bill WHERE id = :bill_id
+                    ),
+                    insert_result AS (
+                        INSERT INTO bill_bag (bill_id, bag_id, created_at)
+                        SELECT :bill_id, :bag_id, NOW()
+                        FROM capacity_check
+                        WHERE current_count < parent_bag_count
+                        RETURNING bill_id
+                    )
+                    SELECT 
+                        (SELECT COUNT(*) FROM insert_result) as inserted,
+                        (SELECT current_count FROM capacity_check) as prev_count,
+                        (SELECT parent_bag_count FROM capacity_check) as capacity
+                """), {"bill_id": bill.id, "bag_id": bag.id}).fetchone()
                 
-                # Insert bill-bag link
-                db.session.execute(sql_text(
-                    "INSERT INTO bill_bag (bill_id, bag_id, created_at) VALUES (:bill_id, :bag_id, NOW())"
-                ), {"bill_id": bill.id, "bag_id": bag.id})
+                if result[0] == 0:
+                    # Insert did not happen - capacity was reached
+                    current_count = result[1]
+                    cap = result[2]
+                    return {
+                        "success": False,
+                        "error_type": "capacity_reached",
+                        "is_at_capacity": True,
+                        "message": f"Bill capacity reached ({current_count}/{cap})."
+                    }
                 
                 # Insert scan record
                 db.session.execute(sql_text(
@@ -287,7 +281,7 @@ def query_optimizer_fallback():
                 
                 # Re-fetch updated values from the bill
                 db.session.refresh(bill)
-                new_linked_count = bill.linked_parent_count or linked_count + 1
+                new_linked_count = bill.linked_parent_count or 1
                 new_total_weight = bill.total_weight_kg or 0
                 new_expected_weight = bill.expected_weight_kg or 0
                 is_at_capacity = new_linked_count >= capacity
