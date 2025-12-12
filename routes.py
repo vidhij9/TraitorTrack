@@ -165,10 +165,16 @@ def query_optimizer_fallback():
         
         @staticmethod
         def ultra_fast_bill_parent_scan(bill_id, qr_code, user_id):
-            """Fallback implementation of ultra-fast bill parent scanning"""
+            """Fallback implementation of ultra-fast bill parent scanning.
+            
+            HARDENED: Uses advisory locks to prevent capacity drift under contention.
+            """
             from models import Bill, Bag, BillBag, Scan
             from app import db
-            from sqlalchemy import func
+            from sqlalchemy import func, text as sql_text
+            import logging
+            
+            fallback_logger = logging.getLogger('fallback_optimizer')
             
             try:
                 qr_code = qr_code.strip().upper()
@@ -213,8 +219,6 @@ def query_optimizer_fallback():
                         "message": f"{qr_code} is already linked to {other_bill.bill_id if other_bill else 'another bill'}."
                     }
                 
-                from sqlalchemy import text as sql_text
-                
                 child_count = bag.child_count or 0
                 capacity = bill.parent_bag_count or 999999
                 
@@ -225,19 +229,23 @@ def query_optimizer_fallback():
                 else:
                     expected_weight_delta = 30.0
                 
-                # ATOMIC OPERATION: Conditional INSERT only if capacity not reached
-                # This prevents race conditions by using a single atomic statement
+                # HARDENED: Acquire advisory lock, then atomic insert with capacity check
+                # Lock ID uses offset 100000 to match main optimizer
                 result = db.session.execute(sql_text("""
-                    WITH capacity_check AS (
+                    WITH lock_acquired AS (
+                        SELECT pg_advisory_xact_lock(100000 + :bill_id) AS locked
+                    ),
+                    capacity_check AS (
                         SELECT id, parent_bag_count, 
                                (SELECT COUNT(*) FROM bill_bag WHERE bill_id = :bill_id) as current_count
-                        FROM bill WHERE id = :bill_id
+                        FROM bill, lock_acquired WHERE id = :bill_id
                     ),
                     insert_result AS (
                         INSERT INTO bill_bag (bill_id, bag_id, created_at)
                         SELECT :bill_id, :bag_id, NOW()
                         FROM capacity_check
                         WHERE current_count < parent_bag_count
+                        ON CONFLICT DO NOTHING
                         RETURNING bill_id
                     )
                     SELECT 
@@ -250,6 +258,7 @@ def query_optimizer_fallback():
                     # Insert did not happen - capacity was reached
                     current_count = result[1]
                     cap = result[2]
+                    db.session.rollback()  # Release advisory lock
                     return {
                         "success": False,
                         "error_type": "capacity_reached",
@@ -262,10 +271,11 @@ def query_optimizer_fallback():
                     "INSERT INTO scan (parent_bag_id, user_id, timestamp) VALUES (:bag_id, :user_id, NOW())"
                 ), {"bag_id": bag.id, "user_id": user_id})
                 
-                # Atomic counter update - single UPDATE with all increments
+                # Atomic counter update with drift detection
+                # Sync counter to actual count to prevent drift
                 db.session.execute(sql_text("""
                     UPDATE bill 
-                    SET linked_parent_count = COALESCE(linked_parent_count, 0) + 1,
+                    SET linked_parent_count = (SELECT COUNT(*) FROM bill_bag WHERE bill_id = :bill_db_id),
                         total_child_bags = COALESCE(total_child_bags, 0) + :child_count,
                         total_weight_kg = COALESCE(total_weight_kg, 0) + :child_count,
                         expected_weight_kg = COALESCE(expected_weight_kg, 0) + :expected_delta,
@@ -277,7 +287,7 @@ def query_optimizer_fallback():
                     "bill_db_id": bill.id
                 })
                 
-                db.session.commit()
+                db.session.commit()  # Releases advisory lock
                 
                 # Re-fetch updated values from the bill
                 db.session.refresh(bill)

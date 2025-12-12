@@ -11,8 +11,7 @@ from app import app, db, limiter
 from models import User, Bag, BagType, Link, Scan, Bill, BillBag
 from auth_utils import require_auth, current_user
 from validation_utils import InputValidator
-# Cache disabled - using live data only
-# No cache imports needed
+from dashboard_cache import get_dashboard_cache
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,13 @@ logger = logging.getLogger(__name__)
 @require_auth
 @limiter.limit("10000 per minute")  # Increased for 100+ concurrent users
 def get_dashboard_analytics():
-    """Comprehensive dashboard analytics endpoint with role-based data"""
+    """Comprehensive dashboard analytics endpoint with role-based data.
+    
+    OPTIMIZATION: Uses short-lived in-memory cache (5s TTL) to reduce DB load
+    while maintaining near real-time accuracy.
+    """
     try:
+        cache = get_dashboard_cache()
         now = datetime.now()
         today = now.date()
         week_ago = today - timedelta(days=7)
@@ -34,33 +38,60 @@ def get_dashboard_analytics():
         # Get current user role
         user_role = current_user.role if hasattr(current_user, 'role') else 'dispatcher'
         
-        # OPTIMIZED: Use real-time aggregate SQL query for statistics
-        stats_result = db.session.execute(text("""
-            WITH stats AS (
-                SELECT 
-                    COUNT(*) FILTER (WHERE type = 'parent') as parent_bags,
-                    COUNT(*) FILTER (WHERE type = 'child') as child_bags,
-                    COUNT(*) as total_bags
-                FROM bag
-            ), scan_stats AS (
-                SELECT COUNT(*) as total_scans FROM scan
-            ), bill_stats AS (
-                SELECT COUNT(*) as total_bills FROM bill
-            ), user_stats AS (
-                SELECT COUNT(*) as total_users FROM "user"
-            )
-            SELECT * FROM stats, scan_stats, bill_stats, user_stats
-        """)).fetchone()
-        
-        if stats_result is None:
-            parent_bags, child_bags, total_bags, total_scans, total_bills, total_users = 0, 0, 0, 0, 0, 0
+        # Try to get core stats from cache first
+        cached_core = cache.get_core_stats()
+        if cached_core:
+            parent_bags = cached_core['parent_bags']
+            child_bags = cached_core['child_bags']
+            total_bags = cached_core['total_bags']
+            total_scans = cached_core['total_scans']
+            total_bills = cached_core['total_bills']
+            total_users = cached_core['total_users']
+            unlinked_children = cached_core['unlinked_children']
         else:
-            parent_bags = stats_result[0] or 0
-            child_bags = stats_result[1] or 0
-            total_bags = stats_result[2] or 0
-            total_scans = stats_result[3] or 0
-            total_bills = stats_result[4] or 0
-            total_users = stats_result[5] or 0
+            # OPTIMIZED: Single aggregated query for all core stats
+            stats_result = db.session.execute(text("""
+                WITH stats AS (
+                    SELECT 
+                        COUNT(*) FILTER (WHERE type = 'parent') as parent_bags,
+                        COUNT(*) FILTER (WHERE type = 'child') as child_bags,
+                        COUNT(*) as total_bags
+                    FROM bag
+                ), scan_stats AS (
+                    SELECT COUNT(*) as total_scans FROM scan
+                ), bill_stats AS (
+                    SELECT COUNT(*) as total_bills FROM bill
+                ), user_stats AS (
+                    SELECT COUNT(*) as total_users FROM "user"
+                ), unlinked AS (
+                    SELECT COUNT(*) as unlinked_children FROM bag 
+                    WHERE type = 'child' 
+                    AND NOT EXISTS (SELECT 1 FROM link WHERE link.child_bag_id = bag.id)
+                )
+                SELECT * FROM stats, scan_stats, bill_stats, user_stats, unlinked
+            """)).fetchone()
+            
+            if stats_result is None:
+                parent_bags, child_bags, total_bags, total_scans, total_bills, total_users, unlinked_children = 0, 0, 0, 0, 0, 0, 0
+            else:
+                parent_bags = stats_result[0] or 0
+                child_bags = stats_result[1] or 0
+                total_bags = stats_result[2] or 0
+                total_scans = stats_result[3] or 0
+                total_bills = stats_result[4] or 0
+                total_users = stats_result[5] or 0
+                unlinked_children = stats_result[6] or 0
+            
+            # Cache the result
+            cache.set_core_stats({
+                'parent_bags': parent_bags,
+                'child_bags': child_bags,
+                'total_bags': total_bags,
+                'total_scans': total_scans,
+                'total_bills': total_bills,
+                'total_users': total_users,
+                'unlinked_children': unlinked_children
+            })
         
         # System metrics (admin only)
         system_metrics = {}
@@ -76,16 +107,6 @@ def get_dashboard_analytics():
                 'system_alerts': 0  # Placeholder for alerts
             }
         
-        # OPTIMIZED: Calculate unlinked children using efficient indexed query
-        # Instead of outer join + NULL check (full table scan), use NOT EXISTS subquery
-        unlinked_children = db.session.execute(text("""
-            SELECT COUNT(*) FROM bag 
-            WHERE type = 'child' 
-            AND NOT EXISTS (
-                SELECT 1 FROM link WHERE link.child_bag_id = bag.id
-            )
-        """)).scalar() or 0
-        
         # Performance metrics
         scans_today = Scan.query.filter(func.date(Scan.timestamp) == today).count()
         
@@ -93,61 +114,72 @@ def get_dashboard_analytics():
         hour_ago = now - timedelta(hours=1)
         scans_last_hour = Scan.query.filter(Scan.timestamp >= hour_ago).count()
         
-        # OPTIMIZED: Get hourly distribution using single grouped query instead of 24 separate queries
-        hourly_data_raw = db.session.query(
-            func.extract('hour', Scan.timestamp).label('hour'),
-            func.count().label('count')
-        ).filter(
-            func.date(Scan.timestamp) == today
-        ).group_by('hour').all()
-        
-        # Convert to dict for O(1) lookup and fill in missing hours with 0
-        hourly_dict = {int(row.hour): row.count for row in hourly_data_raw}
-        hourly_scans = [hourly_dict.get(hour, 0) for hour in range(24)]
-        
-        # Find peak hour from the already-queried data
-        if hourly_data_raw:
-            peak_hour_row = max(hourly_data_raw, key=lambda x: x[1])  # x[1] is the count column
-            peak_hour = f"{int(peak_hour_row[0])}:00"  # x[0] is the hour column
+        # Try to get hourly data from cache (longer TTL since it changes slowly)
+        cached_hourly = cache.get_hourly_scans()
+        if cached_hourly:
+            hourly_scans, peak_hour = cached_hourly
         else:
-            peak_hour = "--"
+            # OPTIMIZED: Get hourly distribution using single grouped query
+            hourly_data_raw = db.session.query(
+                func.extract('hour', Scan.timestamp).label('hour'),
+                func.count().label('count')
+            ).filter(
+                func.date(Scan.timestamp) == today
+            ).group_by('hour').all()
+            
+            # Convert to dict for O(1) lookup and fill in missing hours with 0
+            hourly_dict = {int(row.hour): row.count for row in hourly_data_raw}
+            hourly_scans = [hourly_dict.get(hour, 0) for hour in range(24)]
+            
+            # Find peak hour from the already-queried data
+            if hourly_data_raw:
+                peak_hour_row = max(hourly_data_raw, key=lambda x: x[1])
+                peak_hour = f"{int(peak_hour_row[0])}:00"
+            else:
+                peak_hour = "--"
+            
+            cache.set_hourly_scans(hourly_scans, peak_hour)
         
-        # Billing metrics (admin and biller) - OPTIMIZED: Single grouped query instead of 5 separate queries
+        # Billing metrics (admin and biller) - with caching
         billing_metrics = {}
         if user_role in ['admin', 'biller']:
-            # Use single query with grouping instead of 5 separate COUNT queries
-            bill_counts_result = db.session.execute(text("""
-                SELECT 
-                    COUNT(*) FILTER (WHERE status = 'completed') as completed,
-                    COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
-                    COUNT(*) FILTER (WHERE status = 'new') as pending,
-                    COUNT(*) FILTER (WHERE created_at >= :month_ago) as monthly,
-                    AVG(parent_bag_count) as avg_bags
-                FROM bill
-            """), {'month_ago': month_ago}).fetchone()
-            
-            if bill_counts_result:
-                billing_metrics = {
-                    'total_bills': total_bills,
-                    'completed_bills': bill_counts_result[0] or 0,
-                    'in_progress_bills': bill_counts_result[1] or 0,
-                    'pending_bills': bill_counts_result[2] or 0,
-                    'monthly_bills': bill_counts_result[3] or 0,
-                    'overdue_bills': 0,  # Placeholder
-                    'avg_bags_per_bill': round(bill_counts_result[4], 1) if bill_counts_result[4] else 0
-                }
+            cached_billing = cache.get_billing_stats()
+            if cached_billing:
+                billing_metrics = cached_billing
             else:
-                billing_metrics = {
-                    'total_bills': 0,
-                    'completed_bills': 0,
-                    'in_progress_bills': 0,
-                    'pending_bills': 0,
-                    'monthly_bills': 0,
-                    'overdue_bills': 0,
-                    'avg_bags_per_bill': 0
-                }
+                bill_counts_result = db.session.execute(text("""
+                    SELECT 
+                        COUNT(*) FILTER (WHERE status = 'completed') as completed,
+                        COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
+                        COUNT(*) FILTER (WHERE status = 'new') as pending,
+                        COUNT(*) FILTER (WHERE created_at >= :month_ago) as monthly,
+                        AVG(parent_bag_count) as avg_bags
+                    FROM bill
+                """), {'month_ago': month_ago}).fetchone()
+                
+                if bill_counts_result:
+                    billing_metrics = {
+                        'total_bills': total_bills,
+                        'completed_bills': bill_counts_result[0] or 0,
+                        'in_progress_bills': bill_counts_result[1] or 0,
+                        'pending_bills': bill_counts_result[2] or 0,
+                        'monthly_bills': bill_counts_result[3] or 0,
+                        'overdue_bills': 0,
+                        'avg_bags_per_bill': round(bill_counts_result[4], 1) if bill_counts_result[4] else 0
+                    }
+                else:
+                    billing_metrics = {
+                        'total_bills': 0,
+                        'completed_bills': 0,
+                        'in_progress_bills': 0,
+                        'pending_bills': 0,
+                        'monthly_bills': 0,
+                        'overdue_bills': 0,
+                        'avg_bags_per_bill': 0
+                    }
+                cache.set_billing_stats(billing_metrics)
         
-        # Dispatch metrics (admin and dispatcher)
+        # Dispatch metrics (admin and dispatcher) - lightweight queries
         dispatch_metrics = {}
         if user_role in ['admin', 'dispatcher']:
             dispatch_areas = db.session.query(
@@ -163,10 +195,10 @@ def get_dashboard_analytics():
                 'dispatch_areas': dispatch_areas,
                 'dispatched_today': dispatched_today,
                 'pending_dispatch': Bag.query.filter_by(dispatch_area=None).count(),
-                'avg_dispatch_time_hours': 2.5  # Placeholder
+                'avg_dispatch_time_hours': 2.5
             }
         
-        # Recent activity - OPTIMIZED: Single query with joins instead of N+1 queries
+        # Recent activity - always fresh (small query, important for user experience)
         recent_activity_raw = db.session.execute(text("""
             SELECT 
                 s.timestamp,
@@ -218,7 +250,7 @@ def get_dashboard_analytics():
             # Performance metrics
             'scans_today': scans_today,
             'hourly_rate': scans_last_hour,
-            'avg_scan_time_ms': 14,  # Based on our performance tests
+            'avg_scan_time_ms': 14,
             'peak_hour': peak_hour,
             'hourly_scans': hourly_scans,
             

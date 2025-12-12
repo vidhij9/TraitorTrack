@@ -33,7 +33,13 @@ MINIMAL_LOG_PATHS_PREFIX = (
     '/api/stats',
     '/api/search',
     '/api/bag/',
+    '/api/bags/',
+    '/api/scans/',
+    '/api/bills/',
+    '/api/users/',
     '/static/',
+    '/bill/',  # Bill scanning pages
+    '/scan/',  # Scanning endpoints
 )
 
 # Paths that ALWAYS need FULL logging (security/audit requirements)

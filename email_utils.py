@@ -34,16 +34,43 @@ except ImportError:
 
 
 class EmailConfig:
-    """Email configuration"""
+    """Email configuration with feature flags for cost control"""
     API_KEY = os.environ.get('SENDGRID_API_KEY')
     FROM_EMAIL = os.environ.get('FROM_EMAIL', 'vidhi.jn39@gmail.com')
     FROM_NAME = os.environ.get('FROM_NAME', 'TraitorTrack')
     ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'vidhi.jn39@gmail.com')
     
+    # Feature flags for email notifications (set to 'false' to disable)
+    WELCOME_EMAILS_ENABLED = os.environ.get('ENABLE_WELCOME_EMAILS', 'true').lower() == 'true'
+    BILL_NOTIFICATION_EMAILS_ENABLED = os.environ.get('ENABLE_BILL_EMAILS', 'false').lower() == 'true'
+    PASSWORD_RESET_EMAILS_ENABLED = os.environ.get('ENABLE_PASSWORD_RESET_EMAILS', 'true').lower() == 'true'
+    ADMIN_ALERT_EMAILS_ENABLED = os.environ.get('ENABLE_ADMIN_ALERT_EMAILS', 'true').lower() == 'true'
+    
     @staticmethod
     def is_configured() -> bool:
         """Check if email is properly configured"""
         return bool(EmailConfig.API_KEY and SENDGRID_AVAILABLE)
+    
+    @staticmethod
+    def is_feature_enabled(feature: str) -> bool:
+        """Check if a specific email feature is enabled.
+        
+        Args:
+            feature: One of 'welcome', 'bill', 'password_reset', 'admin_alert'
+        
+        Returns:
+            True if the feature is enabled AND email is configured
+        """
+        if not EmailConfig.is_configured():
+            return False
+        
+        feature_map = {
+            'welcome': EmailConfig.WELCOME_EMAILS_ENABLED,
+            'bill': EmailConfig.BILL_NOTIFICATION_EMAILS_ENABLED,
+            'password_reset': EmailConfig.PASSWORD_RESET_EMAILS_ENABLED,
+            'admin_alert': EmailConfig.ADMIN_ALERT_EMAILS_ENABLED
+        }
+        return feature_map.get(feature, False)
 
 
 class EmailTemplate:
@@ -486,7 +513,14 @@ class EmailService:
     
     @staticmethod
     def send_welcome_email(username: str, email: str) -> Tuple[bool, Optional[str]]:
-        """Send welcome email to new user"""
+        """Send welcome email to new user.
+        
+        Respects ENABLE_WELCOME_EMAILS feature flag for cost control.
+        """
+        if not EmailConfig.is_feature_enabled('welcome'):
+            logger.debug(f"Welcome email skipped for {email} - feature disabled")
+            return True, None  # Return success to avoid error handling in caller
+        
         subject, html_content = EmailTemplate.welcome_email(username, email)
         return EmailService.send_email(email, subject, html_content)
     
@@ -510,7 +544,15 @@ class EmailService:
     @staticmethod
     def send_bill_notification(bill_id: str, parent_bags: int, created_by: str, 
                                admin_emails: List[str]) -> Tuple[int, int, List[str]]:
-        """Send bill creation notification to admins"""
+        """Send bill creation notification to admins.
+        
+        Respects ENABLE_BILL_EMAILS feature flag for cost control.
+        Bill emails are disabled by default to reduce costs.
+        """
+        if not EmailConfig.is_feature_enabled('bill'):
+            logger.debug(f"Bill notification skipped for {bill_id} - feature disabled")
+            return 0, 0, []  # Return success with no emails sent
+        
         subject, html_content = EmailTemplate.bill_created(bill_id, parent_bags, created_by)
         
         recipients = [(email, subject, html_content) for email in admin_emails]
@@ -519,7 +561,14 @@ class EmailService:
     @staticmethod
     def send_admin_alert(title: str, message: str, details: Optional[Dict] = None, 
                         admin_emails: Optional[List[str]] = None) -> Tuple[int, int, List[str]]:
-        """Send alert notification to admins"""
+        """Send alert notification to admins.
+        
+        Respects ENABLE_ADMIN_ALERT_EMAILS feature flag.
+        """
+        if not EmailConfig.is_feature_enabled('admin_alert'):
+            logger.debug(f"Admin alert skipped: {title} - feature disabled")
+            return 0, 0, []  # Return success with no emails sent
+        
         subject, html_content = EmailTemplate.admin_alert(title, message, details)
         
         # Use configured admin email if not provided
