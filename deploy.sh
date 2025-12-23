@@ -166,7 +166,7 @@ exec gunicorn \
   --workers ${GUNICORN_WORKERS:-2} \
   --worker-class gevent \
   --worker-connections 500 \
-  --timeout ${GUNICORN_TIMEOUT:-120} \
+  --timeout ${GUNICORN_TIMEOUT:-600} \
   --graceful-timeout 30 \
   --keep-alive 5 \
   --max-requests 1000 \
