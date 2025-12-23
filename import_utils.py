@@ -171,6 +171,7 @@ class BagImporter:
     def parse_excel(file_storage: FileStorage) -> Tuple[List[Dict], List[str]]:
         """
         Parse Excel file and return bag data with any errors.
+        Processes ALL sheets in the workbook.
         
         Args:
             file_storage: Uploaded file object
@@ -182,39 +183,40 @@ class BagImporter:
             return [], ["Excel support not available - openpyxl not installed"]
         
         try:
-            # Load workbook
             file_storage.stream.seek(0)
             wb = load_workbook(file_storage.stream)
-            ws = wb.active
-            
-            # Get header row
-            headers = [cell.value for cell in ws[1]]
             
             bags = []
             errors = []
             
-            # Process data rows
-            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                # Skip empty rows
-                if not any(row):
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                logger.info(f"Processing sheet: {sheet_name}")
+                
+                headers = [cell.value for cell in ws[1]]
+                
+                if not headers or not any(headers):
+                    logger.debug(f"Sheet '{sheet_name}' has no headers, skipping")
                     continue
                 
-                # Create row dict
-                row_dict = dict(zip(headers, row))
-                
-                # Validate row
-                is_valid, error_msg = ImportValidator.validate_bag_data(row_dict, row_num)
-                if not is_valid:
-                    errors.append(error_msg)
-                    continue
-                
-                # Normalize data
-                bags.append({
-                    'qr_id': str(row_dict['qr_id']).strip(),
-                    'type': str(row_dict['type']).strip().lower(),
-                    'parent_qr_id': str(row_dict.get('parent_qr_id', '')).strip() if row_dict.get('parent_qr_id') else None
-                })
+                for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                    if not any(row):
+                        continue
+                    
+                    row_dict = dict(zip(headers, row))
+                    
+                    is_valid, error_msg = ImportValidator.validate_bag_data(row_dict, row_num)
+                    if not is_valid:
+                        errors.append(f"Sheet '{sheet_name}', Row {row_num}: {error_msg}")
+                        continue
+                    
+                    bags.append({
+                        'qr_id': str(row_dict['qr_id']).strip(),
+                        'type': str(row_dict['type']).strip().lower(),
+                        'parent_qr_id': str(row_dict.get('parent_qr_id', '')).strip() if row_dict.get('parent_qr_id') else None
+                    })
             
+            logger.info(f"Parsed {len(bags)} bags from {len(wb.sheetnames)} sheet(s)")
             return bags, errors
         
         except Exception as e:
@@ -550,44 +552,59 @@ class StreamingExcelProcessor:
         """
         Count total rows in Excel file using streaming mode.
         This is memory-efficient but requires a full pass through the file.
+        Counts rows across ALL sheets in the workbook.
         """
         if not EXCEL_AVAILABLE:
             return 0
         
         try:
             wb = load_workbook(file_path, read_only=True, data_only=True)
-            ws = wb.active
-            count = sum(1 for _ in ws.iter_rows(min_row=2))
+            total_count = 0
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                count = sum(1 for _ in ws.iter_rows(min_row=2))
+                total_count += count
+                logger.debug(f"Sheet '{sheet_name}': {count} data rows")
             wb.close()
-            return count
+            logger.info(f"Total rows across {len(wb.sheetnames)} sheet(s): {total_count}")
+            return total_count
         except Exception as e:
             logger.error(f"Error counting rows: {e}")
             return 0
     
     @staticmethod
-    def stream_rows(file_path: str, min_row: int = 2) -> Generator[Tuple[int, Tuple], None, None]:
+    def stream_rows(file_path: str, min_row: int = 2) -> Generator[Tuple[int, Tuple, str, bool], None, None]:
         """
         Stream rows from Excel file in memory-efficient manner.
+        Streams rows from ALL sheets in the workbook.
         
         Args:
             file_path: Path to Excel file
             min_row: Starting row (default 2 to skip header)
             
         Yields:
-            Tuple of (row_number, row_values)
+            Tuple of (row_number, row_values, sheet_name, is_new_sheet)
+            - row_number: Row number within the current sheet
+            - row_values: The row data
+            - sheet_name: Name of the current sheet
+            - is_new_sheet: True if this is the first row of a new sheet
         """
         if not EXCEL_AVAILABLE:
             return
         
         try:
             wb = load_workbook(file_path, read_only=True, data_only=True)
-            ws = wb.active
             
-            for row_num, row in enumerate(ws.iter_rows(min_row=min_row, values_only=True), start=min_row):
-                yield row_num, row
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                logger.debug(f"Processing sheet: {sheet_name}")
+                first_row_of_sheet = True
+                
+                for row_num, row in enumerate(ws.iter_rows(min_row=min_row, values_only=True), start=min_row):
+                    yield row_num, row, sheet_name, first_row_of_sheet
+                    first_row_of_sheet = False
             
             wb.close()
-            # Force garbage collection after processing large file
             gc.collect()
             
         except Exception as e:
@@ -650,17 +667,28 @@ class LargeScaleChildParentImporter:
             stats['total_rows'] = total_rows
             logger.info(f"Processing {total_rows} rows from Excel file")
             
-            # Pre-fetch existing bags and links for this chunk to reduce queries
             current_children = []
             current_batch_start = None
+            current_sheet = None
             batch_num = 0
             rows_processed = 0
             
-            # Accumulate children until we hit a parent row
-            for row_num, row in StreamingExcelProcessor.stream_rows(temp_path):
+            for row_num, row, sheet_name, is_new_sheet in StreamingExcelProcessor.stream_rows(temp_path):
                 rows_processed += 1
                 
-                # Skip completely blank rows
+                if is_new_sheet:
+                    logger.info(f"Processing sheet: {sheet_name}")
+                    if current_children:
+                        for child in current_children:
+                            row_results.append(RowResult(
+                                child['row_num'], child['label'], RowResult.ERROR,
+                                f"Orphaned child in sheet '{current_sheet}' - no parent row found"
+                            ))
+                            stats['errors'] += 1
+                    current_children = []
+                    current_batch_start = None
+                    current_sheet = sheet_name
+                
                 if not any(row):
                     stats['skipped'] += 1
                     continue
@@ -668,7 +696,6 @@ class LargeScaleChildParentImporter:
                 sr_no = row[0] if len(row) > 0 else None
                 qr_code = row[1] if len(row) > 1 else None
                 
-                # Check if this is a child row
                 if LargeScaleChildParentImporter._is_child_row(sr_no, qr_code):
                     label_number = LargeScaleChildParentImporter._extract_label_number(qr_code)
                     
@@ -678,17 +705,17 @@ class LargeScaleChildParentImporter:
                         current_children.append({
                             'row_num': row_num,
                             'label': label_number,
-                            'qr_code': str(qr_code)[:100]  # Truncate for storage
+                            'qr_code': str(qr_code)[:100],
+                            'sheet': sheet_name
                         })
                     else:
                         row_results.append(RowResult(
                             row_num, str(qr_code)[:50], RowResult.ERROR,
-                            "Could not extract label number"
+                            f"Sheet '{sheet_name}': Could not extract label number"
                         ))
                         stats['errors'] += 1
                     continue
                 
-                # Check if this is a parent row
                 is_parent, parent_code = LargeScaleChildParentImporter._is_parent_row(sr_no, qr_code)
                 
                 if is_parent:
@@ -697,7 +724,7 @@ class LargeScaleChildParentImporter:
                     if not parent_code:
                         row_results.append(RowResult(
                             row_num, '', RowResult.ERROR,
-                            "Parent row found but code is missing"
+                            f"Sheet '{sheet_name}': Parent row found but code is missing"
                         ))
                         stats['errors'] += 1
                         current_children = []
@@ -707,12 +734,11 @@ class LargeScaleChildParentImporter:
                     if not current_children:
                         row_results.append(RowResult(
                             row_num, parent_code, RowResult.ERROR,
-                            "No child bags found for this parent"
+                            f"Sheet '{sheet_name}': No child bags found for this parent"
                         ))
                         stats['errors'] += 1
                         continue
                     
-                    # Process this batch
                     batch_stats, batch_results = LargeScaleChildParentImporter._process_batch(
                         parent_code=parent_code,
                         children=current_children,
@@ -720,15 +746,14 @@ class LargeScaleChildParentImporter:
                         dispatch_area=dispatch_area,
                         batch_num=batch_num,
                         parent_row_num=row_num,
-                        auto_create_parent=auto_create_parents
+                        auto_create_parent=auto_create_parents,
+                        sheet_name=sheet_name
                     )
                     
-                    # Accumulate stats
                     for key in ['children_created', 'children_existing', 'links_created', 
                                'links_existing', 'errors']:
                         stats[key] += batch_stats.get(key, 0)
                     
-                    # Handle parent_created (singular in batch stats -> parents_created in global stats)
                     stats['parents_created'] += batch_stats.get('parent_created', 0)
                     
                     if batch_stats.get('parent_found') or batch_stats.get('parent_created'):
@@ -739,24 +764,20 @@ class LargeScaleChildParentImporter:
                     stats['batches_processed'] += 1
                     row_results.extend(batch_results)
                     
-                    # Reset for next batch
                     current_children = []
                     current_batch_start = None
                     
-                    # Progress callback
                     if progress_callback and rows_processed % 1000 == 0:
                         progress_callback(rows_processed, total_rows)
                     
-                    # Periodic garbage collection for very large files
                     if batch_num % 100 == 0:
                         gc.collect()
             
-            # Handle orphaned children at end
             if current_children:
                 for child in current_children:
                     row_results.append(RowResult(
                         child['row_num'], child['label'], RowResult.ERROR,
-                        "Orphaned child - no parent row found after this child"
+                        f"Orphaned child in sheet '{current_sheet}' - no parent row found"
                     ))
                     stats['errors'] += 1
             
@@ -835,7 +856,8 @@ class LargeScaleChildParentImporter:
         dispatch_area: Optional[str],
         batch_num: int,
         parent_row_num: int,
-        auto_create_parent: bool = False
+        auto_create_parent: bool = False,
+        sheet_name: str = None
     ) -> Tuple[Dict, List[RowResult]]:
         """
         Process a single batch of children for one parent.
@@ -843,6 +865,7 @@ class LargeScaleChildParentImporter:
         
         Args:
             auto_create_parent: If True, create parent bag if it doesn't exist
+            sheet_name: Name of the sheet being processed (for error reporting)
         """
         from models import Bag, Link, BagType
         from sqlalchemy import func
@@ -865,9 +888,10 @@ class LargeScaleChildParentImporter:
             # Find parent bag
             parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == parent_code.upper()).first()
             
+            sheet_prefix = f"Sheet '{sheet_name}', " if sheet_name else ""
+            
             if not parent_bag:
                 if auto_create_parent:
-                    # Auto-create parent bag
                     parent_bag = Bag(
                         qr_id=parent_code,
                         type=BagType.PARENT.value,
@@ -881,15 +905,14 @@ class LargeScaleChildParentImporter:
                     stats['parent_created'] = 1
                     results.append(RowResult(
                         parent_row_num, parent_code, RowResult.PARENT_CREATED,
-                        f"Parent bag auto-created, processing {len(children)} children"
+                        f"{sheet_prefix}Parent bag auto-created, processing {len(children)} children"
                     ))
                     logger.info(f"Auto-created parent bag: {parent_code}")
                 else:
-                    # Parent not found and auto-create disabled - reject entire batch
                     savepoint.rollback()
                     results.append(RowResult(
                         parent_row_num, parent_code, RowResult.ERROR,
-                        f"Parent bag not found - {len(children)} children rejected. Enable 'Auto-create parent bags' to create missing parents."
+                        f"{sheet_prefix}Parent bag not found - {len(children)} children rejected. Enable 'Auto-create parent bags' to create missing parents."
                     ))
                     stats['errors'] += len(children)
                     return stats, results
@@ -897,7 +920,7 @@ class LargeScaleChildParentImporter:
                 stats['parent_found'] = True
                 results.append(RowResult(
                     parent_row_num, parent_code, RowResult.SUCCESS,
-                    f"Parent bag found, processing {len(children)} children"
+                    f"{sheet_prefix}Parent bag found, processing {len(children)} children"
                 ))
             
             # Bulk fetch existing children in one query
@@ -919,11 +942,9 @@ class LargeScaleChildParentImporter:
                 row_num = child_data['row_num']
                 label = child_data['label']
                 
-                # Check if child exists
                 child_bag = existing_children.get(label.upper())
                 
                 if not child_bag:
-                    # Create new child bag
                     child_bag = Bag(
                         qr_id=label,
                         type=BagType.CHILD.value,
@@ -938,45 +959,40 @@ class LargeScaleChildParentImporter:
                     
                     results.append(RowResult(
                         row_num, label, RowResult.CHILD_CREATED,
-                        "Child bag created"
+                        f"{sheet_prefix}Child bag created"
                     ))
                 else:
                     stats['children_existing'] += 1
                     results.append(RowResult(
                         row_num, label, RowResult.DUPLICATE,
-                        "Child bag already exists"
+                        f"{sheet_prefix}Child bag already exists"
                     ))
                 
-                # Check for existing link
                 link_key = (child_bag.id, parent_bag.id)
                 if link_key in existing_links:
                     stats['links_existing'] += 1
                     continue
                 
-                # Check if child has different parent
                 child_has_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
                 if child_has_link and child_has_link.parent_bag_id != parent_bag.id:
                     existing_parent = Bag.query.get(child_has_link.parent_bag_id)
                     results.append(RowResult(
                         row_num, label, RowResult.ERROR,
-                        f"Already linked to different parent: {existing_parent.qr_id if existing_parent else 'Unknown'}"
+                        f"{sheet_prefix}Already linked to different parent: {existing_parent.qr_id if existing_parent else 'Unknown'}"
                     ))
                     stats['errors'] += 1
                     continue
                 
-                # Create link if not exists
                 if not child_has_link:
                     link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
                     db.session.add(link)
                     existing_links.add(link_key)
                     stats['links_created'] += 1
             
-            # Update parent's child count
             actual_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
             parent_bag.child_count = actual_count
             parent_bag.weight_kg = actual_count * 1.0
             
-            # Commit savepoint
             savepoint.commit()
             db.session.flush()
             
@@ -987,7 +1003,7 @@ class LargeScaleChildParentImporter:
             logger.error(f"Batch {batch_num} failed: {e}")
             results.append(RowResult(
                 parent_row_num, parent_code, RowResult.ERROR,
-                f"Batch processing failed: {str(e)}"
+                f"{sheet_prefix}Batch processing failed: {str(e)}"
             ))
             stats['errors'] += len(children)
             return stats, results
@@ -1119,6 +1135,7 @@ class ChildParentBatchImporter:
     def parse_excel_batch(file_storage: FileStorage) -> Tuple[List[Dict], List[str], Dict]:
         """
         Parse Excel file with batch pattern (children followed by parent).
+        Processes ALL sheets in the workbook.
         
         Args:
             file_storage: Uploaded Excel file
@@ -1131,7 +1148,7 @@ class ChildParentBatchImporter:
                 {
                     'parent_code': 'SB12260',
                     'children': ['0016586', '0016587', '0016585', ...],
-                    'row_range': '2-17'
+                    'row_range': 'Sheet1:2-17'
                 },
                 ...
             ]
@@ -1142,80 +1159,80 @@ class ChildParentBatchImporter:
         try:
             file_storage.stream.seek(0)
             wb = load_workbook(file_storage.stream)
-            ws = wb.active
             
             batches = []
             errors = []
-            current_children = []
-            batch_start_row = None
-            
             total_children = 0
             total_parents = 0
             skipped_rows = 0
+            sheets_processed = 0
             
-            # Process rows (skip header row 1)
-            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                # Skip completely blank rows
-                if not any(row):
-                    skipped_rows += 1
-                    continue
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                logger.info(f"Processing sheet: {sheet_name}")
+                sheets_processed += 1
                 
-                sr_no = row[0] if len(row) > 0 else None
-                qr_code = row[1] if len(row) > 1 else None
+                current_children = []
+                batch_start_row = None
                 
-                # Check if this is a child bag row
-                if ChildParentBatchImporter.is_child_row(sr_no, qr_code):
-                    label_number = ChildParentBatchImporter.extract_label_number(qr_code)
+                for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                    if not any(row):
+                        skipped_rows += 1
+                        continue
                     
-                    if label_number:
-                        if batch_start_row is None:
-                            batch_start_row = row_num
-                        current_children.append(label_number)
-                        total_children += 1
-                    else:
-                        errors.append(f"Row {row_num}: Could not extract label number from QR code")
-                
-                # Check if this is a parent bag row
-                is_parent, parent_code = ChildParentBatchImporter.is_parent_row(sr_no, qr_code)
-                if is_parent:
-                    if not parent_code:
-                        errors.append(f"Row {row_num}: Parent row found but parent code is blank/missing")
-                        # Clear children and start fresh
+                    sr_no = row[0] if len(row) > 0 else None
+                    qr_code = row[1] if len(row) > 1 else None
+                    
+                    if ChildParentBatchImporter.is_child_row(sr_no, qr_code):
+                        label_number = ChildParentBatchImporter.extract_label_number(qr_code)
+                        
+                        if label_number:
+                            if batch_start_row is None:
+                                batch_start_row = row_num
+                            current_children.append(label_number)
+                            total_children += 1
+                        else:
+                            errors.append(f"Sheet '{sheet_name}', Row {row_num}: Could not extract label number from QR code")
+                    
+                    is_parent, parent_code = ChildParentBatchImporter.is_parent_row(sr_no, qr_code)
+                    if is_parent:
+                        if not parent_code:
+                            errors.append(f"Sheet '{sheet_name}', Row {row_num}: Parent row found but parent code is blank/missing")
+                            current_children = []
+                            batch_start_row = None
+                            continue
+                        
+                        if not current_children:
+                            errors.append(f"Sheet '{sheet_name}', Row {row_num}: Parent code '{parent_code}' found but no child bags above it")
+                            continue
+                        
+                        batches.append({
+                            'parent_code': parent_code,
+                            'children': current_children.copy(),
+                            'row_range': f"{sheet_name}:{batch_start_row}-{row_num}"
+                        })
+                        total_parents += 1
+                        
                         current_children = []
                         batch_start_row = None
-                        continue
-                    
-                    if not current_children:
-                        errors.append(f"Row {row_num}: Parent code '{parent_code}' found but no child bags above it")
-                        continue
-                    
-                    # Create batch
+                
+                if current_children:
+                    errors.append(f"Warning: {len(current_children)} child bags found at end of sheet '{sheet_name}' without a parent code")
                     batches.append({
-                        'parent_code': parent_code,
-                        'children': current_children.copy(),
-                        'row_range': f"{batch_start_row}-{row_num}"
+                        'parent_code': None,
+                        'children': current_children,
+                        'row_range': f"{sheet_name}:{batch_start_row}-END",
+                        'orphaned': True
                     })
-                    total_parents += 1
-                    
-                    # Reset for next batch
-                    current_children = []
-                    batch_start_row = None
             
-            # Handle orphaned children at end of sheet
-            if current_children:
-                errors.append(f"Warning: {len(current_children)} child bags found at end of sheet without a parent code")
-                batches.append({
-                    'parent_code': None,
-                    'children': current_children,
-                    'row_range': f"{batch_start_row}-END",
-                    'orphaned': True
-                })
+            logger.info(f"Parsed {len(batches)} batches from {sheets_processed} sheet(s)")
             
             stats = {
                 'total_batches': len(batches),
                 'total_children': total_children,
                 'total_parents': total_parents,
-                'skipped_rows': skipped_rows
+                'skipped_rows': skipped_rows,
+                'sheets_processed': sheets_processed
             }
             
             return batches, errors, stats
