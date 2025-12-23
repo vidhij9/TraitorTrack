@@ -688,7 +688,8 @@ class LargeScaleChildParentImporter:
                         for child in current_children:
                             row_results.append(RowResult(
                                 child['row_num'], child['label'], RowResult.ERROR,
-                                f"Orphaned child in sheet '{current_sheet}' - no parent row found"
+                                f"Orphaned child in sheet '{current_sheet}' - no parent row found",
+                                details={'sheet': current_sheet or '', 'parent_qr': '', 'child_qr': child['label']}
                             ))
                             stats['errors'] += 1
                     current_children = []
@@ -717,7 +718,8 @@ class LargeScaleChildParentImporter:
                     else:
                         row_results.append(RowResult(
                             row_num, str(qr_code)[:50], RowResult.ERROR,
-                            f"Sheet '{sheet_name}': Could not extract label number"
+                            f"Sheet '{sheet_name}': Could not extract label number",
+                            details={'sheet': sheet_name or '', 'parent_qr': '', 'child_qr': str(qr_code)[:50]}
                         ))
                         stats['errors'] += 1
                     continue
@@ -730,7 +732,8 @@ class LargeScaleChildParentImporter:
                     if not parent_code:
                         row_results.append(RowResult(
                             row_num, '', RowResult.ERROR,
-                            f"Sheet '{sheet_name}': Parent row found but code is missing"
+                            f"Sheet '{sheet_name}': Parent row found but code is missing",
+                            details={'sheet': sheet_name or '', 'parent_qr': '', 'child_qr': ''}
                         ))
                         stats['errors'] += 1
                         current_children = []
@@ -740,7 +743,8 @@ class LargeScaleChildParentImporter:
                     if not current_children:
                         row_results.append(RowResult(
                             row_num, parent_code, RowResult.ERROR,
-                            f"Sheet '{sheet_name}': No child bags found for this parent"
+                            f"Sheet '{sheet_name}': No child bags found for this parent",
+                            details={'sheet': sheet_name or '', 'parent_qr': parent_code, 'child_qr': ''}
                         ))
                         stats['errors'] += 1
                         continue
@@ -793,7 +797,8 @@ class LargeScaleChildParentImporter:
                 for child in current_children:
                     row_results.append(RowResult(
                         child['row_num'], child['label'], RowResult.ERROR,
-                        f"Orphaned child in sheet '{current_sheet}' - no parent row found"
+                        f"Orphaned child in sheet '{current_sheet}' - no parent row found",
+                        details={'sheet': current_sheet or '', 'parent_qr': '', 'child_qr': child['label']}
                     ))
                     stats['errors'] += 1
             
@@ -914,7 +919,8 @@ class LargeScaleChildParentImporter:
                 savepoint.rollback()
                 results.append(RowResult(
                     parent_row_num, parent_code, RowResult.ERROR,
-                    f"{sheet_prefix}Parent bag already exists in database - cannot import duplicate"
+                    f"{sheet_prefix}Parent bag already exists in database - cannot import duplicate",
+                    details={'sheet': sheet_name or '', 'parent_qr': parent_code}
                 ))
                 stats['errors'] += 1
                 stats['parent_rejected_duplicate'] = 1
@@ -922,7 +928,8 @@ class LargeScaleChildParentImporter:
                 for child in children:
                     results.append(RowResult(
                         child['row_num'], child['label'], RowResult.ERROR,
-                        f"{sheet_prefix}Rejected - parent bag '{parent_code}' already exists"
+                        f"{sheet_prefix}Rejected - parent bag '{parent_code}' already exists",
+                        details={'sheet': sheet_name or '', 'parent_qr': parent_code, 'child_qr': child['label']}
                     ))
                     stats['errors'] += 1
                 return stats, results
@@ -941,7 +948,8 @@ class LargeScaleChildParentImporter:
                 stats['parent_created'] = 1
                 results.append(RowResult(
                     parent_row_num, parent_code, RowResult.PARENT_CREATED,
-                    f"{sheet_prefix}Parent bag created, processing {len(children)} children"
+                    f"{sheet_prefix}Parent bag created, processing {len(children)} children",
+                    details={'sheet': sheet_name or '', 'parent_qr': parent_code, 'child_qr': ''}
                 ))
                 logger.info(f"Created parent bag: {parent_code}")
             
@@ -988,7 +996,10 @@ class LargeScaleChildParentImporter:
                     })
             
             for err in children_with_errors:
-                results.append(RowResult(err['row_num'], err['label'], RowResult.ERROR, err['error']))
+                results.append(RowResult(
+                    err['row_num'], err['label'], RowResult.ERROR, err['error'],
+                    details={'sheet': sheet_name or '', 'parent_qr': parent_code, 'child_qr': err['label']}
+                ))
             
             new_bag_objects = []
             if new_children_to_create:
@@ -1035,7 +1046,8 @@ class LargeScaleChildParentImporter:
             for child_info in new_children_to_create:
                 results.append(RowResult(
                     child_info['row_num'], child_info['label'], RowResult.CHILD_CREATED,
-                    f"{sheet_prefix}Child bag created and linked"
+                    f"{sheet_prefix}Child bag created and linked",
+                    details={'sheet': sheet_name or '', 'parent_qr': parent_code, 'child_qr': child_info['label']}
                 ))
             
             return stats, results
@@ -1045,7 +1057,8 @@ class LargeScaleChildParentImporter:
             logger.error(f"Batch {batch_num} failed: {e}")
             results.append(RowResult(
                 parent_row_num, parent_code, RowResult.ERROR,
-                f"{sheet_prefix}Batch processing failed: {str(e)}"
+                f"{sheet_prefix}Batch processing failed: {str(e)}",
+                details={'sheet': sheet_name or '', 'parent_qr': parent_code}
             ))
             stats['errors'] += len(children)
             return stats, results
@@ -1843,9 +1856,48 @@ class MultiFileBatchProcessor:
                     ws_details.cell(row_num, 4, f"Truncated - {len(row_results) - MAX_ERRORS_PER_FILE} more rows not shown")
                     break
         
-        # Sheet 3: Errors Only
-        ws_errors = wb.create_sheet("Errors Only")
-        error_headers = ['File', 'Row #', 'QR Code', 'Error Message']
+        # Sheet 3: Successes Only
+        if row_results and include_successful:
+            ws_success = wb.create_sheet("Successes")
+            success_headers = ['Sheet', 'Row #', 'Parent Bag', 'Child Bag', 'Action']
+            for col, header in enumerate(success_headers, 1):
+                cell = ws_success.cell(1, col, header)
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="006400", end_color="006400", fill_type="solid")
+                cell.font = Font(bold=True, color="FFFFFF")
+            
+            row_num = 2
+            success_count = 0
+            for result in row_results:
+                if result.status in [RowResult.SUCCESS, RowResult.CHILD_CREATED, RowResult.LINKED, RowResult.PARENT_CREATED]:
+                    sheet_name = result.details.get('sheet', '') if result.details else ''
+                    parent_qr = result.details.get('parent_qr', '') if result.details else ''
+                    child_qr = result.details.get('child_qr', result.qr_code) if result.details else result.qr_code
+                    
+                    ws_success.cell(row_num, 1, sheet_name)
+                    ws_success.cell(row_num, 2, result.row_num)
+                    ws_success.cell(row_num, 3, parent_qr)
+                    ws_success.cell(row_num, 4, child_qr[:50] if child_qr else '')
+                    ws_success.cell(row_num, 5, result.status)
+                    
+                    # Apply green fill
+                    for col in range(1, 6):
+                        ws_success.cell(row_num, col).fill = PatternFill(
+                            start_color="C6EFCE", end_color="C6EFCE", fill_type="solid"
+                        )
+                    
+                    row_num += 1
+                    success_count += 1
+                    
+                    # Cap at 5000 successes to save memory
+                    if success_count >= 5000:
+                        ws_success.cell(row_num, 1, "...")
+                        ws_success.cell(row_num, 5, f"Capped at 5000 - more successes not shown")
+                        break
+        
+        # Sheet 4: Errors Only
+        ws_errors = wb.create_sheet("Errors")
+        error_headers = ['Sheet', 'Row #', 'QR Code', 'Error Message']
         for col, header in enumerate(error_headers, 1):
             cell = ws_errors.cell(1, col, header)
             cell.font = Font(bold=True)
@@ -1855,22 +1907,32 @@ class MultiFileBatchProcessor:
         row_num = 2
         # Add file-level errors
         for result in file_results:
-            filename = result.get('filename', 'Unknown')
             for error in result.get('errors', [])[:100]:  # Limit per file
-                ws_errors.cell(row_num, 1, filename)
+                ws_errors.cell(row_num, 1, '')
                 ws_errors.cell(row_num, 2, '')
                 ws_errors.cell(row_num, 3, '')
                 ws_errors.cell(row_num, 4, str(error)[:500])
+                # Apply red fill
+                for col in range(1, 5):
+                    ws_errors.cell(row_num, col).fill = PatternFill(
+                        start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"
+                    )
                 row_num += 1
         
         # Add row-level errors
         if row_results:
             for result in row_results:
                 if result.status == RowResult.ERROR:
-                    ws_errors.cell(row_num, 1, '')
+                    sheet_name = result.details.get('sheet', '') if result.details else ''
+                    ws_errors.cell(row_num, 1, sheet_name)
                     ws_errors.cell(row_num, 2, result.row_num)
                     ws_errors.cell(row_num, 3, result.qr_code[:50] if result.qr_code else '')
                     ws_errors.cell(row_num, 4, result.message[:500] if result.message else '')
+                    # Apply red fill
+                    for col in range(1, 5):
+                        ws_errors.cell(row_num, col).fill = PatternFill(
+                            start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"
+                        )
                     row_num += 1
                     
                     if row_num > MAX_ERRORS_PER_FILE + 1:

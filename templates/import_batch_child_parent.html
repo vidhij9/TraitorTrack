@@ -13,6 +13,20 @@
                     </h4>
                 </div>
                 <div class="card-body">
+                    {% if session.get('import_result_file') %}
+                    <div class="alert alert-success mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-check-circle"></i>
+                                <strong>Import Complete!</strong> Download your detailed result file with all successes and errors.
+                            </div>
+                            <a href="{{ url_for('download_import_result') }}" class="btn btn-success btn-lg">
+                                <i class="fas fa-download"></i> Download Result File
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
                         <strong>Upload Excel file</strong> with batches of child bags followed by parent bag codes.
