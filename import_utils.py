@@ -655,6 +655,7 @@ class LargeScaleChildParentImporter:
             'parents_created': 0,
             'parents_found': 0,
             'parents_not_found': 0,
+            'parents_rejected_duplicate': 0,
             'children_created': 0,
             'children_existing': 0,
             'links_created': 0,
@@ -760,8 +761,12 @@ class LargeScaleChildParentImporter:
                         stats[key] += batch_stats.get(key, 0)
                     
                     stats['parents_created'] += batch_stats.get('parent_created', 0)
+                    stats['parents_rejected_duplicate'] += batch_stats.get('parent_rejected_duplicate', 0)
                     
-                    if batch_stats.get('parent_found') or batch_stats.get('parent_created'):
+                    if batch_stats.get('parent_rejected_duplicate'):
+                        # Parent was found but rejected as duplicate - don't count as "not found"
+                        pass
+                    elif batch_stats.get('parent_found') or batch_stats.get('parent_created'):
                         stats['parents_found'] += 1
                     else:
                         stats['parents_not_found'] += 1
@@ -889,6 +894,7 @@ class LargeScaleChildParentImporter:
         stats = {
             'parent_found': False,
             'parent_created': 0,
+            'parent_rejected_duplicate': 0,
             'children_created': 0,
             'children_existing': 0,
             'links_created': 0,
@@ -911,6 +917,7 @@ class LargeScaleChildParentImporter:
                     f"{sheet_prefix}Parent bag already exists in database - cannot import duplicate"
                 ))
                 stats['errors'] += 1
+                stats['parent_rejected_duplicate'] = 1
                 # Also mark all children as errors since their parent is rejected
                 for child in children:
                     results.append(RowResult(

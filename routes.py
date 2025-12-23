@@ -8413,8 +8413,11 @@ def import_batch_child_parent():
         success_msg += f'{stats.get("children_created", 0)} children created, {stats.get("links_created", 0)} links created.'
         flash(success_msg, 'success')
         
+        if stats.get('parents_rejected_duplicate', 0) > 0:
+            flash(f'Note: {stats.get("parents_rejected_duplicate", 0)} parent bags were rejected because they already exist in the database. Import only works with new bags.', 'warning')
+        
         if stats.get('parents_not_found', 0) > 0:
-            flash(f'Warning: {stats.get("parents_not_found", 0)} batches rejected - parent bags not found. Enable "Auto-create parent bags" to create missing parents.', 'warning')
+            flash(f'Warning: {stats.get("parents_not_found", 0)} batches rejected - parent bags not found.', 'warning')
         
         if stats.get('errors', 0) > 0:
             flash(f'{stats.get("errors", 0)} errors occurred. Download result file for details.', 'warning')
