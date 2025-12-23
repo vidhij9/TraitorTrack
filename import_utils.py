@@ -496,6 +496,7 @@ class RowResult:
     SKIPPED = 'skipped'
     LINKED = 'linked'
     PARENT_CREATED = 'parent_created'
+    PARENT_FOUND = 'parent_found'
     CHILD_CREATED = 'child_created'
     
     def __init__(self, row_num: int, qr_code: str, status: str, message: str = '', details: dict = None):
@@ -952,29 +953,22 @@ class LargeScaleChildParentImporter:
         
         logger.info(f"Found {len(existing_bags)} existing bags in database")
         
-        # Determine which parents are duplicates (error) vs new (create)
-        duplicate_parents = set()
+        # Determine which parents are existing (use existing ID) vs new (create)
+        # NEW POLICY: Allow adding children to existing parents
+        existing_parents = {}  # parent_code -> existing_bag_id
         new_parents = []
         
         for parent_code in all_parent_codes:
             info = parent_info[parent_code]
             if parent_code in existing_bags:
-                duplicate_parents.add(parent_code)
-                stats['parents_rejected_duplicate'] += 1
-                stats['errors'] += 1
+                # Parent already exists - use existing ID, allow children to be added
+                existing_parents[parent_code] = existing_bags[parent_code]
+                stats['parents_found'] += 1
                 results.append(RowResult(
-                    info['row_num'], info['original_code'], RowResult.ERROR,
-                    f"Sheet '{info['sheet']}': Parent bag already exists - cannot import duplicate",
+                    info['row_num'], info['original_code'], RowResult.PARENT_FOUND,
+                    f"Sheet '{info['sheet']}': Parent bag found - linking new children",
                     details={'sheet': info['sheet'], 'parent_qr': info['original_code']}
                 ))
-                # Mark all children of this parent as errors
-                for child in parent_to_children[parent_code]:
-                    stats['errors'] += 1
-                    results.append(RowResult(
-                        child['row_num'], child['label'], RowResult.ERROR,
-                        f"Sheet '{child['sheet']}': Rejected - parent '{info['original_code']}' already exists",
-                        details={'sheet': child['sheet'], 'parent_qr': info['original_code'], 'child_qr': child['label']}
-                    ))
             else:
                 new_parents.append({
                     'qr_id': info['original_code'],
@@ -983,7 +977,7 @@ class LargeScaleChildParentImporter:
                     'sheet': info['sheet']
                 })
         
-        logger.info(f"New parents: {len(new_parents)}, Duplicate parents: {len(duplicate_parents)}")
+        logger.info(f"New parents: {len(new_parents)}, Existing parents: {len(existing_parents)}")
         
         # Progress: 55% overall (duplicate detection complete)
         if progress_callback:
@@ -1041,21 +1035,24 @@ class LargeScaleChildParentImporter:
                     details={'sheet': p['sheet'], 'parent_qr': p['qr_id'], 'child_qr': ''}
                 ))
         
-        logger.info(f"Inserted {len(parent_id_map)} parent bags")
+        logger.info(f"Inserted {len(parent_id_map)} new parent bags")
         
-        # Progress: 65% overall (parents inserted)
+        # Add existing parent IDs to the map so their children can be linked
+        for parent_code, parent_id in existing_parents.items():
+            parent_id_map[parent_code] = parent_id
+        
+        logger.info(f"Total parents in map: {len(parent_id_map)} (new: {len(new_parents)}, existing: {len(existing_parents)})")
+        
+        # Progress: 65% overall (parents processed)
         if progress_callback:
             progress_callback(65, 100)
         
-        # Collect children for non-duplicate parents - handle intra-file child duplicates
+        # Collect children for ALL parents (new and existing) - handle intra-file child duplicates
         new_children = []
         duplicate_children = []
         seen_children_in_file = {}  # child_label_upper -> first occurrence info
         
         for parent_code in all_parent_codes:
-            if parent_code in duplicate_parents:
-                continue  # Skip children of duplicate parents
-            
             parent_id = parent_id_map.get(parent_code)
             if not parent_id:
                 continue
@@ -1180,25 +1177,36 @@ class LargeScaleChildParentImporter:
             progress_callback(95, 100)
         
         # Update parent child counts
+        # For NEW parents: set child_count and weight
+        # For EXISTING parents: INCREMENT child_count and weight
         parent_child_counts = {}
         for c in new_children:
             parent_id = c['parent_id']
             parent_child_counts[parent_id] = parent_child_counts.get(parent_id, 0) + 1
         
         if parent_child_counts:
+            # Get set of existing parent IDs for incremental update
+            existing_parent_ids = set(existing_parents.values())
+            
             for parent_id, count in parent_child_counts.items():
-                db.session.execute(
-                    text("UPDATE bag SET child_count = :count, weight_kg = :weight WHERE id = :id"),
-                    {'count': count, 'weight': float(count), 'id': parent_id}
-                )
+                if parent_id in existing_parent_ids:
+                    # Existing parent - INCREMENT counts
+                    db.session.execute(
+                        text("UPDATE bag SET child_count = child_count + :count, weight_kg = weight_kg + :weight WHERE id = :id"),
+                        {'count': count, 'weight': float(count), 'id': parent_id}
+                    )
+                else:
+                    # New parent - SET counts
+                    db.session.execute(
+                        text("UPDATE bag SET child_count = :count, weight_kg = :weight WHERE id = :id"),
+                        {'count': count, 'weight': float(count), 'id': parent_id}
+                    )
         
         # Stats:
         # batches_processed = total parent batches in file including intra-file duplicates
         stats['batches_processed'] = len(batches)
-        # parents_found = duplicate parents that already existed (in legacy terms, "found" means existing)
-        stats['parents_found'] = len(duplicate_parents)
+        # parents_found already tracked above during existing parent detection
         # parents_created already set above
-        # parents_rejected_duplicate = DB duplicates + intra-file duplicates (already incremented)
         
         # Progress: 100% overall - complete
         if progress_callback:
@@ -2259,7 +2267,7 @@ class MultiFileBatchProcessor:
             row_num = 2
             success_count = 0
             for result in row_results:
-                if result.status in [RowResult.SUCCESS, RowResult.CHILD_CREATED, RowResult.LINKED, RowResult.PARENT_CREATED]:
+                if result.status in [RowResult.SUCCESS, RowResult.CHILD_CREATED, RowResult.LINKED, RowResult.PARENT_CREATED, RowResult.PARENT_FOUND]:
                     sheet_name = result.details.get('sheet', '') if result.details else ''
                     parent_qr = result.details.get('parent_qr', '') if result.details else ''
                     child_qr = result.details.get('child_qr', result.qr_code) if result.details else result.qr_code
