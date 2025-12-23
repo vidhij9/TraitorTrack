@@ -60,7 +60,13 @@ The project utilizes a standard Flask application architecture, organizing code 
 -   **Automatic Session Security**: Secure session management with dual timeouts and secure cookie handling.
 -   **Brute Force Protection**: Comprehensive rate limiting on authentication endpoints and account lockout.
 -   **Search & Filtering**: Fast search capabilities across bags, bills, and users with pagination, including a dedicated mobile-friendly bag search (`/search`).
--   **Data Import/Export**: Optimized CSV/Excel export and bulk import with validation, including Excel-based batch import for relationships with QR code label extraction, duplicate handling, and error recovery.
+-   **Data Import/Export**: Optimized CSV/Excel export and bulk import with validation, including Excel-based batch import for relationships with QR code label extraction, duplicate handling, and error recovery. Multi-sheet Excel files are fully supported with per-sheet row numbering and sheet context in error messages.
+-   **Large-Scale Import Performance**: `LargeScaleChildParentImporter` handles lakhs (100,000+) of bags efficiently:
+    -   Throughput: ~90 bags/second (~18 minutes for 1 lakh bags)
+    -   Memory: ~4 MB peak (streaming + result limiting)
+    -   Bulk database operations minimize round-trips
+    -   Atomic transactions with savepoints per batch
+    -   Success results capped at 5,000 to save memory; all errors preserved
 -   **Global Error Handlers**: User-friendly error pages for common HTTP errors with appropriate status codes and navigation.
 -   **Role-Based UI Visibility**: Features are hidden at the UI level based on user roles (Admin, Biller, Dispatcher) with backend access controls.
 -   **IPT (Inter Party Transfer)**: Return ticket system for dealers/distributors returning parent bags at C&F points. Scanned bags are automatically unlinked from bills and made available for re-assignment. Tracks original bill, child counts, and weights at return time.
