@@ -899,38 +899,41 @@ class LargeScaleChildParentImporter:
         try:
             parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == parent_code.upper()).first()
             
-            if not parent_bag:
-                if auto_create_parent:
-                    parent_bag = Bag(
-                        qr_id=parent_code,
-                        type=BagType.PARENT.value,
-                        user_id=user_id,
-                        dispatch_area=dispatch_area,
-                        weight_kg=0.0,
-                        child_count=0
-                    )
-                    db.session.add(parent_bag)
-                    db.session.flush()
-                    stats['parent_created'] = 1
-                    results.append(RowResult(
-                        parent_row_num, parent_code, RowResult.PARENT_CREATED,
-                        f"{sheet_prefix}Parent bag auto-created, processing {len(children)} children"
-                    ))
-                    logger.info(f"Auto-created parent bag: {parent_code}")
-                else:
-                    savepoint.rollback()
-                    results.append(RowResult(
-                        parent_row_num, parent_code, RowResult.ERROR,
-                        f"{sheet_prefix}Parent bag not found - {len(children)} children rejected."
-                    ))
-                    stats['errors'] += len(children)
-                    return stats, results
-            else:
-                stats['parent_found'] = True
+            if parent_bag:
+                # Parent bag already exists - this is an ERROR per new requirement
+                # All bags in import file should be new (not pre-existing in database)
+                savepoint.rollback()
                 results.append(RowResult(
-                    parent_row_num, parent_code, RowResult.SUCCESS,
-                    f"{sheet_prefix}Parent bag found, processing {len(children)} children"
+                    parent_row_num, parent_code, RowResult.ERROR,
+                    f"{sheet_prefix}Parent bag already exists in database - cannot import duplicate"
                 ))
+                stats['errors'] += 1
+                # Also mark all children as errors since their parent is rejected
+                for child in children:
+                    results.append(RowResult(
+                        child['row_num'], child['label'], RowResult.ERROR,
+                        f"{sheet_prefix}Rejected - parent bag '{parent_code}' already exists"
+                    ))
+                    stats['errors'] += 1
+                return stats, results
+            else:
+                # Parent doesn't exist - create it (this is the expected case)
+                parent_bag = Bag(
+                    qr_id=parent_code,
+                    type=BagType.PARENT.value,
+                    user_id=user_id,
+                    dispatch_area=dispatch_area,
+                    weight_kg=0.0,
+                    child_count=0
+                )
+                db.session.add(parent_bag)
+                db.session.flush()
+                stats['parent_created'] = 1
+                results.append(RowResult(
+                    parent_row_num, parent_code, RowResult.PARENT_CREATED,
+                    f"{sheet_prefix}Parent bag created, processing {len(children)} children"
+                ))
+                logger.info(f"Created parent bag: {parent_code}")
             
             child_labels = [c['label'] for c in children]
             child_labels_upper = [l.upper() for l in child_labels]
@@ -947,7 +950,6 @@ class LargeScaleChildParentImporter:
                 child_to_parent_link = {l.child_bag_id: l.parent_bag_id for l in links}
             
             new_children_to_create = []
-            existing_children_to_link = []
             children_with_errors = []
             
             for child_data in children:
@@ -958,36 +960,22 @@ class LargeScaleChildParentImporter:
                 child_bag = existing_children.get(label_upper)
                 
                 if not child_bag:
+                    # Child doesn't exist - this is the expected case, will be created
                     new_children_to_create.append({
                         'row_num': row_num,
                         'label': label,
                         'label_upper': label_upper
                     })
                 else:
-                    existing_parent_id = child_to_parent_link.get(child_bag.id)
-                    if existing_parent_id:
-                        if existing_parent_id == parent_bag.id:
-                            stats['links_existing'] += 1
-                            stats['children_existing'] += 1
-                            results.append(RowResult(
-                                row_num, label, RowResult.DUPLICATE,
-                                f"{sheet_prefix}Child bag already linked to this parent"
-                            ))
-                        else:
-                            stats['errors'] += 1
-                            stats['children_existing'] += 1
-                            children_with_errors.append({
-                                'row_num': row_num,
-                                'label': label,
-                                'error': f"{sheet_prefix}Already linked to different parent"
-                            })
-                    else:
-                        existing_children_to_link.append({
-                            'child_id': child_bag.id,
-                            'row_num': row_num,
-                            'label': label
-                        })
-                        stats['children_existing'] += 1
+                    # Child already exists in database - this is an ERROR per new requirement
+                    # All bags in import file should be new (not pre-existing in database)
+                    stats['errors'] += 1
+                    stats['children_existing'] += 1
+                    children_with_errors.append({
+                        'row_num': row_num,
+                        'label': label,
+                        'error': f"{sheet_prefix}Child bag already exists in database - cannot import duplicate"
+                    })
             
             for err in children_with_errors:
                 results.append(RowResult(err['row_num'], err['label'], RowResult.ERROR, err['error']))
@@ -1008,7 +996,7 @@ class LargeScaleChildParentImporter:
                 db.session.add_all(new_bag_objects)
                 db.session.flush()
             
-            children_needing_links = list(existing_children_to_link)
+            children_needing_links = []
             for i, child_info in enumerate(new_children_to_create):
                 children_needing_links.append({
                     'child_id': new_bag_objects[i].id,
@@ -1038,12 +1026,6 @@ class LargeScaleChildParentImporter:
                 results.append(RowResult(
                     child_info['row_num'], child_info['label'], RowResult.CHILD_CREATED,
                     f"{sheet_prefix}Child bag created and linked"
-                ))
-            
-            for child_info in existing_children_to_link:
-                results.append(RowResult(
-                    child_info['row_num'], child_info['label'], RowResult.SUCCESS,
-                    f"{sheet_prefix}Existing child bag linked"
                 ))
             
             return stats, results
@@ -1337,18 +1319,29 @@ class ChildParentBatchImporter:
                     from sqlalchemy import func
                     parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == parent_code.upper()).first()
                     
-                    if not parent_bag:
-                        # REJECT batch - parent bag does NOT exist in database
-                        # Do not create parent bags automatically - user must create them first
-                        parents_not_found += 1
-                        error_msg = f"Batch {batch_num} (rows {row_range}): Parent bag '{parent_code}' not found in database - {len(child_labels)} child bags rejected"
+                    if parent_bag:
+                        # REJECT batch - parent bag already exists in database (duplicate)
+                        # All bags in import file must be NEW (not pre-existing)
+                        parents_not_found += 1  # Using this counter for rejected parents
+                        error_msg = f"Batch {batch_num} (rows {row_range}): Parent bag '{parent_code}' already exists in database - cannot import duplicate. {len(child_labels)} child bags rejected"
                         errors.append(error_msg)
                         logger.warning(error_msg)
                         savepoint.rollback()
                         continue
                     
-                    # Parent exists - process children
-                    logger.info(f"Parent bag {parent_code} found, processing {len(child_labels)} children")
+                    # Parent doesn't exist - create it (this is the expected case)
+                    parent_bag = Bag(
+                        qr_id=parent_code,
+                        type=BagType.PARENT.value,
+                        user_id=user_id,
+                        dispatch_area=dispatch_area,
+                        weight_kg=0.0,
+                        child_count=0
+                    )
+                    db.session.add(parent_bag)
+                    db.session.flush()
+                    parents_created += 1
+                    logger.info(f"Created parent bag {parent_code}, processing {len(child_labels)} children")
                     
                     # Create child bags and links
                     batch_children_created = 0
@@ -1359,44 +1352,27 @@ class ChildParentBatchImporter:
                         from sqlalchemy import func
                         child_bag = Bag.query.filter(func.upper(Bag.qr_id) == label_number.upper()).first()
                         
-                        if not child_bag:
-                            # Create child bag with exact label number (no case conversion)
-                            child_bag = Bag(
-                                qr_id=label_number,
-                                type=BagType.CHILD.value,
-                                user_id=user_id,
-                                dispatch_area=dispatch_area,
-                                weight_kg=1.0  # Each child is 1kg
-                            )
-                            db.session.add(child_bag)
-                            db.session.flush()  # Get child bag ID
-                            batch_children_created += 1
-                        
-                        # Verify child_bag has ID before creating link
-                        if not child_bag or not child_bag.id:
-                            errors.append(f"Batch {batch_num}: Child bag '{label_number}' could not be created or found")
-                            logger.error(f"Child bag '{label_number}' has no ID - skipping link creation")
+                        if child_bag:
+                            # REJECT - child bag already exists in database (duplicate)
+                            # All bags in import file must be NEW (not pre-existing)
+                            error_msg = f"Batch {batch_num} (rows {row_range}): Child bag '{label_number}' already exists in database - cannot import duplicate"
+                            errors.append(error_msg)
+                            logger.warning(error_msg)
                             continue
                         
-                        # CRITICAL: Check if child already has ANY parent link (one child = one parent rule)
-                        existing_parent_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
+                        # Child doesn't exist - create it (this is the expected case)
+                        child_bag = Bag(
+                            qr_id=label_number,
+                            type=BagType.CHILD.value,
+                            user_id=user_id,
+                            dispatch_area=dispatch_area,
+                            weight_kg=1.0  # Each child is 1kg
+                        )
+                        db.session.add(child_bag)
+                        db.session.flush()  # Get child bag ID
+                        batch_children_created += 1
                         
-                        if existing_parent_link:
-                            # Child already has a parent link
-                            if existing_parent_link.parent_bag_id == parent_bag.id:
-                                # Already linked to this same parent - skip silently
-                                logger.debug(f"Child '{label_number}' already linked to parent '{parent_code}' - skipping")
-                                continue
-                            else:
-                                # Child linked to a DIFFERENT parent - this violates the one-child-one-parent rule
-                                existing_parent_bag = Bag.query.get(existing_parent_link.parent_bag_id)
-                                existing_parent_qr = existing_parent_bag.qr_id if existing_parent_bag else "Unknown"
-                                error_msg = f"Row {row_range}: Child '{label_number}' already linked to parent '{existing_parent_qr}', cannot link to '{parent_code}'"
-                                errors.append(error_msg)
-                                logger.warning(error_msg)
-                                continue
-                        
-                        # No existing parent link - safe to create new link
+                        # Create link between parent and child
                         link = Link(
                             parent_bag_id=parent_bag.id,
                             child_bag_id=child_bag.id

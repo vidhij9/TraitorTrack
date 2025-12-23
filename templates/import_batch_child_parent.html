@@ -139,9 +139,9 @@
                             <i class="fas fa-exclamation-triangle"></i>
                             <strong>Important Notes:</strong>
                             <ul class="mb-0 mt-2">
-                                <li>Duplicate bags and links will be skipped automatically</li>
-                                <li>If a parent bag already exists, new children will be added to it</li>
-                                <li>Orphaned children (at end of sheet without parent) will be reported but skipped</li>
+                                <li>All bags must be NEW - duplicate bags (already in database) will be rejected with errors</li>
+                                <li>Parent and child bags are created fresh during import</li>
+                                <li>Orphaned children (at end of sheet without parent) will be reported as errors</li>
                                 <li>Each batch is processed independently - if one fails, others continue</li>
                             </ul>
                         </div>

@@ -60,7 +60,7 @@ The project utilizes a standard Flask application architecture, organizing code 
 -   **Automatic Session Security**: Secure session management with dual timeouts and secure cookie handling.
 -   **Brute Force Protection**: Comprehensive rate limiting on authentication endpoints and account lockout.
 -   **Search & Filtering**: Fast search capabilities across bags, bills, and users with pagination, including a dedicated mobile-friendly bag search (`/search`).
--   **Data Import/Export**: Optimized CSV/Excel export and bulk import with validation, including Excel-based batch import for relationships with QR code label extraction, duplicate handling, and error recovery. Multi-sheet Excel files are fully supported with per-sheet row numbering and sheet context in error messages.
+-   **Data Import/Export**: Optimized CSV/Excel export and bulk import with validation, including Excel-based batch import for relationships with QR code label extraction and error recovery. Multi-sheet Excel files are fully supported with per-sheet row numbering and sheet context in error messages. **Import Policy**: All bags in import files must be NEW (not pre-existing in database). Duplicate parent or child bags are rejected with clear error messages.
 -   **Large-Scale Import Performance**: `LargeScaleChildParentImporter` handles lakhs (100,000+) of bags efficiently:
     -   Throughput: ~90 bags/second (~18 minutes for 1 lakh bags)
     -   Memory: ~4 MB peak (streaming + result limiting)
