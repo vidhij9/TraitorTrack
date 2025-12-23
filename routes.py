@@ -8430,8 +8430,22 @@ def import_batch_child_parent():
         return redirect(url_for('bag_management', auto_download='1'))
     
     except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
         app.logger.error(f"Batch import error: {str(e)}")
-        flash(f'Error importing batches: {str(e)}', 'error')
+        app.logger.error(f"Traceback: {error_traceback}")
+        
+        # Check for common database errors
+        error_msg = str(e).lower()
+        if 'column' in error_msg and 'does not exist' in error_msg:
+            flash(f'Database schema error - a required column is missing. Please contact admin. Details: {str(e)}', 'error')
+        elif 'connection' in error_msg or 'timeout' in error_msg:
+            flash(f'Database connection error. Please try again. Details: {str(e)}', 'error')
+        elif 'permission' in error_msg or 'denied' in error_msg:
+            flash(f'Database permission error. Please contact admin. Details: {str(e)}', 'error')
+        else:
+            flash(f'Error importing batches: {str(e)}', 'error')
+        
         return redirect(url_for('import_batch_child_parent'))
 
 

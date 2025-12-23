@@ -800,7 +800,10 @@ class LargeScaleChildParentImporter:
             
         except Exception as e:
             db.session.rollback()
+            import traceback
+            error_traceback = traceback.format_exc()
             logger.error(f"Streaming import failed: {e}")
+            logger.error(f"Full traceback: {error_traceback}")
             raise
         finally:
             if temp_path:
