@@ -808,11 +808,16 @@ class LargeScaleChildParentImporter:
     
     @staticmethod
     def _extract_label_number(qr_text: str) -> Optional[str]:
-        """Extract label number from QR code text"""
+        """Extract label number from QR code text.
+        
+        Handles both formats:
+        - LABEL NO.0016557 (without colon)
+        - LABEL NO.:0016557 (with colon)
+        """
         if not qr_text or not isinstance(qr_text, str):
             return None
         import re
-        match = re.search(r'LABEL\s*NO\.(\d+)', qr_text, re.IGNORECASE)
+        match = re.search(r'LABEL\s*NO\.:?\s*(\d+)', qr_text, re.IGNORECASE)
         return match.group(1) if match else None
     
     @staticmethod
@@ -1076,7 +1081,11 @@ class ChildParentBatchImporter:
         """
         Extract only the label number from QR code text.
         
-        Example input: 'LABEL NO.0016586 LOT NO.:STAR44GG24611, D.O.T.:30/09/2025...'
+        Handles both formats:
+        - 'LABEL NO.0016586 LOT NO.:...' (without colon after NO.)
+        - 'LABEL NO.:0016586 LOT NO.:...' (with colon after NO.)
+        
+        Example input: 'LABEL NO.:0016586 LOT NO.:STAR44GG24611, D.O.T.:30/09/2025...'
         Expected output: '0016586'
         
         Args:
@@ -1088,9 +1097,9 @@ class ChildParentBatchImporter:
         if not qr_text or not isinstance(qr_text, str):
             return None
         
-        # Look for 'LABEL NO.' followed by digits
+        # Look for 'LABEL NO.' or 'LABEL NO.:' followed by digits
         import re
-        match = re.search(r'LABEL\s*NO\.(\d+)', qr_text, re.IGNORECASE)
+        match = re.search(r'LABEL\s*NO\.:?\s*(\d+)', qr_text, re.IGNORECASE)
         if match:
             return match.group(1)
         
