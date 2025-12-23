@@ -618,6 +618,9 @@ class LargeScaleChildParentImporter:
     Uses streaming, chunked commits, and per-row result tracking.
     """
     
+    MAX_RESULTS_IN_MEMORY = 5000
+    COMMIT_EVERY_N_BATCHES = 50
+    
     @staticmethod
     def process_file_streaming(
         file_storage: FileStorage,
@@ -628,6 +631,7 @@ class LargeScaleChildParentImporter:
     ) -> Tuple[Dict, List[RowResult]]:
         """
         Process large Excel file using streaming for memory efficiency.
+        Optimized for handling lakhs (100,000+) of bags efficiently.
         
         Args:
             file_storage: Uploaded Excel file
@@ -644,6 +648,7 @@ class LargeScaleChildParentImporter:
         
         temp_path = None
         row_results = []
+        error_results = []
         stats = {
             'total_rows': 0,
             'batches_processed': 0,
@@ -762,7 +767,12 @@ class LargeScaleChildParentImporter:
                         stats['parents_not_found'] += 1
                     
                     stats['batches_processed'] += 1
-                    row_results.extend(batch_results)
+                    
+                    for result in batch_results:
+                        if result.status == RowResult.ERROR:
+                            error_results.append(result)
+                        elif len(row_results) < LargeScaleChildParentImporter.MAX_RESULTS_IN_MEMORY:
+                            row_results.append(result)
                     
                     current_children = []
                     current_batch_start = None
@@ -770,7 +780,8 @@ class LargeScaleChildParentImporter:
                     if progress_callback and rows_processed % 1000 == 0:
                         progress_callback(rows_processed, total_rows)
                     
-                    if batch_num % 100 == 0:
+                    if batch_num % LargeScaleChildParentImporter.COMMIT_EVERY_N_BATCHES == 0:
+                        db.session.expire_all()
                         gc.collect()
             
             if current_children:
@@ -781,11 +792,11 @@ class LargeScaleChildParentImporter:
                     ))
                     stats['errors'] += 1
             
-            # Final commit
             db.session.commit()
             
+            all_results = error_results + row_results
             logger.info(f"Import complete: {stats}")
-            return stats, row_results
+            return stats, all_results
             
         except Exception as e:
             db.session.rollback()
@@ -861,11 +872,7 @@ class LargeScaleChildParentImporter:
     ) -> Tuple[Dict, List[RowResult]]:
         """
         Process a single batch of children for one parent.
-        Uses SAVEPOINT for batch-level rollback.
-        
-        Args:
-            auto_create_parent: If True, create parent bag if it doesn't exist
-            sheet_name: Name of the sheet being processed (for error reporting)
+        OPTIMIZED: Uses bulk operations to minimize database round-trips.
         """
         from models import Bag, Link, BagType
         from sqlalchemy import func
@@ -881,14 +888,11 @@ class LargeScaleChildParentImporter:
             'errors': 0
         }
         
-        # Start savepoint for this batch
         savepoint = db.session.begin_nested()
+        sheet_prefix = f"Sheet '{sheet_name}', " if sheet_name else ""
         
         try:
-            # Find parent bag
             parent_bag = Bag.query.filter(func.upper(Bag.qr_id) == parent_code.upper()).first()
-            
-            sheet_prefix = f"Sheet '{sheet_name}', " if sheet_name else ""
             
             if not parent_bag:
                 if auto_create_parent:
@@ -912,7 +916,7 @@ class LargeScaleChildParentImporter:
                     savepoint.rollback()
                     results.append(RowResult(
                         parent_row_num, parent_code, RowResult.ERROR,
-                        f"{sheet_prefix}Parent bag not found - {len(children)} children rejected. Enable 'Auto-create parent bags' to create missing parents."
+                        f"{sheet_prefix}Parent bag not found - {len(children)} children rejected."
                     ))
                     stats['errors'] += len(children)
                     return stats, results
@@ -923,78 +927,119 @@ class LargeScaleChildParentImporter:
                     f"{sheet_prefix}Parent bag found, processing {len(children)} children"
                 ))
             
-            # Bulk fetch existing children in one query
             child_labels = [c['label'] for c in children]
+            child_labels_upper = [l.upper() for l in child_labels]
+            
             existing_children = {
                 b.qr_id.upper(): b for b in 
-                Bag.query.filter(func.upper(Bag.qr_id).in_([l.upper() for l in child_labels])).all()
+                Bag.query.filter(func.upper(Bag.qr_id).in_(child_labels_upper)).all()
             }
             
-            # Bulk fetch existing links
             existing_child_ids = [b.id for b in existing_children.values()]
-            existing_links = set()
+            child_to_parent_link = {}
             if existing_child_ids:
                 links = Link.query.filter(Link.child_bag_id.in_(existing_child_ids)).all()
-                existing_links = {(l.child_bag_id, l.parent_bag_id) for l in links}
+                child_to_parent_link = {l.child_bag_id: l.parent_bag_id for l in links}
             
-            # Process each child
+            new_children_to_create = []
+            existing_children_to_link = []
+            children_with_errors = []
+            
             for child_data in children:
                 row_num = child_data['row_num']
                 label = child_data['label']
+                label_upper = label.upper()
                 
-                child_bag = existing_children.get(label.upper())
+                child_bag = existing_children.get(label_upper)
                 
                 if not child_bag:
-                    child_bag = Bag(
-                        qr_id=label,
+                    new_children_to_create.append({
+                        'row_num': row_num,
+                        'label': label,
+                        'label_upper': label_upper
+                    })
+                else:
+                    existing_parent_id = child_to_parent_link.get(child_bag.id)
+                    if existing_parent_id:
+                        if existing_parent_id == parent_bag.id:
+                            stats['links_existing'] += 1
+                            stats['children_existing'] += 1
+                            results.append(RowResult(
+                                row_num, label, RowResult.DUPLICATE,
+                                f"{sheet_prefix}Child bag already linked to this parent"
+                            ))
+                        else:
+                            stats['errors'] += 1
+                            stats['children_existing'] += 1
+                            children_with_errors.append({
+                                'row_num': row_num,
+                                'label': label,
+                                'error': f"{sheet_prefix}Already linked to different parent"
+                            })
+                    else:
+                        existing_children_to_link.append({
+                            'child_id': child_bag.id,
+                            'row_num': row_num,
+                            'label': label
+                        })
+                        stats['children_existing'] += 1
+            
+            for err in children_with_errors:
+                results.append(RowResult(err['row_num'], err['label'], RowResult.ERROR, err['error']))
+            
+            new_bag_objects = []
+            if new_children_to_create:
+                for child_info in new_children_to_create:
+                    bag = Bag(
+                        qr_id=child_info['label'],
                         type=BagType.CHILD.value,
                         user_id=user_id,
                         dispatch_area=dispatch_area,
                         weight_kg=1.0
                     )
-                    db.session.add(child_bag)
-                    db.session.flush()
-                    existing_children[label.upper()] = child_bag
-                    stats['children_created'] += 1
-                    
-                    results.append(RowResult(
-                        row_num, label, RowResult.CHILD_CREATED,
-                        f"{sheet_prefix}Child bag created"
-                    ))
-                else:
-                    stats['children_existing'] += 1
-                    results.append(RowResult(
-                        row_num, label, RowResult.DUPLICATE,
-                        f"{sheet_prefix}Child bag already exists"
-                    ))
+                    new_bag_objects.append(bag)
+                    existing_children[child_info['label_upper']] = bag
                 
-                link_key = (child_bag.id, parent_bag.id)
-                if link_key in existing_links:
-                    stats['links_existing'] += 1
-                    continue
-                
-                child_has_link = Link.query.filter_by(child_bag_id=child_bag.id).first()
-                if child_has_link and child_has_link.parent_bag_id != parent_bag.id:
-                    existing_parent = Bag.query.get(child_has_link.parent_bag_id)
-                    results.append(RowResult(
-                        row_num, label, RowResult.ERROR,
-                        f"{sheet_prefix}Already linked to different parent: {existing_parent.qr_id if existing_parent else 'Unknown'}"
-                    ))
-                    stats['errors'] += 1
-                    continue
-                
-                if not child_has_link:
-                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_bag.id)
-                    db.session.add(link)
-                    existing_links.add(link_key)
-                    stats['links_created'] += 1
+                db.session.add_all(new_bag_objects)
+                db.session.flush()
             
-            actual_count = Link.query.filter_by(parent_bag_id=parent_bag.id).count()
-            parent_bag.child_count = actual_count
-            parent_bag.weight_kg = actual_count * 1.0
+            children_needing_links = list(existing_children_to_link)
+            for i, child_info in enumerate(new_children_to_create):
+                children_needing_links.append({
+                    'child_id': new_bag_objects[i].id,
+                    'row_num': child_info['row_num'],
+                    'label': child_info['label']
+                })
+            
+            links_created_count = 0
+            if children_needing_links:
+                new_links = []
+                for child_info in children_needing_links:
+                    link = Link(parent_bag_id=parent_bag.id, child_bag_id=child_info['child_id'])
+                    new_links.append(link)
+                    links_created_count += 1
+                
+                db.session.add_all(new_links)
+            
+            parent_bag.child_count = (parent_bag.child_count or 0) + links_created_count
+            parent_bag.weight_kg = parent_bag.child_count * 1.0
             
             savepoint.commit()
-            db.session.flush()
+            
+            stats['children_created'] = len(new_children_to_create)
+            stats['links_created'] = links_created_count
+            
+            for child_info in new_children_to_create:
+                results.append(RowResult(
+                    child_info['row_num'], child_info['label'], RowResult.CHILD_CREATED,
+                    f"{sheet_prefix}Child bag created and linked"
+                ))
+            
+            for child_info in existing_children_to_link:
+                results.append(RowResult(
+                    child_info['row_num'], child_info['label'], RowResult.SUCCESS,
+                    f"{sheet_prefix}Existing child bag linked"
+                ))
             
             return stats, results
             
