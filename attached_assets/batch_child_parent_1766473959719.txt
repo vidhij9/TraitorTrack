@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="IjY2MTYwNDY2ZWJiNzgwNjZkMDJmZGM5ZTc5NWY4N2RjODhmOGJkM2Ei.aUpAtA.QzOmX4tYiMsO--U7ICEBmyfvCEQ">
+    <title>Batch Import Child-Parent Bags - TraitorTrack</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Unified Responsive CSS -->
+    <link href="/static/css/unified-responsive.css" rel="stylesheet">
+    
+    <!-- Page-specific CSS -->
+    
+    
+    <!-- QR scanning handled by Coconut wireless scanner (keyboard wedge mode) -->
+    
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Minimal custom styles -->
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .progress-container {
+            margin: 2rem 0;
+        }
+        
+        .progress-indicator {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .progress-step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #6c757d;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+        }
+        
+        .progress-step.active .progress-step-circle {
+            background-color: #2d5016;
+        }
+        
+        .progress-step.completed .progress-step-circle {
+            background-color: #4a7c59;
+        }
+        
+        .progress-step-label {
+            font-size: 0.75rem;
+            color: #212529;
+        }
+        
+        .progress-line {
+            flex-grow: 1;
+            height: 3px;
+            background-color: #6c757d;
+            margin: 0 10px;
+            position: relative;
+            top: -20px;
+            z-index: 0;
+        }
+        
+        .progress-line-completed {
+            background-color: #27ae60;
+        }
+        
+        .notifications-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 0.7rem;
+        }
+        
+        .sidebar {
+            min-height: calc(100vh - 56px);
+        }
+        
+        .sidebar .nav-link {
+            color: #212529;
+            padding: 0.75rem 1.25rem;
+            border-radius: 4px;
+            margin-bottom: 0.25rem;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: #2d5016;
+            color: #ffffff;
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 0.5rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 767.98px) {
+            .sidebar {
+                min-height: auto;
+            }
+        }
+        
+        /* Mobile Bottom Navigation */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-top: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            align-items: stretch;
+            height: 64px;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .mobile-bottom-nav .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            text-decoration: none;
+            color: #666;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 8px 4px;
+            transition: all 0.2s ease;
+            min-width: 44px;
+            min-height: 44px;
+        }
+        
+        .mobile-bottom-nav .nav-item i {
+            font-size: 24px;
+            margin-bottom: 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .mobile-bottom-nav .nav-item span {
+            font-size: 11px;
+            line-height: 1.1;
+        }
+        
+        .mobile-bottom-nav .nav-item:hover,
+        .mobile-bottom-nav .nav-item.active {
+            color: #2d5016;
+            background: rgba(45, 80, 22, 0.05);
+        }
+        
+        .mobile-bottom-nav .nav-item.active i {
+            transform: scale(1.1);
+        }
+        
+        /* Add bottom padding on mobile to prevent nav overlap */
+        main.content {
+            padding-bottom: 72px;
+        }
+        
+        @media (min-width: 768px) {
+            .mobile-bottom-nav {
+                display: none;
+            }
+            main.content {
+                padding-bottom: 0 !important;
+            }
+        }
+    </style>
+    
+    
+</head>
+<body class="">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <img src="/static/img/traitor-track-logo-black.svg" alt="Traitor Track" class="logo-img">
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    
+                    
+                        <li class="nav-item">
+                            <a class="nav-link" href="/scan_parent">
+                                <i class="fas fa-qrcode"></i> Scan
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
+                            <a class="nav-link" href="/search">
+                                <i class="fas fa-search"></i> Search
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
+                            <a class="nav-link" href="/bag_management">
+                                <i class="fas fa-boxes"></i> Bags
+                            </a>
+                        </li>
+                        
+                        
+                            <li class="nav-item">
+                                <a class="nav-link" href="/bill_management">
+                                    <i class="fas fa-file-invoice"></i> Bills
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/ipt/">
+                                    <i class="fas fa-exchange-alt"></i> IPT
+                                </a>
+                            </li>
+                        
+                        
+                        
+                            <li class="nav-item">
+                                <a class="nav-link" href="/user_management">
+                                    <i class="fas fa-users-cog"></i> Users
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/promotions">
+                                    <i class="fas fa-user-shield"></i> Promotions
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/pool_dashboard">
+                                    <i class="fas fa-database"></i> Pool Monitor
+                                </a>
+                            </li>
+                        
+                        
+                        
+                    
+                </ul>
+                
+                <ul class="navbar-nav ms-auto">
+                    
+                        <!-- Notifications Dropdown -->
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-bell fa-lg"></i>
+                                <span id="unread-notification-badge" class="badge bg-danger rounded-pill notifications-badge d-none" style="position: absolute; top: 0; right: 0; font-size: 0.7rem;">0</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end p-0" aria-labelledby="notificationsDropdown" style="min-width: 350px; max-width: 400px;">
+                                <div class="p-3 border-bottom bg-light">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Notifications</h6>
+                                        <button class="btn btn-sm btn-link text-decoration-none" id="mark-all-read-btn">
+                                            Mark all as read
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="notifications-list" style="max-height: 400px; overflow-y: auto;">
+                                    <div class="text-center p-4 text-muted">
+                                        <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                                        <p>Loading notifications...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                        
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                        <span style="font-size: 14px;">
+                                            S
+                                        </span>
+                                    </div>
+                                    <span class="d-inline">
+                                        superadmin
+                                    </span>
+                                    
+                                        <span class="badge bg-warning ms-2 d-none d-md-inline">Admin</span>
+                                    
+                                </div>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                <li>
+                                    <a class="dropdown-item" href="/profile">
+                                        <i class="fas fa-user-circle me-2"></i>My Profile
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="/logout">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Flash messages -->
+    <div class="container mt-3">
+        
+            
+        
+    </div>
+    
+    <!-- Main content -->
+    <main class="content">
+        
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-layer-group"></i> Batch Import: Child → Parent Bags
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Upload Excel file</strong> with batches of child bags followed by parent bag codes.
+                        Maximum file size: <strong>16MB</strong>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" id="importForm">
+                        <input type="hidden" name="csrf_token" value="IjY2MTYwNDY2ZWJiNzgwNjZkMDJmZGM5ZTc5NWY4N2RjODhmOGJkM2Ei.aUpAtA.QzOmX4tYiMsO--U7ICEBmyfvCEQ"/>
+                        
+                        <div class="mb-3">
+                            <label for="file" class="form-label">
+                                <i class="fas fa-file-excel"></i> Select Excel File
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="file" 
+                                   name="file" 
+                                   accept=".xlsx,.xls,.xlsm"
+                                   required>
+                            <div class="form-text">
+                                Accepted formats: Excel (.xlsx, .xls, .xlsm) - Max 16MB
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="dispatch_area" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> Dispatch Area (Optional)
+                            </label>
+                            <select class="form-select" id="dispatch_area" name="dispatch_area">
+                                <option value="">-- Select Dispatch Area --</option>
+                                <option value="lucknow">Lucknow</option>
+                                <option value="indore">Indore</option>
+                                <option value="jaipur">Jaipur</option>
+                                <option value="hisar">Hisar</option>
+                                <option value="sri_ganganagar">Sri Ganganagar</option>
+                                <option value="sangaria">Sangaria</option>
+                                <option value="bathinda">Bathinda</option>
+                                <option value="raipur">Raipur</option>
+                                <option value="ranchi">Ranchi</option>
+                                <option value="akola">Akola</option>
+                            </select>
+                            <div class="form-text">
+                                All imported bags will be assigned to this dispatch area
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="auto_create_parents" name="auto_create_parents" checked>
+                                <label class="form-check-label" for="auto_create_parents">
+                                    <i class="fas fa-magic"></i> <strong>Auto-create parent bags if missing</strong>
+                                </label>
+                            </div>
+                            <div class="form-text ms-4">
+                                When enabled, parent bags (M444-XXXXX, SB#####) will be automatically created if they don't exist in the system.
+                                This allows importing without pre-scanning parent bags.
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h6><i class="fas fa-file-alt"></i> Expected Excel Format:</h6>
+                            <div class="bg-light p-3 rounded">
+                                <p class="mb-2"><strong>Pattern:</strong> Every 16 rows form a batch - rows 1-15 are child bags, row 16 is the parent bag. The pattern repeats.</p>
+                                
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Sr. No.</th>
+                                            <th>QR Code</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="table-success">
+                                            <td>1</td>
+                                            <td><code>LABEL NO.0016586 LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bag</span></td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td>2</td>
+                                            <td><code>LABEL NO.0016587 LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bag</span></td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td>...</td>
+                                            <td><code>LABEL NO.XXXXXXX LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bags (rows 3-15)</span></td>
+                                        </tr>
+                                        <tr class="table-primary">
+                                            <td><strong>16</strong></td>
+                                            <td><code>M444-00030</code> or <code>SB12260</code></td>
+                                            <td><span class="badge bg-primary">Parent Bag</span> (ends batch)</td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td>1</td>
+                                            <td><code>LABEL NO.0016621 LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bag</span> (new batch starts)</td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td>...</td>
+                                            <td><code>LABEL NO.XXXXXXX LOT NO.:STAR44GG...</code></td>
+                                            <td><span class="badge bg-success">Child Bags</span></td>
+                                        </tr>
+                                        <tr class="table-primary">
+                                            <td><strong>16</strong></td>
+                                            <td><code>M444-00022</code> or <code>SB12248</code></td>
+                                            <td><span class="badge bg-primary">Parent Bag</span> (ends batch)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                
+                                <div class="mt-3">
+                                    <p class="mb-1"><strong>How it works:</strong></p>
+                                    <ul class="small mb-0">
+                                        <li><strong>Child Bags:</strong> Sr. No. is 1-15, QR Code contains "LABEL NO." followed by the label number</li>
+                                        <li><strong>Parent Bag:</strong> Sr. No. is 16, OR QR Code starts with "SB" or "M444-"</li>
+                                        <li><strong>Extraction:</strong> Only the label number is extracted from child QR codes (e.g., "0016586" from "LABEL NO.0016586...")</li>
+                                        <li><strong>Blank rows:</strong> Are automatically skipped</li>
+                                        <li><strong>Result:</strong> All 15 child bags are automatically linked to their parent bag</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                            <a href="/bag_management" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-upload"></i> Upload & Import Batches
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-4">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Important Notes:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Duplicate bags and links will be skipped automatically</li>
+                                <li>If a parent bag already exists, new children will be added to it</li>
+                                <li>Orphaned children (at end of sheet without parent) will be reported but skipped</li>
+                                <li>Each batch is processed independently - if one fails, others continue</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('importForm').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('file');
+    const file = fileInput.files[0];
+    const maxSizeMB = 16;
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    
+    if (file && file.size > maxSizeBytes) {
+        e.preventDefault();
+        alert('File size exceeds ' + maxSizeMB + 'MB limit. Please upload a smaller file.');
+        return false;
+    }
+    
+    // Show loading indicator
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+});
+</script>
+
+    </main>
+    
+    <!-- Mobile Bottom Navigation (visible on mobile only) -->
+    
+    <nav class="mobile-bottom-nav d-md-none">
+        <a href="/" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/scan_parent" class="nav-item">
+            <i class="fas fa-qrcode"></i>
+            <span>Scan</span>
+        </a>
+        <a href="/search" class="nav-item">
+            <i class="fas fa-search"></i>
+            <span>Search</span>
+        </a>
+        
+        <a href="/bill_management" class="nav-item">
+            <i class="fas fa-file-invoice"></i>
+            <span>Bills</span>
+        </a>
+        
+    </nav>
+    
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <div class="mb-3">
+                        <img src="/static/img/traitor-track-logo.svg" alt="Traitor Track" style="max-height: 40px; width: auto;">
+                    </div>
+                    <p class="text-muted mb-0">Advanced supply chain traceability platform for comprehensive agricultural product tracking.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted mb-0">&copy;  Traitor Track. All rights reserved.</p>
+                    <p class="text-muted mb-0">Version 2.0.0</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom scripts -->
+    
+    
+    <script>
+        // CSRF token helper - Get token from meta tag
+        function getCSRFToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+        
+        // CSRF-protected fetch helper
+        function fetchWithCSRF(url, options = {}) {
+            const csrfToken = getCSRFToken();
+            
+            options.headers = options.headers || {};
+            options.headers['X-CSRFToken'] = csrfToken;
+            
+            if (!options.headers['Content-Type'] && options.body) {
+                if (options.body instanceof FormData) {
+                    // FormData sets its own Content-Type with boundary
+                } else if (typeof options.body === 'string' && 
+                          (options.body.trim().startsWith('{') || options.body.trim().startsWith('['))) {
+                    // Body looks like JSON
+                    options.headers['Content-Type'] = 'application/json';
+                } else {
+                    // Default to form-urlencoded for other string bodies
+                    options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                }
+            }
+            
+            return fetch(url, options);
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+            
+            // Initialize dropdowns
+            const dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
+            dropdownElementList.map(function (dropdownToggleEl) {
+                return new bootstrap.Dropdown(dropdownToggleEl)
+            });
+            
+            // Ensure profile dropdown works
+            const profileDropdown = document.getElementById('profileDropdown');
+            if (profileDropdown) {
+                profileDropdown.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const dropdownMenu = this.nextElementSibling;
+                    if (dropdownMenu) {
+                        dropdownMenu.classList.toggle('show');
+                    }
+                });
+            }
+            
+            // Auto-dismiss alerts after 8 seconds for better readability
+            setTimeout(function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    if (alert && alert.classList.contains('alert')) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        if (bsAlert) bsAlert.close();
+                    }
+                });
+            }, 8000);
+            
+            // =================================================================
+            // NOTIFICATIONS SYSTEM
+            // =================================================================
+            
+            
+            // Notification polling and management
+            let notificationPolling = null;
+            
+            // Get notification icon color based on type
+            function getNotificationIcon(type) {
+                const icons = {
+                    'success': '<i class="fas fa-check-circle text-success me-2"></i>',
+                    'warning': '<i class="fas fa-exclamation-triangle text-warning me-2"></i>',
+                    'error': '<i class="fas fa-times-circle text-danger me-2"></i>',
+                    'info': '<i class="fas fa-info-circle text-info me-2"></i>'
+                };
+                return icons[type] || icons['info'];
+            }
+            
+            // Format relative time
+            function formatRelativeTime(isoString) {
+                const date = new Date(isoString);
+                const now = new Date();
+                const diff = Math.floor((now - date) / 1000); // seconds
+                
+                if (diff < 60) return 'Just now';
+                if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+                if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+                return date.toLocaleDateString();
+            }
+            
+            // Update unread count badge
+            function updateUnreadCount(count) {
+                const badge = document.getElementById('unread-notification-badge');
+                if (badge) {
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.classList.remove('d-none');
+                    } else {
+                        badge.classList.add('d-none');
+                    }
+                }
+            }
+            
+            // Fetch unread count (lightweight endpoint)
+            async function fetchUnreadCount() {
+                try {
+                    const response = await fetch('/api/notifications/unread-count');
+                    if (response.ok) {
+                        const data = await response.json();
+                        updateUnreadCount(data.unread_count);
+                    }
+                } catch (error) {
+                    console.error('Error fetching unread count:', error);
+                }
+            }
+            
+            // Load notifications into dropdown
+            async function loadNotifications() {
+                const notificationsList = document.getElementById('notifications-list');
+                if (!notificationsList) return;
+                
+                // Show loading state
+                notificationsList.innerHTML = `
+                    <div class="text-center p-4 text-muted">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 mb-0">Loading notifications...</p>
+                    </div>
+                `;
+                
+                try {
+                    const response = await fetch('/api/notifications?limit=20');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const notifications = data.notifications;
+                        
+                        if (notifications.length === 0) {
+                            notificationsList.innerHTML = `
+                                <div class="text-center p-4 text-muted">
+                                    <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                                    <p class="mb-0">No notifications</p>
+                                </div>
+                            `;
+                        } else {
+                            notificationsList.innerHTML = notifications.map(notif => `
+                                <div class="notification-item border-bottom p-3 ${notif.is_read ? 'bg-light' : 'bg-white'}" data-id="${notif.id}">
+                                    <div class="d-flex">
+                                        <div class="flex-shrink-0">
+                                            ${getNotificationIcon(notif.type)}
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <h6 class="mb-1 fw-bold">${notif.title}</h6>
+                                                <small class="text-muted">${formatRelativeTime(notif.created_at)}</small>
+                                            </div>
+                                            <p class="mb-1 small text-muted">${notif.message}</p>
+                                            ${notif.link ? `<a href="${notif.link}" class="btn btn-sm btn-link p-0">View details</a>` : ''}
+                                            <div class="mt-2">
+                                                ${!notif.is_read ? `<button class="btn btn-sm btn-outline-primary mark-read-btn" data-id="${notif.id}">Mark as read</button>` : ''}
+                                                <button class="btn btn-sm btn-outline-danger delete-notif-btn" data-id="${notif.id}">Delete</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+                            
+                            // Attach event listeners
+                            attachNotificationListeners();
+                        }
+                        
+                        updateUnreadCount(data.unread_count);
+                    }
+                } catch (error) {
+                    console.error('Error loading notifications:', error);
+                    notificationsList.innerHTML = `
+                        <div class="text-center p-4 text-danger">
+                            <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                            <p class="mb-0">Failed to load notifications</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Attach event listeners to notification action buttons
+            function attachNotificationListeners() {
+                // Mark as read buttons
+                document.querySelectorAll('.mark-read-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const notifId = this.dataset.id;
+                        try {
+                            const response = await fetchWithCSRF(`/api/notifications/${notifId}/mark-read`, {
+                                method: 'POST'
+                            });
+                            if (response.ok) {
+                                await loadNotifications(); // Reload
+                            }
+                        } catch (error) {
+                            console.error('Error marking as read:', error);
+                        }
+                    });
+                });
+                
+                // Delete buttons
+                document.querySelectorAll('.delete-notif-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        if (confirm('Delete this notification?')) {
+                            const notifId = this.dataset.id;
+                            try {
+                                const response = await fetchWithCSRF(`/api/notifications/${notifId}`, {
+                                    method: 'DELETE'
+                                });
+                                if (response.ok) {
+                                    await loadNotifications(); // Reload
+                                }
+                            } catch (error) {
+                                console.error('Error deleting notification:', error);
+                            }
+                        }
+                    });
+                });
+            }
+            
+            // Mark all as read
+            document.getElementById('mark-all-read-btn')?.addEventListener('click', async function() {
+                try {
+                    const response = await fetchWithCSRF('/api/notifications/mark-all-read', {
+                        method: 'POST'
+                    });
+                    if (response.ok) {
+                        await loadNotifications(); // Reload
+                    }
+                } catch (error) {
+                    console.error('Error marking all as read:', error);
+                }
+            });
+            
+            // Load notifications when dropdown is opened
+            document.getElementById('notificationsDropdown')?.addEventListener('shown.bs.dropdown', function() {
+                loadNotifications();
+            });
+            
+            // Start polling for unread count (every 30 seconds)
+            fetchUnreadCount(); // Initial fetch
+            notificationPolling = setInterval(fetchUnreadCount, 30000);
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                if (notificationPolling) {
+                    clearInterval(notificationPolling);
+                }
+            });
+            
+        });
+    </script>
+</body>
+</html>
