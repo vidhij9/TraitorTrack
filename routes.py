@@ -8362,11 +8362,11 @@ def import_batch_child_parent():
         # Get dispatch area if provided
         dispatch_area = request.form.get('dispatch_area', '').strip() or None
         
-        # Check if auto-create parents is enabled
-        auto_create_parents = request.form.get('auto_create_parents') == 'on'
+        # Auto-create parents is NOT allowed - parent bags must exist first
+        auto_create_parents = False
         
         # Use streaming importer for memory efficiency with large files
-        app.logger.info(f"Processing batch import using streaming: {file.filename} (auto_create_parents={auto_create_parents})")
+        app.logger.info(f"Processing batch import using streaming: {file.filename}")
         
         stats, row_results = LargeScaleChildParentImporter.process_file_streaming(
             file_storage=file,
@@ -8592,7 +8592,8 @@ def import_batch_multi():
         
         if import_type == 'child_parent':
             dispatch_area = request.form.get('dispatch_area', '').strip() or None
-            auto_create_parents = request.form.get('auto_create_parents') == 'on'
+            # Auto-create parents is NOT allowed - parent bags must exist first
+            auto_create_parents = False
             # Use streaming method for memory efficiency with large files
             results, all_row_results, has_errors = MultiFileBatchProcessor.process_child_parent_files_streaming(
                 files, current_user.id, dispatch_area, auto_create_parents  # type: ignore
