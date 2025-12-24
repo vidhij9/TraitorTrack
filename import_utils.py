@@ -1163,7 +1163,6 @@ class LargeScaleChildParentImporter:
                 insert_sql = f"""
                     INSERT INTO link (parent_bag_id, child_bag_id)
                     VALUES {', '.join(values_parts)}
-                    ON CONFLICT (child_bag_id) DO NOTHING
                 """
                 
                 db.session.execute(text(insert_sql), params)
