@@ -217,14 +217,14 @@
                                             <span class="badge bg-success">Child</span>
                                         {% endif %}
                                     </div>
-                                    <small class="d-md-none text-muted mt-1">{{ bag.created_at.strftime('%m/%d') if bag.created_at else 'N/A' }}</small>
+                                    <small class="d-md-none text-muted mt-1">{{ bag.created_at.strftime('%d-%m') if bag.created_at else 'N/A' }}</small>
                                     {% if bag.notes is defined and bag.notes %}
                                     <small class="text-muted mt-1">{{ bag.notes[:30] }}{% if bag.notes|length > 30 %}...{% endif %}</small>
                                     {% endif %}
                                 </div>
                             </td>
                             <td class="d-none d-md-table-cell">
-                                <small>{{ bag.created_at.strftime('%Y-%m-%d') if bag.created_at else 'N/A' }}</small>
+                                <small>{{ bag.created_at.strftime('%d-%m-%Y') if bag.created_at else 'N/A' }}</small>
                             </td>
                             <td>
                                 {% if bag.type == 'parent' %}
@@ -362,7 +362,7 @@
                                     <span class="badge bg-success ms-1">Child</span>
                                 {% endif %}
                             </h6>
-                            <small class="text-muted">{{ bag.created_at.strftime('%Y-%m-%d') if bag.created_at else 'N/A' }}</small>
+                            <small class="text-muted">{{ bag.created_at.strftime('%d-%m-%Y') if bag.created_at else 'N/A' }}</small>
                         </div>
                         <div>
                             {% if bag.type == 'parent' %}

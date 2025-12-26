@@ -314,12 +314,12 @@
                 {% endif %}
                 <div class="info-item">
                     <div class="info-label">Created</div>
-                    <div class="info-value">{{ bag.created_at.strftime('%Y-%m-%d %H:%M') if bag.created_at else 'N/A' }}</div>
+                    <div class="info-value">{{ bag.created_at.strftime('%d-%m-%Y %H:%M') if bag.created_at else 'N/A' }}</div>
                 </div>
                 {% if bag.updated_at %}
                 <div class="info-item">
                     <div class="info-label">Last Updated</div>
-                    <div class="info-value">{{ bag.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    <div class="info-value">{{ bag.updated_at.strftime('%d-%m-%Y %H:%M') }}</div>
                 </div>
                 {% endif %}
             </div>
@@ -419,7 +419,7 @@
                 <h3><i class="fas fa-history me-2"></i>Recent Scan History</h3>
                 {% for scan in recent_scans[:5] %}
                 <div class="scan-item">
-                    <span class="time">{{ scan.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                    <span class="time">{{ scan.timestamp.strftime('%d-%m-%Y %H:%M') }}</span>
                     <span class="user">{{ scan.user.username if scan.user else 'Unknown' }}</span>
                 </div>
                 {% endfor %}

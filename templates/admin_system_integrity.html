@@ -123,7 +123,7 @@
                             <strong>QR Code: {{ duplicate.qr_id }}</strong> ({{ duplicate.count }} instances)
                             <ul class="mt-2">
                                 {% for bag in duplicate.bags %}
-                                <li>ID: {{ bag.id }}, Type: {{ bag.type }}, Name: {{ bag.name }}, Created: {{ bag.created_at.strftime('%Y-%m-%d %H:%M') }}</li>
+                                <li>ID: {{ bag.id }}, Type: {{ bag.type }}, Name: {{ bag.name }}, Created: {{ bag.created_at.strftime('%d-%m-%Y %H:%M') }}</li>
                                 {% endfor %}
                             </ul>
                         </div>
@@ -170,7 +170,7 @@
                             <strong>Bill ID: {{ duplicate.bill_id }}</strong> ({{ duplicate.count }} instances)
                             <ul class="mt-2">
                                 {% for bill in duplicate.bills %}
-                                <li>ID: {{ bill.id }}, Description: {{ bill.description }}, Created: {{ bill.created_at.strftime('%Y-%m-%d %H:%M') }}</li>
+                                <li>ID: {{ bill.id }}, Description: {{ bill.description }}, Created: {{ bill.created_at.strftime('%d-%m-%Y %H:%M') }}</li>
                                 {% endfor %}
                             </ul>
                         </div>

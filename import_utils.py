@@ -51,6 +51,55 @@ except ImportError:
     logger.warning("openpyxl not available - Excel imports disabled")
 
 
+def parse_import_date(date_value: Any) -> Optional[datetime]:
+    """
+    Parse date from import file. Handles multiple formats:
+    - dd/mm/yy (user's primary format, e.g., 26/12/25)
+    - dd-mm-yyyy
+    - yyyy-mm-dd (ISO)
+    - Excel datetime objects (openpyxl returns these automatically)
+    - None/empty values
+    
+    Args:
+        date_value: Date value from Excel/CSV (string, datetime, or None)
+        
+    Returns:
+        datetime object or None if parsing fails or value is empty
+    """
+    if date_value is None:
+        return None
+    
+    # If already a datetime object (openpyxl auto-converts Excel dates)
+    if isinstance(date_value, datetime):
+        return date_value
+    
+    # Convert to string and strip whitespace
+    date_str = str(date_value).strip()
+    if not date_str or date_str.lower() in ('n/a', 'na', 'none', ''):
+        return None
+    
+    # Try different date formats
+    date_formats = [
+        '%d/%m/%y',      # dd/mm/yy (user's primary format: 26/12/25)
+        '%d-%m-%Y',      # dd-mm-yyyy (display format: 26-12-2025)
+        '%d/%m/%Y',      # dd/mm/yyyy
+        '%Y-%m-%d',      # yyyy-mm-dd (ISO)
+        '%d-%m-%y',      # dd-mm-yy
+        '%m/%d/%y',      # mm/dd/yy (US format fallback)
+        '%m/%d/%Y',      # mm/dd/yyyy
+    ]
+    
+    for fmt in date_formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    
+    # Log parsing failure for debugging
+    logger.debug(f"Could not parse date value: '{date_str}'")
+    return None
+
+
 class ImportValidator:
     """Validates import data before database insertion"""
     
@@ -154,12 +203,19 @@ class BagImporter:
                     errors.append(error_msg)
                     continue
                 
-                # Normalize data
-                bags.append({
+                # Normalize data - include date if present
+                bag_data = {
                     'qr_id': str(row['qr_id']).strip(),
                     'type': str(row['type']).strip().lower(),
                     'parent_qr_id': str(row.get('parent_qr_id', '')).strip() if row.get('parent_qr_id') else None
-                })
+                }
+                
+                # Parse date column (supports 'date', 'created_at', 'created_date')
+                date_value = row.get('date') or row.get('created_at') or row.get('created_date')
+                if date_value:
+                    bag_data['created_at'] = parse_import_date(date_value)
+                
+                bags.append(bag_data)
             
             return bags, errors
         
@@ -210,11 +266,19 @@ class BagImporter:
                         errors.append(f"Sheet '{sheet_name}', Row {row_num}: {error_msg}")
                         continue
                     
-                    bags.append({
+                    # Normalize data - include date if present
+                    bag_data = {
                         'qr_id': str(row_dict['qr_id']).strip(),
                         'type': str(row_dict['type']).strip().lower(),
                         'parent_qr_id': str(row_dict.get('parent_qr_id', '')).strip() if row_dict.get('parent_qr_id') else None
-                    })
+                    }
+                    
+                    # Parse date column (supports 'date', 'created_at', 'created_date')
+                    date_value = row_dict.get('date') or row_dict.get('created_at') or row_dict.get('created_date')
+                    if date_value:
+                        bag_data['created_at'] = parse_import_date(date_value)
+                    
+                    bags.append(bag_data)
             
             logger.info(f"Parsed {len(bags)} bags from {len(wb.sheetnames)} sheet(s)")
             return bags, errors
@@ -274,10 +338,11 @@ class BagImporter:
                             errors.append(f"Skipped duplicate QR ID: {qr_id}")
                             continue
                         
-                        # Create bag
+                        # Create bag with optional date from import
                         new_bag = Bag(
                             qr_id=qr_id,
-                            type=bag_data['type']
+                            type=bag_data['type'],
+                            created_at=bag_data.get('created_at')  # Use date from import if provided
                         )
                         db.session.add(new_bag)
                         existing_qr_ids.add(qr_id)  # Track newly added

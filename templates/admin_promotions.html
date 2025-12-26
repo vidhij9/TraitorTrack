@@ -41,7 +41,7 @@
                                             <strong>{{ request.requested_by.username }}</strong>
                                         </td>
                                         <td>{{ request.requested_by.email }}</td>
-                                        <td>{{ request.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>{{ request.requested_at.strftime('%d-%m-%Y %H:%M') }}</td>
                                         <td>
                                             <div class="text-truncate" style="max-width: 300px;">
                                                 {{ request.reason }}
@@ -104,10 +104,10 @@
                                                 <span class="badge bg-danger">Rejected</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ request.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>{{ request.requested_at.strftime('%d-%m-%Y %H:%M') }}</td>
                                         <td>
                                             {% if request.processed_at %}
-                                                {{ request.processed_at.strftime('%Y-%m-%d %H:%M') }}
+                                                {{ request.processed_at.strftime('%d-%m-%Y %H:%M') }}
                                             {% else %}
                                                 -
                                             {% endif %}

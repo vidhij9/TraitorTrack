@@ -51,13 +51,13 @@
                                         {% endif %}
                                     </div>
                                     <div class="col-md-6">
-                                        <strong>Submitted:</strong> {{ request.requested_at.strftime('%Y-%m-%d %H:%M') }}
+                                        <strong>Submitted:</strong> {{ request.requested_at.strftime('%d-%m-%Y %H:%M') }}
                                     </div>
                                 </div>
                                 {% if request.processed_at %}
                                 <div class="row mt-2">
                                     <div class="col-md-6">
-                                        <strong>Processed:</strong> {{ request.processed_at.strftime('%Y-%m-%d %H:%M') }}
+                                        <strong>Processed:</strong> {{ request.processed_at.strftime('%d-%m-%Y %H:%M') }}
                                     </div>
                                 </div>
                                 {% endif %}

@@ -81,7 +81,7 @@
                         <tbody>
                             {% for scan in scans.items %}
                             <tr>
-                                <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ scan.timestamp.strftime('%d-%m-%Y %H:%M:%S') }}</td>
                                 <td>{{ scan.scanned_by.username if scan.scanned_by else 'Unknown' }}</td>
                                 <td>
                                     {% if scan.parent_bag_id %}

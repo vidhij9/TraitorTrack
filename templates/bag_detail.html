@@ -104,7 +104,7 @@
                     <dt class="col-sm-5">Created At:</dt>
                     <dd class="col-sm-7">
                         {% if bag.created_at %}
-                            {{ bag.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {{ bag.created_at.strftime('%d-%m-%Y %H:%M:%S') }}
                         {% else %}
                             <span class="text-muted">Not available</span>
                         {% endif %}
@@ -141,7 +141,7 @@
                                     {% if link.created_at is string %}
                                         {{ link.created_at }}
                                     {% else %}
-                                        {{ link.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                        {{ link.created_at.strftime('%d-%m-%Y %H:%M:%S') }}
                                     {% endif %}
                                 {% else %}
                                     Not available
@@ -220,7 +220,7 @@
                                 <td>{{ child.name or "Child Bag" }}</td>
                                 <td>
                                     {% if child.created_at %}
-                                        {{ child.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                        {{ child.created_at.strftime('%d-%m-%Y %H:%M:%S') }}
                                     {% else %}
                                         <span class="text-muted">Not available</span>
                                     {% endif %}
@@ -267,7 +267,7 @@
                                         </h5>
                                         <small class="text-muted">
                                             {% if scan.timestamp %}
-                                                {{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                                                {{ scan.timestamp.strftime('%d-%m-%Y %H:%M:%S') }}
                                             {% else %}
                                                 Not available
                                             {% endif %}

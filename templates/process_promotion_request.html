@@ -27,7 +27,7 @@
                                     <span class="badge bg-secondary">{{ promotion_request.requested_by.role.title() }}</span>
                                 </div>
                                 <div class="col-md-6">
-                                    <strong>Requested:</strong> {{ promotion_request.requested_at.strftime('%Y-%m-%d %H:%M') }}<br>
+                                    <strong>Requested:</strong> {{ promotion_request.requested_at.strftime('%d-%m-%Y %H:%M') }}<br>
                                     <strong>Status:</strong> 
                                     <span class="badge bg-warning">{{ promotion_request.status.title() }}</span>
                                 </div>
