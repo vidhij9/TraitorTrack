@@ -1227,7 +1227,7 @@ class LargeScaleChildParentImporter:
         if not qr_text or not isinstance(qr_text, str):
             return None
         import re
-        match = re.search(r'LABEL\s*NO\.:?\s*(\d+)', qr_text, re.IGNORECASE)
+        match = re.search(r'LABEL\s*NO\.\s*:?\s*(\d+)', qr_text, re.IGNORECASE)
         return match.group(1) if match else None
     
     @staticmethod
@@ -1501,7 +1501,7 @@ class ChildParentBatchImporter:
         
         # Look for 'LABEL NO.' or 'LABEL NO.:' followed by digits
         import re
-        match = re.search(r'LABEL\s*NO\.:?\s*(\d+)', qr_text, re.IGNORECASE)
+        match = re.search(r'LABEL\s*NO\.\s*:?\s*(\d+)', qr_text, re.IGNORECASE)
         if match:
             return match.group(1)
         
