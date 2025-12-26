@@ -187,12 +187,18 @@ def setup_error_handlers(app):
     @app.errorhandler(503)
     def service_unavailable(error):
         """Handle service unavailable errors"""
-        pass  # Logging disabled for performance
-        if request.is_json:
+        from request_tracking import get_request_id
+        
+        request_id = get_request_id()
+        app.logger.warning(f"[{request_id}] 503 Service Unavailable: {request.path} - {str(error)}")
+        
+        if request.is_json or request.path.startswith('/api/'):
             return jsonify({
                 'success': False,
                 'error': 'Service unavailable',
-                'message': 'The service is temporarily unavailable. Please try again later.'
+                'message': 'The service is temporarily unavailable. Please try again later.',
+                'error_code': 503,
+                'request_id': request_id
             }), 503
         return render_template('error.html',
                              error_code=503,
@@ -202,20 +208,25 @@ def setup_error_handlers(app):
     @app.errorhandler(Exception)
     def handle_unexpected_error(error):
         """Handle any unexpected errors"""
-        app.logger.error(f"Unexpected error: {request.url} - {str(error)}", exc_info=True)
+        from request_tracking import get_request_id
+        
+        request_id = get_request_id()
+        app.logger.error(f"[{request_id}] Unexpected error: {request.url} - {str(error)}", exc_info=True)
         
         # Rollback any database changes
         try:
             from app import db
             db.session.rollback()
         except Exception as db_error:
-            pass  # Logging disabled for performance
+            app.logger.debug(f"[{request_id}] DB rollback error during exception handling: {str(db_error)}")
         
-        if request.is_json:
+        if request.is_json or request.path.startswith('/api/'):
             return jsonify({
                 'success': False,
                 'error': 'Unexpected error',
-                'message': 'An unexpected error occurred. Please try again later.'
+                'message': 'An unexpected error occurred. Please try again later.',
+                'error_code': 500,
+                'request_id': request_id
             }), 500
         
         flash('An unexpected error occurred. Please try again later.', 'error')

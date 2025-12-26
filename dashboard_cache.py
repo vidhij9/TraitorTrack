@@ -24,12 +24,17 @@ from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Cache TTL in seconds - short enough for near real-time, long enough to help
-STATS_CACHE_TTL = 5.0
-HOURLY_CACHE_TTL = 30.0  # Hourly distribution changes slowly
+# Cache TTL in seconds - optimized for balance between freshness and performance
+# COST OPTIMIZATION: Increased TTLs for stable data to reduce DB load further
+STATS_CACHE_TTL = 10.0  # Core stats TTL (was 5s) - still near real-time for dashboards
+HOURLY_CACHE_TTL = 60.0  # Hourly distribution changes slowly (was 30s)
+USER_COUNT_CACHE_TTL = 120.0  # User counts rarely change (new field)
 
 class DashboardStatsCache:
-    """Thread-safe in-memory cache for dashboard statistics."""
+    """Thread-safe in-memory cache for dashboard statistics.
+    
+    COST OPTIMIZATION: Extended TTLs for stable data and added user count caching.
+    """
     
     def __init__(self):
         self._lock = threading.Lock()
@@ -39,6 +44,8 @@ class DashboardStatsCache:
         self._hourly_scans_time: float = 0
         self._billing_stats: Optional[Dict[str, Any]] = None
         self._billing_stats_time: float = 0
+        self._user_count: Optional[int] = None
+        self._user_count_time: float = 0
     
     def get_core_stats(self) -> Optional[Dict[str, Any]]:
         """Get cached core statistics if still valid."""
@@ -80,6 +87,19 @@ class DashboardStatsCache:
             self._billing_stats = stats.copy()
             self._billing_stats_time = time.time()
     
+    def get_user_count(self) -> Optional[int]:
+        """Get cached user count if still valid (longer TTL for stable data)."""
+        with self._lock:
+            if self._user_count is not None and (time.time() - self._user_count_time) < USER_COUNT_CACHE_TTL:
+                return self._user_count
+        return None
+    
+    def set_user_count(self, count: int) -> None:
+        """Cache user count."""
+        with self._lock:
+            self._user_count = count
+            self._user_count_time = time.time()
+    
     def invalidate_all(self) -> None:
         """Invalidate all cached data."""
         with self._lock:
@@ -89,6 +109,8 @@ class DashboardStatsCache:
             self._hourly_scans_time = 0
             self._billing_stats = None
             self._billing_stats_time = 0
+            self._user_count = None
+            self._user_count_time = 0
         logger.debug("Dashboard cache invalidated")
     
     def get_stats(self) -> Dict[str, Any]:
@@ -99,9 +121,16 @@ class DashboardStatsCache:
                 'core_stats_age_seconds': round(now - self._core_stats_time, 1) if self._core_stats else None,
                 'hourly_scans_age_seconds': round(now - self._hourly_scans_time, 1) if self._hourly_scans else None,
                 'billing_stats_age_seconds': round(now - self._billing_stats_time, 1) if self._billing_stats else None,
+                'user_count_age_seconds': round(now - self._user_count_time, 1) if self._user_count is not None else None,
                 'core_stats_cached': self._core_stats is not None,
                 'hourly_scans_cached': self._hourly_scans is not None,
-                'billing_stats_cached': self._billing_stats is not None
+                'billing_stats_cached': self._billing_stats is not None,
+                'user_count_cached': self._user_count is not None,
+                'ttl_settings': {
+                    'core_stats_ttl': STATS_CACHE_TTL,
+                    'hourly_scans_ttl': HOURLY_CACHE_TTL,
+                    'user_count_ttl': USER_COUNT_CACHE_TTL
+                }
             }
 
 
