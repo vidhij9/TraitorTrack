@@ -1,0 +1,2134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Testing Guide - TraitorTrack</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2e7d32;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #2e7d32;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .header .version {
+            background: #e8f5e9;
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 15px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .download-btn {
+            display: block;
+            width: 250px;
+            margin: 20px auto;
+            padding: 15px 30px;
+            background: #2e7d32;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .download-btn:hover {
+            background: #1b5e20;
+        }
+        
+        .print-note {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            background: #2e7d32;
+            color: white;
+            padding: 12px 20px;
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        
+        .subsection-title {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 10px 15px;
+            font-size: 16px;
+            margin: 20px 0 10px 0;
+            border-left: 4px solid #2e7d32;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        th {
+            background: #f5f5f5;
+            padding: 12px 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+        
+        .pass {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        
+        .fail {
+            color: #c62828;
+            font-weight: bold;
+        }
+        
+        .test-id {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .important-box {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .important-box h4 {
+            color: #e65100;
+            margin-bottom: 10px;
+        }
+        
+        .scanner-info {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .scanner-info h4 {
+            color: #1565c0;
+            margin-bottom: 10px;
+        }
+        
+        .checklist {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .checklist h4 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .checklist label {
+            display: block;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        
+        .checklist input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .priority-high {
+            background: #ffebee;
+        }
+        
+        .priority-medium {
+            background: #fff8e1;
+        }
+        
+        .quick-ref {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .quick-ref-item {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .quick-ref-item.critical {
+            background: #ffebee;
+            border: 2px solid #c62828;
+        }
+        
+        .quick-ref-item.important {
+            background: #fff8e1;
+            border: 2px solid #f9a825;
+        }
+        
+        .quick-ref-item.normal {
+            background: #e8f5e9;
+            border: 2px solid #2e7d32;
+        }
+        
+        .quick-ref-item h5 {
+            margin-bottom: 5px;
+        }
+        
+        .toc {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .toc h3 {
+            margin-bottom: 15px;
+            color: #2e7d32;
+        }
+        
+        .toc ul {
+            list-style: none;
+            columns: 2;
+        }
+        
+        .toc li {
+            padding: 5px 0;
+        }
+        
+        .toc a {
+            color: #333;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            color: #2e7d32;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+            
+            .download-btn, .print-note {
+                display: none;
+            }
+            
+            .section {
+                page-break-inside: avoid;
+            }
+            
+            table {
+                font-size: 11px;
+            }
+            
+            .section-title {
+                background: #2e7d32 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Bill Testing Guide</h1>
+            <div class="subtitle">TraitorTrack - Warehouse Bag Tracking System</div>
+            <div class="version">Version 1.0 | December 2025</div>
+        </div>
+        
+        <button class="download-btn" onclick="window.print()">Download as PDF / Print</button>
+        <p class="print-note">Click the button above, then select "Save as PDF" in the print dialog</p>
+        
+        <div class="scanner-info">
+            <h4>About Your Barcode Scanner</h4>
+            <p>This guide is written for <strong>HID Barcode Scanners</strong> (the plug-in type that works like a keyboard).</p>
+            <ul style="margin-top: 10px; margin-left: 20px;">
+                <li>Scanner plugs into computer via USB</li>
+                <li>When you scan, the code types automatically into the active field</li>
+                <li>Most scanners add "Enter" key after scanning</li>
+                <li>No special software needed - works like typing</li>
+            </ul>
+        </div>
+        
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li>1. Creating New Bills</li>
+                <li>2. Scanning Bags to Bills</li>
+                <li>3. Scanner Hardware Tests</li>
+                <li>4. Weight and Count Tests</li>
+                <li>5. Completing Bills</li>
+                <li>6. Editing and Deleting</li>
+                <li>7. Search and Filter</li>
+                <li>8. Warehouse Conditions</li>
+                <li>9. Multiple Users</li>
+                <li>10. Network Problems</li>
+                <li>11. Error Handling</li>
+                <li>12. Security Tests</li>
+                <li>13. Date Display Tests</li>
+                <li>14. Full Workflow Tests</li>
+            </ul>
+        </div>
+        
+        <div class="quick-ref">
+            <div class="quick-ref-item critical">
+                <h5>CRITICAL</h5>
+                <p>Must pass before release</p>
+                <p><small>Tests marked with priority</small></p>
+            </div>
+            <div class="quick-ref-item important">
+                <h5>IMPORTANT</h5>
+                <p>Should pass for good quality</p>
+                <p><small>Core functionality</small></p>
+            </div>
+            <div class="quick-ref-item normal">
+                <h5>NICE TO HAVE</h5>
+                <p>Good for user experience</p>
+                <p><small>Can fix later</small></p>
+            </div>
+        </div>
+
+        <!-- SECTION 1: CREATING BILLS -->
+        <div class="section" id="section1">
+            <div class="section-title">1. CREATING NEW BILLS</div>
+            
+            <div class="subsection-title">A. Good Tests - These Should Work</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">BC-001</span></td>
+                        <td>Create simple bill</td>
+                        <td>Type "BILL-001" as ID, set 10 bags capacity, click Create</td>
+                        <td>Bill shows in list, status is "New"</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">BC-002</span></td>
+                        <td>Create bill with note</td>
+                        <td>Add description "Morning dispatch to Lucknow"</td>
+                        <td>Note saves and shows when you open bill</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-003</span></td>
+                        <td>Single bag bill</td>
+                        <td>Set capacity to 1 bag only</td>
+                        <td>Bill created for just 1 bag</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-004</span></td>
+                        <td>Large capacity bill</td>
+                        <td>Set capacity to 200 bags</td>
+                        <td>Bill created, shows 0/200</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-005</span></td>
+                        <td>Bill ID with dash</td>
+                        <td>Type "LKO-MORNING-001"</td>
+                        <td>Creates successfully</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-006</span></td>
+                        <td>Numbers only ID</td>
+                        <td>Type "20251226001" as bill ID</td>
+                        <td>Creates successfully</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-007</span></td>
+                        <td>Create 5 bills quickly</td>
+                        <td>Create 5 different bills in 2 minutes</td>
+                        <td>All 5 bills created without errors</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-008</span></td>
+                        <td>Long description</td>
+                        <td>Type 200 words in description box</td>
+                        <td>Saves all text or shows "too long" message</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Bad Tests - These Should Fail Safely</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">BC-101</span></td>
+                        <td>Empty bill ID</td>
+                        <td>Leave bill ID blank, click Create</td>
+                        <td>Error message: "Enter bill ID"</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">BC-102</span></td>
+                        <td>Duplicate bill ID</td>
+                        <td>Create "BILL-001" when it already exists</td>
+                        <td>Error message: "Bill ID already exists"</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">BC-103</span></td>
+                        <td>Zero capacity</td>
+                        <td>Set bag count to 0</td>
+                        <td>Error message: "Need at least 1 bag"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-104</span></td>
+                        <td>Negative capacity</td>
+                        <td>Type -10 for bag count</td>
+                        <td>Error or changes to positive number</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-105</span></td>
+                        <td>Letters in capacity</td>
+                        <td>Type "ten" instead of 10</td>
+                        <td>Error message: "Enter a number"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-106</span></td>
+                        <td>Only spaces</td>
+                        <td>Type only spaces in bill ID</td>
+                        <td>Error message: "Enter valid bill ID"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-107</span></td>
+                        <td>Click Create twice quickly</td>
+                        <td>Double-click the Create button fast</td>
+                        <td>Only 1 bill created, not 2</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">BC-108</span></td>
+                        <td>Very long bill ID</td>
+                        <td>Type 100+ characters as bill ID</td>
+                        <td>Error or text gets shortened</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 2: SCANNING BAGS -->
+        <div class="section" id="section2">
+            <div class="section-title">2. SCANNING BAGS TO BILLS</div>
+            
+            <div class="important-box">
+                <h4>How Scanner Works</h4>
+                <p>Your barcode scanner is a "HID scanner" - it works like a keyboard. When you scan a QR code:</p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li>Make sure cursor is in the scan input box</li>
+                    <li>Point scanner at QR code and press trigger</li>
+                    <li>Scanner "types" the code and presses Enter automatically</li>
+                    <li>System processes the scan</li>
+                </ol>
+            </div>
+            
+            <div class="subsection-title">A. Good Tests - These Should Work</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SC-001</span></td>
+                        <td>Scan first bag</td>
+                        <td>Open new bill, scan any parent bag QR</td>
+                        <td>Bag links, status changes to "Processing"</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SC-002</span></td>
+                        <td>Scan SB type bag</td>
+                        <td>Scan a bag starting with "SB"</td>
+                        <td>Links correctly, adds 30kg expected weight</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SC-003</span></td>
+                        <td>Scan M-format bag</td>
+                        <td>Scan a bag like "M444-00001"</td>
+                        <td>Links correctly, adds 15kg expected weight</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SC-004</span></td>
+                        <td>Fill bill to capacity</td>
+                        <td>Add 10 bags to a 10-bag bill</td>
+                        <td>Bill auto-completes, status = "Completed"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-005</span></td>
+                        <td>Partial fill</td>
+                        <td>Add 5 bags to a 10-bag bill</td>
+                        <td>Shows "5/10" or similar progress</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-006</span></td>
+                        <td>Fast scanning (normal speed)</td>
+                        <td>Scan 10 bags in 30 seconds</td>
+                        <td>All 10 bags link correctly</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-007</span></td>
+                        <td>Fast scanning (quick speed)</td>
+                        <td>Scan 20 bags in 1 minute</td>
+                        <td>All 20 bags link, no duplicates</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-008</span></td>
+                        <td>Very fast scanning</td>
+                        <td>Scan 5 bags in 5 seconds</td>
+                        <td>All scans processed (may show "please wait")</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-009</span></td>
+                        <td>Continuous scanning</td>
+                        <td>Scan 50 bags in one session</td>
+                        <td>Count stays accurate: 50 bags</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-010</span></td>
+                        <td>Mixed bag types</td>
+                        <td>Scan both SB and M-format bags</td>
+                        <td>Both types work, weights add up correctly</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-011</span></td>
+                        <td>Hear success sound</td>
+                        <td>Scan valid bag, listen for beep</td>
+                        <td>Success sound/beep plays</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-012</span></td>
+                        <td>See success message</td>
+                        <td>Scan valid bag, look at screen</td>
+                        <td>Green message appears</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-013</span></td>
+                        <td>Live progress update</td>
+                        <td>Watch screen while scanning</td>
+                        <td>Count updates after each scan</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-014</span></td>
+                        <td>Cursor stays in box</td>
+                        <td>After scanning, check if cursor is ready</td>
+                        <td>Cursor stays in input box for next scan</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Bad Tests - These Should Fail Safely</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SC-101</span></td>
+                        <td>Empty scan</td>
+                        <td>Press Enter without scanning anything</td>
+                        <td>Error: "Scan a bag first"</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SC-102</span></td>
+                        <td>Scan child bag</td>
+                        <td>Scan a child bag (not parent)</td>
+                        <td>Error: "Only parent bags can be added"</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SC-103</span></td>
+                        <td>Scan same bag twice</td>
+                        <td>Scan same QR code twice in a row</td>
+                        <td>Error: "Bag already scanned"</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SC-104</span></td>
+                        <td>Scan fake QR code</td>
+                        <td>Type or scan "FAKE123456"</td>
+                        <td>Error: "Bag not found in system"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-105</span></td>
+                        <td>Scan bag from another bill</td>
+                        <td>Scan bag already linked to Bill-A into Bill-B</td>
+                        <td>Error: "Bag already in another bill"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-106</span></td>
+                        <td>Scan to completed bill</td>
+                        <td>Try adding bag to finished bill</td>
+                        <td>Error or warning message</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-107</span></td>
+                        <td>Hear error sound</td>
+                        <td>Scan invalid bag, listen</td>
+                        <td>Different sound for error (not success beep)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-108</span></td>
+                        <td>See error message</td>
+                        <td>Scan invalid bag, look at screen</td>
+                        <td>Red error message appears</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-109</span></td>
+                        <td>Scan deleted bag</td>
+                        <td>Scan a bag that was deleted from system</td>
+                        <td>Error: "Bag not found"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SC-110</span></td>
+                        <td>Random text scan</td>
+                        <td>Type random letters like "asdfgh"</td>
+                        <td>Error: "Invalid QR code"</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 3: SCANNER HARDWARE -->
+        <div class="section" id="section3">
+            <div class="section-title">3. SCANNER HARDWARE TESTS</div>
+            
+            <div class="scanner-info">
+                <h4>Test Your Scanner First</h4>
+                <p>Before testing the app, make sure your barcode scanner is working properly.</p>
+            </div>
+            
+            <div class="subsection-title">A. Scanner Setup Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">HW-001</span></td>
+                        <td>Scanner connects</td>
+                        <td>Plug scanner USB into computer</td>
+                        <td>Computer recognizes it, maybe beeps</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">HW-002</span></td>
+                        <td>Scanner types text</td>
+                        <td>Open Notepad, scan any barcode</td>
+                        <td>Text appears in Notepad</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">HW-003</span></td>
+                        <td>Scanner sends Enter</td>
+                        <td>Watch after scan in Notepad</td>
+                        <td>Cursor moves to new line (Enter pressed)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-004</span></td>
+                        <td>Scanner reads at distance</td>
+                        <td>Scan from 6 inches, then 12 inches</td>
+                        <td>Both distances work</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-005</span></td>
+                        <td>Scanner reads at angle</td>
+                        <td>Scan at 45-degree angle</td>
+                        <td>Still reads correctly</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-006</span></td>
+                        <td>Scanner trigger works</td>
+                        <td>Press trigger button</td>
+                        <td>Red light/laser turns on</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-007</span></td>
+                        <td>Scanner beeps on success</td>
+                        <td>Scan valid barcode</td>
+                        <td>Scanner makes beep sound</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Scanner with App Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">HW-101</span></td>
+                        <td>Cursor auto-focus</td>
+                        <td>Open scan page</td>
+                        <td>Cursor is already in the scan input box</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">HW-102</span></td>
+                        <td>Scan fills input box</td>
+                        <td>Scan any QR code</td>
+                        <td>Code appears in input box</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">HW-103</span></td>
+                        <td>Auto-submit on scan</td>
+                        <td>Scan QR code (scanner sends Enter)</td>
+                        <td>Form submits automatically</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-104</span></td>
+                        <td>Input clears after scan</td>
+                        <td>Complete one scan, look at input box</td>
+                        <td>Box is empty, ready for next scan</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-105</span></td>
+                        <td>Focus returns to input</td>
+                        <td>After scan completes, look at cursor</td>
+                        <td>Cursor back in input box automatically</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-106</span></td>
+                        <td>Back-to-back scanning</td>
+                        <td>Scan 5 bags without touching keyboard</td>
+                        <td>All 5 scans work without clicking anything</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-107</span></td>
+                        <td>Scanner cable length</td>
+                        <td>Stretch cable to reach all bags</td>
+                        <td>Cable long enough for work area</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-108</span></td>
+                        <td>Unplug and replug</td>
+                        <td>Unplug scanner, plug back in</td>
+                        <td>Works again without restarting app</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">C. QR Code Quality Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="test-id">HW-201</span></td>
+                        <td>Clean QR code</td>
+                        <td>Scan new, clean QR label</td>
+                        <td>Reads instantly</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-202</span></td>
+                        <td>Dusty QR code</td>
+                        <td>Scan QR with dust on it</td>
+                        <td>Reads or shows clear error</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-203</span></td>
+                        <td>Scratched QR code</td>
+                        <td>Scan slightly scratched QR</td>
+                        <td>May read or need manual entry</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-204</span></td>
+                        <td>Faded QR code</td>
+                        <td>Scan old, sun-faded QR</td>
+                        <td>May need multiple tries or manual entry</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-205</span></td>
+                        <td>Wrinkled QR code</td>
+                        <td>Scan QR on wrinkled bag</td>
+                        <td>Flatten and try, or use manual entry</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-206</span></td>
+                        <td>Wet QR code</td>
+                        <td>Scan QR that got wet</td>
+                        <td>Wipe dry and scan, or manual entry</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-207</span></td>
+                        <td>Small QR code</td>
+                        <td>Scan very small QR label</td>
+                        <td>Get closer to scan</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">HW-208</span></td>
+                        <td>Manual entry backup</td>
+                        <td>Can't scan? Type code manually</td>
+                        <td>Manual entry option available and works</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 4: WEIGHT AND COUNTS -->
+        <div class="section" id="section4">
+            <div class="section-title">4. WEIGHT AND COUNT TESTS</div>
+            
+            <div class="important-box">
+                <h4>How Weights Work</h4>
+                <ul style="margin-left: 20px;">
+                    <li><strong>SB bags:</strong> Expected 30kg, can hold up to 30 child bags</li>
+                    <li><strong>M-format bags:</strong> Expected 15kg, can hold up to 15 child bags</li>
+                    <li><strong>Actual weight:</strong> Number of child bags x 1kg each</li>
+                </ul>
+            </div>
+            
+            <div class="subsection-title">A. Weight Calculation Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Setup / What You Do</th>
+                        <th>What Should Show</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">WT-001</span></td>
+                        <td>SB bag weight</td>
+                        <td>Link SB bag that has 25 child bags</td>
+                        <td>Expected: 30kg, Actual: 25kg</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">WT-002</span></td>
+                        <td>M-format weight</td>
+                        <td>Link M444 bag with 12 child bags</td>
+                        <td>Expected: 15kg, Actual: 12kg</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WT-003</span></td>
+                        <td>Two SB bags total</td>
+                        <td>Link 2 SB bags (20 + 25 children)</td>
+                        <td>Expected: 60kg, Actual: 45kg</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WT-004</span></td>
+                        <td>Mixed bag types</td>
+                        <td>Link 2 SB bags + 3 M-format bags</td>
+                        <td>Expected: 105kg (60+45)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WT-005</span></td>
+                        <td>Empty parent bag</td>
+                        <td>Link parent that has 0 children</td>
+                        <td>Actual weight: 0 kg</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WT-006</span></td>
+                        <td>Weight updates live</td>
+                        <td>Watch weight while scanning new bag</td>
+                        <td>Weight changes immediately after scan</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WT-007</span></td>
+                        <td>Weight after removal</td>
+                        <td>Remove one bag from bill</td>
+                        <td>Weight decreases correctly</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WT-008</span></td>
+                        <td>Weight display format</td>
+                        <td>Check how weight shows</td>
+                        <td>Shows "12.5 kg" (one decimal place)</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Count Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Setup / What You Do</th>
+                        <th>What Should Show</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">CT-001</span></td>
+                        <td>Parent bag count</td>
+                        <td>Link 5 parent bags to bill</td>
+                        <td>Shows: 5 parent bags linked</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">CT-002</span></td>
+                        <td>Child bag count</td>
+                        <td>Check total children in bill</td>
+                        <td>Sum of all children from linked parents</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CT-003</span></td>
+                        <td>Progress display</td>
+                        <td>Add 5 bags to 10-capacity bill</td>
+                        <td>Shows "5/10" or "50%"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CT-004</span></td>
+                        <td>Full capacity display</td>
+                        <td>Add 10 bags to 10-capacity bill</td>
+                        <td>Shows "10/10" or "100%"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CT-005</span></td>
+                        <td>Zero counts</td>
+                        <td>Check new bill with no bags</td>
+                        <td>Shows 0 parents, 0 children, 0 kg</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CT-006</span></td>
+                        <td>Large bill counts</td>
+                        <td>Bill with 100 parent bags</td>
+                        <td>All numbers display correctly</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 5: COMPLETING BILLS -->
+        <div class="section" id="section5">
+            <div class="section-title">5. COMPLETING AND REOPENING BILLS</div>
+            
+            <div class="subsection-title">A. Completion Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">CP-001</span></td>
+                        <td>Auto-complete on capacity</td>
+                        <td>Scan 10th bag on 10-capacity bill</td>
+                        <td>Status automatically changes to "Completed"</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">CP-002</span></td>
+                        <td>Manual complete button</td>
+                        <td>Click "Complete Bill" button</td>
+                        <td>Bill marked as completed</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CP-003</span></td>
+                        <td>Complete partial bill</td>
+                        <td>Complete bill with only 5/10 bags</td>
+                        <td>Works (maybe shows confirmation)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CP-004</span></td>
+                        <td>Completed bill is read-only</td>
+                        <td>Try to scan to completed bill</td>
+                        <td>Cannot add more bags</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CP-005</span></td>
+                        <td>View completed bill</td>
+                        <td>Open a completed bill</td>
+                        <td>Shows all details, marked as complete</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CP-006</span></td>
+                        <td>Complete empty bill</td>
+                        <td>Try to complete bill with 0 bags</td>
+                        <td>Warning or not allowed</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CP-007</span></td>
+                        <td>Double-click complete</td>
+                        <td>Click Complete button twice fast</td>
+                        <td>Only completes once</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Reopen Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">CP-101</span></td>
+                        <td>Reopen button works</td>
+                        <td>Click "Reopen" on completed bill</td>
+                        <td>Status changes to "Processing"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CP-102</span></td>
+                        <td>Add bags after reopen</td>
+                        <td>Reopen bill, then scan more bags</td>
+                        <td>New bags link successfully</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CP-103</span></td>
+                        <td>Complete again after reopen</td>
+                        <td>Reopen, add bags, complete again</td>
+                        <td>Works normally</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">CP-104</span></td>
+                        <td>Remove bag after reopen</td>
+                        <td>Reopen bill, remove one bag</td>
+                        <td>Bag removed, counts updated</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 6: EDITING AND DELETING -->
+        <div class="section" id="section6">
+            <div class="section-title">6. EDITING AND DELETING BILLS</div>
+            
+            <div class="subsection-title">A. Edit Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="test-id">ED-001</span></td>
+                        <td>Edit description</td>
+                        <td>Change bill description text</td>
+                        <td>New description saves</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ED-002</span></td>
+                        <td>Increase capacity</td>
+                        <td>Change capacity from 10 to 15</td>
+                        <td>New capacity shows, not auto-completed</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ED-003</span></td>
+                        <td>Decrease capacity</td>
+                        <td>Change from 10 to 5 (has 7 bags)</td>
+                        <td>Warning or adjusts automatically</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ED-004</span></td>
+                        <td>Remove bag from bill</td>
+                        <td>Click remove on one bag</td>
+                        <td>Bag unlinked, counts decrease</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ED-005</span></td>
+                        <td>Remove last bag</td>
+                        <td>Remove only bag from bill</td>
+                        <td>Bill empty, status may change to "New"</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Delete Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">ED-101</span></td>
+                        <td>Delete empty bill</td>
+                        <td>Delete bill with 0 bags</td>
+                        <td>Bill deleted, removed from list</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">ED-102</span></td>
+                        <td>Confirmation popup</td>
+                        <td>Click Delete button</td>
+                        <td>"Are you sure?" popup appears</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ED-103</span></td>
+                        <td>Cancel delete</td>
+                        <td>Click Delete, then Cancel</td>
+                        <td>Bill NOT deleted</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ED-104</span></td>
+                        <td>Delete bill with bags</td>
+                        <td>Delete bill that has linked bags</td>
+                        <td>Bill deleted, bags become unlinked</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ED-105</span></td>
+                        <td>Delete completed bill</td>
+                        <td>Try to delete finished bill</td>
+                        <td>Extra warning or not allowed</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ED-106</span></td>
+                        <td>Bags reusable after delete</td>
+                        <td>Delete bill, try to link its bags elsewhere</td>
+                        <td>Bags can be linked to new bill</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 7: SEARCH AND FILTER -->
+        <div class="section" id="section7">
+            <div class="section-title">7. SEARCHING AND FILTERING BILLS</div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SR-001</span></td>
+                        <td>Search by bill ID</td>
+                        <td>Type "BILL-001" in search box</td>
+                        <td>Shows matching bill(s)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-002</span></td>
+                        <td>Partial search</td>
+                        <td>Type just "BILL-" in search</td>
+                        <td>Shows all bills starting with "BILL-"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-003</span></td>
+                        <td>Search lowercase</td>
+                        <td>Type "bill-001" (lowercase)</td>
+                        <td>Still finds "BILL-001"</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-004</span></td>
+                        <td>Filter by New status</td>
+                        <td>Select "New" in status filter</td>
+                        <td>Shows only new bills</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-005</span></td>
+                        <td>Filter by Processing</td>
+                        <td>Select "Processing" in filter</td>
+                        <td>Shows only in-progress bills</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-006</span></td>
+                        <td>Filter by Completed</td>
+                        <td>Select "Completed" in filter</td>
+                        <td>Shows only finished bills</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-007</span></td>
+                        <td>Filter by date</td>
+                        <td>Select today's date</td>
+                        <td>Shows only today's bills</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-008</span></td>
+                        <td>Sort by date</td>
+                        <td>Click Date column header</td>
+                        <td>Sorts newest first or oldest first</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-009</span></td>
+                        <td>Clear filters</td>
+                        <td>Click "Clear" or "Reset" button</td>
+                        <td>Shows all bills again</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-010</span></td>
+                        <td>Search no results</td>
+                        <td>Search "ZZZZZ99999"</td>
+                        <td>Shows "No bills found" message</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SR-011</span></td>
+                        <td>Pagination</td>
+                        <td>Have 100+ bills, go to page 2</td>
+                        <td>Shows next set of bills</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 8: WAREHOUSE CONDITIONS -->
+        <div class="section" id="section8">
+            <div class="section-title">8. WAREHOUSE CONDITIONS</div>
+            
+            <div class="subsection-title">A. Lighting Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Condition</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">WH-001</span></td>
+                        <td>Low light scanning</td>
+                        <td>Dim warehouse (only some lights on)</td>
+                        <td>Scanner laser finds QR, reads it</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">WH-002</span></td>
+                        <td>Screen visible in low light</td>
+                        <td>Dim warehouse</td>
+                        <td>Computer screen bright enough to read</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-003</span></td>
+                        <td>Very dark corner</td>
+                        <td>Dark storage area</td>
+                        <td>Scanner laser lights up QR</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-004</span></td>
+                        <td>Night shift operation</td>
+                        <td>2 AM, minimum lighting</td>
+                        <td>System works same as day</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-005</span></td>
+                        <td>Bright sunlight</td>
+                        <td>Near open door/window</td>
+                        <td>Screen still readable, scanner works</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-006</span></td>
+                        <td>Loading dock (outdoor)</td>
+                        <td>Bright outdoor area</td>
+                        <td>Everything works</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Physical Conditions</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Condition</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="test-id">WH-101</span></td>
+                        <td>Standing while scanning</td>
+                        <td>Standing at workstation</td>
+                        <td>Comfortable to use for hours</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-102</span></td>
+                        <td>Scanner cable reach</td>
+                        <td>Bags on pallet/shelf</td>
+                        <td>Cable reaches or use wireless scanner</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-103</span></td>
+                        <td>Gloves on hands</td>
+                        <td>Wearing warehouse gloves</td>
+                        <td>Can hold scanner, press trigger</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-104</span></td>
+                        <td>Cold weather</td>
+                        <td>Winter, cold warehouse</td>
+                        <td>Scanner and system work normally</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-105</span></td>
+                        <td>Hot weather</td>
+                        <td>Summer, hot warehouse</td>
+                        <td>Scanner and system work normally</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-106</span></td>
+                        <td>Dusty environment</td>
+                        <td>Dusty warehouse</td>
+                        <td>Clean scanner lens occasionally</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">WH-107</span></td>
+                        <td>All day operation</td>
+                        <td>8+ hours continuous use</td>
+                        <td>No slowdown, no errors</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 9: MULTIPLE USERS -->
+        <div class="section" id="section9">
+            <div class="section-title">9. MULTIPLE USERS (LOAD TESTS)</div>
+            
+            <div class="subsection-title">A. Concurrent Users</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Setup</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">MU-001</span></td>
+                        <td>5 users at once</td>
+                        <td>5 people scanning to 5 different bills</td>
+                        <td>All scans work, no conflicts</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">MU-002</span></td>
+                        <td>10 users at once</td>
+                        <td>10 people using system together</td>
+                        <td>Response time under 3 seconds</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-003</span></td>
+                        <td>20 users at once</td>
+                        <td>Peak morning rush, 20 people</td>
+                        <td>Response time under 5 seconds</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-004</span></td>
+                        <td>Same bill, 2 users</td>
+                        <td>2 people scanning to same bill</td>
+                        <td>No duplicates, count is correct</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-005</span></td>
+                        <td>Same bill, 5 users</td>
+                        <td>5 people scanning to same bill</td>
+                        <td>All scans work, no duplicates</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-006</span></td>
+                        <td>Create bills together</td>
+                        <td>5 users create bills at same time</td>
+                        <td>No duplicate bill IDs</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Large Data Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Data Amount</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="test-id">MU-101</span></td>
+                        <td>1,000 bills in system</td>
+                        <td>Medium database</td>
+                        <td>Bill list loads under 2 seconds</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-102</span></td>
+                        <td>10,000 bills in system</td>
+                        <td>Large database</td>
+                        <td>Bill list loads under 5 seconds</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-103</span></td>
+                        <td>Bill with 100 bags</td>
+                        <td>Large single bill</td>
+                        <td>Opens and displays correctly</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-104</span></td>
+                        <td>Search 10,000 bills</td>
+                        <td>Large database search</td>
+                        <td>Results in under 3 seconds</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">C. Fast Scanning Tests</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Speed</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">MU-201</span></td>
+                        <td>1 scan per second</td>
+                        <td>Normal scanning speed</td>
+                        <td>All scans register correctly</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-202</span></td>
+                        <td>2 scans per second</td>
+                        <td>Fast scanning</td>
+                        <td>All scans register correctly</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-203</span></td>
+                        <td>5 scans in 3 seconds</td>
+                        <td>Very fast burst</td>
+                        <td>All scans saved (may slow down)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-204</span></td>
+                        <td>100 scans in 3 minutes</td>
+                        <td>Continuous fast scanning</td>
+                        <td>Counter shows exactly 100</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">MU-205</span></td>
+                        <td>Scan all day</td>
+                        <td>8 hours of scanning</td>
+                        <td>No slowdown, no memory issues</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 10: NETWORK PROBLEMS -->
+        <div class="section" id="section10">
+            <div class="section-title">10. NETWORK AND CONNECTION PROBLEMS</div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Condition</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">NW-001</span></td>
+                        <td>Good WiFi</td>
+                        <td>Full signal strength</td>
+                        <td>Fast response, instant updates</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">NW-002</span></td>
+                        <td>Weak WiFi</td>
+                        <td>1-2 bars signal</td>
+                        <td>Slower but still works</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">NW-003</span></td>
+                        <td>WiFi drops during scan</td>
+                        <td>Connection lost mid-operation</td>
+                        <td>Error message OR saves offline</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">NW-004</span></td>
+                        <td>WiFi comes back</td>
+                        <td>Reconnect after drop</td>
+                        <td>Resumes working, maybe syncs data</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">NW-005</span></td>
+                        <td>Slow connection</td>
+                        <td>Very slow internet</td>
+                        <td>Shows loading indicator, eventually works</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">NW-006</span></td>
+                        <td>No internet at all</td>
+                        <td>Network cable unplugged</td>
+                        <td>Clear error message shown</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">NW-007</span></td>
+                        <td>Very slow page load</td>
+                        <td>Slow network</td>
+                        <td>Loading spinner shown, page eventually loads</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">NW-008</span></td>
+                        <td>Timeout error</td>
+                        <td>Server takes too long</td>
+                        <td>Clear timeout message, option to retry</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 11: ERROR HANDLING -->
+        <div class="section" id="section11">
+            <div class="section-title">11. ERROR HANDLING AND RECOVERY</div>
+            
+            <div class="subsection-title">A. System Errors</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What Happens</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="test-id">ER-001</span></td>
+                        <td>Refresh during scan</td>
+                        <td>Press F5 or browser refresh</td>
+                        <td>Warns or prevents data loss</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ER-002</span></td>
+                        <td>Close browser tab</td>
+                        <td>Close tab during scanning</td>
+                        <td>May warn, data saved up to last scan</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ER-003</span></td>
+                        <td>Back button</td>
+                        <td>Click browser back button</td>
+                        <td>No duplicate submissions</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ER-004</span></td>
+                        <td>Session expires</td>
+                        <td>Leave browser open for hours</td>
+                        <td>Asked to login again (no data loss)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ER-005</span></td>
+                        <td>Computer restart</td>
+                        <td>Restart computer unexpectedly</td>
+                        <td>Login shows last saved state</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. User Mistakes</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Mistake Made</th>
+                        <th>How to Fix</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">ER-101</span></td>
+                        <td>Scanned to wrong bill</td>
+                        <td>Bag added to wrong bill</td>
+                        <td>Remove bag, add to correct bill</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ER-102</span></td>
+                        <td>Undo last scan</td>
+                        <td>Want to remove just-scanned bag</td>
+                        <td>Undo option available (within 1 hour)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ER-103</span></td>
+                        <td>Completed too early</td>
+                        <td>Bill completed by mistake</td>
+                        <td>Reopen bill and continue</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ER-104</span></td>
+                        <td>Wrong capacity set</td>
+                        <td>Created bill with wrong count</td>
+                        <td>Edit bill to change capacity</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">ER-105</span></td>
+                        <td>Deleted wrong bill</td>
+                        <td>Accidentally deleted bill</td>
+                        <td>Ask admin if recovery possible</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 12: SECURITY -->
+        <div class="section" id="section12">
+            <div class="section-title">12. SECURITY TESTS</div>
+            
+            <div class="subsection-title">A. Login and Access</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>What You Do</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SE-001</span></td>
+                        <td>Access without login</td>
+                        <td>Go to /bills page directly without login</td>
+                        <td>Redirected to login page</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SE-002</span></td>
+                        <td>Wrong password</td>
+                        <td>Enter wrong password 5 times</td>
+                        <td>Account locked temporarily</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SE-003</span></td>
+                        <td>Logout works</td>
+                        <td>Click logout button</td>
+                        <td>Logged out, redirected to login</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SE-004</span></td>
+                        <td>After logout, back button</td>
+                        <td>Logout, then click browser back</td>
+                        <td>Cannot access protected pages</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SE-005</span></td>
+                        <td>Session timeout</td>
+                        <td>Leave idle for 30+ minutes</td>
+                        <td>Asked to login again</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="subsection-title">B. Role Permissions</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>User Role</th>
+                        <th>What Should Happen</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">SE-101</span></td>
+                        <td>Admin can delete bills</td>
+                        <td>Admin user</td>
+                        <td>Delete button visible and works</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SE-102</span></td>
+                        <td>Biller can create bills</td>
+                        <td>Biller user</td>
+                        <td>Create bill works</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SE-103</span></td>
+                        <td>Biller can scan bags</td>
+                        <td>Biller user</td>
+                        <td>Scanning to bills works</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SE-104</span></td>
+                        <td>Dispatcher access</td>
+                        <td>Dispatcher user</td>
+                        <td>Can view but maybe not create bills</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">SE-105</span></td>
+                        <td>Admin-only pages</td>
+                        <td>Non-admin user</td>
+                        <td>Cannot access admin pages</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 13: DATE DISPLAY -->
+        <div class="section" id="section13">
+            <div class="section-title">13. DATE DISPLAY TESTS</div>
+            
+            <div class="important-box">
+                <h4>Date Format</h4>
+                <p>All dates should show as <strong>DD-MM-YYYY</strong> format</p>
+                <p>Example: 26-12-2025 (not 2025-12-26 or 12/26/2025)</p>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:70px">Test #</th>
+                        <th style="width:200px">What to Test</th>
+                        <th>Where to Look</th>
+                        <th>What Should Show</th>
+                        <th style="width:60px">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="priority-high">
+                        <td><span class="test-id">DT-001</span></td>
+                        <td>Bill created date</td>
+                        <td>Bill list page</td>
+                        <td>Format: 26-12-2025</td>
+                        <td></td>
+                    </tr>
+                    <tr class="priority-high">
+                        <td><span class="test-id">DT-002</span></td>
+                        <td>Bill detail page date</td>
+                        <td>Open any bill</td>
+                        <td>Format: 26-12-2025 10:30</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">DT-003</span></td>
+                        <td>Bill updated date</td>
+                        <td>Bill that was modified</td>
+                        <td>Format: 26-12-2025 14:45</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">DT-004</span></td>
+                        <td>New Year's Day</td>
+                        <td>Bill from January 1st</td>
+                        <td>Shows: 01-01-2025</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">DT-005</span></td>
+                        <td>Single digit day</td>
+                        <td>Bill from 5th of month</td>
+                        <td>Shows: 05-12-2025 (with zero)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">DT-006</span></td>
+                        <td>Single digit month</td>
+                        <td>Bill from March</td>
+                        <td>Shows: 25-03-2025 (with zero)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="test-id">DT-007</span></td>
+                        <td>Scan timestamp</td>
+                        <td>Scan history page</td>
+                        <td>Format: 26-12-2025 10:30</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SECTION 14: FULL WORKFLOWS -->
+        <div class="section" id="section14">
+            <div class="section-title">14. COMPLETE WORKFLOW TESTS</div>
+            
+            <div class="important-box">
+                <h4>End-to-End Tests</h4>
+                <p>These tests check the complete flow from start to finish. Do each step in order.</p>
+            </div>
+            
+            <div class="subsection-title">Workflow 1: Normal Bill Processing</div>
+            <div class="checklist">
+                <h4>Steps to Follow:</h4>
+                <label><input type="checkbox"> Step 1: Login as Biller</label>
+                <label><input type="checkbox"> Step 2: Create new bill "TEST-001" with 5 bag capacity</label>
+                <label><input type="checkbox"> Step 3: Open the bill for scanning</label>
+                <label><input type="checkbox"> Step 4: Scan 5 parent bags using barcode scanner</label>
+                <label><input type="checkbox"> Step 5: Verify status changed to "Completed"</label>
+                <label><input type="checkbox"> Step 6: Check weights and counts are correct</label>
+                <label><input type="checkbox"> Step 7: View the completed bill details</label>
+                <label><input type="checkbox"> PASS if all steps work correctly</label>
+            </div>
+            
+            <div class="subsection-title">Workflow 2: Edit and Reopen Bill</div>
+            <div class="checklist">
+                <h4>Steps to Follow:</h4>
+                <label><input type="checkbox"> Step 1: Find a completed bill</label>
+                <label><input type="checkbox"> Step 2: Click Reopen button</label>
+                <label><input type="checkbox"> Step 3: Verify status is now "Processing"</label>
+                <label><input type="checkbox"> Step 4: Scan 2 more bags</label>
+                <label><input type="checkbox"> Step 5: Verify count increased</label>
+                <label><input type="checkbox"> Step 6: Complete the bill again</label>
+                <label><input type="checkbox"> PASS if reopen and add more bags works</label>
+            </div>
+            
+            <div class="subsection-title">Workflow 3: Morning Rush Simulation</div>
+            <div class="checklist">
+                <h4>Steps to Follow:</h4>
+                <label><input type="checkbox"> Step 1: Have 3 billers login on 3 computers</label>
+                <label><input type="checkbox"> Step 2: Each creates their own bill</label>
+                <label><input type="checkbox"> Step 3: All 3 scan bags simultaneously for 5 minutes</label>
+                <label><input type="checkbox"> Step 4: Check no errors occurred</label>
+                <label><input type="checkbox"> Step 5: Verify all counts are accurate</label>
+                <label><input type="checkbox"> Step 6: Complete all 3 bills</label>
+                <label><input type="checkbox"> PASS if no conflicts or errors</label>
+            </div>
+            
+            <div class="subsection-title">Workflow 4: Error Recovery</div>
+            <div class="checklist">
+                <h4>Steps to Follow:</h4>
+                <label><input type="checkbox"> Step 1: Create bill and scan 3 bags</label>
+                <label><input type="checkbox"> Step 2: Realize you're on wrong bill</label>
+                <label><input type="checkbox"> Step 3: Remove the 3 bags from this bill</label>
+                <label><input type="checkbox"> Step 4: Go to correct bill</label>
+                <label><input type="checkbox"> Step 5: Scan the same 3 bags</label>
+                <label><input type="checkbox"> Step 6: Verify bags now in correct bill</label>
+                <label><input type="checkbox"> PASS if recovery was easy</label>
+            </div>
+            
+            <div class="subsection-title">Workflow 5: Full Day Operation</div>
+            <div class="checklist">
+                <h4>Steps to Follow:</h4>
+                <label><input type="checkbox"> Step 1: Start at beginning of shift</label>
+                <label><input type="checkbox"> Step 2: Process bills normally throughout day</label>
+                <label><input type="checkbox"> Step 3: Note any slowdowns or errors</label>
+                <label><input type="checkbox"> Step 4: Check system at end of day</label>
+                <label><input type="checkbox"> Step 5: Verify all counts match physical bags</label>
+                <label><input type="checkbox"> PASS if no issues after full day</label>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <p><strong>TraitorTrack Bill Testing Guide</strong></p>
+            <p>Version 1.0 | December 2025</p>
+            <p>Total Test Cases: 180+</p>
+            <p style="margin-top: 10px;">For questions, contact the development team</p>
+        </div>
+    </div>
+    
+    <script>
+        // Print button functionality
+        document.querySelector('.download-btn').addEventListener('click', function() {
+            window.print();
+        });
+    </script>
+</body>
+</html>
