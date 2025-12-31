@@ -4975,8 +4975,11 @@ def bill_management():
 
 @app.route('/bill/create', methods=['GET', 'POST'])
 @login_required
+@limiter.limit("30 per minute")  # Rate limit bill creation to prevent abuse
 def create_bill():
-    """Create a new bill - admin and employee access"""
+    """Create a new bill - admin and employee access with race-condition protection"""
+    from sqlalchemy.exc import IntegrityError
+    
     if not (current_user.is_admin() or current_user.role == 'biller'):
         flash('Access restricted to admin and employee users.', 'error')
         return redirect(url_for('dashboard'))
@@ -4991,92 +4994,135 @@ def create_bill():
     
     # Handle POST request
     if request.method == 'POST':
-        try:
-            form_bill_id = request.form.get('bill_id', '')
-            # CRITICAL: Sanitize scanner input to remove invisible characters
-            bill_id = sanitize_input(form_bill_id)
-            
-            # Additional debug logging to catch scanner issues
-            if form_bill_id != bill_id:
-                app.logger.info(f'Bill ID sanitized: "{form_bill_id}" -> "{bill_id}" (length {len(form_bill_id)} -> {len(bill_id)})')
-            
-            if not bill_id:
-                flash('Bill ID is required.', 'error')
-                return render_template('create_bill.html')
-            
-            # Basic validation - just check if bill_id is not empty after sanitization
-            if len(bill_id) == 0:
-                flash('Bill ID cannot be empty.', 'error')
-                return render_template('create_bill.html')
-            
-            parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
-            
-            # FIX: Validate parent bag count with stricter limits and type checking
-            if not isinstance(parent_bag_count, int) or parent_bag_count < 1 or parent_bag_count > 500:
-                flash('Number of parent bags must be between 1 and 500.', 'error')
-                return render_template('create_bill.html')
-            
-            # CASE-INSENSITIVE duplicate check using UPPER for consistency with scanner input
-            existing = db.session.execute(
-                text("SELECT id, bill_id FROM bill WHERE UPPER(bill_id) = UPPER(:bill_id) LIMIT 1"),
-                {'bill_id': bill_id}
-            ).first()
-            
-            if existing:
-                flash(f'Bill ID "{existing.bill_id}" already exists. Please use a different ID.', 'error')
-                return render_template('create_bill.html')
-            
-            # Create bill directly without enhancement features
-            bill = Bill()
-            bill.bill_id = bill_id
-            bill.description = ''
-            bill.parent_bag_count = parent_bag_count
-            bill.created_by_id = current_user.id
-            bill.status = 'new'
-            bill.expected_weight_kg = parent_bag_count * 30.0  # Initialize expected weight: 30kg per parent bag
-            bill.total_weight_kg = 0.0  # Initialize actual weight to 0
-            db.session.add(bill)
-            db.session.commit()
-            
-            app.logger.info(f'Bill created successfully: {bill_id} with {parent_bag_count} parent bags')
-            
-            # Send bill creation notification to admins
-            try:
-                from email_utils import EmailService
-                admin_users = User.query.filter_by(role='admin').all()
-                admin_emails = [u.email for u in admin_users if u.email]
-                
-                if admin_emails:
-                    sent, failed, errors = EmailService.send_bill_notification(
-                        bill_id=bill_id,
-                        parent_bags=parent_bag_count,
-                        created_by=current_user.username,  # type: ignore
-                        admin_emails=admin_emails
-                    )
-                    if failed > 0:
-                        app.logger.warning(f"Failed to send {failed} bill notifications: {errors}")
-            except Exception as e:
-                app.logger.warning(f"Bill notification email error: {str(e)}")
-            
+        form_bill_id = request.form.get('bill_id', '')
+        # CRITICAL: Sanitize scanner input to remove invisible characters
+        bill_id = sanitize_input(form_bill_id)
+        
+        # Additional debug logging to catch scanner issues
+        if form_bill_id != bill_id:
+            app.logger.info(f'Bill ID sanitized: "{form_bill_id}" -> "{bill_id}" (length {len(form_bill_id)} -> {len(bill_id)})')
+        
+        if not bill_id:
             if is_api:
-                return jsonify({
-                    'success': True,
-                    'message': f'Bill {bill_id} created successfully!',
-                    'bill_id': bill.bill_id,
-                    'bill_db_id': bill.id
-                })
-            
-            flash('Bill created successfully!', 'success')
-            
-            # Add debugging to check redirect
-            app.logger.info(f'Redirecting to scan_bill_parent with bill.id={bill.id}')
-            return redirect(url_for('scan_bill_parent', bill_id=bill.id))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash('Error creating bill. Please try again.', 'error')
-            app.logger.error(f'Bill creation error: {str(e)}')
+                return jsonify({'success': False, 'error': 'Bill ID is required.'}), 400
+            flash('Bill ID is required.', 'error')
             return render_template('create_bill.html')
+        
+        # Basic validation - just check if bill_id is not empty after sanitization
+        if len(bill_id) == 0:
+            if is_api:
+                return jsonify({'success': False, 'error': 'Bill ID cannot be empty.'}), 400
+            flash('Bill ID cannot be empty.', 'error')
+            return render_template('create_bill.html')
+        
+        parent_bag_count = request.form.get('parent_bag_count', 1, type=int)
+        
+        # FIX: Validate parent bag count with stricter limits and type checking
+        if not isinstance(parent_bag_count, int) or parent_bag_count < 1 or parent_bag_count > 500:
+            if is_api:
+                return jsonify({'success': False, 'error': 'Number of parent bags must be between 1 and 500.'}), 400
+            flash('Number of parent bags must be between 1 and 500.', 'error')
+            return render_template('create_bill.html')
+        
+        # ⚡ HIGH-LOAD FIX: Use INSERT with ON CONFLICT to handle race conditions
+        # This is atomic and prevents duplicate key errors under high load
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                # First check if bill exists (fast read)
+                existing = db.session.execute(
+                    text("SELECT id, bill_id FROM bill WHERE UPPER(bill_id) = UPPER(:bill_id) LIMIT 1"),
+                    {'bill_id': bill_id}
+                ).first()
+                
+                if existing:
+                    if is_api:
+                        return jsonify({'success': False, 'error': f'Bill ID "{existing.bill_id}" already exists. Please use a different ID.'}), 409
+                    flash(f'Bill ID "{existing.bill_id}" already exists. Please use a different ID.', 'error')
+                    return render_template('create_bill.html')
+                
+                # Create bill with explicit flush to catch IntegrityError early
+                bill = Bill()
+                bill.bill_id = bill_id
+                bill.description = ''
+                bill.parent_bag_count = parent_bag_count
+                bill.created_by_id = current_user.id
+                bill.status = 'new'
+                bill.expected_weight_kg = parent_bag_count * 30.0
+                bill.total_weight_kg = 0.0
+                db.session.add(bill)
+                db.session.flush()  # This will raise IntegrityError if duplicate
+                db.session.commit()
+                
+                app.logger.info(f'Bill created successfully: {bill_id} with {parent_bag_count} parent bags')
+                
+                # Send bill creation notification to admins (non-blocking)
+                try:
+                    from email_utils import EmailService
+                    admin_users = User.query.filter_by(role='admin').all()
+                    admin_emails = [u.email for u in admin_users if u.email]
+                    
+                    if admin_emails:
+                        sent, failed, errors = EmailService.send_bill_notification(
+                            bill_id=bill_id,
+                            parent_bags=parent_bag_count,
+                            created_by=current_user.username,
+                            admin_emails=admin_emails
+                        )
+                        if failed > 0:
+                            app.logger.warning(f"Failed to send {failed} bill notifications: {errors}")
+                except Exception as e:
+                    app.logger.warning(f"Bill notification email error: {str(e)}")
+                
+                if is_api:
+                    return jsonify({
+                        'success': True,
+                        'message': f'Bill {bill_id} created successfully!',
+                        'bill_id': bill.bill_id,
+                        'bill_db_id': bill.id
+                    })
+                
+                flash('Bill created successfully!', 'success')
+                app.logger.info(f'Redirecting to scan_bill_parent with bill.id={bill.id}')
+                return redirect(url_for('scan_bill_parent', bill_id=bill.id))
+                
+            except IntegrityError as e:
+                db.session.rollback()
+                retry_count += 1
+                
+                # Check if it's a duplicate key error
+                error_str = str(e).lower()
+                if 'duplicate key' in error_str or 'unique constraint' in error_str or 'bill_id' in error_str:
+                    app.logger.warning(f'Duplicate bill ID detected via IntegrityError: {bill_id}')
+                    if is_api:
+                        return jsonify({'success': False, 'error': f'Bill ID "{bill_id}" already exists. Please use a different ID.'}), 409
+                    flash(f'Bill ID "{bill_id}" already exists. Please use a different ID.', 'error')
+                    return render_template('create_bill.html')
+                
+                # For other integrity errors, retry or fail
+                if retry_count >= max_retries:
+                    app.logger.error(f'Bill creation IntegrityError after {max_retries} retries: {str(e)}')
+                    if is_api:
+                        return jsonify({'success': False, 'error': 'Database error. Please try again.'}), 500
+                    flash('Database error. Please try again.', 'error')
+                    return render_template('create_bill.html')
+                
+                # Brief pause before retry
+                import time
+                time.sleep(0.05 * retry_count)
+                
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f'Bill creation error: {str(e)}')
+                import traceback
+                app.logger.error(f'Bill creation traceback: {traceback.format_exc()}')
+                
+                if is_api:
+                    return jsonify({'success': False, 'error': 'Error creating bill. Please try again.'}), 500
+                flash('Error creating bill. Please try again.', 'error')
+                return render_template('create_bill.html')
     
     return render_template('create_bill.html')
 
