@@ -5246,13 +5246,13 @@ def view_bill(bill_id):
         child_bags_by_parent = {pid: [] for pid in parent_bag_ids}
         if parent_bag_ids:
             try:
-                child_result = db.session.execute(text("""
-                    SELECT l.parent_bag_id, cb.id as child_id
-                    FROM link l
-                    JOIN bag cb ON cb.id = l.child_bag_id
-                    WHERE l.parent_bag_id = ANY(:parent_ids)
-                    ORDER BY cb.created_at DESC
-                """), {'parent_ids': parent_bag_ids}).fetchall()
+                # Use ORM query instead of raw SQL with ANY() to avoid array parameter issues
+                from models import Link
+                child_result = db.session.query(Link.parent_bag_id, Bag.id).join(
+                    Bag, Bag.id == Link.child_bag_id
+                ).filter(
+                    Link.parent_bag_id.in_(parent_bag_ids)
+                ).order_by(Bag.created_at.desc()).all()
                 
                 # Collect child IDs per parent (limit 20 per parent for performance)
                 child_ids_per_parent = {}
