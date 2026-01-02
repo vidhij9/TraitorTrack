@@ -5203,140 +5203,119 @@ def finish_bill_scan(bill_id):
 @app.route('/bill/<int:bill_id>')
 @login_required  
 def view_bill(bill_id):
-    """Ultra-optimized bill view using single CTE query to eliminate N+1"""
-    from sqlalchemy import func
+    """Bill view with error handling, optimized queries, and fallback for reliability"""
+    from sqlalchemy.orm import joinedload
+    import traceback
     
-    bill = Bill.query.get_or_404(bill_id)
+    # First, get the bill - this is required
+    try:
+        bill = Bill.query.get_or_404(bill_id)
+    except Exception as e:
+        app.logger.error(f"view_bill: Failed to load bill {bill_id}: {str(e)}")
+        flash('Bill not found.', 'error')
+        return redirect(url_for('bill_management'))
     
-    # ULTRA-OPTIMIZED: Single CTE query to fetch all parent bags and their children in one roundtrip
-    result = db.session.execute(text("""
-        WITH parent_bags AS (
+    parent_bags = []
+    scans = []
+    ipt_return_events = []
+    parent_bag_ids = []
+    
+    try:
+        # STEP 1: Get parent bag IDs and child counts (single query)
+        parent_bag_result = db.session.execute(text("""
             SELECT 
-                b.id as parent_id,
-                b.qr_id,
-                b.name,
-                b.type,
-                b.dispatch_area,
-                b.created_at,
-                COUNT(l.child_bag_id) as child_count
+                b.id,
+                COALESCE((SELECT COUNT(*) FROM link l WHERE l.parent_bag_id = b.id), 0) as child_count
             FROM bag b
             JOIN bill_bag bb ON bb.bag_id = b.id
-            LEFT JOIN link l ON l.parent_bag_id = b.id
             WHERE bb.bill_id = :bill_id AND b.type = 'parent'
-            GROUP BY b.id, b.qr_id, b.name, b.type, b.dispatch_area, b.created_at
+            ORDER BY b.created_at DESC
             LIMIT 50
-        ),
-        all_children AS (
-            SELECT 
-                cb.id as child_id,
-                cb.qr_id as child_qr,
-                cb.name as child_name,
-                cb.created_at as child_created,
-                l.parent_bag_id
-            FROM link l
-            JOIN bag cb ON cb.id = l.child_bag_id
-            WHERE l.parent_bag_id IN (SELECT parent_id FROM parent_bags)
-            ORDER BY cb.created_at DESC
-        )
-        SELECT 
-            pb.parent_id,
-            pb.qr_id,
-            pb.name,
-            pb.dispatch_area,
-            pb.child_count,
-            COALESCE(
-                json_agg(
-                    json_build_object(
-                        'id', ac.child_id,
-                        'qr_id', ac.child_qr,
-                        'name', ac.child_name,
-                        'created_at', ac.child_created
-                    ) ORDER BY ac.child_created DESC
-                ) FILTER (WHERE ac.child_id IS NOT NULL),
-                '[]'::json
-            ) as children
-        FROM parent_bags pb
-        LEFT JOIN all_children ac ON ac.parent_bag_id = pb.parent_id
-        GROUP BY pb.parent_id, pb.qr_id, pb.name, pb.dispatch_area, pb.child_count
-    """), {'bill_id': bill_id}).fetchall()
-    
-    # Parse results into format expected by template - ZERO additional queries
-    parent_bags = []
-    parent_bag_ids = []
-    all_bag_ids = []
-    import json
-    
-    # Collect all bag IDs (both parent and child) for single bulk fetch
-    for row in result:
-        parent_id = row[0]
-        children_json = row[5]
-        all_bag_ids.append(parent_id)
-        parent_bag_ids.append(parent_id)
+        """), {'bill_id': bill_id}).fetchall()
         
-        if children_json:
-            # Handle both JSON strings and pre-parsed lists from psycopg2
-            if isinstance(children_json, str):
-                children_data = json.loads(children_json)
-            else:
-                children_data = children_json
-            if children_data:
-                child_ids = [c['id'] for c in children_data if c and c.get('id')]
-                all_bag_ids.extend(child_ids)
-    
-    # SINGLE BULK FETCH: Load all Bag objects in one query
-    bag_objects_dict = {}
-    if all_bag_ids:
-        bag_objects = Bag.query.filter(Bag.id.in_(all_bag_ids)).all()
-        bag_objects_dict = {bag.id: bag for bag in bag_objects}
-    
-    # Build parent_bags using pre-fetched objects
-    for row in result:
-        parent_id, qr_id, name, dispatch_area, child_count, children_json = row
+        parent_bag_ids = [row[0] for row in parent_bag_result]
+        child_count_map = {row[0]: row[1] for row in parent_bag_result}
         
-        parent_bag_obj = bag_objects_dict.get(parent_id)
-        if not parent_bag_obj:
-            continue
+        # STEP 2: Bulk fetch all parent bag objects (avoids N+1)
+        parent_bag_objects = {}
+        if parent_bag_ids:
+            parent_bags_query = Bag.query.filter(Bag.id.in_(parent_bag_ids)).all()
+            parent_bag_objects = {bag.id: bag for bag in parent_bags_query}
         
-        # Parse children JSON and fetch from pre-loaded dict (handle both strings and pre-parsed lists)
-        if children_json:
-            if isinstance(children_json, str):
-                children_data = json.loads(children_json)
-            else:
-                children_data = children_json
-        else:
-            children_data = []
+        # STEP 3: Get child bags for each parent (limited, single query)
+        child_bags_by_parent = {pid: [] for pid in parent_bag_ids}
+        if parent_bag_ids:
+            try:
+                child_result = db.session.execute(text("""
+                    SELECT l.parent_bag_id, cb.id as child_id
+                    FROM link l
+                    JOIN bag cb ON cb.id = l.child_bag_id
+                    WHERE l.parent_bag_id = ANY(:parent_ids)
+                    ORDER BY cb.created_at DESC
+                """), {'parent_ids': parent_bag_ids}).fetchall()
+                
+                # Collect child IDs per parent (limit 20 per parent for performance)
+                child_ids_per_parent = {}
+                for row in child_result:
+                    parent_id, child_id = row
+                    if parent_id not in child_ids_per_parent:
+                        child_ids_per_parent[parent_id] = []
+                    if len(child_ids_per_parent[parent_id]) < 20:
+                        child_ids_per_parent[parent_id].append(child_id)
+                
+                # Bulk fetch all child bags
+                all_child_ids = [cid for cids in child_ids_per_parent.values() for cid in cids]
+                if all_child_ids:
+                    child_bag_objects = Bag.query.filter(Bag.id.in_(all_child_ids)).all()
+                    child_bag_map = {bag.id: bag for bag in child_bag_objects}
+                    
+                    # Map children to parents
+                    for parent_id, child_ids in child_ids_per_parent.items():
+                        child_bags_by_parent[parent_id] = [
+                            child_bag_map[cid] for cid in child_ids if cid in child_bag_map
+                        ]
+            except Exception as child_error:
+                app.logger.warning(f"view_bill: Failed to load child bags: {str(child_error)}")
         
-        child_bags = []
-        if children_data:
-            for c in children_data:
-                if c and c.get('id'):
-                    child_bag = bag_objects_dict.get(c['id'])
-                    if child_bag:
-                        child_bags.append(child_bag)
+        # STEP 4: Build parent_bags list for template
+        for parent_id in parent_bag_ids:
+            parent_bag_obj = parent_bag_objects.get(parent_id)
+            if parent_bag_obj:
+                parent_bags.append({
+                    'parent_bag': parent_bag_obj,
+                    'child_count': child_count_map.get(parent_id, 0),
+                    'child_bags': child_bags_by_parent.get(parent_id, [])
+                })
         
-        parent_bags.append({
-            'parent_bag': parent_bag_obj,
-            'child_count': child_count or 0,
-            'child_bags': child_bags
-        })
-    
-    # Get limited scan history with eager loading in single query
-    from sqlalchemy.orm import joinedload
-    scans = []
-    if parent_bag_ids:
-        scans = Scan.query.options(joinedload(Scan.user)).filter(  # type: ignore[arg-type]
-            Scan.parent_bag_id.in_(parent_bag_ids)
-        ).order_by(desc(Scan.timestamp)).limit(100).all()
-    
-    # Get IPT return events for this bill (bags removed via IPT)
-    from models import BillReturnEvent, ReturnTicket
-    ipt_return_events = BillReturnEvent.query.options(
-        joinedload(BillReturnEvent.return_ticket),  # type: ignore[arg-type]
-        joinedload(BillReturnEvent.bag),  # type: ignore[arg-type]
-        joinedload(BillReturnEvent.removed_by)  # type: ignore[arg-type]
-    ).filter(
-        BillReturnEvent.bill_id == bill_id
-    ).order_by(desc(BillReturnEvent.removed_at)).limit(50).all()
+        # STEP 5: Get limited scan history
+        if parent_bag_ids:
+            try:
+                scans = Scan.query.options(joinedload(Scan.user)).filter(
+                    Scan.parent_bag_id.in_(parent_bag_ids)
+                ).order_by(desc(Scan.timestamp)).limit(50).all()
+            except Exception as scan_error:
+                app.logger.warning(f"view_bill: Failed to load scans: {str(scan_error)}")
+                scans = []
+        
+        # STEP 6: Get IPT return events
+        try:
+            from models import BillReturnEvent
+            ipt_return_events = BillReturnEvent.query.options(
+                joinedload(BillReturnEvent.return_ticket),
+                joinedload(BillReturnEvent.bag),
+                joinedload(BillReturnEvent.removed_by)
+            ).filter(
+                BillReturnEvent.bill_id == bill_id
+            ).order_by(desc(BillReturnEvent.removed_at)).limit(50).all()
+        except Exception as ipt_error:
+            app.logger.warning(f"view_bill: Failed to load IPT events: {str(ipt_error)}")
+            ipt_return_events = []
+            
+    except Exception as e:
+        # Log the error but still render the page with minimal data
+        app.logger.error(f"view_bill: Error loading bill data for {bill_id}: {str(e)}")
+        app.logger.error(f"view_bill traceback: {traceback.format_exc()}")
+        flash('Some bill details could not be loaded.', 'warning')
     
     return render_template('view_bill.html', 
                          bill=bill, 
@@ -5344,7 +5323,7 @@ def view_bill(bill_id):
                          child_bags=[],
                          scans=scans or [],
                          bag_links_count=len(parent_bags),
-                         ipt_return_events=ipt_return_events)
+                         ipt_return_events=ipt_return_events or [])
 
 @app.route('/bill/<int:bill_id>/edit', methods=['GET', 'POST'])
 @login_required
