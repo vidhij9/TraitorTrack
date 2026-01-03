@@ -1804,6 +1804,48 @@ def admin_system_integrity():
         flash('Error generating system integrity report.', 'error')
         return redirect(url_for('dashboard'))
 
+@app.route('/admin/debug/db-indexes')
+@login_required
+def admin_debug_db_indexes():
+    """Check critical database indexes for bill viewing performance (admin only)"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        from sqlalchemy import text
+        
+        # Required indexes for bill viewing
+        required = [
+            ('link', 'child_bag_id'),
+            ('link', 'parent_bag_id'),
+            ('bill_bag', 'bill_id'),
+            ('bill_bag', 'bag_id'),
+        ]
+        
+        # Check each required index
+        results = []
+        all_ok = True
+        for table, column in required:
+            check = db.session.execute(text("""
+                SELECT indexname FROM pg_indexes 
+                WHERE tablename = :table 
+                AND indexdef LIKE :pattern
+                LIMIT 1
+            """), {'table': table, 'pattern': f'%({column})%'}).fetchone()
+            
+            exists = check is not None
+            if not exists:
+                all_ok = False
+            results.append({'table': table, 'column': column, 'indexed': exists})
+        
+        return jsonify({
+            'status': 'ok' if all_ok else 'missing',
+            'indexes': results
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/seed_sample_data')
 @login_required
 def seed_sample_data():
@@ -5203,15 +5245,22 @@ def finish_bill_scan(bill_id):
 @app.route('/bill/<int:bill_id>')
 @login_required  
 def view_bill(bill_id):
-    """Bill view with error handling, optimized queries, and fallback for reliability"""
+    """Bill view with error handling and graceful fallback"""
     from sqlalchemy.orm import joinedload
     import traceback
+    import time
+    
+    start_time = time.time()
+    step_timings = {}
     
     # First, get the bill - this is required
     try:
+        step_start = time.time()
         bill = Bill.query.get_or_404(bill_id)
+        step_timings['bill_load'] = time.time() - step_start
     except Exception as e:
         app.logger.error(f"view_bill: Failed to load bill {bill_id}: {str(e)}")
+        app.logger.error(f"view_bill traceback: {traceback.format_exc()}")
         flash('Bill not found.', 'error')
         return redirect(url_for('bill_management'))
     
@@ -5219,9 +5268,11 @@ def view_bill(bill_id):
     scans = []
     ipt_return_events = []
     parent_bag_ids = []
+    errors_occurred = []
     
+    # STEP 1: Get parent bag IDs and child counts (single query with timeout)
     try:
-        # STEP 1: Get parent bag IDs and child counts (single query)
+        step_start = time.time()
         parent_bag_result = db.session.execute(text("""
             SELECT 
                 b.id,
@@ -5235,87 +5286,111 @@ def view_bill(bill_id):
         
         parent_bag_ids = [row[0] for row in parent_bag_result]
         child_count_map = {row[0]: row[1] for row in parent_bag_result}
-        
-        # STEP 2: Bulk fetch all parent bag objects (avoids N+1)
-        parent_bag_objects = {}
-        if parent_bag_ids:
+        step_timings['step1_parent_ids'] = time.time() - step_start
+    except Exception as e:
+        errors_occurred.append(f"Step1 parent_ids: {str(e)}")
+        app.logger.error(f"view_bill STEP1 ERROR: {str(e)}")
+        app.logger.error(f"view_bill STEP1 traceback: {traceback.format_exc()}")
+        child_count_map = {}
+    
+    # STEP 2: Bulk fetch all parent bag objects (avoids N+1)
+    parent_bag_objects = {}
+    if parent_bag_ids:
+        try:
+            step_start = time.time()
             parent_bags_query = Bag.query.filter(Bag.id.in_(parent_bag_ids)).all()
             parent_bag_objects = {bag.id: bag for bag in parent_bags_query}
-        
-        # STEP 3: Get child bags for each parent (limited, single query)
-        child_bags_by_parent = {pid: [] for pid in parent_bag_ids}
-        if parent_bag_ids:
-            try:
-                # Use ORM query instead of raw SQL with ANY() to avoid array parameter issues
-                from models import Link
-                child_result = db.session.query(Link.parent_bag_id, Bag.id).join(
-                    Bag, Bag.id == Link.child_bag_id
-                ).filter(
-                    Link.parent_bag_id.in_(parent_bag_ids)
-                ).order_by(Bag.created_at.desc()).all()
-                
-                # Collect child IDs per parent (limit 20 per parent for performance)
-                child_ids_per_parent = {}
-                for row in child_result:
-                    parent_id, child_id = row
-                    if parent_id not in child_ids_per_parent:
-                        child_ids_per_parent[parent_id] = []
-                    if len(child_ids_per_parent[parent_id]) < 20:
-                        child_ids_per_parent[parent_id].append(child_id)
-                
-                # Bulk fetch all child bags
-                all_child_ids = [cid for cids in child_ids_per_parent.values() for cid in cids]
-                if all_child_ids:
-                    child_bag_objects = Bag.query.filter(Bag.id.in_(all_child_ids)).all()
-                    child_bag_map = {bag.id: bag for bag in child_bag_objects}
-                    
-                    # Map children to parents
-                    for parent_id, child_ids in child_ids_per_parent.items():
-                        child_bags_by_parent[parent_id] = [
-                            child_bag_map[cid] for cid in child_ids if cid in child_bag_map
-                        ]
-            except Exception as child_error:
-                app.logger.warning(f"view_bill: Failed to load child bags: {str(child_error)}")
-        
-        # STEP 4: Build parent_bags list for template
-        for parent_id in parent_bag_ids:
-            parent_bag_obj = parent_bag_objects.get(parent_id)
-            if parent_bag_obj:
-                parent_bags.append({
-                    'parent_bag': parent_bag_obj,
-                    'child_count': child_count_map.get(parent_id, 0),
-                    'child_bags': child_bags_by_parent.get(parent_id, [])
-                })
-        
-        # STEP 5: Get limited scan history
-        if parent_bag_ids:
-            try:
-                scans = Scan.query.options(joinedload(Scan.user)).filter(
-                    Scan.parent_bag_id.in_(parent_bag_ids)
-                ).order_by(desc(Scan.timestamp)).limit(50).all()
-            except Exception as scan_error:
-                app.logger.warning(f"view_bill: Failed to load scans: {str(scan_error)}")
-                scans = []
-        
-        # STEP 6: Get IPT return events
+            step_timings['step2_parent_objects'] = time.time() - step_start
+        except Exception as e:
+            errors_occurred.append(f"Step2 parent_objects: {str(e)}")
+            app.logger.error(f"view_bill STEP2 ERROR: {str(e)}")
+    
+    # STEP 3: Get child bags for each parent (limited, single query)
+    child_bags_by_parent = {pid: [] for pid in parent_bag_ids}
+    if parent_bag_ids:
         try:
-            from models import BillReturnEvent
-            ipt_return_events = BillReturnEvent.query.options(
-                joinedload(BillReturnEvent.return_ticket),
-                joinedload(BillReturnEvent.bag),
-                joinedload(BillReturnEvent.removed_by)
+            step_start = time.time()
+            from models import Link
+            child_result = db.session.query(Link.parent_bag_id, Bag.id).join(
+                Bag, Bag.id == Link.child_bag_id
             ).filter(
-                BillReturnEvent.bill_id == bill_id
-            ).order_by(desc(BillReturnEvent.removed_at)).limit(50).all()
-        except Exception as ipt_error:
-            app.logger.warning(f"view_bill: Failed to load IPT events: {str(ipt_error)}")
-            ipt_return_events = []
+                Link.parent_bag_id.in_(parent_bag_ids)
+            ).order_by(Bag.created_at.desc()).all()
             
-    except Exception as e:
-        # Log the error but still render the page with minimal data
-        app.logger.error(f"view_bill: Error loading bill data for {bill_id}: {str(e)}")
-        app.logger.error(f"view_bill traceback: {traceback.format_exc()}")
-        flash('Some bill details could not be loaded.', 'warning')
+            # Collect child IDs per parent (limit 20 per parent for performance)
+            child_ids_per_parent = {}
+            for row in child_result:
+                parent_id, child_id = row
+                if parent_id not in child_ids_per_parent:
+                    child_ids_per_parent[parent_id] = []
+                if len(child_ids_per_parent[parent_id]) < 20:
+                    child_ids_per_parent[parent_id].append(child_id)
+            
+            # Bulk fetch all child bags
+            all_child_ids = [cid for cids in child_ids_per_parent.values() for cid in cids]
+            if all_child_ids:
+                child_bag_objects = Bag.query.filter(Bag.id.in_(all_child_ids)).all()
+                child_bag_map = {bag.id: bag for bag in child_bag_objects}
+                
+                # Map children to parents
+                for parent_id, child_ids in child_ids_per_parent.items():
+                    child_bags_by_parent[parent_id] = [
+                        child_bag_map[cid] for cid in child_ids if cid in child_bag_map
+                    ]
+            step_timings['step3_child_bags'] = time.time() - step_start
+        except Exception as child_error:
+            errors_occurred.append(f"Step3 child_bags: {str(child_error)}")
+            app.logger.warning(f"view_bill STEP3 ERROR: {str(child_error)}")
+    
+    # STEP 4: Build parent_bags list for template
+    for parent_id in parent_bag_ids:
+        parent_bag_obj = parent_bag_objects.get(parent_id)
+        if parent_bag_obj:
+            parent_bags.append({
+                'parent_bag': parent_bag_obj,
+                'child_count': child_count_map.get(parent_id, 0),
+                'child_bags': child_bags_by_parent.get(parent_id, [])
+            })
+    
+    # STEP 5: Get limited scan history
+    if parent_bag_ids:
+        try:
+            step_start = time.time()
+            scans = Scan.query.options(joinedload(Scan.user)).filter(
+                Scan.parent_bag_id.in_(parent_bag_ids)
+            ).order_by(desc(Scan.timestamp)).limit(50).all()
+            step_timings['step5_scans'] = time.time() - step_start
+        except Exception as scan_error:
+            errors_occurred.append(f"Step5 scans: {str(scan_error)}")
+            app.logger.warning(f"view_bill STEP5 ERROR: {str(scan_error)}")
+            scans = []
+    
+    # STEP 6: Get IPT return events
+    try:
+        step_start = time.time()
+        from models import BillReturnEvent
+        ipt_return_events = BillReturnEvent.query.options(
+            joinedload(BillReturnEvent.return_ticket),
+            joinedload(BillReturnEvent.bag),
+            joinedload(BillReturnEvent.removed_by)
+        ).filter(
+            BillReturnEvent.bill_id == bill_id
+        ).order_by(desc(BillReturnEvent.removed_at)).limit(50).all()
+        step_timings['step6_ipt'] = time.time() - step_start
+    except Exception as ipt_error:
+        errors_occurred.append(f"Step6 ipt_events: {str(ipt_error)}")
+        app.logger.warning(f"view_bill STEP6 ERROR: {str(ipt_error)}")
+        ipt_return_events = []
+    
+    # Log only errors and slow requests to avoid log overhead
+    total_time = time.time() - start_time
+    
+    if errors_occurred:
+        app.logger.error(f"view_bill {bill_id} errors: {errors_occurred}")
+        flash('Some bill details could not be loaded. Please try again.', 'warning')
+    
+    if total_time > 5.0:
+        app.logger.warning(f"view_bill {bill_id}: SLOW REQUEST {total_time:.3f}s - timings: {step_timings}")
     
     return render_template('view_bill.html', 
                          bill=bill, 
