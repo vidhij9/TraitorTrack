@@ -114,7 +114,7 @@
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
                                         <span class="badge bg-primary me-1">Parent</span>
-                                        <span class="fw-bold">{{ parent_bag_data.parent_bag.qr_id }}</span>
+                                        <span class="fw-bold">{{ parent_bag_data.parent_bag.qr_id if parent_bag_data.parent_bag else 'N/A' }}</span>
                                     </div>
                                     <span class="badge {% if parent_bag_data.child_count > 0 %}bg-info{% else %}bg-warning{% endif %} fs-6">
                                         {{ parent_bag_data.child_count }} children
@@ -162,14 +162,14 @@
                                         <tr>
                                             <td>
                                                 <span class="badge bg-primary me-1">Parent</span>
-                                                <span class="fw-bold">{{ parent_bag_data.parent_bag.qr_id }}</span>
+                                                <span class="fw-bold">{{ parent_bag_data.parent_bag.qr_id if parent_bag_data.parent_bag else 'N/A' }}</span>
                                             </td>
                                             <td>
                                                 <span class="badge {% if parent_bag_data.child_count > 0 %}bg-info{% else %}bg-warning{% endif %}">
                                                     {{ parent_bag_data.child_count }}
                                                 </span>
                                             </td>
-                                            <td>{{ parent_bag_data.parent_bag.created_at.strftime('%m/%d %H:%M') }}</td>
+                                            <td>{{ parent_bag_data.parent_bag.created_at.strftime('%m/%d %H:%M') if parent_bag_data.parent_bag and parent_bag_data.parent_bag.created_at else '-' }}</td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
                                                     <button type="button" class="btn btn-outline-info" data-bs-toggle="collapse" data-bs-target="#children-{{ loop.index }}">
