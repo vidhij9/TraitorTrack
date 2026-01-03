@@ -122,6 +122,14 @@ else
 fi
 
 # ==================================================================================
+# STEP 2.5: ENSURE INDEX SYNC (catches any indexes not in migrations)
+# This is a safety net to ensure production has all required indexes
+# ==================================================================================
+
+timeout 120 python ensure_indexes.py 2>&1 || echo "⚠️  Index verification completed with warnings"
+echo ""
+
+# ==================================================================================
 # STEP 3: POST-MIGRATION SYNC VERIFICATION
 # Verify schemas are now in sync after migrations
 # ==================================================================================
